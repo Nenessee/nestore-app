@@ -670,24 +670,40 @@
   }
 
   function startInventaireScan() {
-    getAudioCtx(); // initialiser sur geste utilisateur
+    getAudioCtx();
     const reader = document.getElementById('invReader');
     const status = document.getElementById('invStatus');
     const btn = document.getElementById('invScanBtn');
     reader.style.display = 'block';
     status.style.display = 'block';
+    status.textContent = 'Démarrage...';
     btn.textContent = '⏹ Arrêter';
     btn.style.background = '#A32D2D';
     invScanning = true;
-    invScanner = new Html5Qrcode('invReader');
+
+    // Activer tous les formats 1D + QR
+    const formats = [
+      Html5QrcodeSupportedFormats.EAN_13,
+      Html5QrcodeSupportedFormats.EAN_8,
+      Html5QrcodeSupportedFormats.CODE_128,
+      Html5QrcodeSupportedFormats.CODE_39,
+      Html5QrcodeSupportedFormats.UPC_A,
+      Html5QrcodeSupportedFormats.UPC_E,
+      Html5QrcodeSupportedFormats.QR_CODE,
+      Html5QrcodeSupportedFormats.ITF,
+    ];
+
+    invScanner = new Html5Qrcode('invReader', { formatsToSupport: formats, verbose: false });
     invScanner.start(
       { facingMode: 'environment' },
       {
         fps: 15,
-        qrbox: (w, h) => ({ width: Math.min(w * 0.9, 500), height: Math.min(h * 0.4, 180) }),
-        aspectRatio: 1.7,
-        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-        rememberLastUsedCamera: true
+        qrbox: (w, h) => ({
+          width: Math.round(w * 0.92),
+          height: Math.round(h * 0.35)
+        }),
+        aspectRatio: 16/9,
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
       },
       async (barcode) => {
         if (invScanned.has(barcode)) {
@@ -702,16 +718,24 @@
         await cochreArticle(barcode);
       },
       () => {}
-    ).catch(() => { showToast('Impossible d\'accéder à la caméra', 'error'); stopInventaireScan(); });
+    ).then(() => {
+      status.textContent = 'Pointe sur un code-barres...';
+    }).catch(() => {
+      showToast('Impossible d\'accéder à la caméra', 'error');
+      stopInventaireScan();
+    });
   }
 
   function stopInventaireScan() {
+    invScanning = false;
     const btn = document.getElementById('invScanBtn');
     const reader = document.getElementById('invReader');
     if (btn) { btn.textContent = '▶ Démarrer la caméra'; btn.style.background = '#2C2C2A'; }
-    invScanning = false;
     if (invScanner) {
-      invScanner.stop().catch(() => {}).finally(() => { invScanner.clear(); invScanner = null; if (reader) reader.style.display = 'none'; });
+      invScanner.stop().catch(() => {}).finally(() => {
+        if (invScanner) { try { invScanner.clear(); } catch(e) {} invScanner = null; }
+        if (reader) reader.style.display = 'none';
+      });
     } else if (reader) { reader.style.display = 'none'; }
   }
 
