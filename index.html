@@ -234,8 +234,9 @@
 
     <div class="form-row">
       <div style="flex:1;">
-        <label class="form-label">Nettoyeur *</label>
-        <select id="cleanEmployee" class="form-input" style="appearance:none;">
+        <label class="form-label">Nettoyeur</label>
+        <div id="cleanEmployeeDisplay" style="padding:10px 12px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:10px;font-size:14px;color:#1a1a18;margin-bottom:10px;">—</div>
+        <select id="cleanEmployee" class="form-input" style="appearance:none;display:none;">
           <option value="">— Sélectionner —</option>
         </select>
       </div>
@@ -891,11 +892,16 @@
   function applyEmployee(employee) {
     currentEmployee = employee;
     if (!employee || employee === 'admin') return;
-    // Pré-sélectionner l'employé dans tous les selects
     ;['employeeSelect', 'purchaseEmployee', 'cleanEmployee'].forEach(id => {
       const sel = document.getElementById(id);
-      if (sel) sel.value = employee;
+      if (!sel) return;
+      sel.value = employee;
+      sel.disabled = true;
+      sel.style.opacity = '0.6';
     });
+    // Afficher le nom dans le display nettoyeur
+    const disp = document.getElementById('cleanEmployeeDisplay');
+    if (disp) disp.textContent = employee;
     // Afficher le nom dans le header
     const subtitle = document.querySelector('.subtitle');
     if (subtitle && currentBoutique !== 'admin') {
