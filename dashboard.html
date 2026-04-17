@@ -461,14 +461,6 @@ function switchDashBoutique(boutique, btn) {
 }
 
 // Afficher le switcher si admin, sinon juste label boutique
-document.addEventListener('DOMContentLoaded', () => {
-  if (DASH_BOUTIQUE === 'admin') {
-    const sw = document.getElementById('boutiqueSwitch');
-    sw.style.display = 'flex';
-  } else {
-    document.getElementById('dashTitle').textContent = `Nestore — Dashboard ${DASH_BOUTIQUE}`;
-  }
-});
 let currentPeriod = 7;
 let customDateFrom = null;
 let customDateTo = null;
@@ -485,11 +477,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const sevenDaysAgo = new Date(Date.now() - 6*86400000).toISOString().split('T')[0];
   document.getElementById('dateFrom').value = sevenDaysAgo;
   document.getElementById('dateTo').value = today;
-  if (DASH_BOUTIQUE === 'admin') {
-    document.getElementById('boutiqueSwitch').style.display = 'flex';
-  } else {
-    document.getElementById('dashTitle').textContent = `Nestore — Dashboard ${DASH_BOUTIQUE}`;
-  }
 });
 
 function setPeriod(days, btn) {
@@ -1435,6 +1422,11 @@ function initDashboard(boutique, employee) {
   localStorage.setItem('nv_session', JSON.stringify({auth:true, boutique, employee: employee||null}));
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('dashApp').style.display = 'block';
+  // Masquer les filtres boutique pour les non-admins
+  ['stockBoutiqueFilter','cmdBoutiqueFilter','cleanBoutiqueFilter','cleanEmployeeFilter'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && boutique !== 'admin') el.style.display = 'none';
+  });
   if (boutique === 'admin') {
     const sw = document.getElementById('boutiqueSwitch');
     sw.style.display = 'flex';
