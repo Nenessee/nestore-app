@@ -180,7 +180,7 @@ tr:hover td{background:#fafaf8;}
     </div>
     <div style="overflow-x:auto;">
       <table>
-        <thead><tr><th>Article</th><th>Marque</th><th>Prix</th><th>Canal</th><th>Employé</th><th>Date & heure</th></tr></thead>
+        <thead><tr><th>Article</th><th>Marque</th><th>Code-barres</th><th>Prix</th><th>Canal</th><th>Employé</th><th>Date & heure</th></tr></thead>
         <tbody id="salesTable"><tr><td colspan="6" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
       </table>
     </div>
@@ -471,7 +471,14 @@ function renderSalesTable(data) {
     const img = s.image_url?`<img src="${s.image_url}" class="product-img"/>`:`<span class="no-img">👕</span>`;
     const date = new Date(s.sold_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
     const initials = s.employee?s.employee.substring(0,2).toUpperCase():'?';
-    return `<tr><td style="display:flex;align-items:center;gap:8px;">${img}<span>${s.product_name}</span></td><td style="color:#888780;font-size:12px;">${s.brand||'—'}</td><td style="font-weight:600;">${parseFloat(s.price).toFixed(2)} €</td><td>${channelBadge(s.boutique)}</td><td><span class="avatar">${initials}</span>${s.employee}</td><td style="color:#888780;">${date}</td></tr>`;
+    const storeName = 'nestore-io';
+    const barcodeHtml = s.barcode
+      ? `<span style="font-family:monospace;font-size:11px;background:#f1efe8;padding:2px 6px;border-radius:4px;">${s.barcode}</span>`
+      : '<span style="color:#b4b2a9;font-size:12px;">—</span>';
+    const shopifyLink = s.barcode && s.boutique !== 'Site web' && s.boutique !== 'Vinted'
+      ? `<a href="https://admin.shopify.com/store/${storeName}/products?query=${s.barcode}" target="_blank" style="font-size:11px;padding:2px 7px;border:0.5px solid #d3d1c7;border-radius:5px;background:#fff;color:#1a1a18;text-decoration:none;white-space:nowrap;">↗ Shopify</a>`
+      : '';
+    return `<tr><td style="display:flex;align-items:center;gap:8px;">${img}<span>${s.product_name}</span></td><td style="color:#888780;font-size:12px;">${s.brand||'—'}</td><td style="display:flex;gap:4px;align-items:center;">${barcodeHtml}${shopifyLink}</td><td style="font-weight:600;">${parseFloat(s.price).toFixed(2)} €</td><td>${channelBadge(s.boutique)}</td><td><span class="avatar">${initials}</span>${s.employee}</td><td style="color:#888780;">${date}</td></tr>`;
   }).join('');
 }
 
