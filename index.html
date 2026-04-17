@@ -103,7 +103,7 @@
       <div class="title">Nestore</div>
       <div class="subtitle">Synchronisation Shopify</div>
     </div>
-    <a id="dashLink" href="dashboard.html" style="padding:7px 12px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:8px;font-size:12px;color:#2C2C2A;text-decoration:none;font-weight:500;display:none;">Dashboard →</a>
+    <a id="dashLink" href="dashboard.html" style="padding:7px 12px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:8px;font-size:12px;color:#2C2C2A;text-decoration:none;font-weight:500;display:none;" onclick="this.href='dashboard.html?b='+(currentBoutique||'admin')">Dashboard →</a>
     <button onclick="logoutApp()" style="padding:7px 12px;background:#FCEBEB;border:0.5px solid #f7c1c1;border-radius:8px;font-size:12px;color:#A32D2D;cursor:pointer;font-weight:500;">Déconnexion</button>
   </div>
 
@@ -660,10 +660,11 @@
 
   async function loadTodaySales() {
     try {
-      const res = await fetch(`${BACKEND_URL}/analytics/recent?limit=15`);
+      const res = await fetch(`${BACKEND_URL}/analytics/recent?limit=50`);
       const sales = await res.json();
       if (!Array.isArray(sales) || sales.length === 0) return;
-      for (const s of [...sales].reverse()) {
+      const filtered = sales.filter(s => !currentBoutique || currentBoutique === 'admin' || s.boutique === currentBoutique);
+      for (const s of [...filtered].slice(0, 15).reverse()) {
         addToHistory({
           name: s.product_name,
           barcode: s.barcode,
@@ -860,9 +861,9 @@
       if (cleanBoutique) { cleanBoutique.disabled = false; cleanBoutique.style.opacity = '1'; }
     }
 
-    // Afficher/masquer lien Dashboard (admin seulement)
+    // Afficher le Dashboard pour tous
     const dashLink = document.getElementById('dashLink');
-    if (dashLink) dashLink.style.display = isAdmin ? 'inline-block' : 'none';
+    if (dashLink) dashLink.style.display = 'inline-block';
 
     // Ajouter onglet commandes web
     const tabsEl = document.querySelector('.tabs');

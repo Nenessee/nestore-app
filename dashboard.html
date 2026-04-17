@@ -81,6 +81,7 @@ tr:hover td{background:#fafaf8;}
 .login-box h1{text-align:center;font-size:18px;font-weight:600;margin-bottom:6px;}
 .login-box p{text-align:center;font-size:13px;color:#888780;margin-bottom:1.5rem;}
 .login-box input{width:100%;padding:12px;border:0.5px solid #d3d1c7;border-radius:10px;font-size:15px;background:#f5f5f3;color:#1a1a18;margin-bottom:10px;}
+.active-boutique{background:rgba(255,255,255,0.3)!important;font-weight:600!important;}
 .login-box button{width:100%;padding:13px;background:#2C2C2A;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;}
 .login-error{color:#A32D2D;font-size:13px;text-align:center;margin-top:10px;display:none;}
 </style>
@@ -103,9 +104,14 @@ tr:hover td{background:#fafaf8;}
 <div class="topbar">
   <div class="topbar-left">
     <div class="logo">NV</div>
-    <span style="font-size:16px;font-weight:600;">Nestore — Dashboard</span>
+    <span style="font-size:16px;font-weight:600;" id="dashTitle">Nestore — Dashboard</span>
   </div>
   <div class="topbar-right">
+    <div id="boutiqueSwitch" style="display:none;gap:4px;display:none;">
+      <button onclick="switchDashBoutique('admin',this)" class="btn active-boutique" style="font-size:12px;">Tout</button>
+      <button onclick="switchDashBoutique('Lille',this)" class="btn" style="font-size:12px;">Lille</button>
+      <button onclick="switchDashBoutique('DK',this)" class="btn" style="font-size:12px;">DK</button>
+    </div>
     <a class="btn btn-green" href="#" onclick="exportCSV();return false;">CSV</a>
     <a class="btn" href="index.html">App caisse</a>
     <a class="btn" href="#" onclick="logout()" style="background:#A32D2D;border-color:#A32D2D;">Déconnexion</a>
@@ -346,6 +352,29 @@ tr:hover td{background:#fafaf8;}
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
+const urlParams = new URLSearchParams(window.location.search);
+let DASH_BOUTIQUE = urlParams.get('b') || 'admin';
+
+function switchDashBoutique(boutique, btn) {
+  DASH_BOUTIQUE = boutique;
+  document.querySelectorAll('#boutiqueSwitch button').forEach(b => b.classList.remove('active-boutique'));
+  btn.classList.add('active-boutique');
+  const label = boutique === 'admin' ? 'Toutes boutiques' : `Boutique ${boutique}`;
+  document.getElementById('dashTitle').textContent = `Nestore — Dashboard — ${label}`;
+  // Recharger l'onglet actif
+  const activeTab = document.querySelector('.tab.active');
+  if (activeTab) activeTab.click();
+}
+
+// Afficher le switcher si admin, sinon juste label boutique
+document.addEventListener('DOMContentLoaded', () => {
+  if (DASH_BOUTIQUE === 'admin') {
+    const sw = document.getElementById('boutiqueSwitch');
+    sw.style.display = 'flex';
+  } else {
+    document.getElementById('dashTitle').textContent = `Nestore — Dashboard ${DASH_BOUTIQUE}`;
+  }
+});
 let currentPeriod = 7;
 let charts = {};
 let allSalesData = [];
@@ -373,10 +402,11 @@ function setPeriod(days, btn) {
 }
 
 async function api(path) {
-  const res = await fetch(`${BACKEND_URL}${path}`);
+  const sep = path.includes('?') ? '&' : '?';
+  const boutiqueParam = DASH_BOUTIQUE !== 'admin' ? `${sep}boutique=${DASH_BOUTIQUE}` : '';
+  const res = await fetch(`${BACKEND_URL}${path}${boutiqueParam}`);
   return res.json();
 }
-
 function fmt(n) { return parseFloat(n).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'; }
 
 function trendHtml(current, previous) {
@@ -861,7 +891,7 @@ function filterRachats() {
 </div><!-- fin dashApp -->
 
 <script>
-const DASH_PWD = 'yiachi3933';
+const DASH_PWD = 'Hyperx3933';
 function logout() {
   localStorage.removeItem('nv_dash_auth');
   document.getElementById('dashApp').style.display = 'none';
