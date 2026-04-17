@@ -923,7 +923,7 @@
     const employees = EMPLOYEES[boutique] || [];
     document.getElementById('employeeBtns').innerHTML = employees.map(e =>
       `<button onclick="connectEmployee('${e}', '${boutique}')"
-        style="padding:12px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:10px;font-size:15px;font-weight:500;cursor:pointer;width:100%;">
+        style="padding:12px;background:#fff;border:0.5px solid #d3d1c7;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;width:100%;color:#1a1a18;text-align:center;">
         ${e}
       </button>`
     ).join('');
