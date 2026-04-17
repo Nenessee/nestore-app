@@ -16,6 +16,8 @@
     .scan-input { width: auto !important; flex: 1; min-width: 0; padding: 10px 12px !important; margin-bottom: 0 !important; font-size: 15px; }
     .login-box button { width: 100%; padding: 13px; background: #2C2C2A; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
     .login-box button:hover { background: #444441; }
+    .btn-employee { background: #fff !important; color: #1a1a18 !important; border: 0.5px solid #d3d1c7 !important; }
+    .btn-employee:hover { background: #f5f5f3 !important; }
     .error { color: #A32D2D; font-size: 13px; text-align: center; margin-top: 10px; display: none; }
     /* App styles */
     .app { max-width: 480px; margin: 0 auto; }
@@ -876,12 +878,7 @@
   let currentEmployee = null;
 
   function logoutApp() {
-    localStorage.removeItem('nv_auth');
-    localStorage.removeItem('nv_boutique');
-    localStorage.removeItem('nv_employee');
-    localStorage.removeItem('nv_dash_auth');
-    localStorage.removeItem('nv_dash_boutique');
-    localStorage.removeItem('nv_dash_employee');
+    localStorage.removeItem('nv_session');
     currentBoutique = null;
     currentEmployee = null;
     document.getElementById('mainApp').style.display = 'none';
@@ -931,17 +928,15 @@
     document.getElementById('stepEmployee').style.display = 'block';
     const employees = EMPLOYEES[boutique] || [];
     document.getElementById('employeeBtns').innerHTML = employees.map(e =>
-      `<button onclick="connectEmployee('${e}', '${boutique}')"
-        style="padding:12px;background:#fff;border:0.5px solid #d3d1c7;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;width:100%;color:#1a1a18;text-align:center;">
+      `<button class="btn-employee" onclick="connectEmployee('${e}', '${boutique}')"
+        style="padding:12px;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;width:100%;">
         ${e}
       </button>`
     ).join('');
   }
 
   function connectEmployee(employee, boutique) {
-    localStorage.setItem('nv_auth', '1');
-    localStorage.setItem('nv_boutique', boutique);
-    localStorage.setItem('nv_employee', employee);
+    localStorage.setItem('nv_session', JSON.stringify({auth:true, boutique, employee}));
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('mainApp').style.display = 'block';
     applyBoutique(boutique);
@@ -951,15 +946,13 @@
     loadActiveCleanings();
   }
 
-  const savedAuth = localStorage.getItem('nv_auth');
-  const savedBoutique = localStorage.getItem('nv_boutique');
-  const savedEmployee = localStorage.getItem('nv_employee');
-  if (savedAuth === '1' && savedBoutique) {
-    currentEmployee = savedEmployee;
+  const _s = JSON.parse(localStorage.getItem('nv_session') || 'null');
+  if (_s?.auth) {
+    currentEmployee = _s.employee;
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('mainApp').style.display = 'block';
-    applyBoutique(savedBoutique);
-    applyEmployee(savedEmployee);
+    applyBoutique(_s.boutique);
+    applyEmployee(_s.employee);
     loadTodaySales();
     loadRecentPurchases();
     loadActiveCleanings();
