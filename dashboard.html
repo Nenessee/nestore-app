@@ -363,7 +363,14 @@ function switchDashBoutique(boutique, btn) {
   document.getElementById('dashTitle').textContent = `Nestore — Dashboard — ${label}`;
   // Recharger l'onglet actif
   const activeTab = document.querySelector('.tab.active');
-  if (activeTab) activeTab.click();
+  if (activeTab) {
+    const tabName = activeTab.getAttribute('onclick').match(/'(\w+)'/)?.[1];
+    if (tabName === 'ventes') loadVentes();
+    else if (tabName === 'stock') { allStockData = []; loadStock(); }
+    else if (tabName === 'rotation') loadRotation();
+    else if (tabName === 'rachats') loadRachats();
+    else if (tabName === 'nettoyage') loadCleanings();
+  }
 }
 
 // Afficher le switcher si admin, sinon juste label boutique
@@ -891,31 +898,50 @@ function filterRachats() {
 </div><!-- fin dashApp -->
 
 <script>
-const DASH_PWD = 'Hyperx3933';
+const DASH_CODES = { 'Hyperx3933': 'admin', '3322': 'Lille', '2727': 'DK' };
+
 function logout() {
   localStorage.removeItem('nv_dash_auth');
+  localStorage.removeItem('nv_dash_boutique');
   document.getElementById('dashApp').style.display = 'none';
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('dashPwd').value = '';
   document.getElementById('dashPwdError').style.display = 'none';
 }
+
+function initDashboard(boutique) {
+  DASH_BOUTIQUE = boutique;
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('dashApp').style.display = 'block';
+  if (boutique === 'admin') {
+    const sw = document.getElementById('boutiqueSwitch');
+    sw.style.display = 'flex';
+    document.getElementById('dashTitle').textContent = 'Nestore — Dashboard — Toutes boutiques';
+  } else {
+    document.getElementById('boutiqueSwitch').style.display = 'none';
+    document.getElementById('dashTitle').textContent = `Nestore — Dashboard ${boutique}`;
+  }
+  loadVentes();
+}
+
 function checkDashPwd() {
   const val = document.getElementById('dashPwd').value;
-  if (val === DASH_PWD) {
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('dashApp').style.display = 'block';
+  const boutique = DASH_CODES[val];
+  if (boutique) {
     localStorage.setItem('nv_dash_auth', '1');
-    loadVentes();
+    localStorage.setItem('nv_dash_boutique', boutique);
+    initDashboard(boutique);
   } else {
     document.getElementById('dashPwdError').style.display = 'block';
     document.getElementById('dashPwd').value = '';
     document.getElementById('dashPwd').focus();
   }
 }
-if (localStorage.getItem('nv_dash_auth') === '1') {
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('dashApp').style.display = 'block';
-  loadVentes();
+
+const savedAuth = localStorage.getItem('nv_dash_auth');
+const savedBoutique = localStorage.getItem('nv_dash_boutique') || urlParams.get('b') || 'admin';
+if (savedAuth === '1') {
+  initDashboard(savedBoutique);
 }
 </script>
 </body>
