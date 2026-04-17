@@ -372,7 +372,7 @@
     } catch (err) {
       area.innerHTML = `<div class="product-card error">
         <div class="pname">Erreur de connexion</div>
-        <div class="error-msg">Impossible de joindre le serveur. Vérifie ta connexion ou l'URL du backend.</div>
+        <div class="error-msg">${err.message}</div>
       </div>`;
     }
   }
