@@ -124,6 +124,7 @@ tr:hover td{background:#fafaf8;}
   <div class="tab" onclick="switchTab('rotation',this)">Rotation</div>
   <div class="tab" onclick="switchTab('rachats',this)">Rachats</div>
   <div class="tab" onclick="switchTab('nettoyage',this)">Nettoyage</div>
+  <div class="tab" onclick="switchTab('commandes',this)">Commandes web</div>
 </div>
 
 <!-- MODAL SOLDES -->
@@ -320,7 +321,41 @@ tr:hover td{background:#fafaf8;}
 </div>
 </div>
 
-<!-- TAB NETTOYAGE -->
+<!-- TAB COMMANDES WEB -->
+<div id="tab-commandes" class="tab-panel">
+<div class="content">
+  <div id="commandesKpis" class="kpi-grid" style="margin-bottom:24px;"></div>
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+    <select class="filter-select" id="cmdStatusFilter" onchange="filterCommandes()">
+      <option value="">Tous statuts</option>
+      <option value="pending">En attente</option>
+      <option value="aside">Mis de côté</option>
+      <option value="fulfilled">Expédié</option>
+    </select>
+    <select class="filter-select" id="cmdBoutiqueFilter" onchange="filterCommandes()">
+      <option value="">Toutes boutiques</option>
+      <option value="Lille">Lille</option>
+      <option value="DK">DK</option>
+    </select>
+    <input class="search-input" id="cmdSearch" placeholder="Rechercher client, article..." oninput="filterCommandes()"/>
+  </div>
+  <div class="table-card">
+    <div class="table-header">
+      <span class="table-title">Commandes en cours</span>
+      <span id="cmdCount" style="font-size:12px;color:#888780;"></span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr>
+          <th>Commande</th><th>Client</th><th>Article</th><th>Boutique</th>
+          <th>Prix</th><th>Date</th><th>Mis de côté</th><th>Expédition</th><th>Lien</th>
+        </tr></thead>
+        <tbody id="cmdTable"><tr><td colspan="9" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
 <div id="tab-nettoyage" class="tab-panel">
 <div class="content">
   <div class="kpi-grid" id="cleanKpis" style="margin-bottom:24px;"><div class="loading">Chargement...</div></div>
@@ -408,6 +443,7 @@ function switchTab(name, el) {
   if (name === 'rotation') loadRotation();
   if (name === 'rachats') loadRachats();
   if (name === 'nettoyage') loadCleanings();
+  if (name === 'commandes') loadDashCommandes();
 }
 
 function setPeriod(days, btn) {
@@ -757,6 +793,94 @@ function showDashToast(msg, type='success') {
   t.textContent = msg;
   t.style.opacity = '1';
   setTimeout(() => { t.style.opacity = '0'; }, 3000);
+}
+
+let allCommandesData = [];
+
+async function loadDashCommandes() {
+  document.getElementById('cmdTable').innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr>';
+  try {
+    const data = await fetch(`${BACKEND_URL}/orders/all`).then(r => r.json());
+    // Fusionner avec localStorage pour statut "mis de côté"
+    allCommandesData = data.map(o => ({
+      ...o,
+      isAside: !!localStorage.getItem(`aside_${o.order_id}_${o.line_item_id}`),
+      isNotFound: !!localStorage.getItem(`notfound_${o.order_id}_${o.line_item_id}`)
+    }));
+
+    const total = allCommandesData.length;
+    const pending = allCommandesData.filter(o => o.fulfillment_status === 'unfulfilled' && !o.isAside).length;
+    const aside = allCommandesData.filter(o => o.isAside && o.fulfillment_status === 'unfulfilled').length;
+    const fulfilled = allCommandesData.filter(o => o.fulfillment_status === 'fulfilled').length;
+    const notFound = allCommandesData.filter(o => o.isNotFound).length;
+
+    document.getElementById('commandesKpis').innerHTML = `
+      <div class="kpi"><div class="kpi-label">Total commandes</div><div class="kpi-value">${total}</div></div>
+      <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('cmdStatusFilter').value='pending';filterCommandes();">
+        <div class="kpi-label">En attente</div><div class="kpi-value" style="color:${pending>0?'#BA7517':'#3B6D11'}">${pending}</div><div class="kpi-sub">à préparer</div>
+      </div>
+      <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('cmdStatusFilter').value='aside';filterCommandes();">
+        <div class="kpi-label">Mis de côté</div><div class="kpi-value" style="color:#185FA5;">${aside}</div><div class="kpi-sub">prêts à expédier</div>
+      </div>
+      <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('cmdStatusFilter').value='fulfilled';filterCommandes();">
+        <div class="kpi-label">Expédiés</div><div class="kpi-value" style="color:#3B6D11;">${fulfilled}</div></div>
+      ${notFound>0?`<div class="kpi" style="border-color:#f7c1c1;"><div class="kpi-label">⚠️ Introuvables</div><div class="kpi-value" style="color:#A32D2D;">${notFound}</div></div>`:''}
+    `;
+    filterCommandes();
+  } catch(e) {
+    document.getElementById('cmdTable').innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:#A32D2D;">Erreur de chargement</td></tr>';
+  }
+}
+
+function filterCommandes() {
+  const status = document.getElementById('cmdStatusFilter').value;
+  const boutique = document.getElementById('cmdBoutiqueFilter').value;
+  const q = (document.getElementById('cmdSearch').value||'').toLowerCase();
+  let filtered = allCommandesData.filter(o => {
+    if (boutique && o.boutique !== boutique) return false;
+    if (q && !o.product_name?.toLowerCase().includes(q) && !o.customer?.toLowerCase().includes(q)) return false;
+    if (status === 'pending' && (o.isAside || o.fulfillment_status === 'fulfilled')) return false;
+    if (status === 'aside' && (!o.isAside || o.fulfillment_status === 'fulfilled')) return false;
+    if (status === 'fulfilled' && o.fulfillment_status !== 'fulfilled') return false;
+    return true;
+  });
+  renderCommandesTable(filtered);
+}
+
+function renderCommandesTable(data) {
+  document.getElementById('cmdCount').textContent = `${data.length} commande${data.length>1?'s':''}`;
+  if (!data.length) { document.getElementById('cmdTable').innerHTML='<tr><td colspan="9" style="text-align:center;padding:30px;color:#888780;">Aucune commande</td></tr>'; return; }
+  document.getElementById('cmdTable').innerHTML = data.map(o => {
+    const date = new Date(o.created_at).toLocaleDateString('fr-FR', {day:'2-digit',month:'2-digit',year:'2-digit',timeZone:'Europe/Paris'});
+    const badge = o.boutique==='DK' ? 'badge-dk' : 'badge-lille';
+    const img = o.image ? `<img src="${o.image}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;margin-right:8px;vertical-align:middle;">` : '';
+
+    // Statut mis de côté
+    const asideCell = o.isNotFound
+      ? `<span class="badge badge-danger">❌ Introuvable</span>`
+      : o.isAside
+        ? `<span class="badge badge-ok">📦 Mis de côté</span>`
+        : `<span class="badge badge-warning">⏳ En attente</span>`;
+
+    // Statut expédition
+    const shipCell = o.fulfillment_status === 'fulfilled'
+      ? `<span class="badge badge-ok">✓ Expédié</span>`
+      : `<span class="badge" style="background:#f1efe8;color:#5f5e5a;">Non expédié</span>`;
+
+    const rowBg = o.isNotFound ? 'background:#FFF8F8;' : o.fulfillment_status==='fulfilled' ? 'background:#F5FBF0;' : '';
+
+    return `<tr style="${rowBg}">
+      <td style="font-weight:600;font-size:13px;">#${o.order_number}</td>
+      <td style="font-size:12px;">${o.customer}</td>
+      <td style="font-size:12px;">${img}${o.product_name}</td>
+      <td><span class="badge ${badge}">${o.boutique}</span></td>
+      <td style="font-weight:600;">${parseFloat(o.price).toFixed(2)}€</td>
+      <td style="color:#888780;font-size:12px;">${date}</td>
+      <td>${asideCell}</td>
+      <td>${shipCell}</td>
+      <td><a href="https://admin.shopify.com/store/nestore-io/orders/${o.order_id}" target="_blank" class="link-btn">Shopify ↗</a></td>
+    </tr>`;
+  }).join('');
 }
 
 function exportMissingStock() {
