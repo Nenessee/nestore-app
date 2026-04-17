@@ -755,13 +755,18 @@ function exportMissingStock() {
 
 async function updateStockLocation(barcode, inBoutique) {
   try {
-    await fetch(`${BACKEND_URL}/stock/location`, {
+    const res = await fetch(`${BACKEND_URL}/stock/location`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ barcode, inBoutique })
     });
+    if (!res.ok) {
+      const err = await res.json();
+      alert('Erreur sauvegarde : ' + (err.error || res.status));
+      return;
+    }
     const p = allStockData.find(p => p.barcode === barcode);
     if (p) p.inBoutique = inBoutique;
-  } catch(e) { alert('Erreur réseau'); }
+  } catch(e) { alert('Erreur réseau : ' + e.message); }
 }
 
 function exportCSV() { window.location.href=`${BACKEND_URL}/analytics/export`; }

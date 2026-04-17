@@ -770,10 +770,23 @@
       const res = await fetch(`${BACKEND_URL}/cleaning`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pairName, clientName, clientPhone, service, price, employee, boutique, remarks, photos: cleanPhotosData.length ? JSON.stringify(cleanPhotosData) : null })
+        body: JSON.stringify({ pairName, clientName, clientPhone, service, price: parseFloat(price)||0, employee, boutique, remarks })
       });
       const result = await res.json();
       if (!res.ok || !result.success) { alert('Erreur : ' + result.error); btn.disabled=false; btn.textContent='Enregistrer le dépôt'; return; }
+
+      // Upload photos séparément si présentes
+      if (cleanPhotosData.length > 0 && result.cleaning?.id) {
+        for (const photo of cleanPhotosData) {
+          try {
+            await fetch(`${BACKEND_URL}/cleaning/${result.cleaning.id}/photo`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ photo })
+            });
+          } catch(e) {}
+        }
+      }
 
       showToast('Dépôt enregistré ✓', 'success');
       addToCleanList(result.cleaning);
