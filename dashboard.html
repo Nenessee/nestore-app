@@ -311,8 +311,8 @@ tr:hover td{background:#fafaf8;}
     </div>
     <div style="overflow-x:auto;">
       <table>
-        <thead><tr><th>Article</th><th>Marque</th><th>Code-barres</th><th>Achat</th><th>Estimé</th><th>Vendu</th><th>Marge</th><th>Statut</th><th>Employé</th><th>Date</th></tr></thead>
-        <tbody id="rachatsTable"><tr><td colspan="10" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
+        <thead><tr><th>Article</th><th>Marque</th><th>Code-barres</th><th>Achat</th><th>Estimé</th><th>Vendu</th><th>Marge</th><th>Statut vente</th><th>Authentification</th><th>Règlement</th><th>Employé</th><th>Date</th></tr></thead>
+        <tbody id="rachatsTable"><tr><td colspan="12" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1023,14 +1023,45 @@ async function loadRachats() {
 
 function renderRachatsTable(data) {
   document.getElementById('rachatsCount').textContent = `${data.length} rachat${data.length>1?'s':''}`;
-  if (!data.length) { document.getElementById('rachatsTable').innerHTML='<tr><td colspan="10" style="text-align:center;padding:30px;color:#888780;">Aucun rachat</td></tr>'; return; }
+  if (!data.length) { document.getElementById('rachatsTable').innerHTML='<tr><td colspan="12" style="text-align:center;padding:30px;color:#888780;">Aucun rachat</td></tr>'; return; }
   document.getElementById('rachatsTable').innerHTML = data.map(r => {
     const status = r.computed_status === 'sold' ? '<span class="badge badge-ok">Vendu</span>' : '<span class="badge badge-warning">En attente</span>';
-    const margin = r.margin != null ? `<span style="font-weight:600;color:${r.margin>=0?'#3B6D11':'#A32D2D'}">${r.margin>=0?'+':''}${parseFloat(r.margin).toFixed(2)}€ ${r.margin_pct!=null?`(${r.margin_pct}%)`:''}` : '—';
+    const margin = r.margin != null ? `<span style="font-weight:600;color:${r.margin>=0?'#3B6D11':'#A32D2D'}">${r.margin>=0?'+':''}${parseFloat(r.margin).toFixed(2)}€ ${r.margin_pct!=null?`(${r.margin_pct}%)`:''}</span>` : '—';
     const soldPrice = r.sold_price ? `${parseFloat(r.sold_price).toFixed(2)}€` : '—';
-    const date = new Date(r.purchased_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const date = new Date(r.purchased_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'});
     const barcodeHtml = r.barcode ? `<span style="font-family:monospace;font-size:11px;background:#f1efe8;padding:2px 6px;border-radius:4px;">${r.barcode}</span>` : '—';
-    return `<tr>
+
+    // Authentification
+    const auth = r.authenticated || 'pending';
+    const authColors = { pending: '#888780', ok: '#3B6D11', nok: '#A32D2D' };
+    const authLabels = { pending: '— À vérifier', ok: '✓ Authentifié', nok: '✗ Douteux' };
+    const authCell = `<select onchange="updatePurchase(${r.id}, 'authenticated', this.value)"
+      style="font-size:11px;padding:3px 6px;border:0.5px solid #d3d1c7;border-radius:6px;color:${authColors[auth]};">
+      <option value="pending" ${auth==='pending'?'selected':''}>— À vérifier</option>
+      <option value="ok" ${auth==='ok'?'selected':''}>✓ Authentifié</option>
+      <option value="nok" ${auth==='nok'?'selected':''}>✗ Douteux</option>
+    </select>`;
+
+    // Règlement
+    const pay = r.payment_status || 'non_regle';
+    const method = r.payment_method || '';
+    const payColors = { non_regle: '#A32D2D', regle: '#3B6D11' };
+    const payCell = `<div style="display:flex;flex-direction:column;gap:3px;">
+      <select onchange="updatePurchasePayment(${r.id}, this.value)"
+        style="font-size:11px;padding:3px 6px;border:0.5px solid #d3d1c7;border-radius:6px;color:${payColors[pay]};">
+        <option value="non_regle" ${pay==='non_regle'?'selected':''}>✗ Non réglé</option>
+        <option value="regle" ${pay==='regle'?'selected':''}>✓ Réglé</option>
+      </select>
+      ${pay==='regle'?`<select onchange="updatePurchase(${r.id}, 'paymentMethod', this.value)"
+        style="font-size:11px;padding:3px 6px;border:0.5px solid #d3d1c7;border-radius:6px;">
+        <option value="" ${!method?'selected':''}>— Moyen —</option>
+        <option value="especes" ${method==='especes'?'selected':''}>💵 Espèces</option>
+        <option value="virement" ${method==='virement'?'selected':''}>🏦 Virement</option>
+        <option value="avoir" ${method==='avoir'?'selected':''}>🎫 Avoir</option>
+      </select>`:''}
+    </div>`;
+
+    return `<tr style="${pay==='non_regle'?'background:#FFF8F8;':''}">
       <td style="font-weight:500;">${r.product_name}</td>
       <td style="color:#888780;font-size:12px;">${r.brand||'—'}</td>
       <td>${barcodeHtml}</td>
@@ -1039,10 +1070,40 @@ function renderRachatsTable(data) {
       <td>${soldPrice}</td>
       <td>${margin}</td>
       <td>${status}</td>
+      <td>${authCell}</td>
+      <td>${payCell}</td>
       <td>${r.employee}</td>
       <td style="color:#888780;">${date}</td>
     </tr>`;
   }).join('');
+}
+
+async function updatePurchase(id, field, value) {
+  try {
+    const body = {};
+    if (field === 'authenticated') body.authenticated = value;
+    if (field === 'paymentMethod') body.paymentMethod = value;
+    await fetch(`${BACKEND_URL}/purchase/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const p = allRachatsData.find(r => r.id === id);
+    if (p && field === 'authenticated') p.authenticated = value;
+    if (p && field === 'paymentMethod') p.payment_method = value;
+  } catch(e) { alert('Erreur réseau'); }
+}
+
+async function updatePurchasePayment(id, status) {
+  try {
+    await fetch(`${BACKEND_URL}/purchase/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paymentStatus: status })
+    });
+    const p = allRachatsData.find(r => r.id === id);
+    if (p) { p.payment_status = status; if (status === 'non_regle') p.payment_method = null; }
+    // Rerendre juste la table pour afficher/masquer le select méthode
+    renderRachatsTable(allRachatsData);
+  } catch(e) { alert('Erreur réseau'); }
 }
 
 function filterRachats() {
