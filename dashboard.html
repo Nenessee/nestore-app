@@ -224,11 +224,9 @@ tr:hover td{background:#fafaf8;}
         <option value="present">Avec code-barres</option>
       </select>
       <select class="filter-select" id="stockLocationFilter" onchange="filterStock()">
-        <option value="">Toutes localisations</option>
-        <option value="en_boutique">🏪 En boutique</option>
-        <option value="en_reserve">📦 En réserve</option>
-        <option value="au_local">🏠 Au local</option>
-        <option value="introuvable">❓ Introuvable</option>
+        <option value="">Tous articles</option>
+        <option value="present">✓ En boutique</option>
+        <option value="absent">✗ Non localisés</option>
       </select>
       <select class="filter-select" id="stockScoreFilter" onchange="filterStock()">
         <option value="">Tous scores</option>
@@ -274,8 +272,8 @@ tr:hover td{background:#fafaf8;}
           <th><input type="checkbox" class="cb" onclick="toggleSelectAll(this)"/></th>
           <th>Article</th><th>Marque</th><th>Code-barres</th><th>Prix</th>
           <th>Boutique</th><th>Score</th><th>En ligne depuis</th><th>Statut</th>
-          <th>Localisation</th>
-          <th id="inventoryColHeader" style="display:none;">En boutique ✓</th>
+          <th>En boutique ✓</th>
+          <th id="inventoryColHeader" style="display:none;">Inventaire ✓</th>
           <th></th>
         </tr></thead>
         <tbody id="stockTable"><tr><td colspan="11" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
@@ -548,26 +546,30 @@ function filterSales(q) {
 async function loadStock() {
   document.getElementById('stockTable').innerHTML = '<tr><td colspan="12" style="text-align:center;padding:40px;color:#888780;">Chargement du stock Shopify (peut prendre 30s)...</td></tr>';
   const [data, locMap] = await Promise.all([api('/analytics/stock'), api('/stock/locations')]);
-  allStockData = data.map(p => ({ ...p, locationData: locMap[p.barcode] || null }));
-  const total=allStockData.length, alert30=allStockData.filter(p=>p.daysOnline>=30&&p.daysOnline<60).length;
-  const alert60=allStockData.filter(p=>p.daysOnline>=60).length, missingBarcode=allStockData.filter(p=>!p.barcode).length;
-  const introuvable=allStockData.filter(p=>p.locationData?.location==='introuvable').length;
-  const avgScore=allStockData.length?Math.round(allStockData.reduce((a,b)=>a+(b.score||0),0)/allStockData.length):0;
+  allStockData = data.map(p => ({ ...p, inBoutique: locMap[p.barcode] === true }));
+  const total = allStockData.length;
+  const alert30 = allStockData.filter(p=>p.daysOnline>=30&&p.daysOnline<60).length;
+  const alert60 = allStockData.filter(p=>p.daysOnline>=60).length;
+  const missingBarcode = allStockData.filter(p=>!p.barcode).length;
+  const notFound = allStockData.filter(p=>p.barcode&&!p.inBoutique).length;
+  const avgScore = allStockData.length ? Math.round(allStockData.reduce((a,b)=>a+(b.score||0),0)/allStockData.length) : 0;
   document.getElementById('stockSummary').innerHTML = `
-    <div class="kpi" style="min-width:130px;"><div class="kpi-label">Total en ligne</div><div class="kpi-value">${total}</div></div>
-    <div class="kpi" style="min-width:130px;"><div class="kpi-label">+30 jours</div><div class="kpi-value" style="color:#BA7517;">${alert30}</div><div class="kpi-sub">à surveiller</div></div>
-    <div class="kpi" style="min-width:130px;cursor:pointer;" onclick="document.getElementById('stockDaysFilter').value='danger';filterStock();">
+    <div class="kpi"><div class="kpi-label">Total en ligne</div><div class="kpi-value">${total}</div></div>
+    <div class="kpi"><div class="kpi-label">+30 jours</div><div class="kpi-value" style="color:#BA7517;">${alert30}</div><div class="kpi-sub">à surveiller</div></div>
+    <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('stockDaysFilter').value='danger';filterStock();">
       <div class="kpi-label">+60 jours</div><div class="kpi-value" style="color:#A32D2D;">${alert60}</div><div class="kpi-sub">cliquer pour voir</div>
     </div>
-    <div class="kpi" style="min-width:130px;cursor:pointer;" onclick="document.getElementById('stockBarcodeFilter').value='missing';filterStock();">
+    <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('stockBarcodeFilter').value='missing';filterStock();">
       <div class="kpi-label">Sans code-barres</div>
       <div class="kpi-value" style="color:${missingBarcode>0?'#A32D2D':'#3B6D11'};">${missingBarcode}</div>
       <div class="kpi-sub">${missingBarcode>0?'cliquer pour voir':'tout OK'}</div>
     </div>
-    ${introuvable>0?`<div class="kpi" style="min-width:130px;cursor:pointer;border-color:#f7c1c1;" onclick="document.getElementById('stockLocationFilter').value='introuvable';filterStock();">
-      <div class="kpi-label">⚠️ Introuvables</div><div class="kpi-value" style="color:#A32D2D;">${introuvable}</div><div class="kpi-sub">cliquer pour voir</div>
-    </div>`:''}
-    <div class="kpi" style="min-width:130px;"><div class="kpi-label">Score moyen</div><div class="kpi-value" style="color:${avgScore>=70?'#3B6D11':avgScore>=40?'#BA7517':'#A32D2D'}">${avgScore}</div><div class="kpi-sub">sur 100</div></div>
+    <div class="kpi" style="cursor:pointer;border-color:${notFound>0?'#f7c1c1':''};" onclick="document.getElementById('stockLocationFilter').value='absent';filterStock();">
+      <div class="kpi-label">Non localisés</div>
+      <div class="kpi-value" style="color:${notFound>0?'#A32D2D':'#3B6D11'};">${notFound}</div>
+      <div class="kpi-sub">${notFound>0?'pas encore cochés':'tout coché ✓'}</div>
+    </div>
+    <div class="kpi"><div class="kpi-label">Score moyen</div><div class="kpi-value" style="color:${avgScore>=70?'#3B6D11':avgScore>=40?'#BA7517':'#A32D2D'}">${avgScore}</div><div class="kpi-sub">sur 100</div></div>
   `;
   filterStock();
 }
@@ -586,16 +588,14 @@ function renderStockTable(data) {
     const barcodeHtml = p.barcode?`<span style="font-family:monospace;font-size:11px;background:#f1efe8;padding:2px 6px;border-radius:4px;">${p.barcode}</span>`:'<span class="badge badge-danger">Manquant</span>';
     const isSelected = selectedProducts.has(p.id);
     const comparePrice = p.compareAtPrice ? `<span style="text-decoration:line-through;color:#888780;font-size:11px;margin-right:4px;">${parseFloat(p.compareAtPrice).toFixed(0)}€</span>` : '';
-    const loc = p.locationData?.location || 'en_boutique';
-    const locLabels = { en_boutique: '🏪 En boutique', en_reserve: '📦 En réserve', introuvable: '❓ Introuvable' };
-    const locColors = { en_boutique: '#3B6D11', en_reserve: '#185FA5', au_local: '#7B4FBA', introuvable: '#A32D2D' };
-    const locCell = p.barcode ? `<select onchange="updateStockLocation('${p.barcode}', this.value)" style="font-size:11px;padding:3px 6px;border:0.5px solid #d3d1c7;border-radius:6px;background:#fff;color:${locColors[loc]};">
-      <option value="en_boutique" ${loc==='en_boutique'?'selected':''}>🏪 En boutique</option>
-      <option value="en_reserve" ${loc==='en_reserve'?'selected':''}>📦 En réserve</option>
-      <option value="au_local" ${loc==='au_local'?'selected':''}>🏠 Au local</option>
-      <option value="introuvable" ${loc==='introuvable'?'selected':''}>❓ Introuvable</option>
-    </select>` : '<span style="color:#b4b2a9;font-size:11px;">—</span>';
-    const rowBg = loc==='introuvable' ? 'background:#FFF8F8;' : '';
+    const inBoutique = p.inBoutique === true;
+    const locCell = p.barcode
+      ? `<td style="text-align:center;">
+          <input type="checkbox" ${inBoutique?'checked':''} onchange="updateStockLocation('${p.barcode}', this.checked)"
+          style="width:18px;height:18px;cursor:pointer;accent-color:#3B6D11;" title="${inBoutique?'En boutique':'Non localisé'}"/>
+         </td>`
+      : `<td style="text-align:center;color:#b4b2a9;font-size:11px;">—</td>`;
+    const rowBg = !inBoutique && p.barcode ? 'background:#FFF8F8;' : '';
     const isPresent = inventoryChecked.has(p.id);
     const inventoryCell = inventoryMode
       ? `<td style="text-align:center;"><input type="checkbox" ${isPresent?'checked':''} onchange="toggleInventoryItem(${p.id}, this)" style="width:18px;height:18px;cursor:pointer;accent-color:#3B6D11;"/></td>`
@@ -633,7 +633,8 @@ function filterStock() {
     if(days==='danger'&&p.daysOnline<60) return false;
     if(barcode==='missing'&&p.barcode) return false;
     if(barcode==='present'&&!p.barcode) return false;
-    if(locF&&(p.locationData?.location||'en_boutique')!==locF) return false;
+    if(locF==='present'&&!p.inBoutique) return false;
+    if(locF==='absent'&&p.inBoutique) return false;
     if(scoreF==='high'&&(p.score||0)<70) return false;
     if(scoreF==='mid'&&((p.score||0)<40||(p.score||0)>=70)) return false;
     if(scoreF==='low'&&(p.score||0)>=40) return false;
@@ -823,15 +824,14 @@ function exportInventory() {
   a.click();
 }
 
-async function updateStockLocation(barcode, location) {
+async function updateStockLocation(barcode, inBoutique) {
   try {
     await fetch(`${BACKEND_URL}/stock/location`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ barcode, location })
+      body: JSON.stringify({ barcode, inBoutique })
     });
-    // Mettre à jour allStockData localement sans recharger tout
     const p = allStockData.find(p => p.barcode === barcode);
-    if (p) p.locationData = { location };
+    if (p) p.inBoutique = inBoutique;
   } catch(e) { alert('Erreur réseau'); }
 }
 
