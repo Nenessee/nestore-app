@@ -87,10 +87,20 @@
   <div class="login-box">
     <div class="logo">NV</div>
     <h1>Nestore</h1>
-    <p>Accès réservé à l'équipe</p>
-    <input type="password" id="pwdInput" placeholder="Mot de passe" onkeydown="if(event.key==='Enter')checkPwd()"/>
-    <button onclick="checkPwd()">Accéder</button>
-    <div class="error" id="pwdError">Mot de passe incorrect</div>
+
+    <!-- Étape 1 : mot de passe -->
+    <div id="stepPwd">
+      <p>Accès réservé à l'équipe</p>
+      <input type="password" id="pwdInput" placeholder="Mot de passe" onkeydown="if(event.key==='Enter')checkPwd()"/>
+      <button onclick="checkPwd()">Continuer</button>
+      <div class="error" id="pwdError">Mot de passe incorrect</div>
+    </div>
+
+    <!-- Étape 2 : choix employé -->
+    <div id="stepEmployee" style="display:none;">
+      <p id="stepEmployeeLabel">Qui es-tu ?</p>
+      <div id="employeeBtns" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>
+    </div>
   </div>
 </div>
 
@@ -686,38 +696,24 @@
 
   async function loadTodaySales() {
     try {
-      const res = await fetch(`${BACKEND_URL}/analytics/recent?limit=50`);
+      const bParam = currentBoutique && currentBoutique !== 'admin' ? `&boutique=${currentBoutique}` : '';
+      const res = await fetch(`${BACKEND_URL}/analytics/recent?today=1${bParam}`);
       const sales = await res.json();
       if (!Array.isArray(sales) || sales.length === 0) return;
-      const filtered = sales.filter(s => !currentBoutique || currentBoutique === 'admin' || s.boutique === currentBoutique);
-      for (const s of [...filtered].slice(0, 15).reverse()) {
-        addToHistory({
-          name: s.product_name,
-          barcode: s.barcode,
-          sku: s.sku,
-          price: s.price,
-          boutique: s.boutique,
-          image: s.image_url
-        }, s.employee, s.boutique);
+      for (const s of [...sales].reverse()) {
+        addToHistory({ name: s.product_name, barcode: s.barcode, sku: s.sku, price: s.price, boutique: s.boutique, image: s.image_url }, s.employee, s.boutique);
       }
     } catch(e) {}
   }
 
   async function loadRecentPurchases() {
     try {
-      const bParam = currentBoutique && currentBoutique !== 'admin' ? `?boutique=${currentBoutique}` : '';
-      const res = await fetch(`${BACKEND_URL}/purchases${bParam}`);
+      const bParam = currentBoutique && currentBoutique !== 'admin' ? `boutique=${currentBoutique}&` : '';
+      const res = await fetch(`${BACKEND_URL}/purchases?${bParam}today=1`);
       const purchases = await res.json();
       if (!Array.isArray(purchases) || purchases.length === 0) return;
-      for (const p of purchases.slice(0, 15).reverse()) {
-        addToPurchaseHistory({
-          barcode: p.barcode,
-          productName: p.product_name,
-          brand: p.brand,
-          purchasePrice: p.purchase_price,
-          estimatedPrice: p.estimated_price,
-          employee: p.employee
-        });
+      for (const p of [...purchases].reverse()) {
+        addToPurchaseHistory({ barcode: p.barcode, productName: p.product_name, brand: p.brand, purchasePrice: p.purchase_price, estimatedPrice: p.estimated_price, employee: p.employee });
       }
     } catch(e) {}
   }
@@ -857,13 +853,11 @@
 
   async function loadActiveCleanings() {
     try {
-      const res = await fetch(`${BACKEND_URL}/cleanings`);
+      const bParam = currentBoutique && currentBoutique !== 'admin' ? 'boutique=' + currentBoutique + '&' : '';
+      const res = await fetch(BACKEND_URL + '/cleanings?' + bParam + 'today=1');
       const items = await res.json();
       if (!Array.isArray(items)) return;
-      const active = items
-        .filter(c => c.status !== 'recupere')
-        .filter(c => !currentBoutique || currentBoutique === 'admin' || c.boutique === currentBoutique)
-        .slice(0, 20).reverse();
+      const active = items.filter(c => c.status !== 'recupere').reverse();
       for (const c of active) addToCleanList(c);
     } catch(e) {}
   }
@@ -873,18 +867,89 @@
 <script>
   const CODES = { '3322': 'Lille', '2727': 'DK', 'Hyperx3933': 'admin' };
   let currentBoutique = null;
+  let currentEmployee = null;
 
   function logoutApp() {
     localStorage.removeItem('nv_auth');
     localStorage.removeItem('nv_boutique');
+    localStorage.removeItem('nv_employee');
     currentBoutique = null;
+    currentEmployee = null;
     document.getElementById('mainApp').style.display = 'none';
     document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('stepPwd').style.display = 'block';
+    document.getElementById('stepEmployee').style.display = 'none';
     document.getElementById('pwdInput').value = '';
     document.getElementById('pwdError').style.display = 'none';
   }
 
-  const EMPLOYEES = {
+  function applyEmployee(employee) {
+    currentEmployee = employee;
+    if (!employee || employee === 'admin') return;
+    // Pré-sélectionner l'employé dans tous les selects
+    ;['employeeSelect', 'purchaseEmployee', 'cleanEmployee'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (sel) sel.value = employee;
+    });
+    // Afficher le nom dans le header
+    const subtitle = document.querySelector('.subtitle');
+    if (subtitle && currentBoutique !== 'admin') {
+      subtitle.textContent = `Boutique ${currentBoutique} - ${employee}`;
+    }
+  }
+
+  function checkPwd() {
+    const val = document.getElementById('pwdInput').value;
+    const boutique = CODES[val];
+    if (!boutique) {
+      document.getElementById('pwdError').style.display = 'block';
+      document.getElementById('pwdInput').value = '';
+      document.getElementById('pwdInput').focus();
+      return;
+    }
+    currentBoutique = boutique;
+    if (boutique === 'admin') {
+      connectEmployee('admin', boutique);
+      return;
+    }
+    // Étape 2 - choisir l'employé
+    document.getElementById('stepPwd').style.display = 'none';
+    document.getElementById('stepEmployee').style.display = 'block';
+    const employees = EMPLOYEES[boutique] || [];
+    document.getElementById('employeeBtns').innerHTML = employees.map(e =>
+      `<button onclick="connectEmployee('${e}', '${boutique}')"
+        style="padding:12px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:10px;font-size:15px;font-weight:500;cursor:pointer;width:100%;">
+        ${e}
+      </button>`
+    ).join('');
+  }
+
+  function connectEmployee(employee, boutique) {
+    localStorage.setItem('nv_auth', '1');
+    localStorage.setItem('nv_boutique', boutique);
+    localStorage.setItem('nv_employee', employee);
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+    applyBoutique(boutique);
+    applyEmployee(employee);
+    loadTodaySales();
+    loadRecentPurchases();
+    loadActiveCleanings();
+  }
+
+  const savedAuth = localStorage.getItem('nv_auth');
+  const savedBoutique = localStorage.getItem('nv_boutique');
+  const savedEmployee = localStorage.getItem('nv_employee');
+  if (savedAuth === '1' && savedBoutique) {
+    currentEmployee = savedEmployee;
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+    applyBoutique(savedBoutique);
+    applyEmployee(savedEmployee);
+    loadTodaySales();
+    loadRecentPurchases();
+    loadActiveCleanings();
+  }
     'Lille': ['Sacha', 'Mathys', 'Noa', 'Celeste', 'Louis'],
     'DK': ['Romane'],
     'admin': ['Sacha', 'Mathys', 'Romane', 'Noa', 'Celeste', 'Louis']
@@ -904,7 +969,7 @@
 
     // Header
     const subtitle = document.querySelector('.subtitle');
-    if (subtitle) subtitle.textContent = isAdmin ? 'Toutes boutiques — Admin' : `Boutique ${boutique}`;
+    if (subtitle) subtitle.textContent = isAdmin ? 'Toutes boutiques - Admin' : `Boutique ${boutique}`;
 
     // Verrouiller boutique selects
     const boutiqueSelect = document.getElementById('boutiqueSelect');
@@ -941,35 +1006,6 @@
     }
   }
 
-  function checkPwd() {
-    const val = document.getElementById('pwdInput').value;
-    const boutique = CODES[val];
-    if (boutique) {
-      document.getElementById('loginScreen').style.display = 'none';
-      document.getElementById('mainApp').style.display = 'block';
-      localStorage.setItem('nv_auth', '1');
-      localStorage.setItem('nv_boutique', boutique);
-      applyBoutique(boutique);
-      loadTodaySales();
-      loadRecentPurchases();
-      loadActiveCleanings();
-    } else {
-      document.getElementById('pwdError').style.display = 'block';
-      document.getElementById('pwdInput').value = '';
-      document.getElementById('pwdInput').focus();
-    }
-  }
-
-  const savedAuth = localStorage.getItem('nv_auth');
-  const savedBoutique = localStorage.getItem('nv_boutique');
-  if (savedAuth === '1' && savedBoutique) {
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('mainApp').style.display = 'block';
-    applyBoutique(savedBoutique);
-    loadTodaySales();
-    loadRecentPurchases();
-    loadActiveCleanings();
-  }
 </script>
 </body>
 </html>

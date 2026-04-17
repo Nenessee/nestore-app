@@ -92,10 +92,16 @@ tr:hover td{background:#fafaf8;}
   <div class="login-box">
     <div style="width:48px;height:48px;background:#2C2C2A;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700;margin:0 auto 1.5rem;">NV</div>
     <h1>Nestore</h1>
-    <p>Accès réservé à l'équipe</p>
-    <input type="password" id="dashPwd" placeholder="Mot de passe" onkeydown="if(event.key==='Enter')checkDashPwd()"/>
-    <button onclick="checkDashPwd()">Accéder</button>
-    <div class="login-error" id="dashPwdError">Mot de passe incorrect</div>
+    <div id="dashStepPwd">
+      <p>Accès réservé à l'équipe</p>
+      <input type="password" id="dashPwd" placeholder="Mot de passe" onkeydown="if(event.key==='Enter')checkDashPwd()"/>
+      <button onclick="checkDashPwd()">Continuer</button>
+      <div class="login-error" id="dashPwdError">Mot de passe incorrect</div>
+    </div>
+    <div id="dashStepEmployee" style="display:none;">
+      <p>Qui es-tu ?</p>
+      <div id="dashEmployeeBtns" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
   </div>
 </div>
 
@@ -636,10 +642,21 @@ async function loadStock() {
   const alert30 = allStockData.filter(p=>p.daysOnline>=30&&p.daysOnline<60).length;
   const alert60 = allStockData.filter(p=>p.daysOnline>=60).length;
   const missingBarcode = allStockData.filter(p=>!p.barcode).length;
-  const notFound = allStockData.filter(p=>p.barcode&&!p.inBoutique).length;
+  const localized = allStockData.filter(p=>p.barcode&&p.inBoutique).length;
+  const notLocalized = allStockData.filter(p=>p.barcode&&!p.inBoutique).length;
   const avgScore = allStockData.length ? Math.round(allStockData.reduce((a,b)=>a+(b.score||0),0)/allStockData.length) : 0;
   document.getElementById('stockSummary').innerHTML = `
     <div class="kpi"><div class="kpi-label">Total en ligne</div><div class="kpi-value">${total}</div></div>
+    <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('stockLocationFilter').value='present';filterStock();">
+      <div class="kpi-label">Localisés ✓</div>
+      <div class="kpi-value" style="color:#3B6D11;">${localized}</div>
+      <div class="kpi-sub">sur ${total} articles</div>
+    </div>
+    <div class="kpi" style="cursor:pointer;border-color:${notLocalized>0?'#f7c1c1':''};" onclick="document.getElementById('stockLocationFilter').value='absent';filterStock();">
+      <div class="kpi-label">Non localisés</div>
+      <div class="kpi-value" style="color:${notLocalized>0?'#A32D2D':'#3B6D11'};">${notLocalized}</div>
+      <div class="kpi-sub">${notLocalized>0?'à vérifier':'tout localisé ✓'}</div>
+    </div>
     <div class="kpi"><div class="kpi-label">+30 jours</div><div class="kpi-value" style="color:#BA7517;">${alert30}</div><div class="kpi-sub">à surveiller</div></div>
     <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('stockDaysFilter').value='danger';filterStock();">
       <div class="kpi-label">+60 jours</div><div class="kpi-value" style="color:#A32D2D;">${alert60}</div><div class="kpi-sub">cliquer pour voir</div>
@@ -649,14 +666,21 @@ async function loadStock() {
       <div class="kpi-value" style="color:${missingBarcode>0?'#A32D2D':'#3B6D11'};">${missingBarcode}</div>
       <div class="kpi-sub">${missingBarcode>0?'cliquer pour voir':'tout OK'}</div>
     </div>
-    <div class="kpi" style="cursor:pointer;border-color:${notFound>0?'#f7c1c1':''};" onclick="document.getElementById('stockLocationFilter').value='absent';filterStock();">
-      <div class="kpi-label">Non localisés</div>
-      <div class="kpi-value" style="color:${notFound>0?'#A32D2D':'#3B6D11'};">${notFound}</div>
-      <div class="kpi-sub">${notFound>0?'pas encore cochés':'tout coché ✓'}</div>
-    </div>
     <div class="kpi"><div class="kpi-label">Score moyen</div><div class="kpi-value" style="color:${avgScore>=70?'#3B6D11':avgScore>=40?'#BA7517':'#A32D2D'}">${avgScore}</div><div class="kpi-sub">sur 100</div></div>
   `;
   filterStock();
+  // Stats synchro du jour
+  fetch(`${BACKEND_URL}/stock/sync-stats`).then(r=>r.json()).then(stats => {
+    const existing = document.getElementById('syncStatsBanner');
+    if (existing) existing.remove();
+    if (!stats.today?.length) return;
+    const lines = stats.today.map(e => `<span style="font-size:12px;background:#EAF3DE;color:#3B6D11;padding:3px 10px;border-radius:20px;font-weight:500;">${e.updated_by} — ${e.count} article${e.count>1?'s':''}</span>`).join('');
+    const banner = document.createElement('div');
+    banner.id = 'syncStatsBanner';
+    banner.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 14px;background:#f5faf0;border:0.5px solid #b5d4a0;border-radius:10px;margin-bottom:12px;';
+    banner.innerHTML = `<span style="font-size:12px;color:#3B6D11;font-weight:600;">📦 Synchro aujourd'hui :</span> ${lines} <span style="font-size:11px;color:#888780;margin-left:4px;">${stats.total} total cochés</span>`;
+    document.getElementById('stockSummary').after(banner);
+  }).catch(()=>{});
 }
 
 function renderStockTable(data) {
@@ -676,7 +700,9 @@ function renderStockTable(data) {
     const isSelected = selectedProducts.has(p.id);
     const comparePrice = p.compareAtPrice ? `<span style="text-decoration:line-through;color:#888780;font-size:11px;margin-right:4px;">${parseFloat(p.compareAtPrice).toFixed(0)}€</span>` : '';
     const inBoutique = p.inBoutique === true;
-    const loc = p.location || '';
+    const rawLoc = p.location || '';
+    // Compatibilité ancienne valeur 'en_boutique' → 'en_magasin'
+    const loc = rawLoc === 'en_boutique' ? 'en_magasin' : rawLoc;
     const locColors = { en_magasin: '#3B6D11', reserve: '#185FA5', local: '#7B4FBA', pressing: '#BA7517' };
     const checkCell = p.barcode
       ? `<input type="checkbox" ${inBoutique?'checked':''} onchange="onCheckLocation('${p.barcode}', this.checked, '${loc}')"
@@ -1072,7 +1098,7 @@ async function updateStockLocation(barcode, inBoutique, location) {
   try {
     const res = await fetch(`${BACKEND_URL}/stock/location`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ barcode, inBoutique, location })
+      body: JSON.stringify({ barcode, inBoutique, location, updatedBy: DASH_EMPLOYEE || DASH_BOUTIQUE || null })
     });
     if (!res.ok) { const err = await res.json(); alert('Erreur : ' + (err.error || res.status)); return; }
     const p = allStockData.find(p => p.barcode === barcode);
@@ -1350,18 +1376,25 @@ function filterRachats() {
 
 <script>
 const DASH_CODES = { 'Hyperx3933': 'admin', '3322': 'Lille', '2727': 'DK' };
+const DASH_EMPLOYEES = { 'Lille': ['Sacha', 'Mathys', 'Noa', 'Celeste', 'Louis'], 'DK': ['Romane'], 'admin': [] };
+let DASH_EMPLOYEE = localStorage.getItem('nv_dash_employee') || null;
 
 function logout() {
   localStorage.removeItem('nv_dash_auth');
   localStorage.removeItem('nv_dash_boutique');
+  localStorage.removeItem('nv_dash_employee');
+  DASH_EMPLOYEE = null;
   document.getElementById('dashApp').style.display = 'none';
   document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('dashStepPwd').style.display = 'block';
+  document.getElementById('dashStepEmployee').style.display = 'none';
   document.getElementById('dashPwd').value = '';
   document.getElementById('dashPwdError').style.display = 'none';
 }
 
-function initDashboard(boutique) {
+function initDashboard(boutique, employee) {
   DASH_BOUTIQUE = boutique;
+  DASH_EMPLOYEE = employee || null;
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('dashApp').style.display = 'block';
   if (boutique === 'admin') {
@@ -1370,7 +1403,8 @@ function initDashboard(boutique) {
     document.getElementById('dashTitle').textContent = 'Nestore — Dashboard — Toutes boutiques';
   } else {
     document.getElementById('boutiqueSwitch').style.display = 'none';
-    document.getElementById('dashTitle').textContent = `Nestore — Dashboard ${boutique}`;
+    const empLabel = employee && employee !== 'admin' ? ` — ${employee}` : '';
+    document.getElementById('dashTitle').textContent = `Nestore — Dashboard ${boutique}${empLabel}`;
   }
   loadVentes();
 }
@@ -1378,21 +1412,39 @@ function initDashboard(boutique) {
 function checkDashPwd() {
   const val = document.getElementById('dashPwd').value;
   const boutique = DASH_CODES[val];
-  if (boutique) {
-    localStorage.setItem('nv_dash_auth', '1');
-    localStorage.setItem('nv_dash_boutique', boutique);
-    initDashboard(boutique);
-  } else {
+  if (!boutique) {
     document.getElementById('dashPwdError').style.display = 'block';
     document.getElementById('dashPwd').value = '';
     document.getElementById('dashPwd').focus();
+    return;
   }
+  localStorage.setItem('nv_dash_auth', '1');
+  localStorage.setItem('nv_dash_boutique', boutique);
+  if (boutique === 'admin') {
+    localStorage.setItem('nv_dash_employee', 'admin');
+    initDashboard(boutique, 'admin');
+    return;
+  }
+  // Étape 2 — choisir l'employé
+  document.getElementById('dashStepPwd').style.display = 'none';
+  document.getElementById('dashStepEmployee').style.display = 'block';
+  const employees = DASH_EMPLOYEES[boutique] || [];
+  document.getElementById('dashEmployeeBtns').innerHTML = employees.map(e =>
+    `<button onclick="connectDashEmployee('${e}', '${boutique}')"
+      style="padding:12px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:10px;font-size:15px;font-weight:500;cursor:pointer;width:100%;">${e}</button>`
+  ).join('');
+}
+
+function connectDashEmployee(employee, boutique) {
+  localStorage.setItem('nv_dash_employee', employee);
+  initDashboard(boutique, employee);
 }
 
 const savedAuth = localStorage.getItem('nv_dash_auth');
 const savedBoutique = localStorage.getItem('nv_dash_boutique') || urlParams.get('b') || 'admin';
+const savedDashEmployee = localStorage.getItem('nv_dash_employee');
 if (savedAuth === '1') {
-  initDashboard(savedBoutique);
+  initDashboard(savedBoutique, savedDashEmployee);
 }
 </script>
 </body>
