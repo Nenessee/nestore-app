@@ -744,6 +744,20 @@ async function sendWeeklyEmail() {
 
 
 // Charger l'inventaire depuis localStorage au démarrage
+function showDashToast(msg, type='success') {
+  let t = document.getElementById('dashToast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'dashToast';
+    t.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:10px;font-size:13px;font-weight:500;color:#fff;z-index:9999;opacity:0;transition:opacity 0.2s;pointer-events:none;';
+    document.body.appendChild(t);
+  }
+  t.style.background = type === 'error' ? '#A32D2D' : '#3B6D11';
+  t.textContent = msg;
+  t.style.opacity = '1';
+  setTimeout(() => { t.style.opacity = '0'; }, 3000);
+}
+
 function exportMissingStock() {
   const missing = allStockData.filter(p => p.barcode && !p.inBoutique);
   if (!missing.length) { alert('Tous les articles avec code-barres sont cochés en boutique !'); return; }
@@ -785,7 +799,7 @@ async function saveBarcode(variantId, input) {
     // Mettre à jour localement
     const p = allStockData.find(p => p.variantId === variantId);
     if (p) p.barcode = barcode;
-    showToast('Code-barres enregistré sur Shopify ✓', 'success');
+    showDashToast('Code-barres enregistré sur Shopify ✓');
     // Rafraîchir juste la cellule
     const cell = input.closest('td');
     if (cell) cell.innerHTML = `<span style="font-family:monospace;font-size:11px;background:#f1efe8;padding:2px 6px;border-radius:4px;">${barcode}</span>`;
