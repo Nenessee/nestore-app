@@ -493,7 +493,7 @@
     }
   }
 
-({ barcode, productName, brand, purchasePrice, estimatedPrice, employee }) {
+  function addToPurchaseHistory({ barcode, productName, brand, purchasePrice, estimatedPrice, employee }) {
     const list = document.getElementById('purchaseList');
     const empty = list.querySelector('.history-empty');
     if (empty) empty.remove();
