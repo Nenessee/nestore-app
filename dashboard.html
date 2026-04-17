@@ -406,7 +406,7 @@ tr:hover td{background:#fafaf8;}
     </div>
     <div style="overflow-x:auto;">
       <table>
-        <thead><tr><th>Paire</th><th>Client</th><th>Téléphone</th><th>Service</th><th>Prix</th><th>Nettoyeur</th><th>Boutique</th><th>Dépôt</th><th>Remarques</th><th>Photos</th><th>Statut</th></tr></thead>
+        <thead><tr><th>Paire</th><th>Client</th><th>Téléphone</th><th>Service</th><th>Prix</th><th>Employé</th><th>Boutique</th><th>Dépôt</th><th>Remarques</th><th>Photos</th><th>Notes</th><th>Statut</th></tr></thead>
         <tbody id="cleanTable"><tr><td colspan="11" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
       </table>
     </div>
@@ -1161,6 +1161,12 @@ function renderCleaningsTable(data) {
         <button onclick="triggerPhotoUpload(${c.id})" style="width:32px;height:32px;border:0.5px dashed #d3d1c7;border-radius:4px;background:#f5f5f3;cursor:pointer;font-size:16px;flex-shrink:0;">+</button>
       </td>
       <td>
+        <input type="text" value="${c.notes||''}" placeholder="Ajouter une note..."
+          onblur="saveCleaningNote(${c.id}, this.value)"
+          onkeydown="if(event.key==='Enter') this.blur()"
+          style="width:140px;padding:4px 8px;border:0.5px solid #d3d1c7;border-radius:6px;font-size:12px;background:#fff;"/>
+      </td>
+      <td>
         <select onchange="updateCleaningStatus(${c.id}, this.value)" style="font-size:12px;padding:4px 6px;border:0.5px solid #d3d1c7;border-radius:6px;background:#fff;">
           <option value="en_cours" ${c.status==='en_cours'?'selected':''}>🔵 En cours</option>
           <option value="pret" ${c.status==='pret'?'selected':''}>🟢 Prêt</option>
@@ -1170,6 +1176,15 @@ function renderCleaningsTable(data) {
       </td>
     </tr>`;
   }).join('');
+}
+
+async function saveCleaningNote(id, notes) {
+  try {
+    await fetch(`${BACKEND_URL}/cleaning/${id}/notes`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes })
+    });
+  } catch(e) {}
 }
 
 async function updateCleaningStatus(id, status) {
@@ -1383,6 +1398,9 @@ function logout() {
   localStorage.removeItem('nv_dash_auth');
   localStorage.removeItem('nv_dash_boutique');
   localStorage.removeItem('nv_dash_employee');
+  localStorage.removeItem('nv_auth');
+  localStorage.removeItem('nv_boutique');
+  localStorage.removeItem('nv_employee');
   DASH_EMPLOYEE = null;
   document.getElementById('dashApp').style.display = 'none';
   document.getElementById('loginScreen').style.display = 'flex';
@@ -1395,6 +1413,12 @@ function logout() {
 function initDashboard(boutique, employee) {
   DASH_BOUTIQUE = boutique;
   DASH_EMPLOYEE = employee || null;
+  // Sync session avec la caisse
+  localStorage.setItem('nv_dash_auth', '1');
+  localStorage.setItem('nv_dash_boutique', boutique);
+  if (employee) { localStorage.setItem('nv_dash_employee', employee); localStorage.setItem('nv_employee', employee); }
+  localStorage.setItem('nv_auth', '1');
+  localStorage.setItem('nv_boutique', boutique);
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('dashApp').style.display = 'block';
   if (boutique === 'admin') {
@@ -1431,18 +1455,24 @@ function checkDashPwd() {
   const employees = DASH_EMPLOYEES[boutique] || [];
   document.getElementById('dashEmployeeBtns').innerHTML = employees.map(e =>
     `<button onclick="connectDashEmployee('${e}', '${boutique}')"
-      style="padding:12px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:10px;font-size:15px;font-weight:500;cursor:pointer;width:100%;">${e}</button>`
+      style="padding:12px;background:#fff;border:0.5px solid #d3d1c7;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;width:100%;color:#1a1a18;">${e}</button>`
   ).join('');
 }
 
 function connectDashEmployee(employee, boutique) {
+  localStorage.setItem('nv_dash_auth', '1');
+  localStorage.setItem('nv_dash_boutique', boutique);
   localStorage.setItem('nv_dash_employee', employee);
+  // Sync avec la caisse
+  localStorage.setItem('nv_auth', '1');
+  localStorage.setItem('nv_boutique', boutique);
+  localStorage.setItem('nv_employee', employee);
   initDashboard(boutique, employee);
 }
 
-const savedAuth = localStorage.getItem('nv_dash_auth');
-const savedBoutique = localStorage.getItem('nv_dash_boutique') || urlParams.get('b') || 'admin';
-const savedDashEmployee = localStorage.getItem('nv_dash_employee');
+const savedAuth = localStorage.getItem('nv_dash_auth') || localStorage.getItem('nv_auth');
+const savedBoutique = localStorage.getItem('nv_dash_boutique') || localStorage.getItem('nv_boutique') || urlParams.get('b') || 'admin';
+const savedDashEmployee = localStorage.getItem('nv_dash_employee') || localStorage.getItem('nv_employee');
 if (savedAuth === '1') {
   initDashboard(savedBoutique, savedDashEmployee);
 }
