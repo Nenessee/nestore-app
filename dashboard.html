@@ -150,11 +150,20 @@ tr:hover td{background:#fafaf8;}
 <!-- TAB VENTES -->
 <div id="tab-ventes" class="tab-panel active">
 <div class="content">
-  <div class="period-bar">
-    <button class="period-btn active" onclick="setPeriod(7,this)">7 jours</button>
+  <div class="period-bar" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <button class="period-btn active" onclick="setPeriod(1,this)">Aujourd'hui</button>
+    <button class="period-btn" onclick="setPeriod(7,this)">7 jours</button>
     <button class="period-btn" onclick="setPeriod(30,this)">30 jours</button>
     <button class="period-btn" onclick="setPeriod(90,this)">3 mois</button>
     <button class="period-btn" onclick="setPeriod(365,this)">1 an</button>
+    <div style="display:flex;align-items:center;gap:6px;margin-left:8px;">
+      <span style="font-size:12px;color:#888780;">Du</span>
+      <input type="date" id="dateFrom" style="padding:5px 8px;border:0.5px solid #d3d1c7;border-radius:8px;font-size:12px;cursor:pointer;"
+        onchange="setCustomRange()"/>
+      <span style="font-size:12px;color:#888780;">au</span>
+      <input type="date" id="dateTo" style="padding:5px 8px;border:0.5px solid #d3d1c7;border-radius:8px;font-size:12px;cursor:pointer;"
+        onchange="setCustomRange()"/>
+    </div>
   </div>
   <div class="kpi-grid" id="kpiGrid"><div class="loading">Chargement...</div></div>
   <div class="charts-grid">
@@ -427,6 +436,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 let currentPeriod = 7;
+let customDateFrom = null;
+let customDateTo = null;
 let charts = {};
 let allSalesData = [];
 let allStockData = [];
@@ -434,23 +445,62 @@ let allRachatsData = [];
 let allCleaningsData = [];
 let selectedProducts = new Set();
 
+// Init dates par défaut — aujourd'hui
+document.addEventListener('DOMContentLoaded', () => {
+  const today = new Date().toISOString().split('T')[0];
+  const sevenDaysAgo = new Date(Date.now() - 6*86400000).toISOString().split('T')[0];
+  document.getElementById('dateFrom').value = sevenDaysAgo;
+  document.getElementById('dateTo').value = today;
+  if (DASH_BOUTIQUE === 'admin') {
+    document.getElementById('boutiqueSwitch').style.display = 'flex';
+  } else {
+    document.getElementById('dashTitle').textContent = `Nestore — Dashboard ${DASH_BOUTIQUE}`;
+  }
+});
+
+function setPeriod(days, btn) {
+  currentPeriod = days;
+  customDateFrom = null;
+  customDateTo = null;
+  document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  // Mettre à jour les inputs date
+  const to = new Date();
+  const from = new Date(Date.now() - (days-1)*86400000);
+  document.getElementById('dateFrom').value = from.toISOString().split('T')[0];
+  document.getElementById('dateTo').value = to.toISOString().split('T')[0];
+  loadVentes();
+}
+
+function setCustomRange() {
+  const from = document.getElementById('dateFrom').value;
+  const to = document.getElementById('dateTo').value;
+  if (!from || !to || from > to) return;
+  customDateFrom = from;
+  customDateTo = to;
+  currentPeriod = null;
+  document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+  loadVentes();
+}
+
+function getDateParams() {
+  if (customDateFrom && customDateTo) {
+    return `dateFrom=${customDateFrom}&dateTo=${customDateTo}`;
+  }
+  return `days=${currentPeriod || 7}`;
+}
+
 function switchTab(name, el) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   el.classList.add('active');
   document.getElementById(`tab-${name}`).classList.add('active');
+  if (name === 'ventes') loadVentes();
   if (name === 'stock') { allStockData = []; loadStock(); }
   if (name === 'rotation') loadRotation();
   if (name === 'rachats') loadRachats();
   if (name === 'nettoyage') loadCleanings();
   if (name === 'commandes') loadDashCommandes();
-}
-
-function setPeriod(days, btn) {
-  currentPeriod = days;
-  document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  loadVentes();
 }
 
 async function api(path) {
@@ -500,12 +550,12 @@ function makeChart(id, type, labels, datasets, options={}) {
 async function loadVentes() {
   loadSummary();
   const [daily, hourly, boutiques, employees, brands, recent] = await Promise.all([
-    api(`/analytics/daily?days=${currentPeriod}`),
-    api('/analytics/hourly'),
-    api('/analytics/boutiques'),
-    api('/analytics/employees'),
-    api('/analytics/brands'),
-    api('/analytics/recent?limit=9999')
+    api(`/analytics/daily?${getDateParams()}`),
+    api(`/analytics/hourly?${getDateParams()}`),
+    api(`/analytics/boutiques?${getDateParams()}`),
+    api(`/analytics/employees?${getDateParams()}`),
+    api(`/analytics/brands?${getDateParams()}`),
+    api(`/analytics/recent?limit=9999&${getDateParams()}`)
   ]);
 
   // Daily - stack par boutique
