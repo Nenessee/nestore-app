@@ -669,6 +669,10 @@
     if (invScanning) { stopInventaireScan(); } else { startInventaireScan(); }
   }
 
+  let _lastScannedBarcode = null;
+  let _lastScannedTime = 0;
+  const SCAN_DEBOUNCE_MS = 3000; // 3 secondes entre deux scans du même code
+
   function startInventaireScan() {
     getAudioCtx();
     const reader = document.getElementById('invReader');
@@ -706,6 +710,12 @@
         experimentalFeatures: { useBarCodeDetectorIfSupported: true }
       },
       async (barcode) => {
+        // Debounce — ignorer si même code scanné il y a moins de 3s
+        const now = Date.now();
+        if (barcode === _lastScannedBarcode && now - _lastScannedTime < SCAN_DEBOUNCE_MS) return;
+        _lastScannedBarcode = barcode;
+        _lastScannedTime = now;
+
         if (invScanned.has(barcode)) {
           scanFeedback(false);
           status.textContent = `⚠️ Déjà scanné : ${barcode}`;
