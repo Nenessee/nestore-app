@@ -1200,6 +1200,17 @@
     }
   }
 
+  function applyAdminBadge() {
+    const badge = document.getElementById('sessionBadge');
+    const avatar = document.getElementById('sessionAvatar');
+    const nameEl = document.getElementById('sessionName');
+    const subtitle = document.getElementById('appSubtitle');
+    if (badge) { badge.style.display = 'flex'; badge.style.background = '#2C2C2A'; badge.style.borderColor = '#2C2C2A'; }
+    if (avatar) { avatar.textContent = '★'; avatar.style.background = '#BA7517'; }
+    if (nameEl) { nameEl.textContent = 'Admin'; nameEl.style.color = '#fff'; }
+    if (subtitle) subtitle.textContent = 'Toutes boutiques';
+  }
+
   function checkPwd() {
     const val = document.getElementById('pwdInput').value;
     const boutique = CODES[val];
@@ -1231,7 +1242,8 @@
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('mainApp').style.display = 'block';
     applyBoutique(boutique);
-    applyEmployee(employee);
+    if (boutique === 'admin') applyAdminBadge();
+    else applyEmployee(employee);
     loadTodaySales();
     loadRecentPurchases();
     loadActiveCleanings();
@@ -1243,7 +1255,8 @@
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('mainApp').style.display = 'block';
     applyBoutique(_s.boutique);
-    applyEmployee(_s.employee);
+    if (_s.boutique === 'admin') applyAdminBadge();
+    else applyEmployee(_s.employee);
     loadTodaySales();
     loadRecentPurchases();
     loadActiveCleanings();

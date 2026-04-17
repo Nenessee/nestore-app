@@ -148,6 +148,7 @@ tr:hover td{background:#fafaf8;}
   <div class="tab" onclick="switchTab('rachats',this)">Rachats</div>
   <div class="tab" onclick="switchTab('nettoyage',this)">Nettoyage</div>
   <div class="tab" onclick="switchTab('commandes',this)">Commandes web</div>
+  <div class="tab" id="tabActivite" style="display:none;" onclick="switchTab('activite',this)">Activité</div>
 </div>
 
 <!-- MODAL SOLDES -->
@@ -358,6 +359,47 @@ tr:hover td{background:#fafaf8;}
 </div>
 </div>
 
+<!-- TAB ACTIVITE -->
+<div id="tab-activite" class="tab-panel">
+<div class="content">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+    <span class="section-title">Journal d'activité</span>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <select class="filter-select" id="actEmployeeFilter" onchange="filterActivite()">
+        <option value="">Tous les employés</option>
+        <option>Sacha</option><option>Mathys</option><option>Noa</option>
+        <option>Celeste</option><option>Louis</option><option>Romane</option>
+      </select>
+      <select class="filter-select" id="actTypeFilter" onchange="filterActivite()">
+        <option value="">Tous types</option>
+        <option value="vente">Ventes</option>
+        <option value="rachat">Rachats</option>
+        <option value="nettoyage">Nettoyage</option>
+        <option value="inventaire">Inventaire</option>
+      </select>
+      <select class="filter-select" id="actPeriodFilter" onchange="loadActivite()">
+        <option value="1">Aujourd'hui</option>
+        <option value="7">7 jours</option>
+        <option value="30">30 jours</option>
+      </select>
+    </div>
+  </div>
+  <div id="actKpis" class="kpi-grid" style="margin-bottom:20px;"></div>
+  <div class="table-card">
+    <div class="table-header">
+      <span class="table-title">Toutes les actions</span>
+      <span id="actCount" style="font-size:12px;color:#888780;"></span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>Date / Heure</th><th>Employé</th><th>Action</th><th>Article / Client</th><th>Boutique</th><th>Montant</th></tr></thead>
+        <tbody id="actTable"><tr><td colspan="6" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
 <!-- TAB COMMANDES WEB -->
 <div id="tab-commandes" class="tab-panel">
 <div class="content">
@@ -527,6 +569,7 @@ function switchTab(name, el) {
   if (name === 'rachats') loadRachats();
   if (name === 'nettoyage') loadCleanings();
   if (name === 'commandes') loadDashCommandes();
+  if (name === 'activite') loadActivite();
 }
 
 async function api(path) {
@@ -997,6 +1040,63 @@ function renderCommandesTable(data) {
   }).join('');
 }
 
+let allActiviteData = [];
+
+async function loadActivite() {
+  const days = document.getElementById('actPeriodFilter')?.value || 1;
+  document.getElementById('actTable').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr>';
+  try {
+    const data = await fetch(`${BACKEND_URL}/analytics/activity?days=${days}`).then(r => r.json());
+    allActiviteData = data;
+    // KPIs par employé
+    const byEmp = {};
+    data.forEach(a => {
+      if (!byEmp[a.employee]) byEmp[a.employee] = { vente:0, rachat:0, nettoyage:0, inventaire:0 };
+      byEmp[a.employee][a.type]++;
+    });
+    document.getElementById('actKpis').innerHTML = Object.entries(byEmp).map(([emp, counts]) =>
+      `<div class="kpi">
+        <div class="kpi-label">${emp}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
+          ${counts.vente?`<span class="badge badge-ok">${counts.vente} vente${counts.vente>1?'s':''}</span>`:''}
+          ${counts.rachat?`<span class="badge badge-warning">${counts.rachat} rachat${counts.rachat>1?'s':''}</span>`:''}
+          ${counts.nettoyage?`<span class="badge badge-lille">${counts.nettoyage} nettoyage${counts.nettoyage>1?'s':''}</span>`:''}
+          ${counts.inventaire?`<span class="badge" style="background:#f1efe8;">${counts.inventaire} scan${counts.inventaire>1?'s':''}</span>`:''}
+        </div>
+      </div>`
+    ).join('');
+    filterActivite();
+  } catch(e) {
+    document.getElementById('actTable').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#A32D2D;">Erreur de chargement</td></tr>';
+  }
+}
+
+function filterActivite() {
+  const emp = document.getElementById('actEmployeeFilter').value;
+  const type = document.getElementById('actTypeFilter').value;
+  let filtered = allActiviteData.filter(a => {
+    if (emp && a.employee !== emp) return false;
+    if (type && a.type !== type) return false;
+    return true;
+  });
+  document.getElementById('actCount').textContent = `${filtered.length} action${filtered.length>1?'s':''}`;
+  const typeColors = { vente:'badge-ok', rachat:'badge-warning', nettoyage:'badge-lille', inventaire:'' };
+  const typeLabels = { vente:'💰 Vente', rachat:'🛍 Rachat', nettoyage:'👟 Nettoyage', inventaire:'📦 Inventaire' };
+  document.getElementById('actTable').innerHTML = filtered.length ? filtered.map(a => {
+    const parts = a.at.match(/(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+    const dateStr = parts ? `${parts[1].split('-').reverse().join('/')} ${parts[2]}` : a.at;
+    const badge = typeColors[a.type];
+    return `<tr>
+      <td style="font-size:12px;color:#888780;white-space:nowrap;">${dateStr}</td>
+      <td><strong>${a.employee||'—'}</strong></td>
+      <td><span class="badge ${badge}" style="${!badge?'background:#f1efe8;color:#5f5e5a;':''}">${typeLabels[a.type]||a.type}</span></td>
+      <td style="font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${a.label||'—'}</td>
+      <td>${a.boutique?`<span class="badge ${a.boutique==='DK'?'badge-dk':'badge-lille'}">${a.boutique}</span>`:'—'}</td>
+      <td style="font-weight:600;">${parseFloat(a.amount||0)>0?parseFloat(a.amount).toFixed(2)+'€':'—'}</td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;color:#888780;">Aucune activité</td></tr>';
+}
+
 function exportMissingStock() {
   const missing = allStockData.filter(p => p.barcode && !p.inBoutique);
   if (!missing.length) { alert('Tous les articles avec code-barres sont cochés en boutique !'); return; }
@@ -1465,12 +1565,22 @@ function initDashboard(boutique, employee) {
   const sw = document.getElementById('boutiqueSwitch');
   sw.style.display = boutique === 'admin' ? 'flex' : 'none';
 
+  // Onglet Activité — admin seulement
+  const tabAct = document.getElementById('tabActivite');
+  if (tabAct) tabAct.style.display = boutique === 'admin' ? 'block' : 'none';
+
   // Badge employé
   const pill = document.getElementById('employeePill');
   if (employee && employee !== 'admin') {
     document.getElementById('employeePillAvatar').textContent = employee.substring(0,2).toUpperCase();
     document.getElementById('employeePillName').textContent = employee;
     pill.style.display = 'flex';
+  } else if (boutique === 'admin') {
+    document.getElementById('employeePillAvatar').textContent = '★';
+    document.getElementById('employeePillAvatar').style.background = '#BA7517';
+    document.getElementById('employeePillName').textContent = 'Admin';
+    pill.style.display = 'flex';
+    pill.style.borderColor = 'rgba(186,117,23,0.5)';
   } else {
     pill.style.display = 'none';
   }
