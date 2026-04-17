@@ -574,7 +574,9 @@ function renderStockTable(data) {
     const statusBadge = p.daysOnline>=60?'<span class="badge badge-danger">À brader</span>':p.daysOnline>=30?'<span class="badge badge-warning">À surveiller</span>':'<span class="badge badge-ok">OK</span>';
     const score = p.score||0;
     const scoreFill = score>=70?'#5DCAA5':score>=40?'#EF9F27':'#E24B4A';
-    const barcodeHtml = p.barcode?`<span style="font-family:monospace;font-size:11px;background:#f1efe8;padding:2px 6px;border-radius:4px;">${p.barcode}</span>`:'<span class="badge badge-danger">Manquant</span>';
+    const barcodeHtml = p.barcode
+      ? `<span style="font-family:monospace;font-size:11px;background:#f1efe8;padding:2px 6px;border-radius:4px;">${p.barcode}</span>`
+      : `<span onclick="openBarcodeInput(${p.variantId}, this)" style="cursor:pointer;" title="Cliquer pour ajouter un code-barres"><span class="badge badge-danger">Manquant — cliquer pour scanner</span></span>`;
     const isSelected = selectedProducts.has(p.id);
     const comparePrice = p.compareAtPrice ? `<span style="text-decoration:line-through;color:#888780;font-size:11px;margin-right:4px;">${parseFloat(p.compareAtPrice).toFixed(0)}€</span>` : '';
     const inBoutique = p.inBoutique === true;
@@ -751,6 +753,43 @@ function exportMissingStock() {
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(lines.join('\n'));
   a.download = `non_coches_${new Date().toLocaleDateString('fr-FR',{timeZone:'Europe/Paris'}).replace(/\//g,'-')}.csv`;
   a.click();
+}
+
+function openBarcodeInput(variantId, el) {
+  // Remplace le badge par un input de scan inline
+  const cell = el.closest('td');
+  cell.innerHTML = `
+    <div style="display:flex;gap:4px;align-items:center;">
+      <input id="bc_${variantId}" type="text" placeholder="Scanner ou saisir..." autofocus
+        style="width:140px;padding:4px 8px;border:0.5px solid #3B6D11;border-radius:6px;font-size:12px;font-family:monospace;"
+        onkeydown="if(event.key==='Enter') saveBarcode(${variantId}, this)"/>
+      <button onclick="saveBarcode(${variantId}, document.getElementById('bc_${variantId}'))"
+        style="padding:4px 8px;background:#3B6D11;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;">✓</button>
+      <button onclick="allStockData=[];loadStock();"
+        style="padding:4px 8px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:6px;font-size:12px;cursor:pointer;">✕</button>
+    </div>`;
+  setTimeout(() => document.getElementById(`bc_${variantId}`)?.focus(), 50);
+}
+
+async function saveBarcode(variantId, input) {
+  const barcode = input.value.trim();
+  if (!barcode) { alert('Scanne ou saisis un code-barres'); return; }
+  input.disabled = true;
+  try {
+    const res = await fetch(`${BACKEND_URL}/product/barcode`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ variantId, barcode })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) { alert('Erreur : ' + (data.error || 'Shopify na pas accepté')); input.disabled=false; return; }
+    // Mettre à jour localement
+    const p = allStockData.find(p => p.variantId === variantId);
+    if (p) p.barcode = barcode;
+    showToast('Code-barres enregistré sur Shopify ✓', 'success');
+    // Rafraîchir juste la cellule
+    const cell = input.closest('td');
+    if (cell) cell.innerHTML = `<span style="font-family:monospace;font-size:11px;background:#f1efe8;padding:2px 6px;border-radius:4px;">${barcode}</span>`;
+  } catch(e) { alert('Erreur réseau : ' + e.message); input.disabled=false; }
 }
 
 async function updateStockLocation(barcode, inBoutique) {
