@@ -108,7 +108,7 @@ tr:hover td{background:#fafaf8;}
   <div class="topbar-right">
     <a class="btn btn-green" href="#" onclick="exportCSV();return false;">CSV</a>
     <a class="btn" href="index.html">App caisse</a>
-    <a class="btn" href="#" onclick="logout()" style="background:rgba(163,45,45,0.3);border-color:rgba(163,45,45,0.5);">Déconnexion</a>
+    <a class="btn" href="#" onclick="logout()" style="background:#A32D2D;border-color:#A32D2D;">Déconnexion</a>
   </div>
 </div>
 
@@ -720,7 +720,13 @@ function renderCleaningsTable(data) {
       <td><span class="badge ${c.boutique==='DK'?'badge-dk':'badge-lille'}">${c.boutique}</span></td>
       <td style="color:#888780;font-size:12px;">${date}</td>
       <td style="font-size:12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${c.remarks||''}">${c.remarks||'—'}</td>
-      <td style="display:flex;gap:3px;flex-wrap:wrap;">${photosHtml}</td>
+      <td style="display:flex;gap:3px;flex-wrap:wrap;align-items:center;">
+        ${photosHtml}
+        <label style="width:32px;height:32px;border:0.5px dashed #d3d1c7;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;flex-shrink:0;" title="Ajouter des photos">
+          +
+          <input type="file" accept="image/*" multiple style="display:none;" onchange="addPhotosToClean(${c.id}, this)"/>
+        </label>
+      </td>
       <td>
         <select onchange="updateCleaningStatus(${c.id}, this.value)" style="font-size:12px;padding:4px 6px;border:0.5px solid #d3d1c7;border-radius:6px;background:#fff;">
           <option value="en_cours" ${c.status==='en_cours'?'selected':''}>🔵 En cours</option>
@@ -761,6 +767,22 @@ function filterCleanings() {
 function showPhoto(url) {
   const w = window.open('', '_blank');
   w.document.write(`<img src="${url}" style="max-width:100%;max-height:100vh;">`);
+}
+
+async function addPhotosToClean(id, input) {
+  const files = input.files;
+  if (!files.length) return;
+  for (const file of files) {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      await fetch(`${BACKEND_URL}/cleaning/${id}/photo`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photo: e.target.result })
+      });
+    };
+    reader.readAsDataURL(file);
+  }
+  setTimeout(() => loadCleanings(), 1500);
 }
 
 async function loadRachats() {
