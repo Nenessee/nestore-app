@@ -330,7 +330,7 @@
               <div class="pdetails" style="margin-bottom:12px;">
                 <span>Acheté ${parseFloat(purchase.purchase_price).toFixed(2)} €</span>
                 <span>Par ${purchase.employee}</span>
-                <span>Le ${new Date(purchase.purchased_at).toLocaleDateString('fr-FR')}</span>
+                <span>Le ${new Date(purchase.purchased_at).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}</span>
               </div>
               <button class="btn-sell" id="sellBtn" onclick="markPurchaseAsSold('${purchase.id}', '${purchase.product_name.replace(/'/g,"\\'")}', '${purchase.brand||''}', '${purchase.estimated_price||0}', '${barcode}')">
                 Marquer vendu — sans mise à jour Shopify
@@ -452,7 +452,7 @@
     if (empty) empty.remove();
 
     const now = new Date();
-    const time = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const time = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
     const badgeClass = (data.boutique || boutique) === 'DK' ? 'badge-dk' : 'badge-lille';
     const img = data.image || data.image_url;
     const imgHtml = img
@@ -521,7 +521,7 @@
       area.innerHTML = items.map(({ order, item, itemBoutique }) => {
         const badge = itemBoutique === 'DK' ? 'badge-dk' : 'badge-lille';
         const img = item.image ? `<img src="${item.image}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;">` : `<div style="width:52px;height:52px;border-radius:8px;background:#f1efe8;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">👕</div>`;
-        const orderDate = new Date(order.created_at).toLocaleDateString('fr-FR');
+        const orderDate = new Date(order.created_at).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' });
         return `<div class="history-item" id="order-${order.id}-${item.id}">
           ${img}
           <div style="flex:1;min-width:0;">
@@ -531,22 +531,66 @@
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
             <span class="badge ${badge}">${itemBoutique}</span>
-            <button onclick="markAside('${order.id}', '${item.id}', this)" style="padding:5px 10px;background:#3B6D11;color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;">✓ Mis de côté</button>
+            <div style="display:flex;gap:8px;width:100%;">
+            <button onclick="markAside('${order.id}', '${item.id}', this)" style="flex:1;padding:10px;background:#3B6D11;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">📦 Mis de côté — prêt à expédier</button>
+            <button onclick="markNotFound('${order.id}', '${item.id}', this)" style="padding:10px 12px;background:#FCEBEB;border:0.5px solid #f7c1c1;border-radius:8px;font-size:13px;color:#A32D2D;cursor:pointer;font-weight:600;" title="Article introuvable en boutique">❌</button>
+            <a href="https://admin.shopify.com/store/nestore-io/orders/${order.id}" target="_blank" style="padding:10px 12px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:8px;font-size:13px;color:#1a1a18;text-decoration:none;">↗</a>
+          </div>`;
           </div>
         </div>`;
       }).join('');
+      setTimeout(restoreOrderStates, 50);
     } catch(e) {
       area.innerHTML = '<div class="history-empty" style="padding:2rem;text-align:center;color:#A32D2D;">Erreur de chargement — vérifie que read_orders est activé dans Shopify</div>';
     }
   }
 
   function markAside(orderId, itemId, btn) {
-    btn.textContent = '✓ Fait';
+    btn.textContent = '✓ Mis de côté';
     btn.style.background = '#888780';
     btn.disabled = true;
     const row = document.getElementById(`order-${orderId}-${itemId}`);
     if (row) row.style.opacity = '0.4';
+    // Persister en localStorage
+    const key = `aside_${orderId}_${itemId}`;
+    localStorage.setItem(key, 'done');
     showToast('Article mis de côté ✓', 'success');
+  }
+
+  function markNotFound(orderId, itemId, btn) {
+    btn.disabled = true;
+    btn.textContent = '❌';
+    btn.style.background = '#A32D2D';
+    btn.style.color = '#fff';
+    const row = document.getElementById(`order-${orderId}-${itemId}`);
+    if (row) {
+      const notif = document.createElement('div');
+      notif.style.cssText = 'font-size:11px;color:#A32D2D;font-weight:600;margin-top:4px;';
+      notif.textContent = '⚠️ Article introuvable — à traiter dans Shopify';
+      row.querySelector('div')?.appendChild(notif);
+    }
+    const key = `notfound_${orderId}_${itemId}`;
+    localStorage.setItem(key, 'done');
+    showToast('Article signalé comme introuvable', 'error');
+  }
+
+  function restoreOrderStates() {
+    // Restaurer l'état des boutons après rechargement
+    document.querySelectorAll('[id^="order-"]').forEach(row => {
+      const parts = row.id.split('-');
+      if (parts.length < 3) return;
+      const orderId = parts[1];
+      const itemId = parts[2];
+      if (localStorage.getItem(`aside_${orderId}_${itemId}`)) {
+        row.style.opacity = '0.4';
+        const btn = row.querySelector('button');
+        if (btn) { btn.textContent = '✓ Mis de côté'; btn.style.background = '#888780'; btn.disabled = true; }
+      }
+      if (localStorage.getItem(`notfound_${orderId}_${itemId}`)) {
+        const btn2 = row.querySelectorAll('button')[1];
+        if (btn2) { btn2.disabled = true; btn2.style.background = '#A32D2D'; btn2.style.color = '#fff'; }
+      }
+    });
   }
 
 
@@ -639,7 +683,7 @@
     const list = document.getElementById('purchaseList');
     const empty = list.querySelector('.history-empty');
     if (empty) empty.remove();
-    const now = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const now = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
     const margin = estimatedPrice ? ` → ${parseFloat(estimatedPrice).toFixed(0)}€` : '';
     const item = document.createElement('div');
     item.className = 'history-item';
@@ -682,7 +726,10 @@
       const res = await fetch(`${BACKEND_URL}/purchases`);
       const purchases = await res.json();
       if (!Array.isArray(purchases) || purchases.length === 0) return;
-      for (const p of [...purchases].slice(0, 15).reverse()) {
+      const filtered = purchases
+        .filter(p => !currentBoutique || currentBoutique === 'admin' || p.boutique === currentBoutique || !p.boutique)
+        .slice(0, 15).reverse();
+      for (const p of filtered) {
         addToPurchaseHistory({
           barcode: p.barcode,
           productName: p.product_name,
@@ -768,7 +815,7 @@
     const list = document.getElementById('cleanList');
     const empty = list.querySelector('.history-empty');
     if (empty) empty.remove();
-    const date = new Date(c.deposited_at||new Date()).toLocaleDateString('fr-FR');
+    const date = new Date(c.deposited_at||new Date()).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' });
     const photos = c.photos ? (typeof c.photos === 'string' ? JSON.parse(c.photos) : c.photos) : [];
     const firstPhoto = photos.length > 0 ? (photos[0].url || photos[0]) : null;
     const imgHtml = firstPhoto
@@ -837,31 +884,48 @@
     document.getElementById('pwdError').style.display = 'none';
   }
 
+  const EMPLOYEES = {
+    'Lille': ['Sacha', 'Mathys', 'Noa', 'Celeste', 'Louis'],
+    'DK': ['Romane'],
+    'admin': ['Sacha', 'Mathys', 'Romane', 'Noa', 'Celeste', 'Louis']
+  };
+
+  function setEmployeeOptions(selectId, boutique) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    const employees = EMPLOYEES[boutique] || EMPLOYEES['admin'];
+    const current = sel.value;
+    sel.innerHTML = `<option value="">— Sélectionner —</option>` + employees.map(e => `<option${e===current?' selected':''}>${e}</option>`).join('');
+  }
+
   function applyBoutique(boutique) {
     currentBoutique = boutique;
     const isAdmin = boutique === 'admin';
 
-    // Header — afficher la boutique
+    // Header
     const subtitle = document.querySelector('.subtitle');
     if (subtitle) subtitle.textContent = isAdmin ? 'Toutes boutiques — Admin' : `Boutique ${boutique}`;
 
-    // Verrouiller ou libérer le select boutique
+    // Verrouiller boutique selects
     const boutiqueSelect = document.getElementById('boutiqueSelect');
     const cleanBoutique = document.getElementById('cleanBoutique');
     if (!isAdmin) {
-      // Verrouiller sur la bonne boutique
       boutiqueSelect.value = boutique;
       boutiqueSelect.disabled = true;
       boutiqueSelect.style.opacity = '0.6';
       if (cleanBoutique) { cleanBoutique.value = boutique; cleanBoutique.disabled = true; cleanBoutique.style.opacity = '0.6'; }
-      // Masquer Vinted si DK (optionnel, à adapter)
     } else {
       boutiqueSelect.disabled = false;
       boutiqueSelect.style.opacity = '1';
       if (cleanBoutique) { cleanBoutique.disabled = false; cleanBoutique.style.opacity = '1'; }
     }
 
-    // Afficher le Dashboard pour tous
+    // Filtrer les employés selon boutique
+    setEmployeeOptions('employeeSelect', boutique);
+    setEmployeeOptions('purchaseEmployee', boutique);
+    setEmployeeOptions('cleanEmployee', boutique);
+
+    // Dashboard accessible à tous
     const dashLink = document.getElementById('dashLink');
     if (dashLink) dashLink.style.display = 'inline-block';
 
