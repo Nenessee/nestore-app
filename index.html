@@ -225,6 +225,33 @@
       const data = await res.json();
 
       if (!res.ok || data.error) {
+        // Vérifier si c'est un article racheté
+        try {
+          const purchaseRes = await fetch(`${BACKEND_URL}/purchase/${encodeURIComponent(barcode)}`);
+          if (purchaseRes.ok) {
+            const purchase = await purchaseRes.json();
+            area.innerHTML = `<div class="product-card" style="border-color:#9FE1CB;">
+              <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;">
+                <div style="width:80px;height:80px;border-radius:10px;background:#EAF3DE;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;">🛍</div>
+                <div style="flex:1;">
+                  <div style="font-size:11px;color:#3B6D11;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Article racheté — hors Shopify</div>
+                  <div class="pname">${purchase.product_name}</div>
+                  <div class="pcode">${barcode}${purchase.brand ? ` · ${purchase.brand}` : ''}</div>
+                  <div class="pprice">${parseFloat(purchase.estimated_price||0).toFixed(2)} €</div>
+                </div>
+              </div>
+              <div class="pdetails" style="margin-bottom:12px;">
+                <span>Acheté ${parseFloat(purchase.purchase_price).toFixed(2)} €</span>
+                <span>Par ${purchase.employee}</span>
+                <span>Le ${new Date(purchase.purchased_at).toLocaleDateString('fr-FR')}</span>
+              </div>
+              <button class="btn-sell" id="sellBtn" onclick="markPurchaseAsSold('${purchase.id}', '${purchase.product_name.replace(/'/g,"\\'")}', '${purchase.brand||''}', '${purchase.estimated_price||0}', '${barcode}')">
+                Marquer vendu — sans mise à jour Shopify
+              </button>
+            </div>`;
+            return;
+          }
+        } catch(e) {}
         area.innerHTML = `<div class="product-card error">
           <div class="pname">Produit introuvable</div>
           <div class="pcode">${barcode}</div>
@@ -421,7 +448,52 @@
     btn.disabled = false; btn.textContent = 'Enregistrer le rachat';
   }
 
-  function addToPurchaseHistory({ barcode, productName, brand, purchasePrice, estimatedPrice, employee }) {
+  async function markPurchaseAsSold(purchaseId, productName, brand, price, barcode) {
+    const employee = document.getElementById('employeeSelect').value;
+    if (!employee) { alert('Sélectionne un employé avant de valider la vente.'); return; }
+
+    const btn = document.getElementById('sellBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Envoi en cours...'; }
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/sell`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          inventoryItemId: null,
+          locationId: null,
+          employee,
+          boutique: document.getElementById('boutiqueSelect').value,
+          productName,
+          barcode,
+          price,
+          brand,
+          tags: [],
+          imageUrl: null,
+          productCreatedAt: null
+        })
+      });
+
+      const result = await res.json();
+      if (!res.ok || !result.success) {
+        alert('Erreur : ' + JSON.stringify(result.error || result));
+        if (btn) { btn.disabled = false; btn.textContent = 'Marquer vendu — sans mise à jour Shopify'; }
+        return;
+      }
+
+      addToHistory({ name: productName, barcode, price, boutique: document.getElementById('boutiqueSelect').value, image: null }, employee, document.getElementById('boutiqueSelect').value);
+      showToast('Vente enregistrée ✓', 'success');
+      document.getElementById('barcodeInput').value = '';
+      document.getElementById('productArea').innerHTML = '';
+      document.getElementById('barcodeInput').focus();
+
+    } catch(err) {
+      alert('Erreur réseau : ' + err.message);
+      if (btn) { btn.disabled = false; btn.textContent = 'Marquer vendu — sans mise à jour Shopify'; }
+    }
+  }
+
+({ barcode, productName, brand, purchasePrice, estimatedPrice, employee }) {
     const list = document.getElementById('purchaseList');
     const empty = list.querySelector('.history-empty');
     if (empty) empty.remove();
