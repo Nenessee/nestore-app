@@ -418,6 +418,27 @@ tr:hover td{background:#fafaf8;}
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
+const DASH_VERSION = '2025-04-17-v1';
+
+// Vérifier les mises à jour toutes les 30 secondes
+setInterval(() => {
+  fetch(location.href + '?nocache=' + Date.now(), { cache: 'no-store' })
+    .then(r => r.text())
+    .then(html => {
+      const match = html.match(/DASH_VERSION = '([^']+)'/);
+      if (match && match[1] !== DASH_VERSION) {
+        let b = document.getElementById('dashUpdateBanner');
+        if (!b) {
+          b = document.createElement('div');
+          b.id = 'dashUpdateBanner';
+          b.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#3B6D11;color:#fff;text-align:center;padding:12px;font-size:13px;font-weight:600;z-index:9999;cursor:pointer;';
+          b.textContent = '🔄 Nouvelle version disponible — Appuyer pour actualiser';
+          b.onclick = () => location.reload();
+          document.body.prepend(b);
+        }
+      }
+    }).catch(() => {});
+}, 30000);
 const urlParams = new URLSearchParams(window.location.search);
 let DASH_BOUTIQUE = urlParams.get('b') || 'admin';
 

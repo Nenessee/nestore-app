@@ -282,10 +282,26 @@
 </div>
 
 <div class="toast" id="toast"></div>
+<div id="updateBanner" style="display:none;position:fixed;top:0;left:0;right:0;background:#3B6D11;color:#fff;text-align:center;padding:12px;font-size:13px;font-weight:600;z-index:9999;cursor:pointer;" onclick="location.reload()">
+  🔄 Nouvelle version disponible — Appuyer pour actualiser
+</div>
 
 <script>
+  const APP_VERSION = '2025-04-17-v1';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   let currentData = null;
+
+  // Vérifier les mises à jour toutes les 30 secondes
+  setInterval(() => {
+    fetch(location.href + '?nocache=' + Date.now(), { cache: 'no-store' })
+      .then(r => r.text())
+      .then(html => {
+        const match = html.match(/APP_VERSION = '([^']+)'/);
+        if (match && match[1] !== APP_VERSION) {
+          document.getElementById('updateBanner').style.display = 'block';
+        }
+      }).catch(() => {});
+  }, 30000);
 
   document.addEventListener('DOMContentLoaded', () => {
     const inp = document.getElementById('barcodeInput');
