@@ -783,94 +783,59 @@ function openBarcodeInput(variantId, el) {
       <button onclick="allStockData=[];loadStock();"
         style="padding:4px 8px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:6px;font-size:12px;cursor:pointer;">✕</button>
     </div>
-    <div id="camContainer_${variantId}" style="display:none;margin-top:8px;">
-      <video id="camVideo_${variantId}" style="width:100%;max-width:300px;border-radius:8px;" autoplay playsinline></video>
-      <canvas id="camCanvas_${variantId}" style="display:none;"></canvas>
-      <div style="font-size:11px;color:#888780;margin-top:4px;">Pointez la caméra sur le code-barres</div>
-    </div>`;
+    <div id="camContainer_${variantId}" style="display:none;margin-top:8px;"></div>`;
   setTimeout(() => document.getElementById(`bc_${variantId}`)?.focus(), 50);
 }
 
 async function openCameraForBarcode(variantId) {
-  const container = document.getElementById(`camContainer_${variantId}`);
-  const video = document.getElementById(`camVideo_${variantId}`);
   const input = document.getElementById(`bc_${variantId}`);
-  if (!container || !video) return;
 
+  // Charger html5-qrcode si pas encore chargé
+  if (!window.Html5Qrcode) {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+      s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  // Créer un div pour le scanner
+  const container = document.getElementById(`camContainer_${variantId}`);
   container.style.display = 'block';
+  container.innerHTML = `<div id="qr_${variantId}" style="width:100%;max-width:300px;"></div>
+    <div style="font-size:11px;color:#888780;margin-top:4px;">Pointez sur le code-barres</div>
+    <button onclick="stopCamera(${variantId})" style="margin-top:6px;padding:4px 10px;border:0.5px solid #d3d1c7;border-radius:6px;font-size:12px;cursor:pointer;">✕ Fermer</button>`;
+
+  const scanner = new Html5Qrcode(`qr_${variantId}`);
+  window[`_scanner_${variantId}`] = scanner;
 
   try {
-    // Charger ZXing dynamiquement
-    if (!window.ZXing) {
-      await new Promise((resolve, reject) => {
-        const s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/zxing-js/0.21.3/umd/index.min.js';
-        s.onload = resolve; s.onerror = reject;
-        document.head.appendChild(s);
-      });
-    }
-
-    const codeReader = new ZXing.BrowserMultiFormatReader();
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-    video.srcObject = stream;
-    await video.play();
-
-    // Ajouter bouton fermer
-    let closeBtn = container.querySelector('.close-cam-btn');
-    if (!closeBtn) {
-      closeBtn = document.createElement('button');
-      closeBtn.className = 'close-cam-btn';
-      closeBtn.textContent = '✕ Fermer';
-      closeBtn.style.cssText = 'margin-top:6px;padding:4px 10px;border:0.5px solid #d3d1c7;border-radius:6px;font-size:12px;cursor:pointer;display:block;';
-      closeBtn.onclick = () => {
-        stream.getTracks().forEach(t => t.stop());
-        container.style.display = 'none';
-      };
-      container.appendChild(closeBtn);
-    }
-
-    // Scan en continu sur la vidéo
-    const canvas = document.getElementById(`camCanvas_${variantId}`);
-    canvas.style.display = 'none';
-    const ctx = canvas.getContext('2d');
-
-    const scanLoop = setInterval(() => {
-      if (!video.videoWidth) return;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const hints = new Map();
-      const formats = [
-        ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39,
-        ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8,
-        ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E,
-        ZXing.BarcodeFormat.QR_CODE
-      ];
-      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
-      try {
-        const luminanceSource = new ZXing.RGBLuminanceSource(imageData.data, canvas.width, canvas.height);
-        const binaryBitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource));
-        const reader = new ZXing.MultiFormatReader();
-        reader.setHints(hints);
-        const result = reader.decode(binaryBitmap);
-        if (result) {
-          clearInterval(scanLoop);
-          stream.getTracks().forEach(t => t.stop());
+    await scanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 250, height: 150 } },
+      (decodedText) => {
+        // Code détecté !
+        scanner.stop().then(() => {
           container.style.display = 'none';
-          input.value = result.getText();
-          // Vibration feedback sur mobile
+          input.value = decodedText;
           if (navigator.vibrate) navigator.vibrate(100);
-          // Sauvegarder automatiquement
           saveBarcode(variantId, input);
-        }
-      } catch(e) { /* Pas encore de code détecté */ }
-    }, 200);
-
+        });
+      },
+      () => {} // Erreur de scan ignorée
+    );
   } catch(e) {
     container.style.display = 'none';
-    alert('Impossible d\'accéder à la caméra : ' + e.message);
+    alert('Caméra inaccessible. Vérifie que le site a la permission d\'accéder à la caméra dans les réglages du navigateur.');
   }
+}
+
+function stopCamera(variantId) {
+  const scanner = window[`_scanner_${variantId}`];
+  if (scanner) scanner.stop().catch(() => {});
+  const container = document.getElementById(`camContainer_${variantId}`);
+  if (container) container.style.display = 'none';
 }
 
 async function saveBarcode(variantId, input) {
