@@ -234,9 +234,13 @@ tr:hover td{background:#fafaf8;}
         <option value="present">Avec code-barres</option>
       </select>
       <select class="filter-select" id="stockLocationFilter" onchange="filterStock()">
-        <option value="">Tous articles</option>
-        <option value="present">✓ En boutique</option>
+        <option value="">Toutes localisations</option>
+        <option value="present">✓ Tous localisés</option>
         <option value="absent">✗ Non localisés</option>
+        <option value="en_magasin">🏪 En magasin</option>
+        <option value="reserve">📦 Réserve</option>
+        <option value="local">🏠 Local</option>
+        <option value="pressing">👟 Pressing</option>
       </select>
       <select class="filter-select" id="stockScoreFilter" onchange="filterStock()">
         <option value="">Tous scores</option>
@@ -272,7 +276,7 @@ tr:hover td{background:#fafaf8;}
           <th><input type="checkbox" class="cb" onclick="toggleSelectAll(this)"/></th>
           <th>Article</th><th>Marque</th><th>Code-barres</th><th>Prix</th>
           <th>Boutique</th><th>Score</th><th>En ligne depuis</th><th>Statut</th>
-          <th>En boutique ✓</th>
+          <th>En boutique ✓</th><th>Localisation</th>
           <th></th>
         </tr></thead>
         <tbody id="stockTable"><tr><td colspan="11" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
@@ -622,7 +626,11 @@ function filterSales(q) {
 async function loadStock() {
   document.getElementById('stockTable').innerHTML = '<tr><td colspan="12" style="text-align:center;padding:40px;color:#888780;">Chargement du stock Shopify (peut prendre 30s)...</td></tr>';
   const [data, locMap] = await Promise.all([api('/analytics/stock'), api('/stock/locations')]);
-  allStockData = data.map(p => ({ ...p, inBoutique: locMap[p.barcode] === true }));
+  allStockData = data.map(p => ({
+    ...p,
+    inBoutique: locMap[p.barcode]?.inBoutique === true,
+    location: locMap[p.barcode]?.location || null
+  }));
   const total = allStockData.length;
   const alert30 = allStockData.filter(p=>p.daysOnline>=30&&p.daysOnline<60).length;
   const alert60 = allStockData.filter(p=>p.daysOnline>=60).length;
@@ -667,9 +675,21 @@ function renderStockTable(data) {
     const isSelected = selectedProducts.has(p.id);
     const comparePrice = p.compareAtPrice ? `<span style="text-decoration:line-through;color:#888780;font-size:11px;margin-right:4px;">${parseFloat(p.compareAtPrice).toFixed(0)}€</span>` : '';
     const inBoutique = p.inBoutique === true;
+    const loc = p.location || '';
+    const locColors = { en_magasin: '#3B6D11', reserve: '#185FA5', local: '#7B4FBA', pressing: '#BA7517' };
+    const checkCell = p.barcode
+      ? `<input type="checkbox" ${inBoutique?'checked':''} onchange="onCheckLocation('${p.barcode}', this.checked, '${loc}')"
+          style="width:16px;height:16px;cursor:pointer;accent-color:#3B6D11;"/>`
+      : `<span style="color:#b4b2a9;font-size:11px;">—</span>`;
     const locCell = p.barcode
-      ? `<input type="checkbox" ${inBoutique?'checked':''} onchange="updateStockLocation('${p.barcode}', this.checked)"
-          style="width:18px;height:18px;cursor:pointer;accent-color:#3B6D11;"/>`
+      ? `<select onchange="updateStockLocation('${p.barcode}', ${inBoutique}, this.value)"
+          style="font-size:11px;padding:3px 6px;border:0.5px solid #d3d1c7;border-radius:6px;color:${locColors[loc]||'#888780'};max-width:120px;">
+          <option value="" ${!loc?'selected':''}>— Choisir —</option>
+          <option value="en_magasin" ${loc==='en_magasin'?'selected':''}>🏪 En magasin</option>
+          <option value="reserve" ${loc==='reserve'?'selected':''}>📦 Réserve</option>
+          <option value="local" ${loc==='local'?'selected':''}>🏠 Local</option>
+          <option value="pressing" ${loc==='pressing'?'selected':''}>👟 Pressing</option>
+        </select>`
       : `<span style="color:#b4b2a9;font-size:11px;">—</span>`;
     const rowBg = !inBoutique && p.barcode ? 'background:#FFF8F8;' : '';
     return `<tr style="${rowBg}">
@@ -682,7 +702,8 @@ function renderStockTable(data) {
       <td><span style="font-size:13px;font-weight:600;color:${scoreFill}">${score}</span> <div class="score-bar"><div class="score-fill" style="width:${score}%;background:${scoreFill};height:100%;border-radius:3px;"></div></div></td>
       <td><div style="font-size:13px;font-weight:500;">${p.daysOnline}j</div><div class="days-bar"><div class="days-bar-fill" style="width:${fillPct}%;background:${fillColor};"></div></div></td>
       <td>${statusBadge}</td>
-      <td style="text-align:center;">${locCell}</td>
+      <td style="text-align:center;">${checkCell}</td>
+      <td>${locCell}</td>
       <td><a href="${p.shopifyAdminUrl}" target="_blank" class="link-btn">Shopify ↗</a></td>
     </tr>`;
   }).join('');
@@ -706,6 +727,7 @@ function filterStock() {
     if(barcode==='present'&&!p.barcode) return false;
     if(locF==='present'&&!p.inBoutique) return false;
     if(locF==='absent'&&p.inBoutique) return false;
+    if(['en_magasin','reserve','local','pressing'].includes(locF) && (p.location !== locF || !p.inBoutique)) return false;
     if(scoreF==='high'&&(p.score||0)<70) return false;
     if(scoreF==='mid'&&((p.score||0)<40||(p.score||0)>=70)) return false;
     if(scoreF==='low'&&(p.score||0)>=40) return false;
@@ -1036,19 +1058,24 @@ async function saveBarcode(variantId, input) {
   } catch(e) { alert('Erreur réseau : ' + e.message); input.disabled=false; }
 }
 
-async function updateStockLocation(barcode, inBoutique) {
+function onCheckLocation(barcode, checked, currentLoc) {
+  const newLoc = checked ? 'en_magasin' : '';
+  updateStockLocation(barcode, checked, newLoc);
+  // Mettre à jour visuellement le select de la même ligne
+  const p = allStockData.find(p => p.barcode === barcode);
+  if (p) { p.inBoutique = checked; p.location = newLoc; }
+  filterStock();
+}
+
+async function updateStockLocation(barcode, inBoutique, location) {
   try {
     const res = await fetch(`${BACKEND_URL}/stock/location`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ barcode, inBoutique })
+      body: JSON.stringify({ barcode, inBoutique, location })
     });
-    if (!res.ok) {
-      const err = await res.json();
-      alert('Erreur sauvegarde : ' + (err.error || res.status));
-      return;
-    }
+    if (!res.ok) { const err = await res.json(); alert('Erreur : ' + (err.error || res.status)); return; }
     const p = allStockData.find(p => p.barcode === barcode);
-    if (p) p.inBoutique = inBoutique;
+    if (p) { p.inBoutique = inBoutique; p.location = location; }
   } catch(e) { alert('Erreur réseau : ' + e.message); }
 }
 
