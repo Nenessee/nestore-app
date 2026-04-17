@@ -786,6 +786,13 @@
             });
           } catch(e) {}
         }
+        // Récupérer la fiche à jour avec les photos
+        try {
+          const r2 = await fetch(`${BACKEND_URL}/cleanings`);
+          const all = await r2.json();
+          const updated = all.find(c => c.id === result.cleaning.id);
+          if (updated) result.cleaning = updated;
+        } catch(e) {}
       }
 
       showToast('Dépôt enregistré ✓', 'success');
