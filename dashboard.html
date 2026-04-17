@@ -77,9 +77,28 @@ tr:hover td{background:#fafaf8;}
 .progress-bar{height:6px;background:#f1efe8;border-radius:3px;margin-top:8px;overflow:hidden;}
 .progress-fill{height:100%;background:#2C2C2A;border-radius:3px;transition:width 0.3s;}
 @media(max-width:600px){.kpi-grid{grid-template-columns:1fr 1fr;}.charts-grid{grid-template-columns:1fr;}}
+.login-box{background:#fff;border:0.5px solid #e0dfd8;border-radius:16px;padding:2rem;width:100%;max-width:360px;}
+.login-box h1{text-align:center;font-size:18px;font-weight:600;margin-bottom:6px;}
+.login-box p{text-align:center;font-size:13px;color:#888780;margin-bottom:1.5rem;}
+.login-box input{width:100%;padding:12px;border:0.5px solid #d3d1c7;border-radius:10px;font-size:15px;background:#f5f5f3;color:#1a1a18;margin-bottom:10px;}
+.login-box button{width:100%;padding:13px;background:#2C2C2A;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;}
+.login-error{color:#A32D2D;font-size:13px;text-align:center;margin-top:10px;display:none;}
 </style>
 </head>
 <body>
+
+<div id="loginScreen" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f5f5f3;">
+  <div class="login-box">
+    <div style="width:48px;height:48px;background:#2C2C2A;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700;margin:0 auto 1.5rem;">NV</div>
+    <h1>Nestore</h1>
+    <p>Accès réservé à l'équipe</p>
+    <input type="password" id="dashPwd" placeholder="Mot de passe" onkeydown="if(event.key==='Enter')checkDashPwd()"/>
+    <button onclick="checkDashPwd()">Accéder</button>
+    <div class="login-error" id="dashPwdError">Mot de passe incorrect</div>
+  </div>
+</div>
+
+<div id="dashApp" style="display:none;">
 
 <div class="topbar">
   <div class="topbar-left">
@@ -89,6 +108,7 @@ tr:hover td{background:#fafaf8;}
   <div class="topbar-right">
     <a class="btn btn-green" href="#" onclick="exportCSV();return false;">CSV</a>
     <a class="btn" href="index.html">App caisse</a>
+    <a class="btn" href="#" onclick="logout()" style="background:rgba(163,45,45,0.3);border-color:rgba(163,45,45,0.5);">Déconnexion</a>
   </div>
 </div>
 
@@ -796,7 +816,36 @@ function filterRachats() {
   renderRachatsTable(filtered);
 }
 
-loadVentes();
+</script>
+</div><!-- fin dashApp -->
+
+<script>
+const DASH_PWD = 'yiachi3933';
+function logout() {
+  localStorage.removeItem('nv_dash_auth');
+  document.getElementById('dashApp').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('dashPwd').value = '';
+  document.getElementById('dashPwdError').style.display = 'none';
+}
+function checkDashPwd() {
+  const val = document.getElementById('dashPwd').value;
+  if (val === DASH_PWD) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('dashApp').style.display = 'block';
+    localStorage.setItem('nv_dash_auth', '1');
+    loadVentes();
+  } else {
+    document.getElementById('dashPwdError').style.display = 'block';
+    document.getElementById('dashPwd').value = '';
+    document.getElementById('dashPwd').focus();
+  }
+}
+if (localStorage.getItem('nv_dash_auth') === '1') {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('dashApp').style.display = 'block';
+  loadVentes();
+}
 </script>
 </body>
 </html>
