@@ -682,7 +682,13 @@
     invScanner = new Html5Qrcode('invReader');
     invScanner.start(
       { facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 260, height: 120 } },
+      {
+        fps: 15,
+        qrbox: (w, h) => ({ width: Math.min(w * 0.9, 500), height: Math.min(h * 0.4, 180) }),
+        aspectRatio: 1.7,
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+        rememberLastUsedCamera: true
+      },
       async (barcode) => {
         if (invScanned.has(barcode)) {
           scanFeedback(false);
