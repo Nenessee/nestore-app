@@ -574,22 +574,78 @@
   let invScanning = false;
   let invScanned = new Set();
 
-  function initInventaireTab() {}
+  function initInventaireTab() {
+    loadInventaireHistory();
+  }
+
+  async function loadInventaireHistory() {
+    try {
+      const bParam = currentBoutique && currentBoutique !== 'admin' ? `?boutique=${currentBoutique}` : '';
+      const res = await fetch(`${BACKEND_URL}/stock/inventory/today${bParam}`);
+      const items = await res.json();
+      if (!Array.isArray(items) || !items.length) return;
+      // Peupler l'historique et le Set des déjà scannés
+      for (const item of [...items].reverse()) {
+        invScanned.add(item.barcode);
+        addToInvList({
+          barcode: item.barcode,
+          name: item.barcode, // nom enrichi si dispo
+          image: null,
+          employee: item.updated_by,
+          time: new Date(item.updated_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' })
+        });
+      }
+    } catch(e) {}
+  }
 
   function setInvMode(mode) {
-    stopInventaireScan();
+    // Arrêter la caméra proprement avant de changer
+    if (invScanning) {
+      stopInventaireScan();
+    }
+    if (invScanner) {
+      invScanner.stop().catch(() => {}).finally(() => {
+        invScanner.clear();
+        invScanner = null;
+      });
+    }
+    invScanning = false;
     document.getElementById('invModeSelect').style.display = mode ? 'none' : 'block';
     document.getElementById('invModeScanette').style.display = mode === 'scanner' ? 'block' : 'none';
     document.getElementById('invModeCamera').style.display = mode === 'camera' ? 'block' : 'none';
-    if (mode === 'scanner') {
-      setTimeout(() => document.getElementById('invScanInput').focus(), 100);
-    }
+    const reader = document.getElementById('invReader');
+    if (reader) reader.style.display = 'none';
+    const btn = document.getElementById('invScanBtn');
+    if (btn) { btn.textContent = '▶ Démarrer la caméra'; btn.style.background = '#2C2C2A'; }
+    if (mode === 'scanner') setTimeout(() => document.getElementById('invScanInput').focus(), 100);
   }
 
+  function scanFeedback(success) {
+    // Vibration
+    if (navigator.vibrate) navigator.vibrate(success ? [60] : [80, 50, 80]);
+    // Bip sonore
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = success ? 1200 : 400;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (success ? 0.12 : 0.3));
+      osc.start(); osc.stop(ctx.currentTime + (success ? 0.12 : 0.3));
+    } catch(e) {}
+    // Flash écran
+    const flash = document.createElement('div');
+    flash.style.cssText = `position:fixed;inset:0;background:${success ? 'rgba(59,109,17,0.35)' : 'rgba(186,117,23,0.35)'};z-index:9999;pointer-events:none;transition:opacity 0.4s;`;
+    document.body.appendChild(flash);
+    setTimeout(() => { flash.style.opacity = '0'; setTimeout(() => flash.remove(), 400); }, 80);
+  }
   async function handleInvScan(barcode) {
     if (!barcode) return;
     const status = document.getElementById('invScanStatus');
     if (invScanned.has(barcode)) {
+      scanFeedback(false);
       status.textContent = `⚠️ Déjà scanné : ${barcode}`;
       status.style.color = '#BA7517';
       return;
@@ -597,7 +653,7 @@
     status.textContent = `⏳ Traitement : ${barcode}`;
     status.style.color = '#888780';
     await cochreArticle(barcode);
-    // Re-focus automatique pour le prochain scan
+    scanFeedback(true);
     document.getElementById('invScanInput').focus();
   }
 
@@ -623,6 +679,7 @@
         invScanned.add(barcode);
         status.textContent = `✓ Scanné : ${barcode}`;
         status.style.color = '#3B6D11';
+        scanFeedback(true);
         await cochreArticle(barcode);
       },
       () => {}
@@ -639,53 +696,60 @@
     } else if (reader) { reader.style.display = 'none'; }
   }
 
+  function addToInvList({ barcode, name, image, employee, time, warning }) {
+    const list = document.getElementById('invList');
+    const empty = list.querySelector('.history-empty');
+    if (empty) empty.remove();
+    const img = image
+      ? `<img src="${image}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex-shrink:0;">`
+      : `<div style="width:44px;height:44px;border-radius:8px;background:${warning?'#FFF3E0':'#EAF3DE'};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${warning?'⚠️':'✓'}</div>`;
+    const statusHtml = warning
+      ? `<span style="color:#BA7517;font-weight:600;font-size:11px;">⚠️ Hors Shopify</span>`
+      : `<span style="color:#3B6D11;font-weight:600;">✓ Coché</span>`;
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    item.style.background = warning ? '#FFFBF0' : '';
+    item.innerHTML = `
+      ${img}
+      <div style="flex:1;min-width:0;">
+        <div class="h-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${warning?'color:#BA7517;':''}">${name}</div>
+        <div class="h-code">${barcode}</div>
+      </div>
+      <div class="h-meta">
+        ${statusHtml}
+        <div style="font-size:11px;">${employee || ''}</div>
+        <div style="font-size:11px;">${time || ''}</div>
+      </div>`;
+    list.insertBefore(item, list.firstChild);
+    const count = list.querySelectorAll('.history-item').length;
+    document.getElementById('invCount').textContent = `${count} article${count > 1 ? 's' : ''}`;
+  }
+
   async function cochreArticle(barcode) {
     try {
-      // Chercher le produit sur Shopify pour avoir le nom
       const res = await fetch(`${BACKEND_URL}/product/${barcode}`);
       const data = await res.json();
-      const name = data.title || barcode;
-      const image = data.image || null;
+      const found = data.title && !data.error;
+      const name = found ? data.title : `Article inconnu`;
+      const image = found ? (data.image || null) : null;
 
-      // Cocher en boutique dans la base
       await fetch(`${BACKEND_URL}/stock/location`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          barcode,
-          inBoutique: true,
-          location: 'en_magasin',
-          updatedBy: currentEmployee || 'caisse'
-        })
+        body: JSON.stringify({ barcode, inBoutique: true, location: 'en_magasin', updatedBy: currentEmployee || 'caisse' })
       });
 
-      // Ajouter à la liste
-      const list = document.getElementById('invList');
-      const empty = list.querySelector('.history-empty');
-      if (empty) empty.remove();
+      invScanned.add(barcode);
+      const time = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
+      addToInvList({ barcode, name, image, employee: currentEmployee, time, warning: !found });
 
-      const img = image
-        ? `<img src="${image}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex-shrink:0;">`
-        : `<div style="width:44px;height:44px;border-radius:8px;background:#EAF3DE;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">✓</div>`;
-
-      const item = document.createElement('div');
-      item.className = 'history-item';
-      item.innerHTML = `
-        ${img}
-        <div style="flex:1;min-width:0;">
-          <div class="h-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</div>
-          <div class="h-code">${barcode}</div>
-        </div>
-        <div class="h-meta">
-          <span style="color:#3B6D11;font-weight:600;">✓ Coché</span>
-        </div>`;
-      list.insertBefore(item, list.firstChild);
-
-      const count = list.querySelectorAll('.history-item').length;
-      document.getElementById('invCount').textContent = `${count} article${count > 1 ? 's' : ''}`;
-      showToast(`${name} — coché ✓`, 'success');
+      if (found) {
+        showToast(`${name} — coché ✓`, 'success');
+      } else {
+        showToast(`⚠️ Introuvable sur Shopify — coché quand même`, 'error');
+      }
     } catch(e) {
-      showToast(`Erreur : ${barcode}`, 'error');
+      showToast(`Erreur réseau : ${barcode}`, 'error');
     }
   }
 
