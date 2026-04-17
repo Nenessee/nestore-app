@@ -109,6 +109,7 @@
   <div class="tabs">
     <button class="tab active" onclick="switchAppTab('vente',this)">Vente</button>
     <button class="tab" onclick="switchAppTab('rachat',this)">Rachat boutique</button>
+    <button class="tab" onclick="switchAppTab('nettoyage',this)">Nettoyage</button>
   </div>
 
   <!-- TAB VENTE -->
@@ -195,6 +196,78 @@
     </div>
   </div>
   </div><!-- fin tab-rachat -->
+
+  <!-- TAB NETTOYAGE -->
+  <div id="apptab-nettoyage" class="tab-panel">
+  <div class="form-box">
+    <div class="scan-label" style="margin-bottom:10px;color:#1a1a18;font-size:13px;font-weight:600;">Nouveau dépôt</div>
+
+    <label class="form-label">Paire *</label>
+    <input type="text" id="cleanPair" class="form-input" placeholder="Ex: Nike Air Jordan 4 Bred"/>
+
+    <label class="form-label">Client *</label>
+    <input type="text" id="cleanClient" class="form-input" placeholder="Nom du client"/>
+
+    <label class="form-label">Téléphone</label>
+    <input type="tel" id="cleanPhone" class="form-input" placeholder="06 XX XX XX XX"/>
+
+    <label class="form-label">Service *</label>
+    <select id="cleanService" class="form-input" style="appearance:none;" onchange="updateCleanPrice()">
+      <option value="">— Sélectionner —</option>
+      <option value="Clean basique" data-price="20">Clean basique — 20€</option>
+      <option value="Clean approfondi" data-price="30">Clean approfondi / Restauration — 30€</option>
+      <option value="Gratuit" data-price="0">Gratuit</option>
+      <option value="Autre" data-price="0">Autre (saisir manuellement)</option>
+    </select>
+
+    <label class="form-label">Montant (€)</label>
+    <input type="number" id="cleanPrice" class="form-input" placeholder="0" min="0" step="0.50"/>
+
+    <label class="form-label">Remarques (état de la paire, instructions...)</label>
+    <textarea id="cleanRemarks" style="width:100%;padding:10px 12px;border:0.5px solid #d3d1c7;border-radius:10px;background:#f5f5f3;color:#1a1a18;font-size:14px;margin-bottom:10px;min-height:80px;resize:vertical;font-family:inherit;" placeholder="Ex: Semelle jaunie, tache sur le côté droit, attention lacets fragiles..."></textarea>
+
+    <label class="form-label">Photos de l'état de la paire</label>
+    <div style="margin-bottom:10px;">
+      <input type="file" id="cleanPhotos" accept="image/*" multiple capture="environment" style="display:none;" onchange="previewPhotos()"/>
+      <button onclick="document.getElementById('cleanPhotos').click()" style="width:100%;padding:10px;border:0.5px dashed #d3d1c7;border-radius:10px;background:#f5f5f3;color:#888780;font-size:13px;cursor:pointer;">📷 Prendre des photos</button>
+      <div id="photoPreview" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;"></div>
+    </div>
+
+    <div class="form-row">
+      <div style="flex:1;">
+        <label class="form-label">Nettoyeur *</label>
+        <select id="cleanEmployee" class="form-input" style="appearance:none;">
+          <option value="">— Sélectionner —</option>
+          <option>Sacha</option>
+          <option>Mathys</option>
+          <option>Romane</option>
+          <option>Noa</option>
+          <option>Celeste</option>
+          <option>Louis</option>
+        </select>
+      </div>
+      <div style="flex:1;">
+        <label class="form-label">Boutique *</label>
+        <select id="cleanBoutique" class="form-input" style="appearance:none;">
+          <option value="Lille">Lille</option>
+          <option value="DK">DK</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn-purchase" id="cleanBtn" onclick="saveClean()" style="background:#2C2C2A;">Enregistrer le dépôt</button>
+  </div>
+
+  <div class="history-box">
+    <div class="history-header">
+      <span class="history-title">Paires en cours</span>
+      <span class="history-count" id="cleanCount">0</span>
+    </div>
+    <div id="cleanList">
+      <div class="history-empty">Aucune paire en cours</div>
+    </div>
+  </div>
+  </div><!-- fin tab-nettoyage -->
 
 </div>
 
@@ -532,6 +605,143 @@
       }
     } catch(e) {}
   }
+
+  async function loadRecentPurchases() {
+    try {
+      const res = await fetch(`${BACKEND_URL}/purchases`);
+      const purchases = await res.json();
+      if (!Array.isArray(purchases) || purchases.length === 0) return;
+      for (const p of [...purchases].slice(0, 15).reverse()) {
+        addToPurchaseHistory({
+          barcode: p.barcode,
+          productName: p.product_name,
+          brand: p.brand,
+          purchasePrice: p.purchase_price,
+          estimatedPrice: p.estimated_price,
+          employee: p.employee
+        });
+      }
+    } catch(e) {}
+  }
+
+  function updateCleanPrice() {
+    const sel = document.getElementById('cleanService');
+    const opt = sel.options[sel.selectedIndex];
+    const price = opt.dataset.price;
+    if (price !== undefined) document.getElementById('cleanPrice').value = price;
+  }
+
+  let cleanPhotosData = [];
+  function previewPhotos() {
+    const files = document.getElementById('cleanPhotos').files;
+    const preview = document.getElementById('photoPreview');
+    preview.innerHTML = '';
+    cleanPhotosData = [];
+    for (const file of files) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        cleanPhotosData.push(e.target.result);
+        const img = document.createElement('img');
+        img.src = e.target.result;
+        img.style.cssText = 'width:70px;height:70px;object-fit:cover;border-radius:8px;border:0.5px solid #e0dfd8;';
+        preview.appendChild(img);
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  async function saveClean() {
+    const pairName = document.getElementById('cleanPair').value.trim();
+    const clientName = document.getElementById('cleanClient').value.trim();
+    const clientPhone = document.getElementById('cleanPhone').value.trim();
+    const service = document.getElementById('cleanService').value;
+    const price = document.getElementById('cleanPrice').value;
+    const remarks = document.getElementById('cleanRemarks').value.trim();
+    const employee = document.getElementById('cleanEmployee').value;
+    const boutique = document.getElementById('cleanBoutique').value;
+
+    if (!pairName) { alert('Nom de la paire requis'); return; }
+    if (!clientName) { alert('Nom du client requis'); return; }
+    if (!service) { alert('Service requis'); return; }
+    if (!employee) { alert('Nettoyeur requis'); return; }
+
+    const btn = document.getElementById('cleanBtn');
+    btn.disabled = true; btn.textContent = 'Enregistrement...';
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/cleaning`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pairName, clientName, clientPhone, service, price, employee, boutique, remarks, photos: cleanPhotosData.length ? JSON.stringify(cleanPhotosData) : null })
+      });
+      const result = await res.json();
+      if (!res.ok || !result.success) { alert('Erreur : ' + result.error); btn.disabled=false; btn.textContent='Enregistrer le dépôt'; return; }
+
+      showToast('Dépôt enregistré ✓', 'success');
+      addToCleanList(result.cleaning);
+
+      document.getElementById('cleanPair').value = '';
+      document.getElementById('cleanClient').value = '';
+      document.getElementById('cleanPhone').value = '';
+      document.getElementById('cleanService').value = '';
+      document.getElementById('cleanPrice').value = '';
+      document.getElementById('cleanRemarks').value = '';
+      document.getElementById('photoPreview').innerHTML = '';
+      cleanPhotosData = [];
+
+    } catch(err) { alert('Erreur réseau : ' + err.message); }
+    btn.disabled = false; btn.textContent = 'Enregistrer le dépôt';
+  }
+
+  function addToCleanList(c) {
+    const list = document.getElementById('cleanList');
+    const empty = list.querySelector('.history-empty');
+    if (empty) empty.remove();
+    const statusLabels = { en_cours: '🔵 En cours', pret: '🟢 Prêt', recupere: '⚪ Récupéré', a_regler: '🟠 À régler' };
+    const date = new Date(c.deposited_at||new Date()).toLocaleDateString('fr-FR');
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    item.id = `clean-${c.id}`;
+    item.innerHTML = `
+      <div style="width:44px;height:44px;border-radius:8px;background:#f1efe8;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">👟</div>
+      <div style="flex:1;min-width:0;">
+        <div class="h-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.pair_name}</div>
+        <div class="h-code">${c.client_name}${c.client_phone?' · '+c.client_phone:''}</div>
+        <div style="font-size:11px;color:#888780;">${c.service} · ${parseFloat(c.price)===0?'Gratuit':parseFloat(c.price).toFixed(0)+'€'}</div>
+      </div>
+      <div class="h-meta">
+        <select onchange="updateCleanStatus(${c.id}, this.value)" style="font-size:11px;padding:3px 6px;border:0.5px solid #d3d1c7;border-radius:6px;background:#fff;">
+          <option value="en_cours" ${c.status==='en_cours'?'selected':''}>🔵 En cours</option>
+          <option value="pret" ${c.status==='pret'?'selected':''}>🟢 Prêt</option>
+          <option value="a_regler" ${c.status==='a_regler'?'selected':''}>🟠 À régler</option>
+          <option value="recupere" ${c.status==='recupere'?'selected':''}>⚪ Récupéré</option>
+        </select>
+        <div style="margin-top:3px;">${c.employee} · ${date}</div>
+      </div>`;
+    list.insertBefore(item, list.firstChild);
+    const count = list.querySelectorAll('.history-item').length;
+    document.getElementById('cleanCount').textContent = count;
+  }
+
+  async function updateCleanStatus(id, status) {
+    try {
+      await fetch(`${BACKEND_URL}/cleaning/${id}/status`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      showToast('Statut mis à jour ✓', 'success');
+    } catch(e) { showToast('Erreur réseau', 'error'); }
+  }
+
+  async function loadActiveCleanings() {
+    try {
+      const res = await fetch(`${BACKEND_URL}/cleanings`);
+      const items = await res.json();
+      if (!Array.isArray(items)) return;
+      const active = items.filter(c => c.status !== 'recupere').slice(0, 20).reverse();
+      for (const c of active) addToCleanList(c);
+    } catch(e) {}
+  }
 </script>
 </div><!-- fin mainApp -->
 
@@ -544,6 +754,8 @@
       document.getElementById('mainApp').style.display = 'block';
       localStorage.setItem('nv_auth', '1');
       loadTodaySales();
+      loadRecentPurchases();
+      loadActiveCleanings();
     } else {
       document.getElementById('pwdError').style.display = 'block';
       document.getElementById('pwdInput').value = '';
@@ -554,6 +766,8 @@
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('mainApp').style.display = 'block';
     loadTodaySales();
+    loadRecentPurchases();
+    loadActiveCleanings();
   }
 </script>
 </body>
