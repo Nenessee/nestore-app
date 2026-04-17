@@ -443,13 +443,20 @@
     }
   }
 
-  function addToHistory(data, employee, boutique) {
+  function addToHistory(data, employee, boutique, soldAt) {
     const list = document.getElementById('historyList');
     const empty = list.querySelector('.history-empty');
     if (empty) empty.remove();
 
-    const now = new Date();
-    const time = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
+    let time;
+    if (soldAt) {
+      // soldAt vient du serveur déjà en heure Paris (format "2026-04-17T22:54:00")
+      // On extrait juste HH:MM sans passer par new Date() pour éviter la conversion UTC
+      const parts = soldAt.match(/T(\d{2}):(\d{2})/);
+      time = parts ? `${parts[1]}:${parts[2]}` : '--:--';
+    } else {
+      time = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
+    }
     const badgeClass = (data.boutique || boutique) === 'DK' ? 'badge-dk' : 'badge-lille';
     const img = data.image || data.image_url;
     const imgHtml = img
@@ -706,7 +713,7 @@
       const sales = await res.json();
       if (!Array.isArray(sales) || sales.length === 0) return;
       for (const s of [...sales].reverse()) {
-        addToHistory({ name: s.product_name, barcode: s.barcode, sku: s.sku, price: s.price, boutique: s.boutique, image: s.image_url }, s.employee, s.boutique);
+        addToHistory({ name: s.product_name, barcode: s.barcode, sku: s.sku, price: s.price, boutique: s.boutique, image: s.image_url }, s.employee, s.boutique, s.sold_at);
       }
     } catch(e) {}
   }
