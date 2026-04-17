@@ -131,16 +131,12 @@
 
   <!-- TAB VENTE -->
   <div id="apptab-vente" class="tab-panel active">
-  <div class="config-bar">
-    <select id="employeeSelect">
-      <option value="">— Employé —</option>
-    </select>
-    <select id="boutiqueSelect">
-      <option value="Lille">Boutique Lille</option>
-      <option value="DK">Boutique DK</option>
-      <option value="Vinted">Vinted</option>
-    </select>
-  </div>
+  <select id="employeeSelect" style="display:none;"></select>
+  <select id="boutiqueSelect" style="display:none;">
+    <option value="Lille">Boutique Lille</option>
+    <option value="DK">Boutique DK</option>
+    <option value="Vinted">Vinted</option>
+  </select>
 
   <div class="scan-box">
     <div class="scan-label">Scanner ou saisir un code-barres</div>
@@ -184,10 +180,7 @@
         <input type="number" id="purchasePriceOut" class="form-input" placeholder="0" min="0" step="0.50"/>
       </div>
     </div>
-    <label class="form-label">Employé *</label>
-    <select id="purchaseEmployee" class="form-input" style="appearance:none;">
-      <option value="">— Sélectionner —</option>
-    </select>
+    <select id="purchaseEmployee" style="display:none;"></select>
     <button class="btn-purchase" id="purchaseBtn" onclick="savePurchase()">Enregistrer le rachat</button>
   </div>
 
@@ -238,22 +231,11 @@
       <div id="photoPreview" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;"></div>
     </div>
 
-    <div class="form-row">
-      <div style="flex:1;">
-        <label class="form-label">Employé</label>
-        <div id="cleanEmployeeDisplay" style="padding:10px 12px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:10px;font-size:14px;color:#1a1a18;margin-bottom:10px;">—</div>
-        <select id="cleanEmployee" class="form-input" style="appearance:none;display:none;">
-          <option value="">— Sélectionner —</option>
-        </select>
-      </div>
-      <div style="flex:1;">
-        <label class="form-label">Boutique *</label>
-        <select id="cleanBoutique" class="form-input" style="appearance:none;">
-          <option value="Lille">Lille</option>
-          <option value="DK">DK</option>
-        </select>
-      </div>
-    </div>
+    <select id="cleanEmployee" style="display:none;"></select>
+    <select id="cleanBoutique" style="display:none;">
+      <option value="Lille">Lille</option>
+      <option value="DK">DK</option>
+    </select>
 
     <button class="btn-purchase" id="cleanBtn" onclick="saveClean()" style="background:#2C2C2A;">Enregistrer le dépôt</button>
   </div>
@@ -912,24 +894,28 @@
   function applyEmployee(employee) {
     currentEmployee = employee;
     if (!employee || employee === 'admin') return;
-    ;['employeeSelect', 'purchaseEmployee', 'cleanEmployee'].forEach(id => {
+    // Peupler les selects cachés silencieusement
+    ['employeeSelect', 'purchaseEmployee', 'cleanEmployee'].forEach(id => {
       const sel = document.getElementById(id);
       if (!sel) return;
+      if (![...sel.options].find(o => o.value === employee)) {
+        const opt = document.createElement('option');
+        opt.value = opt.textContent = employee;
+        sel.appendChild(opt);
+      }
       sel.value = employee;
-      sel.disabled = true;
-      sel.style.opacity = '0.6';
     });
-    const disp = document.getElementById('cleanEmployeeDisplay');
-    if (disp) disp.textContent = employee;
-    // Badge session propre
+    // Badge session dans le header
     const badge = document.getElementById('sessionBadge');
     const avatar = document.getElementById('sessionAvatar');
-    const name = document.getElementById('sessionName');
+    const nameEl = document.getElementById('sessionName');
     const subtitle = document.getElementById('appSubtitle');
     if (badge) badge.style.display = 'flex';
     if (avatar) avatar.textContent = employee.substring(0, 2).toUpperCase();
-    if (name) name.textContent = employee;
-    if (subtitle) subtitle.textContent = currentBoutique !== 'admin' ? `Boutique ${currentBoutique}` : 'Toutes boutiques';
+    if (nameEl) nameEl.textContent = employee;
+    if (subtitle && currentBoutique) {
+      subtitle.textContent = currentBoutique === 'admin' ? 'Toutes boutiques' : 'Boutique ' + currentBoutique;
+    }
   }
 
   function checkPwd() {
@@ -991,36 +977,15 @@
 
   function applyBoutique(boutique) {
     currentBoutique = boutique;
-    const isAdmin = boutique === 'admin';
-
-    // Header
-    const subtitle = document.querySelector('.subtitle');
-    if (subtitle) subtitle.textContent = isAdmin ? 'Toutes boutiques - Admin' : `Boutique ${boutique}`;
-
-    // Verrouiller boutique selects
+    // Setter les selects cachés
     const boutiqueSelect = document.getElementById('boutiqueSelect');
     const cleanBoutique = document.getElementById('cleanBoutique');
-    if (!isAdmin) {
-      boutiqueSelect.value = boutique;
-      boutiqueSelect.disabled = true;
-      boutiqueSelect.style.opacity = '0.6';
-      if (cleanBoutique) { cleanBoutique.value = boutique; cleanBoutique.disabled = true; cleanBoutique.style.opacity = '0.6'; }
-    } else {
-      boutiqueSelect.disabled = false;
-      boutiqueSelect.style.opacity = '1';
-      if (cleanBoutique) { cleanBoutique.disabled = false; cleanBoutique.style.opacity = '1'; }
-    }
-
-    // Filtrer les employés selon boutique
-    setEmployeeOptions('employeeSelect', boutique);
-    setEmployeeOptions('purchaseEmployee', boutique);
-    setEmployeeOptions('cleanEmployee', boutique);
-
-    // Dashboard accessible à tous
+    if (boutiqueSelect && boutique !== 'admin') boutiqueSelect.value = boutique;
+    if (cleanBoutique && boutique !== 'admin') cleanBoutique.value = boutique;
+    // Dashboard link
     const dashLink = document.getElementById('dashLink');
     if (dashLink) dashLink.style.display = 'inline-block';
-
-    // Ajouter onglet commandes web
+    // Onglet commandes web
     const tabsEl = document.querySelector('.tabs');
     if (tabsEl && !document.getElementById('tab-btn-commandes')) {
       const btn = document.createElement('button');
