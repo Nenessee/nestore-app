@@ -795,14 +795,16 @@ async function saveBarcode(variantId, input) {
       body: JSON.stringify({ variantId, barcode })
     });
     const data = await res.json();
-    if (!res.ok || !data.success) { alert('Erreur : ' + (data.error || 'Shopify na pas accepté')); input.disabled=false; return; }
-    // Mettre à jour localement
+    if (!res.ok || !data.success) { alert('Erreur Shopify : ' + (data.error || 'Réponse inattendue')); input.disabled=false; return; }
     const p = allStockData.find(p => p.variantId === variantId);
     if (p) p.barcode = barcode;
-    showDashToast('Code-barres enregistré sur Shopify ✓');
-    // Rafraîchir juste la cellule
     const cell = input.closest('td');
     if (cell) cell.innerHTML = `<span style="font-family:monospace;font-size:11px;background:#f1efe8;padding:2px 6px;border-radius:4px;">${barcode}</span>`;
+    const t = document.createElement('div');
+    t.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:10px;font-size:13px;font-weight:500;color:#fff;z-index:9999;background:#3B6D11;';
+    t.textContent = 'Code-barres enregistré sur Shopify ✓';
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
   } catch(e) { alert('Erreur réseau : ' + e.message); input.disabled=false; }
 }
 
