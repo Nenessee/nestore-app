@@ -113,7 +113,11 @@
     <div class="logo">NV</div>
     <div style="flex:1;">
       <div class="title">Nestore</div>
-      <div class="subtitle">Synchronisation Shopify</div>
+      <div class="subtitle" id="appSubtitle">Synchronisation Shopify</div>
+    </div>
+    <div id="sessionBadge" style="display:none;align-items:center;gap:6px;padding:6px 10px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:8px;">
+      <div id="sessionAvatar" style="width:24px;height:24px;border-radius:50%;background:#2C2C2A;color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;"></div>
+      <span id="sessionName" style="font-size:12px;font-weight:600;color:#1a1a18;"></span>
     </div>
     <a id="dashLink" href="dashboard.html" style="padding:7px 12px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:8px;font-size:12px;color:#2C2C2A;text-decoration:none;font-weight:500;display:none;" onclick="this.href='dashboard.html?b='+(currentBoutique||'admin')">Dashboard →</a>
     <button onclick="logoutApp()" style="padding:7px 12px;background:#FCEBEB;border:0.5px solid #f7c1c1;border-radius:8px;font-size:12px;color:#A32D2D;cursor:pointer;font-weight:500;">Déconnexion</button>
@@ -915,14 +919,17 @@
       sel.disabled = true;
       sel.style.opacity = '0.6';
     });
-    // Afficher le nom dans le display nettoyeur
     const disp = document.getElementById('cleanEmployeeDisplay');
     if (disp) disp.textContent = employee;
-    // Afficher le nom dans le header
-    const subtitle = document.querySelector('.subtitle');
-    if (subtitle && currentBoutique !== 'admin') {
-      subtitle.textContent = `Boutique ${currentBoutique} - ${employee}`;
-    }
+    // Badge session propre
+    const badge = document.getElementById('sessionBadge');
+    const avatar = document.getElementById('sessionAvatar');
+    const name = document.getElementById('sessionName');
+    const subtitle = document.getElementById('appSubtitle');
+    if (badge) badge.style.display = 'flex';
+    if (avatar) avatar.textContent = employee.substring(0, 2).toUpperCase();
+    if (name) name.textContent = employee;
+    if (subtitle) subtitle.textContent = currentBoutique !== 'admin' ? `Boutique ${currentBoutique}` : 'Toutes boutiques';
   }
 
   function checkPwd() {
