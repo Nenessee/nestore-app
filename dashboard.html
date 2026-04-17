@@ -1156,9 +1156,10 @@ function renderCleaningsTable(data) {
   if (!data.length) { document.getElementById('cleanTable').innerHTML='<tr><td colspan="11" style="text-align:center;padding:30px;color:#888780;">Aucun nettoyage</td></tr>'; return; }
   document.getElementById('cleanTable').innerHTML = data.map(c => {
     const date = new Date(c.deposited_at).toLocaleDateString('fr-FR');
-    const photos = c.photos ? JSON.parse(c.photos) : [];
+    const photos = c.photos ? (typeof c.photos === 'string' ? JSON.parse(c.photos) : c.photos) : [];
+    const photoUrls = JSON.stringify(photos.map(p => p.url||p));
     const photosHtml = photos.length > 0
-      ? photos.map(p => `<img src="${p.url||p}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;cursor:pointer;" onclick="showPhoto('${p.url||p}')">`).join('')
+      ? `<div style="display:flex;gap:4px;flex-wrap:wrap;">${photos.map((p,i) => `<img src="${p.url||p}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;cursor:pointer;border:0.5px solid #e0dfd8;" onclick="openLightbox(${c.id}, ${i})">`).join('')}</div>`
       : '<span style="color:#b4b2a9;font-size:12px;">—</span>';
     const price = parseFloat(c.price) === 0 ? 'Gratuit' : parseFloat(c.price).toFixed(2) + '€';
     return `<tr>
@@ -1227,9 +1228,26 @@ function filterCleanings() {
   renderCleaningsTable(filtered);
 }
 
-function showPhoto(url) {
-  const w = window.open('', '_blank');
-  w.document.write(`<img src="${url}" style="max-width:100%;max-height:100vh;">`);
+// Lightbox photos nettoyage
+let _lbCleanings = null;
+function openLightbox(cleanId, index) {
+  if (!_lbCleanings) _lbCleanings = allCleaningsData;
+  const c = (_lbCleanings || []).find(x => x.id === cleanId);
+  const photos = c?.photos ? (typeof c.photos === 'string' ? JSON.parse(c.photos) : c.photos) : [];
+  if (!photos.length) return;
+  let current = index;
+  const lb = document.getElementById('photoLightbox');
+  const img = document.getElementById('lbImg');
+  const counter = document.getElementById('lbCounter');
+  function show(i) {
+    current = (i + photos.length) % photos.length;
+    img.src = photos[current].url || photos[current];
+    counter.textContent = (current+1) + ' / ' + photos.length;
+  }
+  show(current);
+  lb.style.display = 'flex';
+  document.getElementById('lbPrev').onclick = () => show(current - 1);
+  document.getElementById('lbNext').onclick = () => show(current + 1);
 }
 
 async function addPhotosToClean(id, input) {
@@ -1237,15 +1255,27 @@ async function addPhotosToClean(id, input) {
   if (!files.length) return;
   for (const file of files) {
     const reader = new FileReader();
-    reader.onload = async (e) => {
-      await fetch(`${BACKEND_URL}/cleaning/${id}/photo`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ photo: e.target.result })
-      });
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = async () => {
+        const MAX = 800;
+        let w = img.width, h = img.height;
+        if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+        if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const compressed = canvas.toDataURL('image/jpeg', 0.7);
+        await fetch(`${BACKEND_URL}/cleaning/${id}/photo`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ photo: compressed })
+        });
+        loadCleanings();
+      };
+      img.src = e.target.result;
     };
     reader.readAsDataURL(file);
   }
-  setTimeout(() => loadCleanings(), 1500);
 }
 
 let _currentCleanId = null;
@@ -1490,5 +1520,16 @@ if (_s?.auth) {
   initDashboard(_s.boutique || urlParams.get('b') || 'admin', _s.employee);
 }
 </script>
+
+<!-- LIGHTBOX PHOTOS -->
+<div id="photoLightbox" onclick="if(event.target===this)this.style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:999;align-items:center;justify-content:center;flex-direction:column;gap:12px;">
+  <button onclick="document.getElementById('photoLightbox').style.display='none'" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:20px;width:36px;height:36px;border-radius:50%;cursor:pointer;">✕</button>
+  <div style="display:flex;align-items:center;gap:16px;">
+    <button id="lbPrev" style="background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:24px;width:44px;height:44px;border-radius:50%;cursor:pointer;">‹</button>
+    <img id="lbImg" style="max-width:85vw;max-height:80vh;object-fit:contain;border-radius:8px;"/>
+    <button id="lbNext" style="background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:24px;width:44px;height:44px;border-radius:50%;cursor:pointer;">›</button>
+  </div>
+  <div id="lbCounter" style="color:rgba(255,255,255,0.6);font-size:13px;"></div>
+</div>
 </body>
 </html>
