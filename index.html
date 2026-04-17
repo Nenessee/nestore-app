@@ -865,10 +865,11 @@
 
   async function loadActiveCleanings() {
     try {
-      const bParam = currentBoutique && currentBoutique !== 'admin' ? 'boutique=' + currentBoutique + '&' : '';
-      const res = await fetch(BACKEND_URL + '/cleanings?' + bParam + 'today=1');
+      const bParam = currentBoutique && currentBoutique !== 'admin' ? `boutique=${currentBoutique}` : '';
+      const res = await fetch(`${BACKEND_URL}/cleanings?${bParam}`);
       const items = await res.json();
       if (!Array.isArray(items)) return;
+      // Toutes les paires non récupérées = en cours
       const active = items.filter(c => c.status !== 'recupere').reverse();
       for (const c of active) addToCleanList(c);
     } catch(e) {}
