@@ -103,7 +103,7 @@
       <div class="title">Nestore</div>
       <div class="subtitle">Synchronisation Shopify</div>
     </div>
-    <a href="dashboard.html" style="padding:7px 12px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:8px;font-size:12px;color:#2C2C2A;text-decoration:none;font-weight:500;">Dashboard →</a>
+    <a id="dashLink" href="dashboard.html" style="padding:7px 12px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:8px;font-size:12px;color:#2C2C2A;text-decoration:none;font-weight:500;display:none;">Dashboard →</a>
     <button onclick="logoutApp()" style="padding:7px 12px;background:#FCEBEB;border:0.5px solid #f7c1c1;border-radius:8px;font-size:12px;color:#A32D2D;cursor:pointer;font-weight:500;">Déconnexion</button>
   </div>
 
@@ -269,6 +269,20 @@
     </div>
   </div>
   </div><!-- fin tab-nettoyage -->
+
+  <!-- TAB COMMANDES WEB -->
+  <div id="apptab-commandes" class="tab-panel">
+  <div class="form-box" style="background:#E6F1FB;border-color:#B5D4F4;display:flex;justify-content:space-between;align-items:center;">
+    <div>
+      <div style="font-size:13px;color:#185FA5;font-weight:600;margin-bottom:2px;">Commandes en attente de préparation</div>
+      <div style="font-size:12px;color:#378ADD;">Articles à mettre de côté pour les commandes passées sur le site</div>
+    </div>
+    <button onclick="loadCommandes()" style="padding:6px 12px;background:#fff;border:0.5px solid #B5D4F4;border-radius:8px;font-size:12px;color:#185FA5;cursor:pointer;">↻ Actualiser</button>
+  </div>
+  <div id="commandesArea">
+    <div class="history-empty" style="padding:2rem;text-align:center;color:#888780;">Chargement...</div>
+  </div>
+  </div><!-- fin tab-commandes -->
 
 </div>
 
@@ -478,8 +492,63 @@
     el.classList.add('active');
     document.getElementById(`apptab-${name}`).classList.add('active');
     if (name === 'rachat') document.getElementById('purchaseBarcodeInput').focus();
+    else if (name === 'commandes') loadCommandes();
     else document.getElementById('barcodeInput').focus();
   }
+
+  async function loadCommandes() {
+    const area = document.getElementById('commandesArea');
+    area.innerHTML = '<div class="loading"><span class="spinner"></span>Chargement des commandes...</div>';
+    try {
+      const res = await fetch(`${BACKEND_URL}/orders/pending`);
+      const orders = await res.json();
+      if (!orders.length) { area.innerHTML = '<div class="history-empty" style="padding:2rem;text-align:center;color:#888780;">Aucune commande en attente 🎉</div>'; return; }
+
+      // Filtrer par boutique si pas admin
+      const boutique = currentBoutique;
+      let items = [];
+      for (const order of orders) {
+        for (const item of order.line_items) {
+          const tags = item.tags || [];
+          const itemBoutique = tags.includes('dk') ? 'DK' : 'Lille';
+          if (boutique !== 'admin' && itemBoutique !== boutique) continue;
+          items.push({ order, item, itemBoutique });
+        }
+      }
+
+      if (!items.length) { area.innerHTML = `<div class="history-empty" style="padding:2rem;text-align:center;color:#888780;">Aucune commande pour la boutique ${boutique} 🎉</div>`; return; }
+
+      area.innerHTML = items.map(({ order, item, itemBoutique }) => {
+        const badge = itemBoutique === 'DK' ? 'badge-dk' : 'badge-lille';
+        const img = item.image ? `<img src="${item.image}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;">` : `<div style="width:52px;height:52px;border-radius:8px;background:#f1efe8;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">👕</div>`;
+        const orderDate = new Date(order.created_at).toLocaleDateString('fr-FR');
+        return `<div class="history-item" id="order-${order.id}-${item.id}">
+          ${img}
+          <div style="flex:1;min-width:0;">
+            <div class="h-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.name}</div>
+            <div class="h-code">Commande #${order.order_number} · ${order.customer?.first_name||''} ${order.customer?.last_name||''}</div>
+            <div style="font-size:11px;color:#888780;">${orderDate} · ${parseFloat(item.price).toFixed(2)}€</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+            <span class="badge ${badge}">${itemBoutique}</span>
+            <button onclick="markAside('${order.id}', '${item.id}', this)" style="padding:5px 10px;background:#3B6D11;color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;">✓ Mis de côté</button>
+          </div>
+        </div>`;
+      }).join('');
+    } catch(e) {
+      area.innerHTML = '<div class="history-empty" style="padding:2rem;text-align:center;color:#A32D2D;">Erreur de chargement — vérifie que read_orders est activé dans Shopify</div>';
+    }
+  }
+
+  function markAside(orderId, itemId, btn) {
+    btn.textContent = '✓ Fait';
+    btn.style.background = '#888780';
+    btn.disabled = true;
+    const row = document.getElementById(`order-${orderId}-${itemId}`);
+    if (row) row.style.opacity = '0.4';
+    showToast('Article mis de côté ✓', 'success');
+  }
+
 
   async function savePurchase() {
     const barcode = document.getElementById('purchaseBarcodeInput').value.trim();
@@ -743,7 +812,10 @@
       const res = await fetch(`${BACKEND_URL}/cleanings`);
       const items = await res.json();
       if (!Array.isArray(items)) return;
-      const active = items.filter(c => c.status !== 'recupere').slice(0, 20).reverse();
+      const active = items
+        .filter(c => c.status !== 'recupere')
+        .filter(c => !currentBoutique || currentBoutique === 'admin' || c.boutique === currentBoutique)
+        .slice(0, 20).reverse();
       for (const c of active) addToCleanList(c);
     } catch(e) {}
   }
@@ -751,20 +823,68 @@
 </div><!-- fin mainApp -->
 
 <script>
-  const PWD = 'yiachi3933';
+  const CODES = { '3322': 'Lille', '2727': 'DK', 'Hyperx3933': 'admin' };
+  let currentBoutique = null;
+
   function logoutApp() {
     localStorage.removeItem('nv_auth');
+    localStorage.removeItem('nv_boutique');
+    currentBoutique = null;
     document.getElementById('mainApp').style.display = 'none';
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('pwdInput').value = '';
     document.getElementById('pwdError').style.display = 'none';
   }
+
+  function applyBoutique(boutique) {
+    currentBoutique = boutique;
+    const isAdmin = boutique === 'admin';
+
+    // Header — afficher la boutique
+    const subtitle = document.querySelector('.subtitle');
+    if (subtitle) subtitle.textContent = isAdmin ? 'Toutes boutiques — Admin' : `Boutique ${boutique}`;
+
+    // Verrouiller ou libérer le select boutique
+    const boutiqueSelect = document.getElementById('boutiqueSelect');
+    const cleanBoutique = document.getElementById('cleanBoutique');
+    if (!isAdmin) {
+      // Verrouiller sur la bonne boutique
+      boutiqueSelect.value = boutique;
+      boutiqueSelect.disabled = true;
+      boutiqueSelect.style.opacity = '0.6';
+      if (cleanBoutique) { cleanBoutique.value = boutique; cleanBoutique.disabled = true; cleanBoutique.style.opacity = '0.6'; }
+      // Masquer Vinted si DK (optionnel, à adapter)
+    } else {
+      boutiqueSelect.disabled = false;
+      boutiqueSelect.style.opacity = '1';
+      if (cleanBoutique) { cleanBoutique.disabled = false; cleanBoutique.style.opacity = '1'; }
+    }
+
+    // Afficher/masquer lien Dashboard (admin seulement)
+    const dashLink = document.getElementById('dashLink');
+    if (dashLink) dashLink.style.display = isAdmin ? 'inline-block' : 'none';
+
+    // Ajouter onglet commandes web
+    const tabsEl = document.querySelector('.tabs');
+    if (tabsEl && !document.getElementById('tab-btn-commandes')) {
+      const btn = document.createElement('button');
+      btn.className = 'tab';
+      btn.id = 'tab-btn-commandes';
+      btn.textContent = 'Commandes web';
+      btn.onclick = function() { switchAppTab('commandes', this); };
+      tabsEl.appendChild(btn);
+    }
+  }
+
   function checkPwd() {
     const val = document.getElementById('pwdInput').value;
-    if (val === PWD) {
+    const boutique = CODES[val];
+    if (boutique) {
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('mainApp').style.display = 'block';
       localStorage.setItem('nv_auth', '1');
+      localStorage.setItem('nv_boutique', boutique);
+      applyBoutique(boutique);
       loadTodaySales();
       loadRecentPurchases();
       loadActiveCleanings();
@@ -774,9 +894,13 @@
       document.getElementById('pwdInput').focus();
     }
   }
-  if (localStorage.getItem('nv_auth') === '1') {
+
+  const savedAuth = localStorage.getItem('nv_auth');
+  const savedBoutique = localStorage.getItem('nv_boutique');
+  if (savedAuth === '1' && savedBoutique) {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('mainApp').style.display = 'block';
+    applyBoutique(savedBoutique);
     loadTodaySales();
     loadRecentPurchases();
     loadActiveCleanings();
