@@ -866,6 +866,11 @@
 
 <script>
   const CODES = { '3322': 'Lille', '2727': 'DK', 'Hyperx3933': 'admin' };
+  const EMPLOYEES = {
+    'Lille': ['Sacha', 'Mathys', 'Noa', 'Celeste', 'Louis'],
+    'DK': ['Romane'],
+    'admin': ['Sacha', 'Mathys', 'Romane', 'Noa', 'Celeste', 'Louis']
+  };
   let currentBoutique = null;
   let currentEmployee = null;
 
@@ -950,12 +955,6 @@
     loadRecentPurchases();
     loadActiveCleanings();
   }
-
-  const EMPLOYEES = {
-    'Lille': ['Sacha', 'Mathys', 'Noa', 'Celeste', 'Louis'],
-    'DK': ['Romane'],
-    'admin': ['Sacha', 'Mathys', 'Romane', 'Noa', 'Celeste', 'Louis']
-  };
 
   function setEmployeeOptions(selectId, boutique) {
     const sel = document.getElementById(selectId);
