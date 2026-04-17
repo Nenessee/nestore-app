@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Nestore — Accès</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
@@ -127,6 +128,7 @@
     <button class="tab active" onclick="switchAppTab('vente',this)">Vente</button>
     <button class="tab" onclick="switchAppTab('rachat',this)">Rachat boutique</button>
     <button class="tab" onclick="switchAppTab('nettoyage',this)">Nettoyage</button>
+    <button class="tab" onclick="switchAppTab('inventaire',this)">Inventaire</button>
   </div>
 
   <!-- TAB VENTE -->
@@ -251,8 +253,74 @@
   </div>
   </div><!-- fin tab-nettoyage -->
 
-  <!-- TAB COMMANDES WEB -->
-  <div id="apptab-commandes" class="tab-panel">
+  <!-- TAB INVENTAIRE -->
+  <div id="apptab-inventaire" class="tab-panel">
+
+    <!-- Mode sélection -->
+    <div id="invModeSelect" class="scan-box" style="margin-bottom:1rem;">
+      <div class="scan-label" style="margin-bottom:12px;">Choisir le mode de scan</div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="setInvMode('scanner')" style="flex:1;padding:14px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;color:#1a1a18;">
+          ⌨️ Scanette<br><span style="font-size:11px;font-weight:400;color:#888780;">PC / USB / Bluetooth</span>
+        </button>
+        <button onclick="setInvMode('camera')" style="flex:1;padding:14px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;color:#1a1a18;">
+          📷 Caméra<br><span style="font-size:11px;font-weight:400;color:#888780;">Mobile / Tablette</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mode scanette -->
+    <div id="invModeScanette" style="display:none;">
+      <div class="scan-box" style="margin-bottom:1rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div>
+            <div class="title" style="font-size:14px;">Mode scanette</div>
+            <div class="subtitle" style="margin-top:2px;">Le champ reste actif — scanne à l'infini</div>
+          </div>
+          <button onclick="setInvMode(null)" style="padding:5px 10px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:8px;font-size:12px;cursor:pointer;color:#888780;">← Changer</button>
+        </div>
+        <div class="scan-row">
+          <input type="text" id="invScanInput" placeholder="Pointer la scanette ici..." autofocus
+            style="flex:1;font-size:15px;padding:10px 12px;border:2px solid #3B6D11;border-radius:10px;background:#f5faf0;color:#1a1a18;outline:none;"
+            onkeydown="if(event.key==='Enter'){handleInvScan(this.value.trim());this.value='';this.focus();}"/>
+        </div>
+        <div id="invScanStatus" style="margin-top:8px;font-size:13px;color:#888780;text-align:center;">En attente de scan...</div>
+      </div>
+    </div>
+
+    <!-- Mode caméra -->
+    <div id="invModeCamera" style="display:none;">
+      <div class="scan-box" style="margin-bottom:1rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div>
+            <div class="title" style="font-size:14px;">Mode caméra</div>
+            <div class="subtitle" style="margin-top:2px;">Pointe la caméra sur chaque code-barres</div>
+          </div>
+          <button onclick="setInvMode(null)" style="padding:5px 10px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:8px;font-size:12px;cursor:pointer;color:#888780;">← Changer</button>
+        </div>
+        <div style="display:flex;justify-content:center;margin-bottom:10px;">
+          <button id="invScanBtn" onclick="toggleInventaireScan()" style="padding:9px 20px;background:#2C2C2A;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;">▶ Démarrer la caméra</button>
+        </div>
+        <div id="invReader" style="display:none;border-radius:10px;overflow:hidden;"></div>
+        <div id="invStatus" style="margin-top:10px;font-size:13px;color:#888780;text-align:center;display:none;">En attente de scan...</div>
+      </div>
+    </div>
+
+    <!-- Historique commun -->
+    <div class="history-box">
+      <div class="history-header">
+        <span class="history-title">Articles cochés cette session</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="history-count" id="invCount">0 article</span>
+          <button onclick="resetInventaire()" style="padding:3px 10px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:6px;font-size:11px;cursor:pointer;color:#888780;">Réinitialiser</button>
+        </div>
+      </div>
+      <div id="invList"><div class="history-empty">Aucun article scanné</div></div>
+    </div>
+
+  </div>
+
+  <!-- TAB COMMANDES WEB -->  <div id="apptab-commandes" class="tab-panel">
   <div class="form-box" style="background:#E6F1FB;border-color:#B5D4F4;display:flex;justify-content:space-between;align-items:center;">
     <div>
       <div style="font-size:13px;color:#185FA5;font-weight:600;margin-bottom:2px;">Commandes en attente de préparation</div>
@@ -497,7 +565,136 @@
     document.getElementById(`apptab-${name}`).classList.add('active');
     if (name === 'rachat') document.getElementById('purchaseBarcodeInput').focus();
     else if (name === 'commandes') loadCommandes();
-    else document.getElementById('barcodeInput').focus();
+    else if (name === 'inventaire') initInventaireTab();
+    else { stopInventaireScan(); document.getElementById('barcodeInput').focus(); }
+  }
+
+  // --- INVENTAIRE ---
+  let invScanner = null;
+  let invScanning = false;
+  let invScanned = new Set();
+
+  function initInventaireTab() {}
+
+  function setInvMode(mode) {
+    stopInventaireScan();
+    document.getElementById('invModeSelect').style.display = mode ? 'none' : 'block';
+    document.getElementById('invModeScanette').style.display = mode === 'scanner' ? 'block' : 'none';
+    document.getElementById('invModeCamera').style.display = mode === 'camera' ? 'block' : 'none';
+    if (mode === 'scanner') {
+      setTimeout(() => document.getElementById('invScanInput').focus(), 100);
+    }
+  }
+
+  async function handleInvScan(barcode) {
+    if (!barcode) return;
+    const status = document.getElementById('invScanStatus');
+    if (invScanned.has(barcode)) {
+      status.textContent = `⚠️ Déjà scanné : ${barcode}`;
+      status.style.color = '#BA7517';
+      return;
+    }
+    status.textContent = `⏳ Traitement : ${barcode}`;
+    status.style.color = '#888780';
+    await cochreArticle(barcode);
+    // Re-focus automatique pour le prochain scan
+    document.getElementById('invScanInput').focus();
+  }
+
+  async function toggleInventaireScan() {
+    if (invScanning) { stopInventaireScan(); } else { startInventaireScan(); }
+  }
+
+  function startInventaireScan() {
+    const reader = document.getElementById('invReader');
+    const status = document.getElementById('invStatus');
+    const btn = document.getElementById('invScanBtn');
+    reader.style.display = 'block';
+    status.style.display = 'block';
+    btn.textContent = '⏹ Arrêter';
+    btn.style.background = '#A32D2D';
+    invScanning = true;
+    invScanner = new Html5Qrcode('invReader');
+    invScanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 260, height: 120 } },
+      async (barcode) => {
+        if (invScanned.has(barcode)) return;
+        invScanned.add(barcode);
+        status.textContent = `✓ Scanné : ${barcode}`;
+        status.style.color = '#3B6D11';
+        await cochreArticle(barcode);
+      },
+      () => {}
+    ).catch(() => { showToast('Impossible d\'accéder à la caméra', 'error'); stopInventaireScan(); });
+  }
+
+  function stopInventaireScan() {
+    const btn = document.getElementById('invScanBtn');
+    const reader = document.getElementById('invReader');
+    if (btn) { btn.textContent = '▶ Démarrer la caméra'; btn.style.background = '#2C2C2A'; }
+    invScanning = false;
+    if (invScanner) {
+      invScanner.stop().catch(() => {}).finally(() => { invScanner.clear(); invScanner = null; if (reader) reader.style.display = 'none'; });
+    } else if (reader) { reader.style.display = 'none'; }
+  }
+
+  async function cochreArticle(barcode) {
+    try {
+      // Chercher le produit sur Shopify pour avoir le nom
+      const res = await fetch(`${BACKEND_URL}/product/${barcode}`);
+      const data = await res.json();
+      const name = data.title || barcode;
+      const image = data.image || null;
+
+      // Cocher en boutique dans la base
+      await fetch(`${BACKEND_URL}/stock/location`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          barcode,
+          inBoutique: true,
+          location: 'en_magasin',
+          updatedBy: currentEmployee || 'caisse'
+        })
+      });
+
+      // Ajouter à la liste
+      const list = document.getElementById('invList');
+      const empty = list.querySelector('.history-empty');
+      if (empty) empty.remove();
+
+      const img = image
+        ? `<img src="${image}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex-shrink:0;">`
+        : `<div style="width:44px;height:44px;border-radius:8px;background:#EAF3DE;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">✓</div>`;
+
+      const item = document.createElement('div');
+      item.className = 'history-item';
+      item.innerHTML = `
+        ${img}
+        <div style="flex:1;min-width:0;">
+          <div class="h-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</div>
+          <div class="h-code">${barcode}</div>
+        </div>
+        <div class="h-meta">
+          <span style="color:#3B6D11;font-weight:600;">✓ Coché</span>
+        </div>`;
+      list.insertBefore(item, list.firstChild);
+
+      const count = list.querySelectorAll('.history-item').length;
+      document.getElementById('invCount').textContent = `${count} article${count > 1 ? 's' : ''}`;
+      showToast(`${name} — coché ✓`, 'success');
+    } catch(e) {
+      showToast(`Erreur : ${barcode}`, 'error');
+    }
+  }
+
+  function resetInventaire() {
+    invScanned.clear();
+    document.getElementById('invList').innerHTML = '<div class="history-empty">Aucun article scanné</div>';
+    document.getElementById('invCount').textContent = '0 article';
+    document.getElementById('invStatus').textContent = 'En attente de scan...';
+    document.getElementById('invStatus').style.color = '#888780';
   }
 
   async function loadCommandes() {
