@@ -118,12 +118,6 @@
   <div class="config-bar">
     <select id="employeeSelect">
       <option value="">— Employé —</option>
-      <option>Sacha</option>
-      <option>Mathys</option>
-      <option>Romane</option>
-      <option>Noa</option>
-      <option>Celeste</option>
-      <option>Louis</option>
     </select>
     <select id="boutiqueSelect">
       <option value="Lille">Boutique Lille</option>
@@ -177,12 +171,6 @@
     <label class="form-label">Employé *</label>
     <select id="purchaseEmployee" class="form-input" style="appearance:none;">
       <option value="">— Sélectionner —</option>
-      <option>Sacha</option>
-      <option>Mathys</option>
-      <option>Romane</option>
-      <option>Noa</option>
-      <option>Celeste</option>
-      <option>Louis</option>
     </select>
     <button class="btn-purchase" id="purchaseBtn" onclick="savePurchase()">Enregistrer le rachat</button>
   </div>
@@ -239,12 +227,6 @@
         <label class="form-label">Nettoyeur *</label>
         <select id="cleanEmployee" class="form-input" style="appearance:none;">
           <option value="">— Sélectionner —</option>
-          <option>Sacha</option>
-          <option>Mathys</option>
-          <option>Romane</option>
-          <option>Noa</option>
-          <option>Celeste</option>
-          <option>Louis</option>
         </select>
       </div>
       <div style="flex:1;">
@@ -613,7 +595,7 @@
       const res = await fetch(`${BACKEND_URL}/purchase`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ barcode, productName, brand, purchasePrice, estimatedPrice, employee })
+        body: JSON.stringify({ barcode, productName, brand, purchasePrice, estimatedPrice, employee, boutique: currentBoutique === 'admin' ? document.getElementById('boutiqueSelect').value : currentBoutique })
       });
       const result = await res.json();
 
@@ -723,13 +705,11 @@
 
   async function loadRecentPurchases() {
     try {
-      const res = await fetch(`${BACKEND_URL}/purchases`);
+      const bParam = currentBoutique && currentBoutique !== 'admin' ? `?boutique=${currentBoutique}` : '';
+      const res = await fetch(`${BACKEND_URL}/purchases${bParam}`);
       const purchases = await res.json();
       if (!Array.isArray(purchases) || purchases.length === 0) return;
-      const filtered = purchases
-        .filter(p => !currentBoutique || currentBoutique === 'admin' || p.boutique === currentBoutique || !p.boutique)
-        .slice(0, 15).reverse();
-      for (const p of filtered) {
+      for (const p of purchases.slice(0, 15).reverse()) {
         addToPurchaseHistory({
           barcode: p.barcode,
           productName: p.product_name,
