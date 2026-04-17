@@ -242,17 +242,7 @@ tr:hover td{background:#fafaf8;}
         <option value="price_desc">Prix décroissant</option>
         <option value="price_asc">Prix croissant</option>
       </select>
-      <button onclick="toggleInventoryMode()" id="inventoryBtn" style="padding:8px 14px;background:#2C2C2A;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">📋 Mode inventaire</button>
-    </div>
-    <div id="inventoryBanner" style="display:none;background:#EAF3DE;border:0.5px solid #b5d4a0;border-radius:10px;padding:12px 16px;margin-bottom:12px;display:none;justify-content:space-between;align-items:center;">
-      <div>
-        <span style="font-weight:600;color:#3B6D11;">Mode inventaire actif</span>
-        <span id="inventoryProgress" style="font-size:12px;color:#3B6D11;margin-left:12px;"></span>
-      </div>
-      <div style="display:flex;gap:8px;">
-        <button onclick="exportInventory()" style="padding:6px 12px;background:#3B6D11;color:#fff;border:none;border-radius:7px;font-size:12px;cursor:pointer;">Exporter manquants</button>
-        <button onclick="resetInventory()" style="padding:6px 12px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:7px;font-size:12px;cursor:pointer;">Réinitialiser</button>
-      </div>
+      <button onclick="exportMissingStock()" style="padding:8px 14px;background:#2C2C2A;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">📋 Exporter non cochés</button>
     </div>
   </div>
   <div id="stockSummary" style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;"></div>
@@ -273,7 +263,6 @@ tr:hover td{background:#fafaf8;}
           <th>Article</th><th>Marque</th><th>Code-barres</th><th>Prix</th>
           <th>Boutique</th><th>Score</th><th>En ligne depuis</th><th>Statut</th>
           <th>En boutique ✓</th>
-          <th id="inventoryColHeader" style="display:none;">Inventaire ✓</th>
           <th></th>
         </tr></thead>
         <tbody id="stockTable"><tr><td colspan="11" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
@@ -414,7 +403,7 @@ function switchTab(name, el) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   el.classList.add('active');
   document.getElementById(`tab-${name}`).classList.add('active');
-  if (name === 'stock' && allStockData.length === 0) loadStock();
+  if (name === 'stock') { allStockData = []; loadStock(); }
   if (name === 'rotation') loadRotation();
   if (name === 'rachats') loadRachats();
   if (name === 'nettoyage') loadCleanings();
@@ -590,17 +579,11 @@ function renderStockTable(data) {
     const comparePrice = p.compareAtPrice ? `<span style="text-decoration:line-through;color:#888780;font-size:11px;margin-right:4px;">${parseFloat(p.compareAtPrice).toFixed(0)}€</span>` : '';
     const inBoutique = p.inBoutique === true;
     const locCell = p.barcode
-      ? `<td style="text-align:center;">
-          <input type="checkbox" ${inBoutique?'checked':''} onchange="updateStockLocation('${p.barcode}', this.checked)"
-          style="width:18px;height:18px;cursor:pointer;accent-color:#3B6D11;" title="${inBoutique?'En boutique':'Non localisé'}"/>
-         </td>`
-      : `<td style="text-align:center;color:#b4b2a9;font-size:11px;">—</td>`;
+      ? `<input type="checkbox" ${inBoutique?'checked':''} onchange="updateStockLocation('${p.barcode}', this.checked)"
+          style="width:18px;height:18px;cursor:pointer;accent-color:#3B6D11;"/>`
+      : `<span style="color:#b4b2a9;font-size:11px;">—</span>`;
     const rowBg = !inBoutique && p.barcode ? 'background:#FFF8F8;' : '';
-    const isPresent = inventoryChecked.has(p.id);
-    const inventoryCell = inventoryMode
-      ? `<td style="text-align:center;"><input type="checkbox" ${isPresent?'checked':''} onchange="toggleInventoryItem(${p.id}, this)" style="width:18px;height:18px;cursor:pointer;accent-color:#3B6D11;"/></td>`
-      : `<td style="display:none;"></td>`;
-    return `<tr style="${rowBg}${inventoryMode && !isPresent ? 'background:#FFF8F8;' : ''}">
+    return `<tr style="${rowBg}">
       <td><input type="checkbox" class="cb product-cb" data-id="${p.id}" data-varid="${p.variantId}" ${isSelected?'checked':''} onchange="toggleProduct(this)"/></td>
       <td style="display:flex;align-items:center;gap:8px;">${img}<span style="font-size:13px;">${p.title}</span></td>
       <td style="color:#888780;font-size:12px;">${p.vendor||'—'}</td>
@@ -610,8 +593,7 @@ function renderStockTable(data) {
       <td><span style="font-size:13px;font-weight:600;color:${scoreFill}">${score}</span> <div class="score-bar"><div class="score-fill" style="width:${score}%;background:${scoreFill};height:100%;border-radius:3px;"></div></div></td>
       <td><div style="font-size:13px;font-weight:500;">${p.daysOnline}j</div><div class="days-bar"><div class="days-bar-fill" style="width:${fillPct}%;background:${fillColor};"></div></div></td>
       <td>${statusBadge}</td>
-      <td>${locCell}</td>
-      ${inventoryCell}
+      <td style="text-align:center;">${locCell}</td>
       <td><a href="${p.shopifyAdminUrl}" target="_blank" class="link-btn">Shopify ↗</a></td>
     </tr>`;
   }).join('');
@@ -758,69 +740,16 @@ async function sendWeeklyEmail() {
   alert(d.success?'Mail envoyé ✓':'Erreur — vérifie RESEND_API_KEY dans Railway');
 }
 
-let inventoryMode = false;
+
 // Charger l'inventaire depuis localStorage au démarrage
-const _savedInv = localStorage.getItem('nv_inventory');
-let inventoryChecked = _savedInv ? new Set(JSON.parse(_savedInv)) : new Set();
-
-function saveInventoryToStorage() {
-  localStorage.setItem('nv_inventory', JSON.stringify([...inventoryChecked]));
-}
-
-function toggleInventoryMode() {
-  inventoryMode = !inventoryMode;
-  const btn = document.getElementById('inventoryBtn');
-  const banner = document.getElementById('inventoryBanner');
-  const colHeader = document.getElementById('inventoryColHeader');
-  if (inventoryMode) {
-    btn.textContent = '✕ Quitter inventaire';
-    btn.style.background = '#A32D2D';
-    banner.style.display = 'flex';
-    colHeader.style.display = '';
-    updateInventoryProgress();
-  } else {
-    btn.textContent = '📋 Mode inventaire';
-    btn.style.background = '#2C2C2A';
-    banner.style.display = 'none';
-    colHeader.style.display = 'none';
-  }
-  filterStock();
-}
-
-function toggleInventoryItem(id, cb) {
-  if (cb.checked) inventoryChecked.add(id);
-  else inventoryChecked.delete(id);
-  saveInventoryToStorage();
-  updateInventoryProgress();
-  const row = cb.closest('tr');
-  if (row) row.style.background = cb.checked ? '' : '#FFF8F8';
-}
-
-function updateInventoryProgress() {
-  const total = allStockData.length;
-  const checked = inventoryChecked.size;
-  const missing = total - checked;
-  document.getElementById('inventoryProgress').textContent =
-    `${checked}/${total} vérifiés — ${missing} article${missing>1?'s':''} non trouvé${missing>1?'s':''}`;
-}
-
-function resetInventory() {
-  if (!confirm('Réinitialiser l\'inventaire ? Toutes les coches seront effacées.')) return;
-  inventoryChecked.clear();
-  saveInventoryToStorage();
-  filterStock();
-  updateInventoryProgress();
-}
-
-function exportInventory() {
-  const missing = allStockData.filter(p => !inventoryChecked.has(p.id));
-  if (!missing.length) { alert('Tous les articles ont été trouvés !'); return; }
+function exportMissingStock() {
+  const missing = allStockData.filter(p => p.barcode && !p.inBoutique);
+  if (!missing.length) { alert('Tous les articles avec code-barres sont cochés en boutique !'); return; }
   const lines = ['Article,Marque,Code-barres,Prix,Boutique,Jours en ligne'];
   missing.forEach(p => lines.push(`"${p.title}","${p.vendor||''}","${p.barcode||''}","${parseFloat(p.price).toFixed(2)}","${p.boutique}","${p.daysOnline}"`));
-  const csv = lines.join('\n');
   const a = document.createElement('a');
-  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-  a.download = `inventaire_manquants_${new Date().toLocaleDateString('fr-FR').replace(/\//g,'-')}.csv`;
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(lines.join('\n'));
+  a.download = `non_coches_${new Date().toLocaleDateString('fr-FR',{timeZone:'Europe/Paris'}).replace(/\//g,'-')}.csv`;
   a.click();
 }
 
