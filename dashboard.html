@@ -300,8 +300,9 @@ tr:hover td{background:#fafaf8;}
     <input class="search-input" id="rachatsSearch" placeholder="Rechercher..." oninput="filterRachats()"/>
     <select class="filter-select" id="rachatsStatusFilter" onchange="filterRachats()">
       <option value="">Tous statuts</option>
-      <option value="pending">En attente Shopify</option>
-      <option value="sold">Vendus</option>
+      <option value="pending">⏳ À mettre en ligne</option>
+      <option value="posted">🛍 Postés en ligne</option>
+      <option value="sold">✓ Vendus</option>
     </select>
   </div>
   <div class="table-card">
@@ -1005,27 +1006,50 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function loadRachats() {
-  const [stats, data] = await Promise.all([api('/purchases/stats'), api('/purchases')]);
-  allRachatsData = data;
+  const [stats, data, stockData] = await Promise.all([
+    api('/purchases/stats'),
+    api('/purchases'),
+    allStockData.length > 0 ? Promise.resolve(allStockData) : api('/analytics/stock')
+  ]);
+
+  // Enrichir avec statut "posté" si barcode présent dans Shopify stock actif
+  const shopifyBarcodes = new Set((stockData||[]).map(p => p.barcode).filter(Boolean));
+  allRachatsData = data.map(r => ({
+    ...r,
+    isPosted: r.barcode && shopifyBarcodes.has(r.barcode) && r.computed_status !== 'sold'
+  }));
+
   const t = stats.total, s = stats.sold, p = stats.pending;
+  const posted = allRachatsData.filter(r => r.isPosted).length;
+  const notPosted = allRachatsData.filter(r => r.computed_status !== 'sold' && !r.isPosted && r.barcode).length;
+
   document.getElementById('rachatsKpis').innerHTML = `
     <div class="kpi"><div class="kpi-label">Total rachetés</div><div class="kpi-value">${t.count}</div><div class="kpi-sub">${parseFloat(t.total_spent).toFixed(2)}€ investis</div></div>
     <div class="kpi"><div class="kpi-label">Vendus</div><div class="kpi-value green">${s.count}</div><div class="kpi-sub">marge moy. ${parseFloat(s.avg_margin||0).toFixed(2)}€</div></div>
     <div class="kpi"><div class="kpi-label">Marge totale</div><div class="kpi-value green">${parseFloat(s.total_margin||0).toFixed(2)}€</div><div class="kpi-sub">sur articles vendus</div></div>
+    <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('rachatsStatusFilter').value='posted';filterRachats();">
+      <div class="kpi-label">Postés en ligne</div>
+      <div class="kpi-value" style="color:#185FA5;">${posted}</div>
+      <div class="kpi-sub">en attente de vente</div>
+    </div>
     <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('rachatsStatusFilter').value='pending';filterRachats();">
-      <div class="kpi-label">En attente Shopify</div>
-      <div class="kpi-value" style="color:${parseInt(p.count)>0?'#BA7517':'#3B6D11'}">${p.count}</div>
-      <div class="kpi-sub">${parseInt(p.count)>0?'à mettre en ligne':'tout est en ligne'}</div>
+      <div class="kpi-label">À mettre en ligne</div>
+      <div class="kpi-value" style="color:${notPosted>0?'#BA7517':'#3B6D11'}">${notPosted}</div>
+      <div class="kpi-sub">${notPosted>0?'pas encore postés':'tout est posté ✓'}</div>
     </div>
   `;
-  renderRachatsTable(data);
+  renderRachatsTable(allRachatsData);
 }
 
 function renderRachatsTable(data) {
   document.getElementById('rachatsCount').textContent = `${data.length} rachat${data.length>1?'s':''}`;
   if (!data.length) { document.getElementById('rachatsTable').innerHTML='<tr><td colspan="12" style="text-align:center;padding:30px;color:#888780;">Aucun rachat</td></tr>'; return; }
   document.getElementById('rachatsTable').innerHTML = data.map(r => {
-    const status = r.computed_status === 'sold' ? '<span class="badge badge-ok">Vendu</span>' : '<span class="badge badge-warning">En attente</span>';
+    const status = r.computed_status === 'sold'
+      ? '<span class="badge badge-ok">✓ Vendu</span>'
+      : r.isPosted
+        ? '<span class="badge" style="background:#E6F1FB;color:#185FA5;">🛍 Posté en ligne</span>'
+        : '<span class="badge badge-warning">⏳ À mettre en ligne</span>';
     const margin = r.margin != null ? `<span style="font-weight:600;color:${r.margin>=0?'#3B6D11':'#A32D2D'}">${r.margin>=0?'+':''}${parseFloat(r.margin).toFixed(2)}€ ${r.margin_pct!=null?`(${r.margin_pct}%)`:''}</span>` : '—';
     const soldPrice = r.sold_price ? `${parseFloat(r.sold_price).toFixed(2)}€` : '—';
     const date = new Date(r.purchased_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'});
@@ -1111,7 +1135,8 @@ function filterRachats() {
   const status = document.getElementById('rachatsStatusFilter').value;
   const filtered = allRachatsData.filter(r => {
     if (q && !r.product_name?.toLowerCase().includes(q) && !r.brand?.toLowerCase().includes(q) && !r.barcode?.toLowerCase().includes(q)) return false;
-    if (status === 'pending' && r.computed_status === 'sold') return false;
+    if (status === 'pending' && (r.computed_status === 'sold' || r.isPosted)) return false;
+    if (status === 'posted' && !r.isPosted) return false;
     if (status === 'sold' && r.computed_status !== 'sold') return false;
     return true;
   });
