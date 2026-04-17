@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nestore — Accès</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .login-box { background: #fff; border: 0.5px solid #e0dfd8; border-radius: 16px; padding: 2rem; width: 100%; max-width: 360px; }
+    .logo { width: 48px; height: 48px; background: #2C2C2A; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px; font-weight: 700; margin: 0 auto 1.5rem; }
+    h1 { text-align: center; font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+    p { text-align: center; font-size: 13px; color: #888780; margin-bottom: 1.5rem; }
+    input { width: 100%; padding: 12px; border: 0.5px solid #d3d1c7; border-radius: 10px; font-size: 15px; background: #f5f5f3; color: #1a1a18; margin-bottom: 10px; }
+    input:focus { outline: none; border-color: #888780; background: #fff; }
+    .scan-input { width: auto !important; flex: 1; min-width: 0; padding: 10px 12px !important; margin-bottom: 0 !important; font-size: 15px; }
+    .login-box button { width: 100%; padding: 13px; background: #2C2C2A; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
+    .login-box button:hover { background: #444441; }
+    .error { color: #A32D2D; font-size: 13px; text-align: center; margin-top: 10px; display: none; }
+    /* App styles */
+    .app { max-width: 480px; margin: 0 auto; }
+    .header { display: flex; align-items: center; gap: 12px; margin-bottom: 1.5rem; padding: 1rem 1.25rem; background: #fff; border-radius: 14px; border: 0.5px solid #e0dfd8; }
+    .title { font-size: 16px; font-weight: 600; color: #1a1a18; }
+    .subtitle { font-size: 12px; color: #888780; margin-top: 1px; }
+    .config-bar { display: flex; gap: 8px; margin-bottom: 1rem; }
+    select { flex: 1; padding: 9px 10px; border: 0.5px solid #d3d1c7; border-radius: 10px; background: #fff; font-size: 13px; color: #2C2C2A; appearance: none; }
+    .scan-box { background: #fff; border: 0.5px solid #e0dfd8; border-radius: 14px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+    .scan-label { font-size: 11px; color: #888780; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+    .scan-row { display: flex; gap: 8px; align-items: center; }
+    .scan-row input { flex: 1; min-width: 0; width: auto; font-size: 15px; padding: 10px 12px; border: 0.5px solid #d3d1c7; border-radius: 10px; background: #f5f5f3; color: #1a1a18; outline: none; }
+    .scan-row input:focus { border-color: #888780; background: #fff; }
+    .btn-search { flex-shrink: 0; padding: 10px 16px; background: #2C2C2A; color: #fff; border: none; border-radius: 10px; font-size: 14px; cursor: pointer; white-space: nowrap; }
+    .btn-search:hover { background: #444441; }
+    .btn-search:disabled { background: #b4b2a9; cursor: not-allowed; }
+    .product-card { background: #fff; border: 0.5px solid #e0dfd8; border-radius: 14px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+    .product-card.error { border-color: #f7c1c1; background: #fff8f8; }
+    .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+    .pname { font-size: 16px; font-weight: 600; color: #1a1a18; }
+    .pcode { font-size: 12px; color: #888780; font-family: monospace; margin-top: 3px; }
+    .badge { font-size: 11px; padding: 3px 9px; border-radius: 99px; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+    .badge-dk { background: #E6F1FB; color: #0C447C; }
+    .badge-lille { background: #EAF3DE; color: #27500A; }
+    .badge-stock0 { background: #FCEBEB; color: #A32D2D; }
+    .pprice { font-size: 22px; font-weight: 700; color: #1a1a18; margin: 10px 0 6px; }
+    .pdetails { font-size: 13px; color: #5f5e5a; display: flex; gap: 12px; flex-wrap: wrap; }
+    .btn-sell { width: 100%; margin-top: 14px; padding: 13px; background: #A32D2D; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
+    .btn-sell:hover { background: #791F1F; }
+    .btn-sell:disabled { background: #b4b2a9; cursor: not-allowed; }
+    .already-sold { text-align: center; margin-top: 12px; font-size: 13px; color: #A32D2D; font-weight: 600; }
+    .error-msg { font-size: 14px; color: #A32D2D; margin-top: 6px; }
+    .loading { text-align: center; padding: 2rem; color: #888780; font-size: 14px; }
+    .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid #e0dfd8; border-top-color: #2C2C2A; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .history-box { background: #fff; border: 0.5px solid #e0dfd8; border-radius: 14px; overflow: hidden; }
+    .history-header { padding: 10px 1.25rem; border-bottom: 0.5px solid #e0dfd8; display: flex; justify-content: space-between; align-items: center; }
+    .history-title { font-size: 13px; font-weight: 600; color: #1a1a18; }
+    .history-count { font-size: 12px; color: #888780; }
+    .history-empty { padding: 2rem; text-align: center; font-size: 13px; color: #b4b2a9; }
+    .history-item { padding: 10px 1.25rem; border-bottom: 0.5px solid #f1efe8; display: flex; align-items: center; gap: 10px; }
+    .history-item:last-child { border-bottom: none; }
+    .h-name { font-size: 13px; font-weight: 600; color: #1a1a18; flex: 1; }
+    .h-code { font-size: 11px; color: #888780; font-family: monospace; }
+    .h-meta { font-size: 11px; color: #888780; text-align: right; line-height: 1.5; }
+    .toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%) translateY(20px); background: #2C2C2A; color: #fff; padding: 10px 20px; border-radius: 10px; font-size: 13px; font-weight: 500; opacity: 0; transition: opacity 0.2s, transform 0.2s; pointer-events: none; white-space: nowrap; z-index: 100; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.success { background: #3B6D11; }
+    .toast.error { background: #A32D2D; }
+    .tabs { display: flex; gap: 0; background: #fff; border-radius: 12px; border: 0.5px solid #e0dfd8; margin-bottom: 1rem; overflow: hidden; }
+    .tab { flex: 1; padding: 10px; text-align: center; font-size: 13px; font-weight: 500; cursor: pointer; color: #888780; border: none; background: none; }
+    .tab.active { background: #2C2C2A; color: #fff; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .form-box { background: #fff; border: 0.5px solid #e0dfd8; border-radius: 14px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+    .form-label { font-size: 11px; color: #888780; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; display: block; }
+    .form-input { width: 100%; padding: 10px 12px; border: 0.5px solid #d3d1c7; border-radius: 10px; background: #f5f5f3; color: #1a1a18; font-size: 14px; margin-bottom: 10px; }
+    .form-input:focus { outline: none; border-color: #888780; background: #fff; }
+    .form-row { display: flex; gap: 8px; }
+    .form-row .form-input { flex: 1; }
+    .btn-purchase { width: 100%; padding: 13px; background: #3B6D11; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 4px; }
+    .btn-purchase:hover { background: #27500A; }
+    .btn-purchase:disabled { background: #b4b2a9; cursor: not-allowed; }
+    #mainApp { background: #f5f5f3; min-height: 100vh; padding: 1rem; display: none; }
+  </style>
+</head>
+<body style="display:block;align-items:unset;justify-content:unset;padding:0;">
+<div id="loginScreen" style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:1rem;">
+  <div class="login-box">
+    <div class="logo">NV</div>
+    <h1>Nestore</h1>
+    <p>Accès réservé à l'équipe</p>
+    <input type="password" id="pwdInput" placeholder="Mot de passe" onkeydown="if(event.key==='Enter')checkPwd()"/>
+    <button onclick="checkPwd()">Accéder</button>
+    <div class="error" id="pwdError">Mot de passe incorrect</div>
+  </div>
+</div>
+
+<div id="mainApp">
+<div class="app">
+
+  <div class="header">
+    <div class="logo">NV</div>
+    <div style="flex:1;">
+      <div class="title">Nestore</div>
+      <div class="subtitle">Synchronisation Shopify</div>
+    </div>
+    <a href="dashboard.html" style="padding:7px 12px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:8px;font-size:12px;color:#2C2C2A;text-decoration:none;font-weight:500;">Dashboard →</a>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchAppTab('vente',this)">Vente</button>
+    <button class="tab" onclick="switchAppTab('rachat',this)">Rachat boutique</button>
+  </div>
+
+  <!-- TAB VENTE -->
+  <div id="apptab-vente" class="tab-panel active">
+  <div class="config-bar">
+    <select id="employeeSelect">
+      <option value="">— Employé —</option>
+      <option>Sacha</option>
+      <option>Mathys</option>
+      <option>Romane</option>
+      <option>Noa</option>
+      <option>Celeste</option>
+      <option>Louis</option>
+    </select>
+    <select id="boutiqueSelect">
+      <option value="Lille">Boutique Lille</option>
+      <option value="DK">Boutique DK</option>
+      <option value="Vinted">Vinted</option>
+    </select>
+  </div>
+
+  <div class="scan-box">
+    <div class="scan-label">Scanner ou saisir un code-barres</div>
+    <div class="scan-row">
+      <input type="text" id="barcodeInput" class="scan-input" placeholder="Pointer le scanner ici..." autofocus />
+      <button class="btn-search" id="searchBtn" onclick="lookupProduct()">Rechercher</button>
+    </div>
+  </div>
+
+  <div id="productArea"></div>
+
+  <div class="history-box">
+    <div class="history-header">
+      <span class="history-title">Ventes de la session</span>
+      <span class="history-count" id="historyCount">0 article</span>
+    </div>
+    <div id="historyList">
+      <div class="history-empty">Aucune vente enregistrée</div>
+    </div>
+  </div>
+  </div><!-- fin tab-vente -->
+
+  <!-- TAB RACHAT -->
+  <div id="apptab-rachat" class="tab-panel">
+  <div class="form-box">
+    <div class="scan-label">Code-barres de l'article</div>
+    <div class="scan-row" style="margin-bottom:10px;">
+      <input type="text" id="purchaseBarcodeInput" class="form-input" style="margin:0;" placeholder="Scanner le code-barres..."/>
+    </div>
+    <label class="form-label">Nom de l'article *</label>
+    <input type="text" id="purchaseName" class="form-input" placeholder="Ex: Sweat Stone Island"/>
+    <label class="form-label">Marque</label>
+    <input type="text" id="purchaseBrand" class="form-input" placeholder="Ex: Stone Island"/>
+    <div class="form-row">
+      <div style="flex:1;">
+        <label class="form-label">Prix d'achat (€) *</label>
+        <input type="number" id="purchasePriceIn" class="form-input" placeholder="0" min="0" step="0.50"/>
+      </div>
+      <div style="flex:1;">
+        <label class="form-label">Prix de vente estimé (€)</label>
+        <input type="number" id="purchasePriceOut" class="form-input" placeholder="0" min="0" step="0.50"/>
+      </div>
+    </div>
+    <label class="form-label">Employé *</label>
+    <select id="purchaseEmployee" class="form-input" style="appearance:none;">
+      <option value="">— Sélectionner —</option>
+      <option>Sacha</option>
+      <option>Mathys</option>
+      <option>Romane</option>
+      <option>Noa</option>
+      <option>Celeste</option>
+      <option>Louis</option>
+    </select>
+    <button class="btn-purchase" id="purchaseBtn" onclick="savePurchase()">Enregistrer le rachat</button>
+  </div>
+
+  <div class="history-box">
+    <div class="history-header">
+      <span class="history-title">Rachats de la session</span>
+      <span class="history-count" id="purchaseCount">0 rachat</span>
+    </div>
+    <div id="purchaseList">
+      <div class="history-empty">Aucun rachat enregistré</div>
+    </div>
+  </div>
+  </div><!-- fin tab-rachat -->
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ⚠️ REMPLACE CETTE URL par l'URL de ton serveur Railway après déploiement
+  const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
+
+  let currentData = null;
+
+  document.getElementById('barcodeInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') lookupProduct();
+  });
+
+
+
+  async function lookupProduct() {
+    const barcode = document.getElementById('barcodeInput').value.trim();
+    if (!barcode) return;
+
+    const area = document.getElementById('productArea');
+    area.innerHTML = `<div class="loading"><span class="spinner"></span>Recherche en cours...</div>`;
+    currentData = null;
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/product/${encodeURIComponent(barcode)}`);
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        area.innerHTML = `<div class="product-card error">
+          <div class="pname">Produit introuvable</div>
+          <div class="pcode">${barcode}</div>
+          <div class="error-msg">Aucun article avec ce code-barres dans Shopify.</div>
+        </div>`;
+        showToast('Code-barres introuvable', 'error');
+        return;
+      }
+
+      currentData = data;
+      const isSold = data.totalStock === 0;
+      const badgeClass = data.boutique === 'DK' ? 'badge-dk' : 'badge-lille';
+
+      // Trouver la location correspondant à la boutique sélectionnée
+      const selectedBoutique = document.getElementById('boutiqueSelect').value;
+      const matchedLocation = data.locations[0];
+
+      currentData.selectedLocationId = matchedLocation?.id;
+
+      area.innerHTML = `<div class="product-card">
+        <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;">
+          ${data.image ? `<img src="${data.image}" style="width:80px;height:80px;object-fit:cover;border-radius:10px;flex-shrink:0;">` : ''}
+          <div style="flex:1;">
+            <div class="card-top">
+              <div>
+                <div class="pname">${data.name}</div>
+                <div class="pcode">${barcode}${data.brand ? ` · ${data.brand}` : ''}</div>
+              </div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+                <span class="badge ${badgeClass}">${data.boutique}</span>
+                ${isSold ? `<span class="badge badge-stock0">Stock 0</span>` : ''}
+              </div>
+            </div>
+            <div class="pprice">${parseFloat(data.price).toFixed(2)} €</div>
+          </div>
+        </div>
+        <div class="pdetails">
+          <span>Stock total : ${data.totalStock}</span>
+          ${data.tags.length ? `<span>Tags : ${data.tags.slice(0,3).join(', ')}</span>` : ''}
+        </div>
+        ${!isSold
+          ? `<button class="btn-sell" id="sellBtn" onclick="markAsSold()">
+              Marquer vendu — stock à 0 sur Shopify
+            </button>`
+          : `<div class="already-sold">Cet article est déjà en stock 0 sur Shopify</div>`
+        }
+      </div>`;
+
+    } catch (err) {
+      area.innerHTML = `<div class="product-card error">
+        <div class="pname">Erreur de connexion</div>
+        <div class="error-msg">Impossible de joindre le serveur. Vérifie ta connexion ou l'URL du backend.</div>
+      </div>`;
+    }
+  }
+
+  async function markAsSold() {
+    const employee = document.getElementById('employeeSelect').value;
+    if (!employee) { alert('Sélectionne un employé avant de valider la vente.'); return; }
+    if (!currentData) { alert('Erreur : aucun produit chargé.'); return; }
+    if (!currentData.selectedLocationId) { alert('Erreur : emplacement Shopify introuvable.'); return; }
+
+    const btn = document.getElementById('sellBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Envoi en cours...'; }
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/sell`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          inventoryItemId: currentData.inventoryItemId,
+          locationId: currentData.selectedLocationId,
+          employee,
+          boutique: document.getElementById('boutiqueSelect').value,
+          productName: currentData.name,
+          barcode: currentData.barcode,
+          sku: currentData.sku,
+          price: currentData.price,
+          tags: currentData.tags,
+          brand: currentData.brand,
+          imageUrl: currentData.image,
+          productCreatedAt: currentData.productCreatedAt
+        })
+      });
+
+      const result = await res.json();
+
+      if (!res.ok || !result.success) {
+        alert('Erreur Shopify : ' + JSON.stringify(result.error || result));
+        if (btn) { btn.disabled = false; btn.textContent = 'Marquer vendu — stock à 0 sur Shopify'; }
+        return;
+      }
+
+      addToHistory(currentData, employee, document.getElementById('boutiqueSelect').value);
+      showToast('Stock mis à 0 sur Shopify ✓', 'success');
+
+      document.getElementById('barcodeInput').value = '';
+      document.getElementById('productArea').innerHTML = '';
+      document.getElementById('barcodeInput').focus();
+      currentData = null;
+
+    } catch (err) {
+      alert('Erreur réseau : ' + err.message);
+      if (btn) { btn.disabled = false; btn.textContent = 'Marquer vendu — stock à 0 sur Shopify'; }
+    }
+  }
+
+  function addToHistory(data, employee, boutique) {
+    const list = document.getElementById('historyList');
+    const empty = list.querySelector('.history-empty');
+    if (empty) empty.remove();
+
+    const now = new Date();
+    const time = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const badgeClass = (data.boutique || boutique) === 'DK' ? 'badge-dk' : 'badge-lille';
+    const img = data.image || data.image_url;
+    const imgHtml = img
+      ? `<img src="${img}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;">`
+      : `<div style="width:44px;height:44px;border-radius:8px;background:#f1efe8;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">👕</div>`;
+
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    item.innerHTML = `
+      ${imgHtml}
+      <div style="flex:1;min-width:0;">
+        <div class="h-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${data.name || data.product_name}</div>
+        <div class="h-code">${data.barcode || data.sku || ''}</div>
+      </div>
+      <div class="h-meta">
+        <span class="badge ${badgeClass}" style="font-size:10px;">${boutique}</span>
+        <div>${parseFloat(data.price).toFixed(2)} €</div>
+        <div>${employee} · ${time}</div>
+      </div>`;
+
+    list.insertBefore(item, list.firstChild);
+
+    const count = list.querySelectorAll('.history-item').length;
+    document.getElementById('historyCount').textContent = `${count} article${count > 1 ? 's' : ''}`;
+  }
+
+  function showToast(msg, type = '') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast show ${type}`;
+    setTimeout(() => t.className = 'toast', 2800);
+  }
+
+  function switchAppTab(name, el) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById(`apptab-${name}`).classList.add('active');
+    if (name === 'rachat') document.getElementById('purchaseBarcodeInput').focus();
+    else document.getElementById('barcodeInput').focus();
+  }
+
+  async function savePurchase() {
+    const barcode = document.getElementById('purchaseBarcodeInput').value.trim();
+    const productName = document.getElementById('purchaseName').value.trim();
+    const brand = document.getElementById('purchaseBrand').value.trim();
+    const purchasePrice = document.getElementById('purchasePriceIn').value;
+    const estimatedPrice = document.getElementById('purchasePriceOut').value;
+    const employee = document.getElementById('purchaseEmployee').value;
+
+    if (!productName) { showToast('Nom de l\'article requis', 'error'); return; }
+    if (!purchasePrice) { showToast('Prix d\'achat requis', 'error'); return; }
+    if (!employee) { showToast('Sélectionne un employé', 'error'); return; }
+
+    const btn = document.getElementById('purchaseBtn');
+    btn.disabled = true; btn.textContent = 'Enregistrement...';
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/purchase`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ barcode, productName, brand, purchasePrice, estimatedPrice, employee })
+      });
+      const result = await res.json();
+
+      if (res.status === 409) { showToast('Ce code-barres a déjà été racheté', 'error'); btn.disabled=false; btn.textContent='Enregistrer le rachat'; return; }
+      if (!res.ok || !result.success) { showToast('Erreur, réessaie', 'error'); btn.disabled=false; btn.textContent='Enregistrer le rachat'; return; }
+
+      showToast('Rachat enregistré ✓', 'success');
+      addToPurchaseHistory({ barcode, productName, brand, purchasePrice, estimatedPrice, employee });
+
+      document.getElementById('purchaseBarcodeInput').value = '';
+      document.getElementById('purchaseName').value = '';
+      document.getElementById('purchaseBrand').value = '';
+      document.getElementById('purchasePriceIn').value = '';
+      document.getElementById('purchasePriceOut').value = '';
+      document.getElementById('purchaseBarcodeInput').focus();
+
+    } catch(err) { showToast('Erreur réseau', 'error'); }
+    btn.disabled = false; btn.textContent = 'Enregistrer le rachat';
+  }
+
+  function addToPurchaseHistory({ barcode, productName, brand, purchasePrice, estimatedPrice, employee }) {
+    const list = document.getElementById('purchaseList');
+    const empty = list.querySelector('.history-empty');
+    if (empty) empty.remove();
+    const now = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const margin = estimatedPrice ? ` → ${parseFloat(estimatedPrice).toFixed(0)}€` : '';
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    item.innerHTML = `
+      <div style="width:36px;height:36px;border-radius:8px;background:#EAF3DE;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🛍</div>
+      <div style="flex:1;min-width:0;">
+        <div class="h-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${productName}</div>
+        <div class="h-code">${brand||''}${barcode?' · '+barcode:''}</div>
+      </div>
+      <div class="h-meta">
+        <div style="font-weight:600;color:#3B6D11;">${parseFloat(purchasePrice).toFixed(2)}€${margin}</div>
+        <div>${employee} · ${now}</div>
+      </div>`;
+    list.insertBefore(item, list.firstChild);
+    const count = list.querySelectorAll('.history-item').length;
+    document.getElementById('purchaseCount').textContent = `${count} rachat${count>1?'s':''}`;
+  }
+
+  async function loadTodaySales() {
+    try {
+      const res = await fetch(`${BACKEND_URL}/analytics/recent?limit=15`);
+      const sales = await res.json();
+      if (!Array.isArray(sales) || sales.length === 0) return;
+      for (const s of [...sales].reverse()) {
+        addToHistory({
+          name: s.product_name,
+          barcode: s.barcode,
+          sku: s.sku,
+          price: s.price,
+          boutique: s.boutique,
+          image: s.image_url
+        }, s.employee, s.boutique);
+      }
+    } catch(e) {}
+  }
+
+  loadTodaySales();
+</script>
+</div><!-- fin mainApp -->
+
+<script>
+  const PWD = 'yiachi3933';
+  function checkPwd() {
+    const val = document.getElementById('pwdInput').value;
+    if (val === PWD) {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('mainApp').style.display = 'block';
+      sessionStorage.setItem('nv_auth', '1');
+    } else {
+      document.getElementById('pwdError').style.display = 'block';
+      document.getElementById('pwdInput').value = '';
+      document.getElementById('pwdInput').focus();
+    }
+  }
+  // Si déjà authentifié dans la session
+  if (sessionStorage.getItem('nv_auth') === '1') {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+  }
+</script>
+</body>
+</html>

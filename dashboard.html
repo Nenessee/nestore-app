@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Nestore — Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f3;color:#1a1a18;}
+.topbar{background:#2C2C2A;color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.topbar-left{display:flex;align-items:center;gap:12px;}
+.logo{width:36px;height:36px;background:#444;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;}
+.topbar-right{display:flex;gap:8px;flex-wrap:wrap;}
+.btn{padding:7px 13px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;font-size:12px;cursor:pointer;text-decoration:none;white-space:nowrap;}
+.btn:hover{background:rgba(255,255,255,0.2);}
+.btn-green{background:#3B6D11;border-color:#3B6D11;}
+.btn-red{background:#A32D2D;border-color:#A32D2D;}
+.tabs{display:flex;background:#fff;border-bottom:1px solid #e0dfd8;padding:0 24px;overflow-x:auto;}
+.tab{padding:12px 18px;font-size:14px;cursor:pointer;border-bottom:2px solid transparent;color:#888780;font-weight:500;white-space:nowrap;}
+.tab.active{color:#1a1a18;border-bottom-color:#2C2C2A;}
+.content{max-width:1300px;margin:0 auto;padding:20px 16px;}
+.tab-panel{display:none;}.tab-panel.active{display:block;}
+.period-bar{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+.period-btn{padding:6px 14px;border-radius:20px;border:1px solid #d3d1c7;background:#fff;font-size:13px;cursor:pointer;color:#5f5e5a;}
+.period-btn.active{background:#2C2C2A;color:#fff;border-color:#2C2C2A;}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:24px;}
+.kpi{background:#fff;border:0.5px solid #e0dfd8;border-radius:12px;padding:16px;}
+.kpi-label{font-size:11px;color:#888780;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em;}
+.kpi-value{font-size:24px;font-weight:700;color:#1a1a18;}
+.kpi-value.green{color:#3B6D11;}
+.kpi-trend{font-size:12px;margin-top:4px;}
+.trend-up{color:#3B6D11;}.trend-down{color:#A32D2D;}.trend-flat{color:#888780;}
+.kpi-sub{font-size:12px;color:#888780;margin-top:3px;}
+.charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;margin-bottom:24px;}
+.chart-card{background:#fff;border:0.5px solid #e0dfd8;border-radius:12px;padding:16px;}
+.chart-title{font-size:14px;font-weight:600;color:#1a1a18;margin-bottom:14px;}
+.chart-wrap{position:relative;height:220px;}
+.table-card{background:#fff;border:0.5px solid #e0dfd8;border-radius:12px;overflow:hidden;margin-bottom:24px;}
+.table-header{padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:0.5px solid #e0dfd8;flex-wrap:wrap;gap:8px;}
+.table-title{font-size:14px;font-weight:600;}
+.filters-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.filter-select{padding:7px 10px;border:0.5px solid #d3d1c7;border-radius:8px;font-size:13px;background:#fff;color:#1a1a18;}
+.search-input{padding:7px 12px;border:0.5px solid #d3d1c7;border-radius:8px;font-size:13px;background:#f5f5f3;color:#1a1a18;flex:1;min-width:180px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{padding:10px 12px;text-align:left;background:#f5f5f3;color:#888780;font-weight:500;font-size:12px;}
+td{padding:9px 12px;border-top:0.5px solid #f1efe8;color:#1a1a18;vertical-align:middle;}
+tr:hover td{background:#fafaf8;}
+.badge{font-size:11px;padding:2px 8px;border-radius:99px;font-weight:600;}
+.badge-dk{background:#E6F1FB;color:#0C447C;}
+.badge-lille{background:#EAF3DE;color:#27500A;}
+.badge-web{background:#EEEDFE;color:#3C3489;}
+.badge-vinted{background:#E1F5EE;color:#085041;}
+.badge-warning{background:#FAEEDA;color:#633806;}
+.badge-danger{background:#FCEBEB;color:#A32D2D;}
+.badge-ok{background:#EAF3DE;color:#27500A;}
+.product-img{width:36px;height:36px;border-radius:6px;object-fit:cover;flex-shrink:0;}
+.no-img{width:36px;height:36px;border-radius:6px;background:#f1efe8;display:inline-flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.avatar{width:26px;height:26px;border-radius:50%;background:#D3D1C7;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#5f5e5a;margin-right:5px;}
+.days-bar{height:4px;border-radius:2px;background:#f1efe8;margin-top:4px;width:80px;}
+.days-bar-fill{height:100%;border-radius:2px;}
+.score-bar{height:6px;border-radius:3px;background:#f1efe8;width:60px;display:inline-block;vertical-align:middle;margin-right:6px;}
+.score-fill{height:100%;border-radius:3px;}
+.bulk-toolbar{background:#2C2C2A;color:#fff;padding:12px 16px;display:none;align-items:center;gap:12px;flex-wrap:wrap;}
+.bulk-toolbar.active{display:flex;}
+.bulk-select{padding:7px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.1);color:#fff;font-size:13px;}
+.cb{width:16px;height:16px;cursor:pointer;accent-color:#2C2C2A;}
+.link-btn{font-size:11px;padding:3px 8px;border-radius:6px;border:0.5px solid #d3d1c7;background:#fff;cursor:pointer;color:#1a1a18;text-decoration:none;white-space:nowrap;}
+.link-btn:hover{background:#f5f5f3;}
+.section-title{font-size:16px;font-weight:600;margin-bottom:16px;}
+.loading{text-align:center;padding:40px;color:#888780;}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;display:none;align-items:center;justify-content:center;}
+.modal.active{display:flex;}
+.modal-box{background:#fff;border-radius:16px;padding:24px;max-width:420px;width:90%;}
+.modal-title{font-size:16px;font-weight:600;margin-bottom:16px;}
+.modal-actions{display:flex;gap:8px;margin-top:20px;justify-content:flex-end;}
+.progress-bar{height:6px;background:#f1efe8;border-radius:3px;margin-top:8px;overflow:hidden;}
+.progress-fill{height:100%;background:#2C2C2A;border-radius:3px;transition:width 0.3s;}
+@media(max-width:600px){.kpi-grid{grid-template-columns:1fr 1fr;}.charts-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo">NV</div>
+    <span style="font-size:16px;font-weight:600;">Nestore — Dashboard</span>
+  </div>
+  <div class="topbar-right">
+    <a class="btn btn-green" href="#" onclick="exportCSV();return false;">CSV</a>
+    <a class="btn" href="index.html">App caisse</a>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('ventes',this)">Ventes</div>
+  <div class="tab" onclick="switchTab('stock',this)">Stock en ligne</div>
+  <div class="tab" onclick="switchTab('rotation',this)">Rotation</div>
+  <div class="tab" onclick="switchTab('rachats',this)">Rachats</div>
+</div>
+
+<!-- MODAL SOLDES -->
+<div class="modal" id="soldeModal">
+  <div class="modal-box">
+    <div class="modal-title" id="soldeModalTitle">Appliquer une réduction</div>
+    <div style="font-size:13px;color:#888780;margin-bottom:16px;" id="soldeModalSub"></div>
+    <label style="font-size:13px;font-weight:500;display:block;margin-bottom:8px;">Réduction (%)</label>
+    <input type="number" id="discountSelect" min="1" max="90" value="30" style="width:100%;padding:8px 12px;border:0.5px solid #d3d1c7;border-radius:8px;font-size:15px;margin-bottom:12px;"/>
+    <label style="font-size:13px;font-weight:500;display:block;margin-bottom:8px;">Tag Shopify ajouté</label>
+    <input id="tagInput" style="width:100%;padding:8px 12px;border:0.5px solid #d3d1c7;border-radius:8px;font-size:13px;margin-bottom:12px;background:#f5f5f3;color:#888780;" value="soldepct" readonly/>
+    <div id="progressArea" style="display:none;margin-top:12px;">
+      <div style="font-size:13px;color:#888780;" id="progressText">Mise à jour en cours...</div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" style="background:#fff;color:#1a1a18;border-color:#d3d1c7;" onclick="closeSoldeModal()">Annuler</button>
+      <button class="btn btn-red" id="applyBtn" onclick="applySolde()">Appliquer</button>
+    </div>
+  </div>
+</div>
+
+<!-- TAB VENTES -->
+<div id="tab-ventes" class="tab-panel active">
+<div class="content">
+  <div class="period-bar">
+    <button class="period-btn active" onclick="setPeriod(7,this)">7 jours</button>
+    <button class="period-btn" onclick="setPeriod(30,this)">30 jours</button>
+    <button class="period-btn" onclick="setPeriod(90,this)">3 mois</button>
+    <button class="period-btn" onclick="setPeriod(365,this)">1 an</button>
+  </div>
+  <div class="kpi-grid" id="kpiGrid"><div class="loading">Chargement...</div></div>
+  <div class="charts-grid">
+    <div class="chart-card" style="grid-column:span 2;">
+      <div class="chart-title">Chiffre d'affaires quotidien</div>
+      <div class="chart-wrap"><canvas id="dailyChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Ventes par heure</div>
+      <div class="chart-wrap"><canvas id="hourlyChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Par canal de vente</div>
+      <div class="chart-wrap"><canvas id="boutiqueChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Performance par employé</div>
+      <div class="chart-wrap"><canvas id="employeeChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Top marques</div>
+      <div class="chart-wrap"><canvas id="brandsChart"></canvas></div>
+    </div>
+  </div>
+  <div class="table-card">
+    <div class="table-header">
+      <span class="table-title">Toutes les ventes</span>
+      <input class="search-input" placeholder="Rechercher..." oninput="filterSales(this.value)" style="max-width:240px;"/>
+      <span id="salesCount" style="font-size:12px;color:#888780;"></span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>Article</th><th>Marque</th><th>Prix</th><th>Canal</th><th>Employé</th><th>Date & heure</th></tr></thead>
+        <tbody id="salesTable"><tr><td colspan="6" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- TAB STOCK -->
+<div id="tab-stock" class="tab-panel">
+<div class="content">
+  <div style="margin-bottom:12px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+      <div class="section-title" style="margin:0;">Stock en ligne actuellement</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-red" onclick="openSoldeModalBulk()" style="font-size:13px;">Appliquer soldes sélection</button>
+        <button class="btn" onclick="openSoldeModalAll60()" style="font-size:13px;background:rgba(163,45,45,0.15);border-color:#A32D2D;color:#A32D2D;">Solder tous les +60j</button>
+      </div>
+    </div>
+    <div class="filters-row">
+      <input class="search-input" id="stockSearch" placeholder="Rechercher..." oninput="filterStock()"/>
+      <select class="filter-select" id="stockBoutiqueFilter" onchange="filterStock()">
+        <option value="">Toutes boutiques</option>
+        <option value="Lille">Lille</option>
+        <option value="DK">DK</option>
+      </select>
+      <select class="filter-select" id="stockDaysFilter" onchange="filterStock()">
+        <option value="">Tous délais</option>
+        <option value="ok">Moins 30j</option>
+        <option value="warn">30 à 60j</option>
+        <option value="danger">Plus 60j</option>
+      </select>
+      <select class="filter-select" id="stockBarcodeFilter" onchange="filterStock()">
+        <option value="">Tous articles</option>
+        <option value="missing">Sans code-barres</option>
+        <option value="present">Avec code-barres</option>
+      </select>
+      <select class="filter-select" id="stockScoreFilter" onchange="filterStock()">
+        <option value="">Tous scores</option>
+        <option value="high">Score élevé (70+)</option>
+        <option value="mid">Score moyen (40-70)</option>
+        <option value="low">Score faible (-40)</option>
+      </select>
+      <select class="filter-select" id="stockSortFilter" onchange="filterStock()">
+        <option value="days_desc">Plus anciens</option>
+        <option value="days_asc">Plus récents</option>
+        <option value="score_asc">Score croissant</option>
+        <option value="score_desc">Score décroissant</option>
+        <option value="price_desc">Prix décroissant</option>
+        <option value="price_asc">Prix croissant</option>
+      </select>
+    </div>
+  </div>
+  <div id="stockSummary" style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;"></div>
+  <div class="bulk-toolbar" id="bulkToolbar">
+    <span id="bulkCount" style="font-size:13px;">0 article sélectionné</span>
+    <button class="btn btn-red" onclick="openSoldeModalBulk()" style="font-size:12px;">Appliquer réduction</button>
+    <button class="btn" onclick="deselectAll()" style="font-size:12px;">Tout désélectionner</button>
+  </div>
+  <div class="table-card">
+    <div class="table-header">
+      <span class="table-title" id="stockTitle">Articles en ligne</span>
+      <span id="stockCount" style="font-size:12px;color:#888780;"></span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr>
+          <th><input type="checkbox" class="cb" onclick="toggleSelectAll(this)"/></th>
+          <th>Article</th><th>Marque</th><th>Code-barres</th><th>Prix</th>
+          <th>Boutique</th><th>Score</th><th>En ligne depuis</th><th>Statut</th><th></th>
+        </tr></thead>
+        <tbody id="stockTable"><tr><td colspan="10" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- TAB ROTATION -->
+<div id="tab-rotation" class="tab-panel">
+<div class="content">
+  <div class="kpi-grid" id="rotationKpis" style="margin-bottom:24px;"><div class="loading">Chargement...</div></div>
+  <div class="charts-grid">
+    <div class="chart-card" style="grid-column:span 2;">
+      <div class="chart-title">Vitesse de vente par marque (jours moyens)</div>
+      <div class="chart-wrap" style="height:300px;"><canvas id="rotationChart"></canvas></div>
+    </div>
+  </div>
+  <div class="table-card">
+    <div class="table-header"><span class="table-title">Rotation par marque</span></div>
+    <div style="overflow-x:auto;"><table>
+      <thead><tr><th>Marque</th><th>Ventes</th><th>Jours moy. pour vendre</th><th>Vitesse</th></tr></thead>
+      <tbody id="rotationTable"><tr><td colspan="4" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
+    </table></div>
+  </div>
+</div>
+</div>
+
+<!-- TAB RACHATS -->
+<div id="tab-rachats" class="tab-panel">
+<div class="content">
+  <div class="kpi-grid" id="rachatsKpis" style="margin-bottom:24px;"><div class="loading">Chargement...</div></div>
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+    <input class="search-input" id="rachatsSearch" placeholder="Rechercher..." oninput="filterRachats()"/>
+    <select class="filter-select" id="rachatsStatusFilter" onchange="filterRachats()">
+      <option value="">Tous statuts</option>
+      <option value="pending">En attente Shopify</option>
+      <option value="sold">Vendus</option>
+    </select>
+  </div>
+  <div class="table-card">
+    <div class="table-header">
+      <span class="table-title">Tous les rachats</span>
+      <span id="rachatsCount" style="font-size:12px;color:#888780;"></span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>Article</th><th>Marque</th><th>Code-barres</th><th>Achat</th><th>Estimé</th><th>Vendu</th><th>Marge</th><th>Statut</th><th>Employé</th><th>Date</th></tr></thead>
+        <tbody id="rachatsTable"><tr><td colspan="10" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
+let currentPeriod = 7;
+let charts = {};
+let allSalesData = [];
+let allStockData = [];
+let allRachatsData = [];
+let selectedProducts = new Set();
+
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(`tab-${name}`).classList.add('active');
+  if (name === 'stock' && allStockData.length === 0) loadStock();
+  if (name === 'rotation') loadRotation();
+  if (name === 'rachats') loadRachats();
+}
+
+function setPeriod(days, btn) {
+  currentPeriod = days;
+  document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadVentes();
+}
+
+async function api(path) {
+  const res = await fetch(`${BACKEND_URL}${path}`);
+  return res.json();
+}
+
+function fmt(n) { return parseFloat(n).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'; }
+
+function trendHtml(current, previous) {
+  const c=parseFloat(current), p=parseFloat(previous);
+  if(p===0) return '';
+  const pct=Math.round(((c-p)/p)*100);
+  if(pct>0) return `<span class="trend-up">▲ +${pct}%</span>`;
+  if(pct<0) return `<span class="trend-down">▼ ${pct}%</span>`;
+  return `<span class="trend-flat">= stable</span>`;
+}
+
+function channelBadge(b) {
+  if(b==='DK') return '<span class="badge badge-dk">DK</span>';
+  if(b==='Lille') return '<span class="badge badge-lille">Lille</span>';
+  if(b==='Site web') return '<span class="badge badge-web">Site web</span>';
+  if(b==='Vinted') return '<span class="badge badge-vinted">Vinted</span>';
+  if(b==='Depop') return '<span class="badge badge-vinted">Depop</span>';
+  return `<span class="badge" style="background:#f1efe8;color:#5f5e5a;">${b}</span>`;
+}
+
+async function loadSummary() {
+  const data = await api('/analytics/summary');
+  document.getElementById('kpiGrid').innerHTML = `
+    <div class="kpi"><div class="kpi-label">Aujourd'hui</div><div class="kpi-value green">${fmt(data.today.revenue)}</div><div class="kpi-sub">${data.today.count} vente${data.today.count>1?'s':''}</div><div class="kpi-trend">${trendHtml(data.today.revenue,data.yesterday.revenue)} vs hier</div></div>
+    <div class="kpi"><div class="kpi-label">Cette semaine</div><div class="kpi-value">${fmt(data.week.revenue)}</div><div class="kpi-sub">${data.week.count} ventes</div><div class="kpi-trend">${trendHtml(data.week.revenue,data.prevWeek.revenue)} vs S-1</div></div>
+    <div class="kpi"><div class="kpi-label">Ce mois</div><div class="kpi-value">${fmt(data.month.revenue)}</div><div class="kpi-sub">${data.month.count} ventes</div><div class="kpi-trend">${trendHtml(data.month.revenue,data.prevMonth.revenue)} vs M-1</div></div>
+    <div class="kpi"><div class="kpi-label">Total général</div><div class="kpi-value">${fmt(data.total.revenue)}</div><div class="kpi-sub">${data.total.count} ventes · moy. ${fmt(data.total.avg_price)}</div></div>
+    ${data.bestEmployeeToday?`<div class="kpi"><div class="kpi-label">Meilleur aujourd'hui</div><div class="kpi-value" style="font-size:20px;">${data.bestEmployeeToday.employee}</div><div class="kpi-sub">${data.bestEmployeeToday.count} vente${data.bestEmployeeToday.count>1?'s':''} · ${fmt(data.bestEmployeeToday.revenue)}</div></div>`:''}
+  `;
+}
+
+function makeChart(id, type, labels, datasets, options={}) {
+  if(charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id)?.getContext('2d');
+  if(!ctx) return;
+  charts[id] = new Chart(ctx, { type, data:{labels,datasets}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:datasets.length>1,labels:{font:{size:11},color:'#888780'}}},scales:type!=='doughnut'?{y:{beginAtZero:true,grid:{color:'#f1efe8'},ticks:{color:'#888780',font:{size:11}}},x:{grid:{display:false},ticks:{color:'#888780',font:{size:11}}}}:{},...options}});
+}
+
+async function loadVentes() {
+  loadSummary();
+  const [daily, hourly, boutiques, employees, brands, recent] = await Promise.all([
+    api(`/analytics/daily?days=${currentPeriod}`),
+    api('/analytics/hourly'),
+    api('/analytics/boutiques'),
+    api('/analytics/employees'),
+    api('/analytics/brands'),
+    api('/analytics/recent?limit=9999')
+  ]);
+
+  // Daily - stack par boutique
+  const dates = [...new Set(daily.map(d=>d.date))].sort();
+  const channels = [...new Set(daily.map(d=>d.boutique))];
+  const colors = {'Lille':'#2C2C2A','DK':'#5DCAA5','Site web':'#7F77DD','Vinted':'#1D9E75','Depop':'#D85A30'};
+  const dailyDatasets = channels.map(ch => ({
+    label: ch,
+    data: dates.map(date => {
+      const row = daily.find(d => d.date === date && d.boutique === ch);
+      return row ? parseFloat(row.revenue) : 0;
+    }),
+    backgroundColor: colors[ch] || '#9FE1CB',
+    borderRadius: 4, stack: 'stack'
+  }));
+  makeChart('dailyChart','bar',dates.map(d=>new Date(d).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})),dailyDatasets);
+
+  const allHours=Array.from({length:13},(_,i)=>i+8);
+  const hMap={};hourly.forEach(d=>hMap[parseInt(d.hour)]=parseInt(d.count));
+  makeChart('hourlyChart','bar',allHours.map(h=>`${h}h`),[{label:'Ventes',data:allHours.map(h=>hMap[h]||0),backgroundColor:'#5DCAA5',borderRadius:4}]);
+
+  const boutiqueColors = boutiques.map(d=>colors[d.boutique]||'#9FE1CB');
+  makeChart('boutiqueChart','doughnut',boutiques.map(d=>d.boutique),[{data:boutiques.map(d=>parseFloat(d.revenue)),backgroundColor:boutiqueColors,borderWidth:0}],{plugins:{legend:{display:true,position:'bottom',labels:{font:{size:12},color:'#5f5e5a'}}}});
+
+  makeChart('employeeChart','bar',employees.map(d=>d.employee),[
+    {label:'CA (€)',data:employees.map(d=>parseFloat(d.revenue)),backgroundColor:'#2C2C2A',borderRadius:4},
+    {label:'Ventes',data:employees.map(d=>parseInt(d.count)),backgroundColor:'#D3D1C7',borderRadius:4}
+  ]);
+
+  const topBrands=brands.slice(0,10);
+  makeChart('brandsChart','bar',topBrands.map(d=>d.brand),[
+    {label:'Ventes',data:topBrands.map(d=>parseInt(d.count)),backgroundColor:'#5DCAA5',borderRadius:4},
+    {label:'CA (€)',data:topBrands.map(d=>parseFloat(d.revenue)),backgroundColor:'#2C2C2A',borderRadius:4}
+  ],{indexAxis:'y'});
+
+  allSalesData = recent;
+  renderSalesTable(recent);
+}
+
+function renderSalesTable(data) {
+  document.getElementById('salesCount').textContent = `${data.length} vente${data.length>1?'s':''}`;
+  const tbody = document.getElementById('salesTable');
+  if(!data.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:30px;color:#888780;">Aucune vente</td></tr>';return;}
+  tbody.innerHTML = data.map(s => {
+    const img = s.image_url?`<img src="${s.image_url}" class="product-img"/>`:`<span class="no-img">👕</span>`;
+    const date = new Date(s.sold_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const initials = s.employee?s.employee.substring(0,2).toUpperCase():'?';
+    return `<tr><td style="display:flex;align-items:center;gap:8px;">${img}<span>${s.product_name}</span></td><td style="color:#888780;font-size:12px;">${s.brand||'—'}</td><td style="font-weight:600;">${parseFloat(s.price).toFixed(2)} €</td><td>${channelBadge(s.boutique)}</td><td><span class="avatar">${initials}</span>${s.employee}</td><td style="color:#888780;">${date}</td></tr>`;
+  }).join('');
+}
+
+function filterSales(q) {
+  const filtered = allSalesData.filter(s=>s.product_name?.toLowerCase().includes(q.toLowerCase())||s.brand?.toLowerCase().includes(q.toLowerCase())||s.employee?.toLowerCase().includes(q.toLowerCase())||s.barcode?.toLowerCase().includes(q.toLowerCase()));
+  renderSalesTable(filtered);
+}
+
+async function loadStock() {
+  document.getElementById('stockTable').innerHTML = '<tr><td colspan="10" style="text-align:center;padding:40px;color:#888780;">Chargement du stock Shopify (peut prendre 30s)...</td></tr>';
+  const data = await api('/analytics/stock');
+  allStockData = data;
+  const total=data.length, alert30=data.filter(p=>p.daysOnline>=30&&p.daysOnline<60).length;
+  const alert60=data.filter(p=>p.daysOnline>=60).length, missingBarcode=data.filter(p=>!p.barcode).length;
+  const avgScore=data.length?Math.round(data.reduce((a,b)=>a+(b.score||0),0)/data.length):0;
+  document.getElementById('stockSummary').innerHTML = `
+    <div class="kpi" style="min-width:130px;"><div class="kpi-label">Total en ligne</div><div class="kpi-value">${total}</div></div>
+    <div class="kpi" style="min-width:130px;"><div class="kpi-label">+30 jours</div><div class="kpi-value" style="color:#BA7517;">${alert30}</div><div class="kpi-sub">à surveiller</div></div>
+    <div class="kpi" style="min-width:130px;cursor:pointer;" onclick="document.getElementById('stockDaysFilter').value='danger';filterStock();">
+      <div class="kpi-label">+60 jours</div><div class="kpi-value" style="color:#A32D2D;">${alert60}</div><div class="kpi-sub">cliquer pour voir</div>
+    </div>
+    <div class="kpi" style="min-width:130px;cursor:pointer;" onclick="document.getElementById('stockBarcodeFilter').value='missing';filterStock();">
+      <div class="kpi-label">Sans code-barres</div>
+      <div class="kpi-value" style="color:${missingBarcode>0?'#A32D2D':'#3B6D11'};">${missingBarcode}</div>
+      <div class="kpi-sub">${missingBarcode>0?'cliquer pour voir':'tout OK'}</div>
+    </div>
+    <div class="kpi" style="min-width:130px;"><div class="kpi-label">Score moyen</div><div class="kpi-value" style="color:${avgScore>=70?'#3B6D11':avgScore>=40?'#BA7517':'#A32D2D'}">${avgScore}</div><div class="kpi-sub">sur 100</div></div>
+  `;
+  filterStock();
+}
+
+function renderStockTable(data) {
+  document.getElementById('stockCount').textContent = `${data.length} article${data.length>1?'s':''}`;
+  if(!data.length){document.getElementById('stockTable').innerHTML='<tr><td colspan="10" style="text-align:center;padding:30px;color:#888780;">Aucun article</td></tr>';return;}
+  document.getElementById('stockTable').innerHTML = data.map(p => {
+    const badge = p.boutique==='DK'?'badge-dk':'badge-lille';
+    const img = p.image?`<img src="${p.image}" class="product-img"/>`:`<span class="no-img">👕</span>`;
+    const fillPct = Math.min((p.daysOnline/90)*100,100);
+    const fillColor = p.daysOnline>=60?'#E24B4A':p.daysOnline>=30?'#EF9F27':'#5DCAA5';
+    const statusBadge = p.daysOnline>=60?'<span class="badge badge-danger">À brader</span>':p.daysOnline>=30?'<span class="badge badge-warning">À surveiller</span>':'<span class="badge badge-ok">OK</span>';
+    const score = p.score||0;
+    const scoreFill = score>=70?'#5DCAA5':score>=40?'#EF9F27':'#E24B4A';
+    const barcodeHtml = p.barcode?`<span style="font-family:monospace;font-size:11px;background:#f1efe8;padding:2px 6px;border-radius:4px;">${p.barcode}</span>`:'<span class="badge badge-danger">Manquant</span>';
+    const isSelected = selectedProducts.has(p.id);
+    const comparePrice = p.compareAtPrice ? `<span style="text-decoration:line-through;color:#888780;font-size:11px;margin-right:4px;">${parseFloat(p.compareAtPrice).toFixed(0)}€</span>` : '';
+    return `<tr>
+      <td><input type="checkbox" class="cb product-cb" data-id="${p.id}" data-varid="${p.variantId}" ${isSelected?'checked':''} onchange="toggleProduct(this)"/></td>
+      <td style="display:flex;align-items:center;gap:8px;">${img}<span style="font-size:13px;">${p.title}</span></td>
+      <td style="color:#888780;font-size:12px;">${p.vendor||'—'}</td>
+      <td>${barcodeHtml}</td>
+      <td>${comparePrice}<span style="font-weight:600;">${parseFloat(p.price).toFixed(2)}€</span></td>
+      <td><span class="badge ${badge}">${p.boutique}</span></td>
+      <td><span style="font-size:13px;font-weight:600;color:${scoreFill}">${score}</span> <div class="score-bar"><div class="score-fill" style="width:${score}%;background:${scoreFill};height:100%;border-radius:3px;"></div></div></td>
+      <td><div style="font-size:13px;font-weight:500;">${p.daysOnline}j</div><div class="days-bar"><div class="days-bar-fill" style="width:${fillPct}%;background:${fillColor};"></div></div></td>
+      <td>${statusBadge}</td>
+      <td><a href="${p.shopifyAdminUrl}" target="_blank" class="link-btn">Shopify ↗</a></td>
+    </tr>`;
+  }).join('');
+}
+
+function filterStock() {
+  const q=(document.getElementById('stockSearch')?.value||'').toLowerCase();
+  const boutique=document.getElementById('stockBoutiqueFilter').value;
+  const days=document.getElementById('stockDaysFilter').value;
+  const barcode=document.getElementById('stockBarcodeFilter').value;
+  const scoreF=document.getElementById('stockScoreFilter').value;
+  const sort=document.getElementById('stockSortFilter').value;
+  let filtered=allStockData.filter(p=>{
+    if(q&&!p.title?.toLowerCase().includes(q)&&!p.vendor?.toLowerCase().includes(q)&&!p.barcode?.toLowerCase().includes(q)) return false;
+    if(boutique&&p.boutique!==boutique) return false;
+    if(days==='ok'&&p.daysOnline>=30) return false;
+    if(days==='warn'&&(p.daysOnline<30||p.daysOnline>=60)) return false;
+    if(days==='danger'&&p.daysOnline<60) return false;
+    if(barcode==='missing'&&p.barcode) return false;
+    if(barcode==='present'&&!p.barcode) return false;
+    if(scoreF==='high'&&(p.score||0)<70) return false;
+    if(scoreF==='mid'&&((p.score||0)<40||(p.score||0)>=70)) return false;
+    if(scoreF==='low'&&(p.score||0)>=40) return false;
+    return true;
+  });
+  if(sort==='days_asc') filtered.sort((a,b)=>a.daysOnline-b.daysOnline);
+  else if(sort==='days_desc') filtered.sort((a,b)=>b.daysOnline-a.daysOnline);
+  else if(sort==='price_desc') filtered.sort((a,b)=>parseFloat(b.price)-parseFloat(a.price));
+  else if(sort==='price_asc') filtered.sort((a,b)=>parseFloat(a.price)-parseFloat(b.price));
+  else if(sort==='score_asc') filtered.sort((a,b)=>(a.score||0)-(b.score||0));
+  else if(sort==='score_desc') filtered.sort((a,b)=>(b.score||0)-(a.score||0));
+  renderStockTable(filtered);
+}
+
+function toggleProduct(cb) {
+  const id = parseInt(cb.dataset.id);
+  if(cb.checked) selectedProducts.add(id); else selectedProducts.delete(id);
+  updateBulkToolbar();
+}
+
+function toggleSelectAll(masterCb) {
+  document.querySelectorAll('.product-cb').forEach(cb => {
+    cb.checked = masterCb.checked;
+    const id = parseInt(cb.dataset.id);
+    if(masterCb.checked) selectedProducts.add(id); else selectedProducts.delete(id);
+  });
+  updateBulkToolbar();
+}
+
+function deselectAll() {
+  selectedProducts.clear();
+  document.querySelectorAll('.product-cb,.cb').forEach(cb=>cb.checked=false);
+  updateBulkToolbar();
+}
+
+function updateBulkToolbar() {
+  const n = selectedProducts.size;
+  const toolbar = document.getElementById('bulkToolbar');
+  toolbar.classList.toggle('active', n>0);
+  document.getElementById('bulkCount').textContent = `${n} article${n>1?'s':''} sélectionné${n>1?'s':''}`;
+}
+
+let soldeTargets = [];
+function openSoldeModalBulk() {
+  if(selectedProducts.size===0){alert('Sélectionne au moins un article');return;}
+  soldeTargets = allStockData.filter(p=>selectedProducts.has(p.id));
+  document.getElementById('soldeModalTitle').textContent = `Réduction sur ${soldeTargets.length} article${soldeTargets.length>1?'s':''}`;
+  document.getElementById('soldeModalSub').textContent = `Prix barré + tag Shopify + collection automatiquement créée`;
+  document.getElementById('soldeModal').classList.add('active');
+}
+
+function openSoldeModalAll60() {
+  soldeTargets = allStockData.filter(p=>p.daysOnline>=60);
+  if(soldeTargets.length===0){alert('Aucun article +60 jours');return;}
+  document.getElementById('soldeModalTitle').textContent = `Solder ${soldeTargets.length} articles (+60 jours)`;
+  document.getElementById('soldeModalSub').textContent = `Tous les articles en ligne depuis plus de 60 jours`;
+  document.getElementById('soldeModal').classList.add('active');
+}
+
+function closeSoldeModal() {
+  document.getElementById('soldeModal').classList.remove('active');
+  document.getElementById('progressArea').style.display='none';
+  document.getElementById('applyBtn').disabled=false;
+}
+
+async function applySolde() {
+  const discount = parseInt(document.getElementById('discountSelect').value);
+  const tagName = 'soldepct';
+  const addCollection = false;
+  document.getElementById('progressArea').style.display='block';
+  document.getElementById('applyBtn').disabled=true;
+  document.getElementById('progressText').textContent=`Mise à jour de ${soldeTargets.length} articles...`;
+  document.getElementById('progressFill').style.width='5%';
+
+  const BATCH = 10;
+  let done = 0;
+  for(let i=0;i<soldeTargets.length;i+=BATCH) {
+    const batch = soldeTargets.slice(i,i+BATCH);
+    await fetch(`${BACKEND_URL}/stock/bulk-action`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({productIds:batch.map(p=>p.id),variantIds:batch.map(p=>p.variantId),discountPercent:discount,tagName,addToCollection:addCollection})
+    });
+    done+=batch.length;
+    const pct=Math.round((done/soldeTargets.length)*100);
+    document.getElementById('progressFill').style.width=pct+'%';
+    document.getElementById('progressText').textContent=`${done}/${soldeTargets.length} articles mis à jour...`;
+  }
+
+  document.getElementById('progressText').textContent=`✓ ${done} articles soldés à -${discount}% avec succès !`;
+  setTimeout(()=>{ closeSoldeModal(); deselectAll(); allStockData=[]; loadStock(); },2000);
+}
+
+async function loadRotation() {
+  const data = await api('/analytics/rotation');
+  document.getElementById('rotationKpis').innerHTML = data.length ? `
+    <div class="kpi"><div class="kpi-label">Marques analysées</div><div class="kpi-value">${data.length}</div><div class="kpi-sub">min. 2 ventes</div></div>
+    <div class="kpi"><div class="kpi-label">Rotation la plus rapide</div><div class="kpi-value green" style="font-size:18px;">${data[0]?.brand||'—'}</div><div class="kpi-sub">${data[0]?.avg_days||'?'} jours moy.</div></div>
+    <div class="kpi"><div class="kpi-label">Rotation la plus lente</div><div class="kpi-value" style="color:#A32D2D;font-size:18px;">${data[data.length-1]?.brand||'—'}</div><div class="kpi-sub">${data[data.length-1]?.avg_days||'?'} jours moy.</div></div>
+  ` : '<div class="kpi"><div class="kpi-label">Pas encore assez de données</div><div class="kpi-value">—</div></div>';
+  if(data.length) {
+    makeChart('rotationChart','bar',data.map(d=>d.brand),[{
+      label:'Jours moyens',data:data.map(d=>parseInt(d.avg_days)),
+      backgroundColor:data.map(d=>parseInt(d.avg_days)<14?'#5DCAA5':parseInt(d.avg_days)<30?'#EF9F27':'#E24B4A'),borderRadius:4
+    }],{indexAxis:'y'});
+  }
+  document.getElementById('rotationTable').innerHTML = data.length ? data.map(d=>{
+    const speed=parseInt(d.avg_days)<14?'<span class="badge badge-ok">Rapide</span>':parseInt(d.avg_days)<30?'<span class="badge badge-warning">Moyen</span>':'<span class="badge badge-danger">Lent</span>';
+    return `<tr><td style="font-weight:500;">${d.brand}</td><td>${d.count}</td><td>${d.avg_days} jours</td><td>${speed}</td></tr>`;
+  }).join('') : '<tr><td colspan="4" style="text-align:center;padding:30px;color:#888780;">Pas encore assez de données (2+ ventes par marque avec date produit requises)</td></tr>';
+}
+
+async function sendDailyEmail() {
+  const r = await fetch(`${BACKEND_URL}/email/daily`);
+  const d = await r.json();
+  alert(d.success?'Mail envoyé ✓':'Erreur — vérifie RESEND_API_KEY dans Railway');
+}
+
+async function sendWeeklyEmail() {
+  const r = await fetch(`${BACKEND_URL}/email/weekly`);
+  const d = await r.json();
+  alert(d.success?'Mail envoyé ✓':'Erreur — vérifie RESEND_API_KEY dans Railway');
+}
+
+function exportCSV() { window.location.href=`${BACKEND_URL}/analytics/export`; }
+
+async function loadRachats() {
+  const [stats, data] = await Promise.all([api('/purchases/stats'), api('/purchases')]);
+  allRachatsData = data;
+  const t = stats.total, s = stats.sold, p = stats.pending;
+  document.getElementById('rachatsKpis').innerHTML = `
+    <div class="kpi"><div class="kpi-label">Total rachetés</div><div class="kpi-value">${t.count}</div><div class="kpi-sub">${parseFloat(t.total_spent).toFixed(2)}€ investis</div></div>
+    <div class="kpi"><div class="kpi-label">Vendus</div><div class="kpi-value green">${s.count}</div><div class="kpi-sub">marge moy. ${parseFloat(s.avg_margin||0).toFixed(2)}€</div></div>
+    <div class="kpi"><div class="kpi-label">Marge totale</div><div class="kpi-value green">${parseFloat(s.total_margin||0).toFixed(2)}€</div><div class="kpi-sub">sur articles vendus</div></div>
+    <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('rachatsStatusFilter').value='pending';filterRachats();">
+      <div class="kpi-label">En attente Shopify</div>
+      <div class="kpi-value" style="color:${parseInt(p.count)>0?'#BA7517':'#3B6D11'}">${p.count}</div>
+      <div class="kpi-sub">${parseInt(p.count)>0?'à mettre en ligne':'tout est en ligne'}</div>
+    </div>
+  `;
+  renderRachatsTable(data);
+}
+
+function renderRachatsTable(data) {
+  document.getElementById('rachatsCount').textContent = `${data.length} rachat${data.length>1?'s':''}`;
+  if (!data.length) { document.getElementById('rachatsTable').innerHTML='<tr><td colspan="10" style="text-align:center;padding:30px;color:#888780;">Aucun rachat</td></tr>'; return; }
+  document.getElementById('rachatsTable').innerHTML = data.map(r => {
+    const status = r.computed_status === 'sold' ? '<span class="badge badge-ok">Vendu</span>' : '<span class="badge badge-warning">En attente</span>';
+    const margin = r.margin != null ? `<span style="font-weight:600;color:${r.margin>=0?'#3B6D11':'#A32D2D'}">${r.margin>=0?'+':''}${parseFloat(r.margin).toFixed(2)}€ ${r.margin_pct!=null?`(${r.margin_pct}%)`:''}` : '—';
+    const soldPrice = r.sold_price ? `${parseFloat(r.sold_price).toFixed(2)}€` : '—';
+    const date = new Date(r.purchased_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const barcodeHtml = r.barcode ? `<span style="font-family:monospace;font-size:11px;background:#f1efe8;padding:2px 6px;border-radius:4px;">${r.barcode}</span>` : '—';
+    return `<tr>
+      <td style="font-weight:500;">${r.product_name}</td>
+      <td style="color:#888780;font-size:12px;">${r.brand||'—'}</td>
+      <td>${barcodeHtml}</td>
+      <td style="font-weight:600;">${parseFloat(r.purchase_price).toFixed(2)}€</td>
+      <td style="color:#888780;">${r.estimated_price?parseFloat(r.estimated_price).toFixed(2)+'€':'—'}</td>
+      <td>${soldPrice}</td>
+      <td>${margin}</td>
+      <td>${status}</td>
+      <td>${r.employee}</td>
+      <td style="color:#888780;">${date}</td>
+    </tr>`;
+  }).join('');
+}
+
+function filterRachats() {
+  const q = (document.getElementById('rachatsSearch')?.value||'').toLowerCase();
+  const status = document.getElementById('rachatsStatusFilter').value;
+  const filtered = allRachatsData.filter(r => {
+    if (q && !r.product_name?.toLowerCase().includes(q) && !r.brand?.toLowerCase().includes(q) && !r.barcode?.toLowerCase().includes(q)) return false;
+    if (status === 'pending' && r.computed_status === 'sold') return false;
+    if (status === 'sold' && r.computed_status !== 'sold') return false;
+    return true;
+  });
+  renderRachatsTable(filtered);
+}
+
+loadVentes();
+</script>
+</body>
+</html>
