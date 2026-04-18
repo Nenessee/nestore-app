@@ -475,10 +475,24 @@ tr:hover td{background:#fafaf8;}
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-17-v1';
+const DASH_VERSION = '2025-04-18-v2';
 
-// Vérifier les mises à jour toutes les 30 secondes
-setInterval(() => {
+function showToast(msg, type = '') {
+  let t = document.getElementById('dashToast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'dashToast';
+    t.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:10px;font-size:13px;font-weight:500;color:#fff;z-index:9999;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center;';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.background = type === 'error' ? '#A32D2D' : type === 'warn' ? '#BA7517' : '#3B6D11';
+  t.style.opacity = '1';
+  clearTimeout(t._to);
+  t._to = setTimeout(() => { t.style.opacity = '0'; }, 2800);
+}
+
+let _dashUpdateInterval = setInterval(() => {
   fetch(location.href + '?nocache=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
     .then(html => {
@@ -857,7 +871,7 @@ function updateBulkToolbar() {
 
 let soldeTargets = [];
 function openSoldeModalBulk() {
-  if(selectedProducts.size===0){alert('Sélectionne au moins un article');return;}
+  if(selectedProducts.size===0){showToast('Sélectionne au moins un article', 'warn');return;}
   soldeTargets = allStockData.filter(p=>selectedProducts.has(p.id));
   document.getElementById('soldeModalTitle').textContent = `Réduction sur ${soldeTargets.length} article${soldeTargets.length>1?'s':''}`;
   document.getElementById('soldeModalSub').textContent = `Prix barré + tag Shopify + collection automatiquement créée`;
@@ -866,7 +880,7 @@ function openSoldeModalBulk() {
 
 function openSoldeModalAll60() {
   soldeTargets = allStockData.filter(p=>p.daysOnline>=60);
-  if(soldeTargets.length===0){alert('Aucun article +60 jours');return;}
+  if(soldeTargets.length===0){showToast('Aucun article +60 jours', 'warn');return;}
   document.getElementById('soldeModalTitle').textContent = `Solder ${soldeTargets.length} articles (+60 jours)`;
   document.getElementById('soldeModalSub').textContent = `Tous les articles en ligne depuis plus de 60 jours`;
   document.getElementById('soldeModal').classList.add('active');
@@ -891,10 +905,18 @@ async function applySolde() {
   let done = 0;
   for(let i=0;i<soldeTargets.length;i+=BATCH) {
     const batch = soldeTargets.slice(i,i+BATCH);
-    await fetch(`${BACKEND_URL}/stock/bulk-action`,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({productIds:batch.map(p=>p.id),variantIds:batch.map(p=>p.variantId),discountPercent:discount,tagName,addToCollection:addCollection})
-    });
+    try {
+      const res = await fetch(`${BACKEND_URL}/stock/bulk-action`,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({productIds:batch.map(p=>p.id),variantIds:batch.map(p=>p.variantId),discountPercent:discount,tagName,addToCollection:addCollection})
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch(e) {
+      document.getElementById('progressText').textContent = `⚠️ Erreur batch ${i/BATCH+1} : ${e.message}`;
+      document.getElementById('applyBtn').disabled = false;
+      showToast('Soldes interrompus — ' + e.message, 'error');
+      return;
+    }
     done+=batch.length;
     const pct=Math.round((done/soldeTargets.length)*100);
     document.getElementById('progressFill').style.width=pct+'%';
@@ -925,15 +947,21 @@ async function loadRotation() {
 }
 
 async function sendDailyEmail() {
-  const r = await fetch(`${BACKEND_URL}/email/daily`);
-  const d = await r.json();
-  alert(d.success?'Mail envoyé ✓':'Erreur — vérifie RESEND_API_KEY dans Railway');
+  try {
+    const r = await fetch(`${BACKEND_URL}/email/daily`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json();
+    showToast(d.success ? 'Mail envoyé ✓' : 'Erreur : ' + (d.error || 'Vérifie RESEND_API_KEY'), d.success ? '' : 'error');
+  } catch(e) { showToast('Erreur réseau : ' + e.message, 'error'); }
 }
 
 async function sendWeeklyEmail() {
-  const r = await fetch(`${BACKEND_URL}/email/weekly`);
-  const d = await r.json();
-  alert(d.success?'Mail envoyé ✓':'Erreur — vérifie RESEND_API_KEY dans Railway');
+  try {
+    const r = await fetch(`${BACKEND_URL}/email/weekly`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json();
+    showToast(d.success ? 'Mail envoyé ✓' : 'Erreur : ' + (d.error || 'Vérifie RESEND_API_KEY'), d.success ? '' : 'error');
+  } catch(e) { showToast('Erreur réseau : ' + e.message, 'error'); }
 }
 
 
@@ -1099,7 +1127,7 @@ function filterActivite() {
 
 function exportMissingStock() {
   const missing = allStockData.filter(p => p.barcode && !p.inBoutique);
-  if (!missing.length) { alert('Tous les articles avec code-barres sont cochés en boutique !'); return; }
+  if (!missing.length) { showToast('Tous les articles cochés en boutique ✓'); return; }
   const lines = ['Article,Marque,Code-barres,Prix,Boutique,Jours en ligne'];
   missing.forEach(p => lines.push(`"${p.title}","${p.vendor||''}","${p.barcode||''}","${parseFloat(p.price).toFixed(2)}","${p.boutique}","${p.daysOnline}"`));
   const a = document.createElement('a');
@@ -1166,7 +1194,7 @@ async function openCameraForBarcode(variantId) {
     );
   } catch(e) {
     container.style.display = 'none';
-    alert('Caméra inaccessible. Vérifie que le site a la permission d\'accéder à la caméra dans les réglages du navigateur.');
+    showToast('Caméra inaccessible — vérifie les permissions navigateur', 'error');
   }
 }
 
@@ -1179,7 +1207,7 @@ function stopCamera(variantId) {
 
 async function saveBarcode(variantId, input) {
   const barcode = input.value.trim();
-  if (!barcode) { alert('Scanne ou saisis un code-barres'); return; }
+  if (!barcode) { showToast('Scanne ou saisis un code-barres', 'warn'); return; }
   input.disabled = true;
   try {
     const res = await fetch(`${BACKEND_URL}/product/barcode`, {
@@ -1187,17 +1215,13 @@ async function saveBarcode(variantId, input) {
       body: JSON.stringify({ variantId, barcode })
     });
     const data = await res.json();
-    if (!res.ok || !data.success) { alert('Erreur Shopify : ' + (data.error || 'Réponse inattendue')); input.disabled=false; return; }
+    if (!res.ok || !data.success) { showToast('Erreur Shopify : ' + (data.error || 'Réponse inattendue'), 'error'); input.disabled=false; return; }
     const p = allStockData.find(p => p.variantId === variantId);
     if (p) p.barcode = barcode;
     const cell = input.closest('td');
     if (cell) cell.innerHTML = `<span style="font-family:monospace;font-size:11px;background:#f1efe8;padding:2px 6px;border-radius:4px;">${barcode}</span>`;
-    const t = document.createElement('div');
-    t.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:10px;font-size:13px;font-weight:500;color:#fff;z-index:9999;background:#3B6D11;';
-    t.textContent = 'Code-barres enregistré sur Shopify ✓';
-    document.body.appendChild(t);
-    setTimeout(() => t.remove(), 3000);
-  } catch(e) { alert('Erreur réseau : ' + e.message); input.disabled=false; }
+    showToast('Code-barres enregistré sur Shopify ✓');
+  } catch(e) { showToast('Erreur réseau : ' + e.message, 'error'); input.disabled=false; }
 }
 
 function onCheckLocation(barcode, checked, currentLoc) {
@@ -1215,10 +1239,10 @@ async function updateStockLocation(barcode, inBoutique, location) {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ barcode, inBoutique, location, updatedBy: DASH_EMPLOYEE || DASH_BOUTIQUE || null })
     });
-    if (!res.ok) { const err = await res.json(); alert('Erreur : ' + (err.error || res.status)); return; }
+    if (!res.ok) { const err = await res.json().catch(()=>({})); showToast('Erreur : ' + (err.error || res.status), 'error'); return; }
     const p = allStockData.find(p => p.barcode === barcode);
     if (p) { p.inBoutique = inBoutique; p.location = location; }
-  } catch(e) { alert('Erreur réseau : ' + e.message); }
+  } catch(e) { showToast('Erreur réseau : ' + e.message, 'error'); }
 }
 
 function exportCSV() { window.location.href=`${BACKEND_URL}/analytics/export`; }
@@ -1310,7 +1334,7 @@ async function updateCleaningStatus(id, status) {
       body: JSON.stringify({ status })
     });
     loadCleanings();
-  } catch(e) { alert('Erreur réseau'); }
+  } catch(e) { showToast('Erreur réseau : ' + e.message, 'error'); }
 }
 
 function filterCleanings() {
@@ -1502,7 +1526,7 @@ async function updatePurchase(id, field, value) {
     const p = allRachatsData.find(r => r.id === id);
     if (p && field === 'authenticated') p.authenticated = value;
     if (p && field === 'paymentMethod') p.payment_method = value;
-  } catch(e) { alert('Erreur réseau'); }
+  } catch(e) { showToast('Erreur réseau : ' + e.message, 'error'); }
 }
 
 async function updatePurchasePayment(id, status) {
@@ -1515,7 +1539,7 @@ async function updatePurchasePayment(id, status) {
     if (p) { p.payment_status = status; if (status === 'non_regle') p.payment_method = null; }
     // Rerendre juste la table pour afficher/masquer le select méthode
     renderRachatsTable(allRachatsData);
-  } catch(e) { alert('Erreur réseau'); }
+  } catch(e) { showToast('Erreur réseau : ' + e.message, 'error'); }
 }
 
 function filterRachats() {
@@ -1541,7 +1565,11 @@ let DASH_EMPLOYEE = null;
 
 function logout() {
   localStorage.removeItem('nv_session');
+  // Nettoie les anciennes clés laissées par d'anciennes versions
+  ['nv_dash_auth','nv_dash_boutique','nv_dash_employee','nv_auth','nv_boutique','nv_employee']
+    .forEach(k => localStorage.removeItem(k));
   DASH_EMPLOYEE = null;
+  if (_dashUpdateInterval) { clearInterval(_dashUpdateInterval); _dashUpdateInterval = null; }
   document.getElementById('dashApp').style.display = 'none';
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('dashStepPwd').style.display = 'block';
@@ -1603,25 +1631,28 @@ function checkDashPwd() {
     document.getElementById('dashPwd').focus();
     return;
   }
-  localStorage.setItem('nv_dash_auth', '1');
-  localStorage.setItem('nv_dash_boutique', boutique);
   if (boutique === 'admin') {
-    localStorage.setItem('nv_dash_employee', 'admin');
+    // initDashboard écrit déjà nv_session
     initDashboard(boutique, 'admin');
     return;
   }
   // Étape 2 — choisir l'employé
   document.getElementById('dashStepPwd').style.display = 'none';
   document.getElementById('dashStepEmployee').style.display = 'block';
+  const container = document.getElementById('dashEmployeeBtns');
+  container.innerHTML = '';
   const employees = DASH_EMPLOYEES[boutique] || [];
-  document.getElementById('dashEmployeeBtns').innerHTML = employees.map(e =>
-    `<button class="btn-employee" onclick="connectDashEmployee('${e}', '${boutique}')"
-      style="padding:12px;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;width:100%;">${e}</button>`
-  ).join('');
+  employees.forEach(e => {
+    const btn = document.createElement('button');
+    btn.className = 'btn-employee';
+    btn.style.cssText = 'padding:12px;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;width:100%;';
+    btn.textContent = e;
+    btn.addEventListener('click', () => connectDashEmployee(e, boutique));
+    container.appendChild(btn);
+  });
 }
 
 function connectDashEmployee(employee, boutique) {
-  localStorage.setItem('nv_session', JSON.stringify({auth:true, boutique, employee}));
   initDashboard(boutique, employee);
 }
 

@@ -341,12 +341,12 @@
 </div>
 
 <script>
-  const APP_VERSION = '2025-04-17-v1';
+  const APP_VERSION = '2025-04-18-v2';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   let currentData = null;
 
   // Vérifier les mises à jour toutes les 30 secondes
-  setInterval(() => {
+  let _appUpdateInterval = setInterval(() => {
     fetch(location.href + '?nocache=' + Date.now(), { cache: 'no-store' })
       .then(r => r.text())
       .then(html => {
@@ -462,9 +462,9 @@
 
   async function markAsSold() {
     const employee = document.getElementById('employeeSelect').value;
-    if (!employee) { alert('Sélectionne un employé avant de valider la vente.'); return; }
-    if (!currentData) { alert('Erreur : aucun produit chargé.'); return; }
-    if (!currentData.selectedLocationId) { alert('Erreur : emplacement Shopify introuvable.'); return; }
+    if (!employee) { showToast('Sélectionne un employé avant de valider la vente', 'warn'); return; }
+    if (!currentData) { showToast('Aucun produit chargé', 'error'); return; }
+    if (!currentData.selectedLocationId) { showToast('Emplacement Shopify introuvable', 'error'); return; }
 
     const btn = document.getElementById('sellBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'Envoi en cours...'; }
@@ -492,7 +492,7 @@
       const result = await res.json();
 
       if (!res.ok || !result.success) {
-        alert('Erreur Shopify : ' + JSON.stringify(result.error || result));
+        showToast('Erreur Shopify : ' + (result.error?.message || result.error || 'réponse inattendue'), 'error');
         if (btn) { btn.disabled = false; btn.textContent = 'Marquer vendu — stock à 0 sur Shopify'; }
         return;
       }
@@ -506,7 +506,7 @@
       currentData = null;
 
     } catch (err) {
-      alert('Erreur réseau : ' + err.message);
+      showToast('Erreur réseau : ' + err.message, 'error');
       if (btn) { btn.disabled = false; btn.textContent = 'Marquer vendu — stock à 0 sur Shopify'; }
     }
   }
@@ -821,6 +821,7 @@
     area.innerHTML = '<div class="loading"><span class="spinner"></span>Chargement des commandes...</div>';
     try {
       const res = await fetch(`${BACKEND_URL}/orders/pending`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const orders = await res.json();
       if (!orders.length) { area.innerHTML = '<div class="history-empty" style="padding:2rem;text-align:center;color:#888780;">Aucune commande en attente 🎉</div>'; return; }
 
@@ -861,7 +862,8 @@
       }).join('');
       setTimeout(restoreOrderStates, 50);
     } catch(e) {
-      area.innerHTML = '<div class="history-empty" style="padding:2rem;text-align:center;color:#A32D2D;">Erreur de chargement — vérifie que read_orders est activé dans Shopify</div>';
+      console.error('loadCommandes:', e);
+      area.innerHTML = `<div class="history-empty" style="padding:2rem;text-align:center;color:#A32D2D;">Erreur de chargement : ${e.message}<br><span style="font-size:11px;color:#888780;">Vérifie la connexion et que le scope read_orders est activé côté Shopify.</span></div>`;
     }
   }
 
@@ -956,7 +958,7 @@
 
   async function markPurchaseAsSold(purchaseId, productName, brand, price, barcode) {
     const employee = document.getElementById('employeeSelect').value;
-    if (!employee) { alert('Sélectionne un employé avant de valider la vente.'); return; }
+    if (!employee) { showToast('Sélectionne un employé avant de valider la vente', 'warn'); return; }
 
     const btn = document.getElementById('sellBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'Envoi en cours...'; }
@@ -982,7 +984,7 @@
 
       const result = await res.json();
       if (!res.ok || !result.success) {
-        alert('Erreur : ' + JSON.stringify(result.error || result));
+        showToast('Erreur : ' + (result.error?.message || result.error || 'réponse inattendue'), 'error');
         if (btn) { btn.disabled = false; btn.textContent = 'Marquer vendu — sans mise à jour Shopify'; }
         return;
       }
@@ -994,7 +996,7 @@
       document.getElementById('barcodeInput').focus();
 
     } catch(err) {
-      alert('Erreur réseau : ' + err.message);
+      showToast('Erreur réseau : ' + err.message, 'error');
       if (btn) { btn.disabled = false; btn.textContent = 'Marquer vendu — sans mise à jour Shopify'; }
     }
   }
@@ -1095,10 +1097,11 @@
     const employee = document.getElementById('cleanEmployee').value;
     const boutique = document.getElementById('cleanBoutique').value;
 
-    if (!pairName) { alert('Nom de la paire requis'); return; }
-    if (!clientName) { alert('Nom du client requis'); return; }
-    if (!service) { alert('Service requis'); return; }
-    if (!employee) { alert('Nettoyeur requis'); return; }
+    if (!pairName) { showToast('Nom de la paire requis', 'warn'); return; }
+    if (!clientName) { showToast('Nom du client requis', 'warn'); return; }
+    if (!service) { showToast('Service requis', 'warn'); return; }
+    if (!employee) { showToast('Nettoyeur requis', 'warn'); return; }
+    if (!boutique) { showToast('Boutique manquante — reconnecte-toi', 'error'); return; }
 
     const btn = document.getElementById('cleanBtn');
     btn.disabled = true; btn.textContent = 'Enregistrement...';
@@ -1110,7 +1113,7 @@
         body: JSON.stringify({ pairName, clientName, clientPhone, service, price: parseFloat(price)||0, employee, boutique, remarks })
       });
       const result = await res.json();
-      if (!res.ok || !result.success) { alert('Erreur : ' + result.error); btn.disabled=false; btn.textContent='Enregistrer le dépôt'; return; }
+      if (!res.ok || !result.success) { showToast('Erreur : ' + (result.error || 'réponse inattendue'), 'error'); btn.disabled=false; btn.textContent='Enregistrer le dépôt'; return; }
 
       // Upload photos séparément si présentes
       if (cleanPhotosData.length > 0 && result.cleaning?.id) {
@@ -1144,7 +1147,7 @@
       document.getElementById('photoPreview').innerHTML = '';
       cleanPhotosData = [];
 
-    } catch(err) { alert('Erreur réseau : ' + err.message); }
+    } catch(err) { showToast('Erreur réseau : ' + err.message, 'error'); }
     btn.disabled = false; btn.textContent = 'Enregistrer le dépôt';
   }
 
@@ -1218,8 +1221,12 @@
 
   function logoutApp() {
     localStorage.removeItem('nv_session');
+    ['nv_dash_auth','nv_dash_boutique','nv_dash_employee','nv_auth','nv_boutique','nv_employee']
+      .forEach(k => localStorage.removeItem(k));
     currentBoutique = null;
     currentEmployee = null;
+    if (_appUpdateInterval) { clearInterval(_appUpdateInterval); _appUpdateInterval = null; }
+    try { stopInventaireScan(); } catch(_) {}
     document.getElementById('mainApp').style.display = 'none';
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('stepPwd').style.display = 'block';
@@ -1317,13 +1324,6 @@
     loadActiveCleanings();
   }
 
-  function setEmployeeOptions(selectId, boutique) {
-    const sel = document.getElementById(selectId);
-    if (!sel) return;
-    const employees = EMPLOYEES[boutique] || EMPLOYEES['admin'];
-    const current = sel.value;
-    sel.innerHTML = `<option value="">— Sélectionner —</option>` + employees.map(e => `<option${e===current?' selected':''}>${e}</option>`).join('');
-  }
 
   function applyBoutique(boutique) {
     currentBoutique = boutique;
