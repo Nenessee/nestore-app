@@ -4,6 +4,19 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Nestore — Accès</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2C2C2A">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Nestore">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    }
+  </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -341,7 +354,7 @@
 </div>
 
 <script>
-  const APP_VERSION = '2025-04-18-v2';
+  const APP_VERSION = '2025-04-18-v3';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   let currentData = null;
 
@@ -450,6 +463,12 @@
             </button>`
           : `<div class="already-sold">Cet article est déjà en stock 0 sur Shopify</div>`
         }
+        ${currentEmployee && !isSold ? (() => {
+          const target = data.boutique === 'DK' ? 'Lille' : 'DK';
+          return `<button class="btn-transfer" id="transferBtn" onclick="transferProduct('${target}')" style="width:100%;margin-top:8px;padding:12px;background:#185FA5;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">
+            🔄 Transférer vers ${target}
+          </button>`;
+        })() : ''}
       </div>`;
 
     } catch (err) {
@@ -508,6 +527,62 @@
     } catch (err) {
       showToast('Erreur réseau : ' + err.message, 'error');
       if (btn) { btn.disabled = false; btn.textContent = 'Marquer vendu — stock à 0 sur Shopify'; }
+    }
+  }
+
+  async function transferProduct(toBoutique) {
+    if (!currentData || !currentEmployee) return;
+    if (!confirm(`Transférer cet article vers ${toBoutique} ?`)) return;
+    const btn = document.getElementById('transferBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Transfert en cours...'; }
+    try {
+      const res = await fetch(`${BACKEND_URL}/transfer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          barcode: currentData.barcode,
+          productName: currentData.name,
+          brand: currentData.brand,
+          imageUrl: currentData.image,
+          fromBoutique: currentData.boutique,
+          toBoutique,
+          employee: currentEmployee
+        })
+      });
+      const result = await res.json();
+      if (!res.ok || !result.success) {
+        showToast('Erreur transfert : ' + (result.error || 'réponse inattendue'), 'error');
+        if (btn) { btn.disabled = false; btn.textContent = `🔄 Transférer vers ${toBoutique}`; }
+        return;
+      }
+      // Mise à jour visuelle : badge boutique + inverser le bouton
+      currentData.boutique = toBoutique;
+      if (Array.isArray(currentData.tags)) {
+        if (toBoutique === 'DK') {
+          if (!currentData.tags.includes('dk')) currentData.tags.push('dk');
+        } else {
+          currentData.tags = currentData.tags.filter(t => t !== 'dk');
+        }
+      }
+      const badgeEl = document.querySelector('.product-card .badge');
+      if (badgeEl) {
+        badgeEl.className = `badge ${toBoutique === 'DK' ? 'badge-dk' : 'badge-lille'}`;
+        badgeEl.textContent = toBoutique;
+      }
+      if (btn) {
+        const newTarget = toBoutique === 'DK' ? 'Lille' : 'DK';
+        btn.disabled = false;
+        btn.textContent = `🔄 Transférer vers ${newTarget}`;
+        btn.setAttribute('onclick', `transferProduct('${newTarget}')`);
+      }
+      // Flash vert
+      document.body.style.transition = 'background .1s';
+      document.body.style.background = '#d4edbc';
+      setTimeout(() => { document.body.style.background = '#f5f5f3'; }, 200);
+      showToast(`Transféré vers ${toBoutique} ✓`, 'success');
+    } catch (err) {
+      showToast('Erreur réseau : ' + err.message, 'error');
+      if (btn) { btn.disabled = false; btn.textContent = `🔄 Transférer vers ${toBoutique}`; }
     }
   }
 
