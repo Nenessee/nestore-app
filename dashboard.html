@@ -1825,7 +1825,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-19-v25';
+const DASH_VERSION = '2025-04-19-v26';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
@@ -2674,9 +2674,13 @@ function onCheckLocation(barcode, checked, currentLoc) {
     if (window._locFilterRaf) cancelAnimationFrame(window._locFilterRaf);
     window._locFilterRaf = requestAnimationFrame(() => filterStock());
   } else {
-    // Sinon, on met juste à jour la bg de la ligne (rouge subtil → transparent)
+    // Sinon, on met juste à jour la bg de la ligne via setAttribute (garde le format
+    // exact qui matche le sélecteur CSS [style*="background:#FFF8F8"])
     const row = document.querySelector(`#stockTable tr input[onchange*="onCheckLocation('${barcode}'"]`)?.closest('tr');
-    if (row) row.style.background = checked ? '' : '#FFF8F8';
+    if (row) {
+      if (checked) row.removeAttribute('style');
+      else row.setAttribute('style', 'background:#FFF8F8;');
+    }
   }
 }
 
