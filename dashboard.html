@@ -1523,6 +1523,11 @@ tbody tr { transition: background .12s; }
         <option value="local">🏠 Local</option>
         <option value="pressing">👟 Pressing</option>
       </select>
+      <select class="filter-select" id="stockVintedFilter" onchange="filterStock()">
+        <option value="">Tous — Vinted</option>
+        <option value="yes">✓ Sur Vinted</option>
+        <option value="no">Pas sur Vinted</option>
+      </select>
       <select class="filter-select" id="stockScoreFilter" onchange="filterStock()">
         <option value="">Tous scores</option>
         <option value="high">Score élevé (70+)</option>
@@ -1558,10 +1563,10 @@ tbody tr { transition: background .12s; }
           <th><input type="checkbox" class="cb" onclick="toggleSelectAll(this)"/></th>
           <th>Article</th><th>Marque</th><th>Code-barres</th><th>Prix</th>
           <th>Boutique</th><th>Score</th><th>En ligne depuis</th><th>Statut</th>
-          <th>En boutique ✓</th><th>Localisation</th>
+          <th>En boutique ✓</th><th>Vinted</th><th>Localisation</th>
           <th></th>
         </tr></thead>
-        <tbody id="stockTable"><tr><td colspan="11" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
+        <tbody id="stockTable"><tr><td colspan="12" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1773,7 +1778,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-18-v19';
+const DASH_VERSION = '2025-04-18-v20';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
@@ -2002,12 +2007,13 @@ function filterSales(q) {
 }
 
 async function loadStock() {
-  document.getElementById('stockTable').innerHTML = '<tr><td colspan="12" style="text-align:center;padding:40px;color:#888780;">Chargement du stock Shopify (peut prendre 30s)...</td></tr>';
+  document.getElementById('stockTable').innerHTML = '<tr><td colspan="13" style="text-align:center;padding:40px;color:#888780;">Chargement du stock Shopify (peut prendre 30s)...</td></tr>';
   const [data, locMap] = await Promise.all([api('/analytics/stock'), api('/stock/locations')]);
   allStockData = data.map(p => ({
     ...p,
     inBoutique: locMap[p.barcode]?.inBoutique === true,
-    location: locMap[p.barcode]?.location || null
+    location: locMap[p.barcode]?.location || null,
+    onVinted: locMap[p.barcode]?.onVinted === true
   }));
   const total = allStockData.length;
   const alert30 = allStockData.filter(p=>p.daysOnline>=30&&p.daysOnline<60).length;
@@ -2015,6 +2021,7 @@ async function loadStock() {
   const missingBarcode = allStockData.filter(p=>!p.barcode).length;
   const localized = allStockData.filter(p=>p.barcode&&p.inBoutique).length;
   const notLocalized = allStockData.filter(p=>p.barcode&&!p.inBoutique).length;
+  const onVintedCount = allStockData.filter(p=>p.barcode&&p.onVinted).length;
   const avgScore = allStockData.length ? Math.round(allStockData.reduce((a,b)=>a+(b.score||0),0)/allStockData.length) : 0;
   document.getElementById('stockSummary').innerHTML = `
     <div class="kpi"><div class="kpi-label">Total en ligne</div><div class="kpi-value">${total}</div></div>
@@ -2036,6 +2043,11 @@ async function loadStock() {
       <div class="kpi-label">Sans code-barres</div>
       <div class="kpi-value" style="color:${missingBarcode>0?'#A32D2D':'#3B6D11'};">${missingBarcode}</div>
       <div class="kpi-sub">${missingBarcode>0?'cliquer pour voir':'tout OK'}</div>
+    </div>
+    <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('stockVintedFilter').value='yes';filterStock();">
+      <div class="kpi-label">Sur Vinted</div>
+      <div class="kpi-value" style="color:#09B1BA;">${onVintedCount}</div>
+      <div class="kpi-sub">cliquer pour voir</div>
     </div>
     <div class="kpi"><div class="kpi-label">Score moyen</div><div class="kpi-value" style="color:${avgScore>=70?'#3B6D11':avgScore>=40?'#BA7517':'#A32D2D'}">${avgScore}</div><div class="kpi-sub">sur 100</div></div>
   `;
@@ -2079,6 +2091,10 @@ function renderStockTable(data) {
       ? `<input type="checkbox" ${inBoutique?'checked':''} onchange="onCheckLocation('${p.barcode}', this.checked, '${loc}')"
           style="width:16px;height:16px;cursor:pointer;accent-color:#3B6D11;"/>`
       : `<span style="color:#b4b2a9;font-size:11px;">—</span>`;
+    const vintedCell = p.barcode
+      ? `<input type="checkbox" ${p.onVinted?'checked':''} onchange="onCheckVinted('${p.barcode}', this.checked)"
+          style="width:16px;height:16px;cursor:pointer;accent-color:#09B1BA;"/>`
+      : `<span style="color:#b4b2a9;font-size:11px;">—</span>`;
     const locCell = p.barcode
       ? `<select onchange="updateStockLocation('${p.barcode}', ${inBoutique}, this.value)"
           style="font-size:11px;padding:3px 6px;border:0.5px solid #d3d1c7;border-radius:6px;color:${locColors[loc]||'#888780'};max-width:120px;">
@@ -2101,6 +2117,7 @@ function renderStockTable(data) {
       <td><div style="font-size:13px;font-weight:500;">${p.daysOnline}j</div><div class="days-bar"><div class="days-bar-fill" style="width:${fillPct}%;background:${fillColor};"></div></div></td>
       <td>${statusBadge}</td>
       <td style="text-align:center;">${checkCell}</td>
+      <td style="text-align:center;">${vintedCell}</td>
       <td>${locCell}</td>
       <td><a href="${p.shopifyAdminUrl}" target="_blank" class="link-btn">Shopify ↗</a></td>
     </tr>`;
@@ -2115,6 +2132,7 @@ function filterStock() {
   const scoreF=document.getElementById('stockScoreFilter').value;
   const sort=document.getElementById('stockSortFilter').value;
   const locF=document.getElementById('stockLocationFilter')?.value||'';
+  const vintedF=document.getElementById('stockVintedFilter')?.value||'';
   let filtered=allStockData.filter(p=>{
     if(q&&!p.title?.toLowerCase().includes(q)&&!p.vendor?.toLowerCase().includes(q)&&!p.barcode?.toLowerCase().includes(q)) return false;
     if(boutique&&p.boutique!==boutique) return false;
@@ -2129,6 +2147,8 @@ function filterStock() {
     if(scoreF==='high'&&(p.score||0)<70) return false;
     if(scoreF==='mid'&&((p.score||0)<40||(p.score||0)>=70)) return false;
     if(scoreF==='low'&&(p.score||0)>=40) return false;
+    if(vintedF==='yes'&&!p.onVinted) return false;
+    if(vintedF==='no'&&p.onVinted) return false;
     return true;
   });
   if(sort==='days_asc') filtered.sort((a,b)=>a.daysOnline-b.daysOnline);
@@ -2598,6 +2618,26 @@ function onCheckLocation(barcode, checked, currentLoc) {
   const p = allStockData.find(p => p.barcode === barcode);
   if (p) { p.inBoutique = checked; p.location = newLoc; }
   filterStock();
+}
+
+async function onCheckVinted(barcode, checked) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/stock/vinted`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ barcode, onVinted: checked, updatedBy: DASH_EMPLOYEE || DASH_BOUTIQUE || null })
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const p = allStockData.find(p => p.barcode === barcode);
+    if (p) p.onVinted = checked;
+    if (typeof showDashToast === 'function') {
+      showDashToast(checked ? 'Marqué sur Vinted ✓' : 'Retiré de Vinted', 'success');
+    }
+  } catch(e) {
+    if (typeof showDashToast === 'function') showDashToast('Erreur réseau : ' + e.message, 'error');
+    // Revert l'état visuel
+    const cb = document.querySelector(`input[onchange*="onCheckVinted('${barcode}'"]`);
+    if (cb) cb.checked = !checked;
+  }
 }
 
 async function updateStockLocation(barcode, inBoutique, location) {
@@ -3090,6 +3130,8 @@ if (_s?.auth) {
     { group: 'Stock — filtres rapides', id: 'f-nocb',    icon: '❓', label: 'Filtrer : sans code-barres',  run: () => quickStockFilter('barcode','missing') },
     { group: 'Stock — filtres rapides', id: 'f-lille',   icon: '🏪', label: 'Boutique Lille uniquement',   run: () => quickStockFilter('boutique','Lille') },
     { group: 'Stock — filtres rapides', id: 'f-dk',      icon: '🏪', label: 'Boutique DK uniquement',      run: () => quickStockFilter('boutique','DK') },
+    { group: 'Stock — filtres rapides', id: 'f-vinted-yes', icon: '👗', label: 'Filtrer : Sur Vinted',         run: () => { clickTab('stock'); setTimeout(() => { const el = document.getElementById('stockVintedFilter'); if (el) { el.value = 'yes'; if (typeof window.filterStock === 'function') window.filterStock(); } }, 50); } },
+    { group: 'Stock — filtres rapides', id: 'f-vinted-no',  icon: '📭', label: 'Filtrer : Pas sur Vinted',     run: () => { clickTab('stock'); setTimeout(() => { const el = document.getElementById('stockVintedFilter'); if (el) { el.value = 'no'; if (typeof window.filterStock === 'function') window.filterStock(); } }, 50); } },
     { group: 'Stock — filtres rapides', id: 'f-reset',   icon: '✕',  label: 'Réinitialiser les filtres',   run: () => resetStockFilters() },
 
     { group: 'Périodes (onglet actif)', id: 'p-today', icon: '📅', label: 'Aujourd\'hui', run: () => clickPeriod(1) },
@@ -3487,6 +3529,7 @@ if (_s?.auth) {
       const scoreF = document.getElementById('stockScoreFilter').value;
       const sort = document.getElementById('stockSortFilter').value;
       const locF = document.getElementById('stockLocationFilter')?.value || '';
+      const vintedF = document.getElementById('stockVintedFilter')?.value || '';
       let filtered = window.allStockData.filter(p => {
         if (!smartMatch(q, p.title, p.vendor, p.barcode)) return false;
         if (boutique && p.boutique !== boutique) return false;
@@ -3501,6 +3544,8 @@ if (_s?.auth) {
         if (scoreF === 'high' && (p.score||0) < 70) return false;
         if (scoreF === 'mid' && ((p.score||0) < 40 || (p.score||0) >= 70)) return false;
         if (scoreF === 'low' && (p.score||0) >= 40) return false;
+        if (vintedF === 'yes' && !p.onVinted) return false;
+        if (vintedF === 'no' && p.onVinted) return false;
         return true;
       });
       if (sort === 'days_asc') filtered.sort((a,b) => a.daysOnline - b.daysOnline);
