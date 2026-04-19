@@ -1251,6 +1251,25 @@ tbody tr { transition: background .12s; }
     background: var(--surface-alt) !important;
   }
 }
+
+/* ====== ALIGNEMENT CELLULES : force table-cell sur tds en flex ====== */
+/* Les cellules avec display:flex inline cassent le layout table et dédoublent les rows.
+   On les repasse en table-cell + on utilise vertical-align sur les enfants. */
+#dashApp td[style*="display:flex"] {
+  display: table-cell !important;
+  vertical-align: middle !important;
+  line-height: 1.4;
+}
+#dashApp td[style*="display:flex"] img {
+  vertical-align: middle;
+  margin-right: 8px;
+}
+#dashApp td[style*="display:flex"] > span,
+#dashApp td[style*="display:flex"] > div:not(.badge):not(.no-img),
+#dashApp td[style*="display:flex"] > a {
+  vertical-align: middle;
+}
+#dashApp td { vertical-align: middle; }
 </style>
 </head>
 <body>
@@ -1705,7 +1724,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-18-v10';
+const DASH_VERSION = '2025-04-18-v11';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
@@ -3330,6 +3349,139 @@ if (_s?.auth) {
       }
     }
   });
+
+  /* ======= RECHERCHE INTELLIGENTE (fuzzy normalisée) ======= */
+  // Normalise: minuscules, sans accents, sans ponctuation ni espaces
+  // "C.P. Company" → "cpcompany", "cp" → "cp" → match
+  function norm(s) {
+    return (s || '').toString().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '');
+  }
+  function smartMatch(query, ...fields) {
+    if (!query) return true;
+    const raw = query.toString().toLowerCase();
+    const nq = norm(query);
+    for (const f of fields) {
+      if (!f) continue;
+      const fraw = f.toString().toLowerCase();
+      if (fraw.includes(raw)) return true;
+      if (nq && norm(f).includes(nq)) return true;
+    }
+    return false;
+  }
+  window.__nvSmartMatch = smartMatch;
+  window.__nvNorm = norm;
+
+  // Patch filterStock (stock en ligne)
+  if (typeof window.filterStock === 'function') {
+    const _origStock = window.filterStock;
+    window.filterStock = function() {
+      const searchEl = document.getElementById('stockSearch');
+      const q = (searchEl?.value || '').trim();
+      if (!q || !window.allStockData) { return _origStock.apply(this, arguments); }
+      // Réplique la logique mais avec smartMatch
+      const boutique = document.getElementById('stockBoutiqueFilter').value;
+      const days = document.getElementById('stockDaysFilter').value;
+      const barcode = document.getElementById('stockBarcodeFilter').value;
+      const scoreF = document.getElementById('stockScoreFilter').value;
+      const sort = document.getElementById('stockSortFilter').value;
+      const locF = document.getElementById('stockLocationFilter')?.value || '';
+      let filtered = window.allStockData.filter(p => {
+        if (!smartMatch(q, p.title, p.vendor, p.barcode)) return false;
+        if (boutique && p.boutique !== boutique) return false;
+        if (days === 'ok' && p.daysOnline >= 30) return false;
+        if (days === 'warn' && (p.daysOnline < 30 || p.daysOnline >= 60)) return false;
+        if (days === 'danger' && p.daysOnline < 60) return false;
+        if (barcode === 'missing' && p.barcode) return false;
+        if (barcode === 'present' && !p.barcode) return false;
+        if (locF === 'present' && !p.inBoutique) return false;
+        if (locF === 'absent' && p.inBoutique) return false;
+        if (['en_magasin','reserve','local','pressing'].includes(locF) && (p.location !== locF || !p.inBoutique)) return false;
+        if (scoreF === 'high' && (p.score||0) < 70) return false;
+        if (scoreF === 'mid' && ((p.score||0) < 40 || (p.score||0) >= 70)) return false;
+        if (scoreF === 'low' && (p.score||0) >= 40) return false;
+        return true;
+      });
+      if (sort === 'days_asc') filtered.sort((a,b) => a.daysOnline - b.daysOnline);
+      else if (sort === 'days_desc') filtered.sort((a,b) => b.daysOnline - a.daysOnline);
+      else if (sort === 'price_desc') filtered.sort((a,b) => parseFloat(b.price) - parseFloat(a.price));
+      else if (sort === 'price_asc') filtered.sort((a,b) => parseFloat(a.price) - parseFloat(b.price));
+      else if (sort === 'score_asc') filtered.sort((a,b) => (a.score||0) - (b.score||0));
+      else if (sort === 'score_desc') filtered.sort((a,b) => (b.score||0) - (a.score||0));
+      if (typeof renderStockTable === 'function') renderStockTable(filtered);
+    };
+  }
+
+  // Patch filterSales
+  if (typeof window.filterSales === 'function') {
+    window.filterSales = function(q) {
+      if (!window.allSalesData) return;
+      const filtered = window.allSalesData.filter(s =>
+        smartMatch(q, s.product_name, s.brand, s.employee, s.barcode)
+      );
+      if (typeof renderSalesTable === 'function') renderSalesTable(filtered);
+    };
+  }
+
+  // Patch filterRachats
+  if (typeof window.filterRachats === 'function') {
+    const _origRachats = window.filterRachats;
+    window.filterRachats = function() {
+      const q = (document.getElementById('rachatsSearch')?.value || '').trim();
+      const status = document.getElementById('rachatsStatusFilter')?.value || '';
+      if (!window.allRachatsData) return _origRachats.apply(this, arguments);
+      if (!q) return _origRachats.apply(this, arguments);
+      const filtered = window.allRachatsData.filter(r => {
+        if (!smartMatch(q, r.product_name, r.brand, r.barcode, r.employee)) return false;
+        if (status === 'sold' && r.computed_status !== 'sold') return false;
+        if (status === 'pending' && r.computed_status !== 'pending') return false;
+        if (status === 'posted' && r.computed_status !== 'posted') return false;
+        return true;
+      });
+      if (typeof renderRachatsTable === 'function') renderRachatsTable(filtered);
+    };
+  }
+
+  // Patch filterCommandes
+  if (typeof window.filterCommandes === 'function') {
+    const _origCmd = window.filterCommandes;
+    window.filterCommandes = function() {
+      const q = (document.getElementById('cmdSearch')?.value || '').trim();
+      if (!q || !window.allCommandesData) return _origCmd.apply(this, arguments);
+      const status = document.getElementById('cmdStatusFilter')?.value || '';
+      const boutique = document.getElementById('cmdBoutiqueFilter')?.value || '';
+      const filtered = window.allCommandesData.filter(o => {
+        if (!smartMatch(q, o.customer, o.product_name, o.barcode, String(o.order_number))) return false;
+        if (boutique && o.boutique !== boutique) return false;
+        if (status === 'pending' && (o.isAside || o.fulfillment_status === 'fulfilled')) return false;
+        if (status === 'aside' && !o.isAside) return false;
+        if (status === 'fulfilled' && o.fulfillment_status !== 'fulfilled') return false;
+        return true;
+      });
+      if (typeof renderCommandesTable === 'function') renderCommandesTable(filtered);
+    };
+  }
+
+  // Patch filterCleanings
+  if (typeof window.filterCleanings === 'function') {
+    const _origClean = window.filterCleanings;
+    window.filterCleanings = function() {
+      const q = (document.getElementById('cleanSearch')?.value || '').trim();
+      if (!q || !window.allCleaningsData) return _origClean.apply(this, arguments);
+      const status = document.getElementById('cleanStatusFilter')?.value || '';
+      const boutique = document.getElementById('cleanBoutiqueFilter')?.value || '';
+      const employee = document.getElementById('cleanEmployeeFilter')?.value || '';
+      const filtered = window.allCleaningsData.filter(c => {
+        if (!smartMatch(q, c.pair_name, c.client_name, c.client_phone, c.employee, c.service)) return false;
+        if (status && c.status !== status) return false;
+        if (boutique && c.boutique !== boutique) return false;
+        if (employee && c.employee !== employee) return false;
+        return true;
+      });
+      if (typeof renderCleaningsTable === 'function') renderCleaningsTable(filtered);
+    };
+  }
 })();
 </script>
 </body>
