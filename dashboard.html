@@ -1177,6 +1177,28 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   box-shadow: 1px 0 0 var(--border);
   min-width: 180px;
 }
+/* Sur mobile: col article resserrée, on garde juste la photo (titre masqué) */
+@media (max-width: 768px) {
+  #stockTable th:nth-child(2), #stockTable td:nth-child(2) {
+    min-width: 58px !important;
+    max-width: 58px !important;
+    width: 58px !important;
+    padding-left: 8px !important;
+    padding-right: 4px !important;
+  }
+  #stockTable td:nth-child(2) > span {
+    display: none !important;
+  }
+  #stockTable th:nth-child(2) {
+    color: transparent;
+    font-size: 0;
+  }
+  /* Photo garde sa taille */
+  #stockTable td:nth-child(2) img,
+  #stockTable td:nth-child(2) .no-img {
+    width: 40px !important; height: 40px !important;
+  }
+}
 /* Sticky cells uniformes (pas de zebra qui les fait alterner foncées) */
 tbody tr td:first-child,
 tbody tr td:nth-child(2) {
@@ -1782,7 +1804,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-19-v21';
+const DASH_VERSION = '2025-04-19-v22';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
