@@ -1846,7 +1846,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-19-v28';
+const DASH_VERSION = '2025-04-19-v29';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
@@ -2516,11 +2516,20 @@ async function loadActivite() {
   const days = document.getElementById('actPeriodFilter')?.value || 1;
   document.getElementById('actTable').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr>';
   try {
-    const [activity, transfers, events] = await Promise.all([
+    const [activity, transfers, eventsRes] = await Promise.all([
       fetch(`${BACKEND_URL}/analytics/activity?days=${days}`).then(r => r.json()).catch(() => []),
       fetch(`${BACKEND_URL}/transfers?days=${days}`).then(r => r.ok ? r.json() : []).catch(() => []),
-      fetch(`${BACKEND_URL}/events?days=${days}`).then(r => r.ok ? r.json() : []).catch(() => [])
+      fetch(`${BACKEND_URL}/events?days=${days}`).catch(() => null)
     ]);
+    let events = [];
+    if (eventsRes && eventsRes.ok) {
+      events = await eventsRes.json().catch(() => []);
+    } else if (eventsRes && !eventsRes.ok) {
+      console.warn('[Nestore] Endpoint /events indisponible (HTTP ' + eventsRes.status + ') — backend à mettre à jour pour voir les connexions/scans');
+      if (typeof showDashToast === 'function' && eventsRes.status === 404) {
+        showDashToast('Endpoint /events non déployé — backend à mettre à jour', 'warn');
+      }
+    }
     const transfertRows = (transfers || []).map(t => ({
       type: 'transfert',
       employee: t.employee,
@@ -3164,7 +3173,27 @@ const DASH_CODES = { 'Hyperx3933': 'admin', '3322': 'Lille', '2727': 'DK' };
 const DASH_EMPLOYEES = { 'Lille': ['Sacha', 'Mathys', 'Noa', 'Celeste', 'Louis'], 'DK': ['Romane'], 'admin': [] };
 let DASH_EMPLOYEE = null;
 
+// Logger d'événements — journal audit admin
+function logEvent(type, metadata) {
+  try {
+    const session = JSON.parse(localStorage.getItem('nv_session') || '{}');
+    fetch(`${BACKEND_URL}/log/event`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        employee: session.employee || null,
+        boutique: session.boutique || null,
+        type,
+        metadata: metadata || {}
+      }),
+      keepalive: true
+    }).catch(() => {});
+  } catch(e) {}
+}
+window.__nvLog = logEvent;
+
 function logout() {
+  logEvent('logout');
   localStorage.removeItem('nv_session');
   // Nettoie les anciennes clés laissées par d'anciennes versions
   ['nv_dash_auth','nv_dash_boutique','nv_dash_employee','nv_auth','nv_boutique','nv_employee']
@@ -3235,6 +3264,7 @@ function checkDashPwd() {
   if (boutique === 'admin') {
     // initDashboard écrit déjà nv_session
     initDashboard(boutique, 'admin');
+    setTimeout(() => logEvent('login'), 0);
     return;
   }
   // Étape 2 — choisir l'employé
@@ -3255,6 +3285,8 @@ function checkDashPwd() {
 
 function connectDashEmployee(employee, boutique) {
   initDashboard(boutique, employee);
+  // log l'event après que initDashboard ait écrit nv_session
+  setTimeout(() => logEvent('login'), 0);
 }
 
 const _s = JSON.parse(localStorage.getItem('nv_session') || 'null');
