@@ -251,16 +251,20 @@ a { color: inherit; text-decoration: none; }
   backdrop-filter: var(--bar-blur);
   -webkit-backdrop-filter: var(--bar-blur);
   border-bottom: 1px solid var(--bar-border);
+}
+.tabs-inner {
+  max-width: 1400px;
+  margin: 0 auto;
   display: flex;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  padding: 0 12px;
+  padding: 0 16px;
   gap: 2px;
   scroll-snap-type: x proximity;
 }
-.tabs::-webkit-scrollbar { display: none; }
+.tabs-inner::-webkit-scrollbar { display: none; }
 .tab {
   flex-shrink: 0;
   padding: 14px 16px;
@@ -485,10 +489,23 @@ tr:hover td { background: var(--surface-alt); }
   color: var(--text-muted);
   margin-right: 6px;
 }
-.days-bar { height: 4px; border-radius: 2px; background: var(--surface-alt); margin-top: 4px; width: 80px; }
-.days-bar-fill { height: 100%; border-radius: 2px; }
-.score-bar { height: 6px; border-radius: 3px; background: var(--surface-alt); width: 60px; display: inline-block; vertical-align: middle; margin-right: 6px; }
-.score-fill { height: 100%; border-radius: 3px; }
+.days-bar { height: 3px; border-radius: 2px; background: var(--surface-alt); margin-top: 5px; width: 80px; opacity: 0.85; }
+.days-bar-fill { height: 100%; border-radius: 2px; opacity: 0.65; filter: saturate(0.85); }
+.score-bar { height: 4px; border-radius: 3px; background: var(--surface-alt); width: 60px; display: inline-block; vertical-align: middle; margin-right: 6px; opacity: 0.85; }
+.score-fill { height: 100%; border-radius: 3px; opacity: 0.7; filter: saturate(0.85); }
+/* "À brader" / autres badge-danger : moins saturé pour ne pas dominer */
+.badge-danger {
+  background: rgba(232, 80, 78, 0.10);
+  color: #C04340;
+}
+[data-theme="dark"] .badge-danger {
+  background: rgba(255, 107, 104, 0.12);
+  color: #FFB5B3;
+}
+/* Score 0/faible affiché en rouge dans le JS — le rendre moins criard */
+#stockTable td span[style*="color:#"] { font-weight: 600; }
+#stockTable td span[style*="color:#A32D2D"],
+#stockTable td span[style*="color:#E24B4A"] { opacity: 0.75; }
 
 /* Bulk toolbar */
 .bulk-toolbar {
@@ -970,16 +987,13 @@ a:focus-visible, select:focus-visible, input:focus-visible {
 /* ====== COMMAND PALETTE ====== */
 .cmdk-backdrop {
   position: fixed; inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(0, 0, 0, 0.55);
   z-index: 300;
   display: none;
   align-items: flex-start;
   justify-content: center;
   padding: max(8vh, 40px) 16px 20px;
   padding-top: calc(max(8vh, 40px) + env(safe-area-inset-top));
-  animation: cmdkFade .15s ease;
 }
 .cmdk-backdrop.open { display: flex; }
 @keyframes cmdkFade { from { opacity: 0; } to { opacity: 1; } }
@@ -991,12 +1005,10 @@ a:focus-visible, select:focus-visible, input:focus-visible {
   border-radius: 18px;
   box-shadow: var(--shadow-lg);
   overflow: hidden;
-  animation: cmdkSlide .18s cubic-bezier(.2,.7,.3,1);
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 16vh - env(safe-area-inset-top) - 20px);
 }
-@keyframes cmdkSlide { from { transform: translateY(-12px); opacity: 0; } to { transform: none; opacity: 1; } }
 .cmdk-search {
   display: flex;
   align-items: center;
@@ -1334,9 +1346,9 @@ tbody tr { transition: background .12s; }
         <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       </button>
       <a class="btn btn-green" href="#" onclick="exportCSV();return false;">CSV</a>
-      <a class="icon-btn" href="index.html" aria-label="Retour caisse">
+      <button class="icon-btn" onclick="location.href='index.html'" aria-label="Retour caisse">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-      </a>
+      </button>
       <button class="icon-btn" onclick="logout()" aria-label="Déconnexion" style="color:var(--accent);">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       </button>
@@ -1345,14 +1357,16 @@ tbody tr { transition: background .12s; }
 </header>
 
 <div class="tabs">
-  <div class="tab active" onclick="switchTab('ventes',this)">Ventes</div>
-  <div class="tab" onclick="switchTab('stock',this)">Stock en ligne</div>
-  <div class="tab" onclick="switchTab('rotation',this)">Rotation</div>
-  <div class="tab" onclick="switchTab('rachats',this)">Rachats</div>
-  <div class="tab" onclick="switchTab('nettoyage',this)">Nettoyage</div>
-  <div class="tab" onclick="switchTab('commandes',this)">Commandes web</div>
-  <div class="tab" onclick="switchTab('transferts',this)">Transferts</div>
-  <div class="tab" id="tabActivite" style="display:none;" onclick="switchTab('activite',this)">Activité</div>
+  <div class="tabs-inner">
+    <div class="tab active" onclick="switchTab('ventes',this)">Ventes</div>
+    <div class="tab" onclick="switchTab('stock',this)">Stock en ligne</div>
+    <div class="tab" onclick="switchTab('rotation',this)">Rotation</div>
+    <div class="tab" onclick="switchTab('rachats',this)">Rachats</div>
+    <div class="tab" onclick="switchTab('nettoyage',this)">Nettoyage</div>
+    <div class="tab" onclick="switchTab('commandes',this)">Commandes web</div>
+    <div class="tab" onclick="switchTab('transferts',this)">Transferts</div>
+    <div class="tab" id="tabActivite" style="display:none;" onclick="switchTab('activite',this)">Activité</div>
+  </div>
 </div>
 
 <!-- MODAL SOLDES -->
@@ -1733,7 +1747,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-18-v13';
+const DASH_VERSION = '2025-04-18-v14';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
@@ -3155,7 +3169,7 @@ if (_s?.auth) {
     inp.value = '';
     render('');
     document.getElementById('cmdkBackdrop').classList.add('open');
-    setTimeout(() => inp.focus(), 60);
+    inp.focus();
   };
   window.cmdkClose = function() {
     document.getElementById('cmdkBackdrop').classList.remove('open');
