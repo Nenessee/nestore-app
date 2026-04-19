@@ -1011,7 +1011,7 @@
 </div>
 
 <script>
-  const APP_VERSION = '2025-04-19-v12';
+  const APP_VERSION = '2025-04-19-v13';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   let currentData = null;
 
@@ -1045,6 +1045,16 @@
     try {
       const res = await fetch(`${BACKEND_URL}/product/${encodeURIComponent(barcode)}`);
       const data = await res.json();
+
+      // Log du scan (trouvé ou non) dans l'audit journal
+      if (typeof window.__nvLog === 'function') {
+        window.__nvLog('lookup', {
+          barcode,
+          found: res.ok && !data.error,
+          product: data?.name || data?.title || null,
+          brand: data?.brand || null
+        });
+      }
 
       if (!res.ok || data.error) {
         // Vérifier si c'est un article racheté
@@ -1956,6 +1966,8 @@
   let currentEmployee = null;
 
   function logoutApp() {
+    // Log avant de clear la session pour que l'événement garde l'employé
+    if (typeof window.__nvLog === 'function') window.__nvLog('logout');
     localStorage.removeItem('nv_session');
     ['nv_dash_auth','nv_dash_boutique','nv_dash_employee','nv_auth','nv_boutique','nv_employee']
       .forEach(k => localStorage.removeItem(k));
@@ -2053,8 +2065,30 @@
     ).join('');
   }
 
+  // Logger d'événements — envoie au backend /log/event pour le journal admin
+  function logEvent(type, metadata) {
+    try {
+      const session = JSON.parse(localStorage.getItem('nv_session') || '{}');
+      const body = {
+        employee: session.employee || null,
+        boutique: session.boutique || null,
+        type,
+        metadata: metadata || {}
+      };
+      // Fire-and-forget (keepalive pour que ça parte même en cas de navigation)
+      fetch(`${BACKEND_URL}/log/event`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        keepalive: true
+      }).catch(() => {});
+    } catch(e) {}
+  }
+  window.__nvLog = logEvent;
+
   function connectEmployee(employee, boutique) {
     localStorage.setItem('nv_session', JSON.stringify({auth:true, boutique, employee}));
+    logEvent('login');
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('mainApp').style.display = 'block';
     applyBoutique(boutique);

@@ -1734,6 +1734,9 @@ tbody tr { transition: background .12s; }
       <option value="nettoyage">👟 Nettoyage</option>
       <option value="inventaire">📦 Inventaire</option>
       <option value="transfert">🔄 Transferts</option>
+      <option value="login">🔑 Connexions</option>
+      <option value="logout">👋 Déconnexions</option>
+      <option value="lookup">🔎 Scans produits</option>
     </select>
     <select class="filter-select" id="actBoutiqueFilter" onchange="filterActivite()">
       <option value="">Toutes boutiques</option>
@@ -1843,7 +1846,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-19-v27';
+const DASH_VERSION = '2025-04-19-v28';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
@@ -2513,9 +2516,10 @@ async function loadActivite() {
   const days = document.getElementById('actPeriodFilter')?.value || 1;
   document.getElementById('actTable').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr>';
   try {
-    const [activity, transfers] = await Promise.all([
+    const [activity, transfers, events] = await Promise.all([
       fetch(`${BACKEND_URL}/analytics/activity?days=${days}`).then(r => r.json()).catch(() => []),
-      fetch(`${BACKEND_URL}/transfers?days=${days}`).then(r => r.ok ? r.json() : []).catch(() => [])
+      fetch(`${BACKEND_URL}/transfers?days=${days}`).then(r => r.ok ? r.json() : []).catch(() => []),
+      fetch(`${BACKEND_URL}/events?days=${days}`).then(r => r.ok ? r.json() : []).catch(() => [])
     ]);
     const transfertRows = (transfers || []).map(t => ({
       type: 'transfert',
@@ -2525,7 +2529,28 @@ async function loadActivite() {
       boutique: t.to_boutique,
       at: t.transferred_at
     }));
-    const data = [...(activity || []), ...transfertRows].sort((a, b) => (b.at || '').localeCompare(a.at || ''));
+    const eventRows = (events || []).map(e => {
+      const meta = e.metadata || {};
+      let label = '—';
+      if (e.event_type === 'login') label = 'Session ouverte';
+      else if (e.event_type === 'logout') label = 'Session fermée';
+      else if (e.event_type === 'lookup') {
+        const parts = [];
+        if (meta.barcode) parts.push(meta.barcode);
+        if (meta.product) parts.push(meta.product);
+        if (meta.brand) parts.push(meta.brand);
+        label = parts.join(' · ') + (meta.found === false ? ' (introuvable)' : '');
+      }
+      return {
+        type: e.event_type,
+        employee: e.employee,
+        label,
+        amount: 0,
+        boutique: e.boutique,
+        at: e.created_at
+      };
+    });
+    const data = [...(activity || []), ...transfertRows, ...eventRows].sort((a, b) => (b.at || '').localeCompare(a.at || ''));
     allActiviteData = data;
     filterActivite();
   } catch(e) {
@@ -2563,13 +2588,17 @@ function filterActivite() {
   const caNettoyage = filtered.filter(a => a.type === 'nettoyage').reduce((s, a) => s + parseFloat(a.amount||0), 0);
   const nbTransfert = filtered.filter(a => a.type === 'transfert').length;
   const nbInventaire = filtered.filter(a => a.type === 'inventaire').length;
+  const nbLogin = filtered.filter(a => a.type === 'login').length;
+  const nbLookup = filtered.filter(a => a.type === 'lookup').length;
   document.getElementById('actSummary').innerHTML = `
     <div class="kpi"><div class="kpi-label">Total actions</div><div class="kpi-value">${filtered.length}</div></div>
     <div class="kpi"><div class="kpi-label">💰 Ventes</div><div class="kpi-value" style="color:#3B6D11;">${caVente.toFixed(0)}€</div><div class="kpi-sub">${nbVente} vente${nbVente>1?'s':''}</div></div>
     <div class="kpi"><div class="kpi-label">🛍 Rachats</div><div class="kpi-value" style="color:#BA7517;">${caRachat.toFixed(0)}€</div><div class="kpi-sub">${nbRachat} rachat${nbRachat>1?'s':''}</div></div>
     <div class="kpi"><div class="kpi-label">👟 Nettoyages</div><div class="kpi-value" style="color:#185FA5;">${caNettoyage.toFixed(0)}€</div><div class="kpi-sub">${nbNettoyage} paire${nbNettoyage>1?'s':''}</div></div>
     <div class="kpi"><div class="kpi-label">🔄 Transferts</div><div class="kpi-value">${nbTransfert}</div></div>
-    <div class="kpi"><div class="kpi-label">📦 Scans inventaire</div><div class="kpi-value">${nbInventaire}</div></div>
+    <div class="kpi"><div class="kpi-label">📦 Inventaire</div><div class="kpi-value">${nbInventaire}</div></div>
+    <div class="kpi"><div class="kpi-label">🔎 Scans produit</div><div class="kpi-value">${nbLookup}</div></div>
+    <div class="kpi"><div class="kpi-label">🔑 Connexions</div><div class="kpi-value">${nbLogin}</div></div>
   `;
 
   // ====== KPIs par employé enrichis (count + CA) ======
@@ -2601,8 +2630,8 @@ function filterActivite() {
 
   // ====== Journal détaillé ======
   document.getElementById('actCount').textContent = `${filtered.length} action${filtered.length>1?'s':''}`;
-  const typeColors = { vente:'badge-ok', rachat:'badge-warning', nettoyage:'badge-lille', inventaire:'', transfert:'' };
-  const typeLabels = { vente:'💰 Vente', rachat:'🛍 Rachat', nettoyage:'👟 Nettoyage', inventaire:'📦 Inventaire', transfert:'🔄 Transfert' };
+  const typeColors = { vente:'badge-ok', rachat:'badge-warning', nettoyage:'badge-lille', inventaire:'', transfert:'', login:'', logout:'', lookup:'' };
+  const typeLabels = { vente:'💰 Vente', rachat:'🛍 Rachat', nettoyage:'👟 Nettoyage', inventaire:'📦 Inventaire', transfert:'🔄 Transfert', login:'🔑 Connexion', logout:'👋 Déconnexion', lookup:'🔎 Scan' };
   document.getElementById('actTable').innerHTML = filtered.length ? filtered.slice(0, 500).map(a => {
     const parts = (a.at||'').match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
     const dateStr = parts ? `${parts[3]}/${parts[2]}/${parts[1].slice(2)}` : a.at;
