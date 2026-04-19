@@ -1178,9 +1178,10 @@ tbody tr td:first-child,
 tbody tr td:nth-child(2) {
   background: var(--surface);
 }
+/* Hover sur sticky cells — !important pour battre les règles #table td:first-child */
 tbody tr:hover td:first-child,
 tbody tr:hover td:nth-child(2) {
-  background: var(--surface-alt);
+  background: var(--surface-alt) !important;
 }
 /* Lignes inline-styled (rouge subtle) — leur sticky cell aussi en accent dim */
 [data-theme="dark"] tbody tr[style*="background:#FFF8F8"] td:first-child,
@@ -1772,7 +1773,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-18-v16';
+const DASH_VERSION = '2025-04-18-v17';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
@@ -3128,20 +3129,25 @@ if (_s?.auth) {
         barcode: 'stockBarcodeFilter',
         boutique: 'stockBoutiqueFilter'
       };
-      // Reset des autres filtres en silence (pas de dispatch en boucle)
-      ['stockSearch','stockBoutiqueFilter','stockDaysFilter','stockBarcodeFilter','stockLocationFilter','stockScoreFilter'].forEach(id => {
+      const targetId = map[type];
+      // Si la même pill est déjà active → toggle OFF (clear son filtre seulement)
+      const sameClicked = document.querySelector(`.qa-pill.applied[data-filter="${type}:${value}"]`);
+      // Reset des AUTRES filtres exclusifs (location/days/barcode)
+      // Préserve search, score, sort, boutique pour ne pas casser le travail en cours
+      const exclusives = ['stockLocationFilter','stockDaysFilter','stockBarcodeFilter'];
+      exclusives.forEach(id => {
         const el = document.getElementById(id);
-        if (el && id !== map[type]) el.value = '';
+        if (el && id !== targetId) el.value = '';
       });
-      // Applique le filtre cible
-      const sel = document.getElementById(map[type]);
-      if (sel) { sel.value = value; }
-      // Un seul appel filterStock
+      const sel = document.getElementById(targetId);
+      if (sel) sel.value = sameClicked ? '' : value;
       if (typeof window.filterStock === 'function') window.filterStock();
-      // Pill visual toggle (exclusive)
+      // Pill visual: exclusive
       document.querySelectorAll('.qa-pill.applied').forEach(p => p.classList.remove('applied'));
-      const activePill = document.querySelector(`.qa-pill[data-filter="${type}:${value}"]`);
-      if (activePill) activePill.classList.add('applied');
+      if (!sameClicked) {
+        const activePill = document.querySelector(`.qa-pill[data-filter="${type}:${value}"]`);
+        if (activePill) activePill.classList.add('applied');
+      }
     }, 50);
   };
   window.resetStockFilters = function() {
@@ -3149,8 +3155,8 @@ if (_s?.auth) {
       const el = document.getElementById(id);
       if (!el) return;
       el.value = '';
-      el.dispatchEvent(new Event(el.tagName === 'INPUT' ? 'input' : 'change', { bubbles: true }));
     });
+    if (typeof window.filterStock === 'function') window.filterStock();
     document.querySelectorAll('.qa-pill.applied').forEach(p => p.classList.remove('applied'));
   };
 
