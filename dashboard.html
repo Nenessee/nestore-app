@@ -278,6 +278,8 @@ a { color: inherit; text-decoration: none; }
   position: relative;
   scroll-snap-align: start;
   transition: color .15s;
+  cursor: pointer;
+  user-select: none;
 }
 .tab:active { color: var(--text); }
 .tab.active { color: var(--text); }
@@ -1171,14 +1173,27 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   box-shadow: 1px 0 0 var(--border);
   min-width: 180px;
 }
-/* Sticky cells avec zebra */
-tbody tr:nth-child(even) td:first-child,
-tbody tr:nth-child(even) td:nth-child(2) {
-  background: var(--surface-alt) !important;
+/* Sticky cells uniformes (pas de zebra qui les fait alterner foncées) */
+tbody tr td:first-child,
+tbody tr td:nth-child(2) {
+  background: var(--surface);
 }
 tbody tr:hover td:first-child,
 tbody tr:hover td:nth-child(2) {
-  background: var(--surface-alt) !important;
+  background: var(--surface-alt);
+}
+/* Lignes inline-styled (rouge subtle) — leur sticky cell aussi en accent dim */
+[data-theme="dark"] tbody tr[style*="background:#FFF8F8"] td:first-child,
+[data-theme="dark"] tbody tr[style*="background:#fff8f8"] td:first-child,
+[data-theme="dark"] tbody tr[style*="background:#FFF8F8"] td:nth-child(2),
+[data-theme="dark"] tbody tr[style*="background:#fff8f8"] td:nth-child(2) {
+  background: rgba(34, 22, 22, 1) !important;
+}
+tbody tr[style*="background:#FFF8F8"] td:first-child,
+tbody tr[style*="background:#fff8f8"] td:first-child,
+tbody tr[style*="background:#FFF8F8"] td:nth-child(2),
+tbody tr[style*="background:#fff8f8"] td:nth-child(2) {
+  background: rgba(255, 248, 248, 1) !important;
 }
 /* Sticky col + sticky header: coin haut-gauche au-dessus des autres */
 .table-card thead th:first-child, .table-card thead th:nth-child(2) {
@@ -1757,7 +1772,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-18-v15';
+const DASH_VERSION = '2025-04-18-v16';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
@@ -3113,13 +3128,18 @@ if (_s?.auth) {
         barcode: 'stockBarcodeFilter',
         boutique: 'stockBoutiqueFilter'
       };
-      const sel = document.getElementById(map[type]);
-      if (sel) { sel.value = value; sel.dispatchEvent(new Event('change', { bubbles: true })); }
-      // Pill visual toggle
-      document.querySelectorAll('.qa-pill.applied').forEach(p => {
-        const df = p.dataset.filter || '';
-        if (df !== `${type}:${value}`) p.classList.remove('applied');
+      // Reset des autres filtres en silence (pas de dispatch en boucle)
+      ['stockSearch','stockBoutiqueFilter','stockDaysFilter','stockBarcodeFilter','stockLocationFilter','stockScoreFilter'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el && id !== map[type]) el.value = '';
       });
+      // Applique le filtre cible
+      const sel = document.getElementById(map[type]);
+      if (sel) { sel.value = value; }
+      // Un seul appel filterStock
+      if (typeof window.filterStock === 'function') window.filterStock();
+      // Pill visual toggle (exclusive)
+      document.querySelectorAll('.qa-pill.applied').forEach(p => p.classList.remove('applied'));
       const activePill = document.querySelector(`.qa-pill[data-filter="${type}:${value}"]`);
       if (activePill) activePill.classList.add('applied');
     }, 50);
