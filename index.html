@@ -330,6 +330,8 @@
       flex-shrink: 0;
       font-size: 0;
     }
+    /* JS force display:inline-block → on override pour garder le centrage flex */
+    #dashLink[style*="inline-block"] { display: inline-flex !important; }
     #dashLink svg { width: 18px; height: 18px; }
     /* On affiche "Dashboard →" quand on a la place */
     @media (min-width: 520px) {
@@ -1006,7 +1008,7 @@
 </div>
 
 <script>
-  const APP_VERSION = '2025-04-18-v7';
+  const APP_VERSION = '2025-04-18-v8';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   let currentData = null;
 

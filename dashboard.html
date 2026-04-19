@@ -677,7 +677,6 @@ tr:hover td { background: var(--surface-alt); }
 }
 /* Override les inline styles hardcodés qui cassent le dark mode */
 #dashApp button[style*="background:#f5f5f3"],
-#dashApp button[style*="background:#2C2C2A"],
 #dashApp button[style*="background:#fff"],
 #dashApp a[style*="background:#fff"] {
   background: var(--surface-2) !important;
@@ -688,9 +687,12 @@ tr:hover td { background: var(--surface-alt); }
   font-weight: 600 !important;
 }
 #dashApp button[style*="background:#2C2C2A"] {
-  background: var(--brand) !important;
-  color: var(--brand-ink) !important;
-  border-color: var(--brand) !important;
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border-strong) !important;
+  min-height: 38px;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
 }
 #dashApp button[style*="color:#A32D2D"],
 #dashApp a[style*="color:#A32D2D"],
@@ -712,13 +714,22 @@ tr:hover td { background: var(--surface-alt); }
   background: var(--info-dim) !important;
   color: var(--info) !important;
 }
-/* Lignes de tableau colorées par le JS (rachats non réglés en rose clair, etc.) */
+/* Lignes de tableau colorées par le JS */
 #dashApp tr[style*="background:#FFF8F8"],
 #dashApp tr[style*="background:#fff8f8"] {
   background: var(--accent-dim) !important;
 }
 #dashApp tr[style*="background:#FFF8F8"] td,
 #dashApp tr[style*="background:#fff8f8"] td {
+  background: transparent !important;
+  color: var(--text) !important;
+}
+#dashApp tr[style*="background:#F5FBF0"],
+#dashApp tr[style*="background:#f5fbf0"] {
+  background: var(--success-dim) !important;
+}
+#dashApp tr[style*="background:#F5FBF0"] td,
+#dashApp tr[style*="background:#f5fbf0"] td {
   background: transparent !important;
   color: var(--text) !important;
 }
@@ -731,7 +742,7 @@ tr:hover td { background: var(--surface-alt); }
   background: transparent !important;
   color: var(--text) !important;
 }
-/* Bannières / badges générés en pale green (sync inventaire, badges lille, etc.) */
+/* Badges et spans pâles */
 #dashApp [style*="background:#EAF3DE"],
 #dashApp [style*="background:#eaf3de"] {
   background: var(--badge-lille-bg) !important;
@@ -758,8 +769,59 @@ tr:hover td { background: var(--surface-alt); }
   background: var(--badge-warning-bg) !important;
   color: var(--badge-warning-fg) !important;
 }
-/* Chart legend labels */
-[data-theme="dark"] #dashApp canvas { filter: none; }
+/* KPI cliquables (ex: "cliquer pour voir") */
+.kpi[onclick], .kpi[style*="cursor:pointer"] {
+  cursor: pointer;
+  transition: transform .12s, border-color .15s, box-shadow .15s;
+}
+.kpi[onclick]:hover, .kpi[style*="cursor:pointer"]:hover {
+  transform: translateY(-2px);
+  border-color: var(--text-muted);
+  box-shadow: var(--shadow-md);
+}
+.kpi[onclick]:active, .kpi[style*="cursor:pointer"]:active { transform: translateY(0); }
+/* KPIs sélectionnés / alertes */
+.kpi[style*="border-color:#A32D2D"],
+.kpi[style*="border-color:#e53"] {
+  border-color: var(--accent) !important;
+  background: var(--accent-dim) !important;
+}
+.kpi[style*="border-color:#BA7517"] {
+  border-color: var(--warning) !important;
+  background: var(--warning-dim) !important;
+}
+/* Filtres compactés sur mobile — scrollable horizontalement */
+@media (max-width: 640px) {
+  .filters-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    margin-left: -12px; margin-right: -12px;
+    padding: 0 12px 4px;
+    scroll-snap-type: x proximity;
+  }
+  .filters-row::-webkit-scrollbar { display: none; }
+  .filters-row > * { flex-shrink: 0; scroll-snap-align: start; }
+  .filters-row .search-input { min-width: 240px; flex: 0 0 240px; }
+  .filters-row .filter-select { flex: 0 0 auto; }
+  .filters-row button { flex: 0 0 auto; }
+  /* Period bar aussi scrollable */
+  .period-bar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-left: -12px; margin-right: -12px;
+    padding: 0 12px 4px;
+    scroll-snap-type: x proximity;
+  }
+  .period-bar::-webkit-scrollbar { display: none; }
+  .period-bar > * { flex-shrink: 0; scroll-snap-align: start; }
+  /* KPI grid plus dense */
+  .kpi { padding: 14px; }
+  .kpi-label { font-size: 10px; margin-bottom: 6px; }
+  .kpi-value { font-size: 22px; }
+}
 /* Inputs / selects / textareas inline-styled */
 #dashApp input[style*="background:#f5f5f3"],
 #dashApp input[style*="background:#fff"],
@@ -770,7 +832,6 @@ tr:hover td { background: var(--surface-alt); }
   color: var(--text) !important;
   border-color: var(--border-strong) !important;
 }
-/* Inputs dates adaptés au thème */
 #dashApp input[type="date"] {
   padding: 8px 12px !important;
   background: var(--surface-2) !important;
@@ -1217,7 +1278,7 @@ tr:hover td { background: var(--surface-alt); }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-18-v7';
+const DASH_VERSION = '2025-04-18-v8';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
