@@ -643,20 +643,22 @@ tr:hover td { background: var(--surface-alt); }
 /* Responsive */
 @media (max-width: 840px) {
   .topbar-inner {
-    flex-wrap: wrap;
     height: auto;
     min-height: 60px;
-    padding: 10px 16px;
-    row-gap: 10px;
+    padding: 10px 14px;
+    align-items: center;
   }
-  .topbar-left { order: 1; }
-  .topbar-right { order: 2; margin-left: auto; }
+  .topbar-left {
+    flex-wrap: wrap;
+    row-gap: 10px;
+    align-items: center;
+  }
   .boutique-switch-pill {
-    order: 3;
     flex-basis: 100%;
     justify-content: stretch;
+    margin-top: 2px;
   }
-  .bsw-btn { flex: 1; text-align: center; padding: 7px 12px; }
+  .bsw-btn { flex: 1; padding: 8px 12px; text-align: center; font-size: 12px; }
   .tabs { top: auto; }
 }
 @media (max-width: 640px) {
@@ -673,7 +675,7 @@ tr:hover td { background: var(--surface-alt); }
   .employee-pill-name { display: none; }
   .employee-pill { padding: 3px; }
 }
-/* Override les boutons hardcoded en inline style qui cassent le dark mode */
+/* Override les inline styles hardcodés qui cassent le dark mode */
 #dashApp button[style*="background:#f5f5f3"],
 #dashApp button[style*="background:#2C2C2A"],
 #dashApp button[style*="background:#fff"],
@@ -684,7 +686,6 @@ tr:hover td { background: var(--surface-alt); }
   min-height: 38px;
   border-radius: 10px !important;
   font-weight: 600 !important;
-  transition: transform .1s;
 }
 #dashApp button[style*="background:#2C2C2A"] {
   background: var(--brand) !important;
@@ -698,6 +699,30 @@ tr:hover td { background: var(--surface-alt); }
   color: var(--accent) !important;
   border: 1px solid var(--accent) !important;
 }
+/* Pills/badges de code-barres et statuts générés par le JS */
+#dashApp [style*="background:#f1efe8"] {
+  background: var(--surface-alt) !important;
+  color: var(--text-muted) !important;
+}
+#dashApp span[style*="background:#f1efe8"][style*="monospace"] {
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+#dashApp [style*="background:#dbeafe"] {
+  background: var(--info-dim) !important;
+  color: var(--info) !important;
+}
+/* Inputs / selects / textareas inline-styled */
+#dashApp input[style*="background:#f5f5f3"],
+#dashApp input[style*="background:#fff"],
+#dashApp select[style*="background:#fff"],
+#dashApp textarea[style*="background:#f5f5f3"],
+#dashApp textarea[style*="background:#fff"] {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border-color: var(--border-strong) !important;
+}
+/* Inputs dates adaptés au thème */
 #dashApp input[type="date"] {
   padding: 8px 12px !important;
   background: var(--surface-2) !important;
@@ -708,6 +733,9 @@ tr:hover td { background: var(--surface-alt); }
   color-scheme: light dark;
 }
 [data-theme="dark"] #dashApp input[type="date"] { color-scheme: dark; }
+[data-theme="dark"] #dashApp input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
 </style>
 </head>
 <body>
@@ -1141,7 +1169,7 @@ tr:hover td { background: var(--surface-alt); }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-18-v5';
+const DASH_VERSION = '2025-04-18-v6';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
