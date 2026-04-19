@@ -10,8 +10,10 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Nestore">
+  <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
   <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
@@ -164,13 +166,14 @@
     }
     .logo {
       width: 56px; height: 56px;
-      background: var(--brand);
-      color: var(--brand-ink);
+      background: #000 url('logo.jpg') center/cover no-repeat;
+      color: transparent;
       border-radius: 16px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 16px; font-weight: 800; letter-spacing: 0.02em;
+      font-size: 0;
       margin: 0 auto 1.5rem;
       box-shadow: var(--shadow-md);
+      overflow: hidden;
     }
     h1 {
       text-align: center;
@@ -264,7 +267,7 @@
     .header .logo {
       width: 36px; height: 36px;
       border-radius: 10px; margin: 0;
-      font-size: 11px;
+      font-size: 0;
       box-shadow: none;
     }
     .title {
@@ -1008,7 +1011,7 @@
 </div>
 
 <script>
-  const APP_VERSION = '2025-04-18-v11';
+  const APP_VERSION = '2025-04-19-v12';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   let currentData = null;
 

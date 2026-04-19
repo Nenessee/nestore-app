@@ -7,6 +7,8 @@
 <meta name="theme-color" content="#f5f4ef"/>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <script>
   (function(){
     try {
@@ -151,11 +153,13 @@ a { color: inherit; text-decoration: none; }
 .topbar-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .logo {
   width: 36px; height: 36px;
-  background: var(--brand); color: var(--brand-ink);
+  background: #000 url('logo.jpg') center/cover no-repeat;
+  color: transparent;
   border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 800; letter-spacing: 0.02em;
+  font-size: 0;
   flex-shrink: 0;
+  overflow: hidden;
 }
 .topbar-title {
   font-size: 15px; font-weight: 700;
@@ -1778,7 +1782,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-18-v20';
+const DASH_VERSION = '2025-04-19-v21';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');

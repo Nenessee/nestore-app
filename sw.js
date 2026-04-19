@@ -1,11 +1,13 @@
-const CACHE_VERSION = 'nestore-v2025-04-18-v3';
+const CACHE_VERSION = 'nestore-v2025-04-19-logo';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/dashboard.html',
   '/manifest.json',
+  '/icon-180.png',
   '/icon-192.png',
-  '/icon-512.png'
+  '/icon-512.png',
+  '/logo.jpg'
 ];
 
 self.addEventListener('install', (event) => {
