@@ -1713,37 +1713,55 @@ tbody tr { transition: background .12s; }
 <div class="content">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
     <span class="section-title">Journal d'activité</span>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <select class="filter-select" id="actEmployeeFilter" onchange="filterActivite()">
-        <option value="">Tous les employés</option>
-        <option>Sacha</option><option>Mathys</option><option>Noa</option>
-        <option>Celeste</option><option>Louis</option><option>Romane</option>
-      </select>
-      <select class="filter-select" id="actTypeFilter" onchange="filterActivite()">
-        <option value="">Tous types</option>
-        <option value="vente">Ventes</option>
-        <option value="rachat">Rachats</option>
-        <option value="nettoyage">Nettoyage</option>
-        <option value="inventaire">Inventaire</option>
-        <option value="transfert">Transferts</option>
-      </select>
-      <select class="filter-select" id="actPeriodFilter" onchange="loadActivite()">
-        <option value="1">Aujourd'hui</option>
-        <option value="7">7 jours</option>
-        <option value="30">30 jours</option>
-      </select>
-    </div>
+    <button onclick="exportActivity()" class="btn btn-green">📊 Exporter CSV</button>
   </div>
+
+  <!-- Summary banner -->
+  <div id="actSummary" class="kpi-grid" style="margin-bottom:16px;"></div>
+
+  <!-- Filtres -->
+  <div class="filters-row" style="margin-bottom:16px;">
+    <input class="search-input" id="actSearch" placeholder="Rechercher article, client, paire, marque..." oninput="filterActivite()"/>
+    <select class="filter-select" id="actEmployeeFilter" onchange="filterActivite()">
+      <option value="">Tous les employés</option>
+      <option>Sacha</option><option>Mathys</option><option>Noa</option>
+      <option>Celeste</option><option>Louis</option><option>Romane</option>
+    </select>
+    <select class="filter-select" id="actTypeFilter" onchange="filterActivite()">
+      <option value="">Tous types</option>
+      <option value="vente">💰 Ventes</option>
+      <option value="rachat">🛍 Rachats</option>
+      <option value="nettoyage">👟 Nettoyage</option>
+      <option value="inventaire">📦 Inventaire</option>
+      <option value="transfert">🔄 Transferts</option>
+    </select>
+    <select class="filter-select" id="actBoutiqueFilter" onchange="filterActivite()">
+      <option value="">Toutes boutiques</option>
+      <option>Lille</option>
+      <option>DK</option>
+    </select>
+    <select class="filter-select" id="actPeriodFilter" onchange="loadActivite()">
+      <option value="1">Aujourd'hui</option>
+      <option value="7">7 jours</option>
+      <option value="30" selected>30 jours</option>
+      <option value="90">3 mois</option>
+      <option value="365">1 an</option>
+    </select>
+  </div>
+
+  <!-- KPIs par employé enrichis -->
   <div id="actKpis" class="kpi-grid" style="margin-bottom:20px;"></div>
+
+  <!-- Tableau détaillé -->
   <div class="table-card">
     <div class="table-header">
-      <span class="table-title">Toutes les actions</span>
+      <span class="table-title">Journal détaillé</span>
       <span id="actCount" style="font-size:12px;color:#888780;"></span>
     </div>
     <div style="overflow-x:auto;">
       <table>
-        <thead><tr><th>Date / Heure</th><th>Employé</th><th>Action</th><th>Article / Client</th><th>Boutique</th><th>Montant</th></tr></thead>
-        <tbody id="actTable"><tr><td colspan="6" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Heure</th><th>Employé</th><th>Action</th><th>Détails</th><th>Boutique</th><th>Montant</th></tr></thead>
+        <tbody id="actTable"><tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1825,7 +1843,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-19-v26';
+const DASH_VERSION = '2025-04-19-v27';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
@@ -2493,7 +2511,7 @@ let allActiviteData = [];
 
 async function loadActivite() {
   const days = document.getElementById('actPeriodFilter')?.value || 1;
-  document.getElementById('actTable').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr>';
+  document.getElementById('actTable').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr>';
   try {
     const [activity, transfers] = await Promise.all([
       fetch(`${BACKEND_URL}/analytics/activity?days=${days}`).then(r => r.json()).catch(() => []),
@@ -2509,54 +2527,130 @@ async function loadActivite() {
     }));
     const data = [...(activity || []), ...transfertRows].sort((a, b) => (b.at || '').localeCompare(a.at || ''));
     allActiviteData = data;
-    // KPIs par employé
-    const byEmp = {};
-    data.forEach(a => {
-      if (!byEmp[a.employee]) byEmp[a.employee] = { vente:0, rachat:0, nettoyage:0, inventaire:0, transfert:0 };
-      if (byEmp[a.employee][a.type] !== undefined) byEmp[a.employee][a.type]++;
-    });
-    document.getElementById('actKpis').innerHTML = Object.entries(byEmp).map(([emp, counts]) =>
-      `<div class="kpi">
-        <div class="kpi-label">${emp}</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
-          ${counts.vente?`<span class="badge badge-ok">${counts.vente} vente${counts.vente>1?'s':''}</span>`:''}
-          ${counts.rachat?`<span class="badge badge-warning">${counts.rachat} rachat${counts.rachat>1?'s':''}</span>`:''}
-          ${counts.nettoyage?`<span class="badge badge-lille">${counts.nettoyage} nettoyage${counts.nettoyage>1?'s':''}</span>`:''}
-          ${counts.inventaire?`<span class="badge" style="background:#f1efe8;">${counts.inventaire} scan${counts.inventaire>1?'s':''}</span>`:''}
-          ${counts.transfert?`<span class="badge" style="background:#dbeafe;color:#185FA5;">${counts.transfert} transfert${counts.transfert>1?'s':''}</span>`:''}
-        </div>
-      </div>`
-    ).join('');
     filterActivite();
   } catch(e) {
-    document.getElementById('actTable').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#A32D2D;">Erreur de chargement</td></tr>';
+    document.getElementById('actTable').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#A32D2D;">Erreur de chargement</td></tr>';
   }
 }
 
 function filterActivite() {
   const emp = document.getElementById('actEmployeeFilter').value;
   const type = document.getElementById('actTypeFilter').value;
+  const boutique = document.getElementById('actBoutiqueFilter')?.value || '';
+  const q = (document.getElementById('actSearch')?.value || '').toLowerCase();
+  const smart = window.__nvSmartMatch;
+
   let filtered = allActiviteData.filter(a => {
     if (emp && a.employee !== emp) return false;
     if (type && a.type !== type) return false;
+    if (boutique && a.boutique !== boutique) return false;
+    if (q) {
+      if (smart) {
+        if (!smart(q, a.label, a.employee)) return false;
+      } else {
+        if (!(a.label||'').toLowerCase().includes(q) && !(a.employee||'').toLowerCase().includes(q)) return false;
+      }
+    }
     return true;
   });
+
+  // ====== SUMMARY BANNER (totaux période filtrée) ======
+  const nbVente = filtered.filter(a => a.type === 'vente').length;
+  const caVente = filtered.filter(a => a.type === 'vente').reduce((s, a) => s + parseFloat(a.amount||0), 0);
+  const nbRachat = filtered.filter(a => a.type === 'rachat').length;
+  const caRachat = filtered.filter(a => a.type === 'rachat').reduce((s, a) => s + parseFloat(a.amount||0), 0);
+  const nbNettoyage = filtered.filter(a => a.type === 'nettoyage').length;
+  const caNettoyage = filtered.filter(a => a.type === 'nettoyage').reduce((s, a) => s + parseFloat(a.amount||0), 0);
+  const nbTransfert = filtered.filter(a => a.type === 'transfert').length;
+  const nbInventaire = filtered.filter(a => a.type === 'inventaire').length;
+  document.getElementById('actSummary').innerHTML = `
+    <div class="kpi"><div class="kpi-label">Total actions</div><div class="kpi-value">${filtered.length}</div></div>
+    <div class="kpi"><div class="kpi-label">💰 Ventes</div><div class="kpi-value" style="color:#3B6D11;">${caVente.toFixed(0)}€</div><div class="kpi-sub">${nbVente} vente${nbVente>1?'s':''}</div></div>
+    <div class="kpi"><div class="kpi-label">🛍 Rachats</div><div class="kpi-value" style="color:#BA7517;">${caRachat.toFixed(0)}€</div><div class="kpi-sub">${nbRachat} rachat${nbRachat>1?'s':''}</div></div>
+    <div class="kpi"><div class="kpi-label">👟 Nettoyages</div><div class="kpi-value" style="color:#185FA5;">${caNettoyage.toFixed(0)}€</div><div class="kpi-sub">${nbNettoyage} paire${nbNettoyage>1?'s':''}</div></div>
+    <div class="kpi"><div class="kpi-label">🔄 Transferts</div><div class="kpi-value">${nbTransfert}</div></div>
+    <div class="kpi"><div class="kpi-label">📦 Scans inventaire</div><div class="kpi-value">${nbInventaire}</div></div>
+  `;
+
+  // ====== KPIs par employé enrichis (count + CA) ======
+  const byEmp = {};
+  filtered.forEach(a => {
+    if (!byEmp[a.employee]) byEmp[a.employee] = { vente:0, caVente:0, rachat:0, caRachat:0, nettoyage:0, caNettoyage:0, inventaire:0, transfert:0 };
+    const e = byEmp[a.employee];
+    if (e[a.type] !== undefined) e[a.type]++;
+    const amt = parseFloat(a.amount||0);
+    if (a.type === 'vente') e.caVente += amt;
+    if (a.type === 'rachat') e.caRachat += amt;
+    if (a.type === 'nettoyage') e.caNettoyage += amt;
+  });
+  document.getElementById('actKpis').innerHTML = Object.entries(byEmp)
+    .sort(([,a],[,b]) => b.caVente - a.caVente)
+    .map(([emp, c]) =>
+      `<div class="kpi">
+        <div class="kpi-label">${emp||'—'}</div>
+        <div class="kpi-value" style="color:#3B6D11;">${c.caVente.toFixed(0)}€</div>
+        <div class="kpi-sub">CA ventes · ${c.vente} ventes</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">
+          ${c.rachat?`<span class="badge badge-warning">${c.rachat} rach. · ${c.caRachat.toFixed(0)}€</span>`:''}
+          ${c.nettoyage?`<span class="badge badge-lille">${c.nettoyage} nett. · ${c.caNettoyage.toFixed(0)}€</span>`:''}
+          ${c.inventaire?`<span class="badge" style="background:#f1efe8;color:#5f5e5a;">${c.inventaire} scan${c.inventaire>1?'s':''}</span>`:''}
+          ${c.transfert?`<span class="badge" style="background:#dbeafe;color:#185FA5;">${c.transfert} transf.</span>`:''}
+        </div>
+      </div>`
+    ).join('');
+
+  // ====== Journal détaillé ======
   document.getElementById('actCount').textContent = `${filtered.length} action${filtered.length>1?'s':''}`;
-  const typeColors = { vente:'badge-ok', rachat:'badge-warning', nettoyage:'badge-lille', inventaire:'', transfert:'badge-transfert' };
+  const typeColors = { vente:'badge-ok', rachat:'badge-warning', nettoyage:'badge-lille', inventaire:'', transfert:'' };
   const typeLabels = { vente:'💰 Vente', rachat:'🛍 Rachat', nettoyage:'👟 Nettoyage', inventaire:'📦 Inventaire', transfert:'🔄 Transfert' };
-  document.getElementById('actTable').innerHTML = filtered.length ? filtered.map(a => {
-    const parts = a.at.match(/(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
-    const dateStr = parts ? `${parts[1].split('-').reverse().join('/')} ${parts[2]}` : a.at;
+  document.getElementById('actTable').innerHTML = filtered.length ? filtered.slice(0, 500).map(a => {
+    const parts = (a.at||'').match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+    const dateStr = parts ? `${parts[3]}/${parts[2]}/${parts[1].slice(2)}` : a.at;
+    const heureStr = parts ? `${parts[4]}:${parts[5]}` : '';
     const badge = typeColors[a.type];
     return `<tr>
-      <td style="font-size:12px;color:#888780;white-space:nowrap;">${dateStr}</td>
+      <td style="font-size:12px;color:var(--text-muted);white-space:nowrap;">${dateStr}</td>
+      <td style="font-family:monospace;font-size:12px;font-weight:600;color:var(--text-muted);">${heureStr}</td>
       <td><strong>${a.employee||'—'}</strong></td>
-      <td><span class="badge ${a.type==='transfert'?'':badge}" style="${a.type==='transfert'?'background:#dbeafe;color:#185FA5;':(!badge?'background:#f1efe8;color:#5f5e5a;':'')}">${typeLabels[a.type]||a.type}</span></td>
-      <td style="font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${a.label||'—'}</td>
+      <td><span class="badge ${badge||''}" style="${a.type==='transfert'?'background:#dbeafe;color:#185FA5;':(!badge?'background:#f1efe8;color:#5f5e5a;':'')}">${typeLabels[a.type]||a.type}</span></td>
+      <td style="font-size:13px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${a.label||'—'}</td>
       <td>${a.boutique?`<span class="badge ${a.boutique==='DK'?'badge-dk':'badge-lille'}">${a.boutique}</span>`:'—'}</td>
-      <td style="font-weight:600;">${parseFloat(a.amount||0)>0?parseFloat(a.amount).toFixed(2)+'€':'—'}</td>
+      <td style="font-weight:600;text-align:right;">${parseFloat(a.amount||0)>0?parseFloat(a.amount).toFixed(2)+'€':'—'}</td>
     </tr>`;
-  }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;color:#888780;">Aucune activité</td></tr>';
+  }).join('') + (filtered.length > 500 ? `<tr><td colspan="7" style="text-align:center;padding:14px;color:#888780;font-size:12px;">… ${filtered.length - 500} actions supplémentaires (utilise les filtres ou l'export CSV pour tout voir)</td></tr>` : '') : '<tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Aucune activité</td></tr>';
+}
+
+function exportActivity() {
+  const emp = document.getElementById('actEmployeeFilter').value;
+  const type = document.getElementById('actTypeFilter').value;
+  const boutique = document.getElementById('actBoutiqueFilter')?.value || '';
+  const q = (document.getElementById('actSearch')?.value || '').toLowerCase();
+  const smart = window.__nvSmartMatch;
+  const rows = allActiviteData.filter(a => {
+    if (emp && a.employee !== emp) return false;
+    if (type && a.type !== type) return false;
+    if (boutique && a.boutique !== boutique) return false;
+    if (q && smart && !smart(q, a.label, a.employee)) return false;
+    return true;
+  });
+  if (!rows.length) { if (typeof showDashToast === 'function') showDashToast('Rien à exporter', 'warn'); return; }
+  const esc = v => `"${String(v||'').replace(/"/g,'""').replace(/[\r\n]+/g,' ')}"`;
+  const lines = ['Date,Heure,Employé,Action,Détails,Boutique,Montant (€)'];
+  rows.forEach(a => {
+    const parts = (a.at||'').match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+    const d = parts ? `${parts[3]}/${parts[2]}/${parts[1]}` : (a.at||'');
+    const h = parts ? `${parts[4]}:${parts[5]}` : '';
+    const amt = parseFloat(a.amount||0);
+    lines.push([d, h, a.employee||'', a.type||'', a.label||'', a.boutique||'', amt.toFixed(2).replace('.', ',')].map(esc).join(','));
+  });
+  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `activite_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  if (typeof showDashToast === 'function') showDashToast(`✓ ${rows.length} actions exportées`, 'success');
 }
 
 function exportMissingStock() {
