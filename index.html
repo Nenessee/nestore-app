@@ -679,6 +679,38 @@
       border-radius: 10px !important;
       border: 1px solid var(--border-strong) !important;
     }
+    .photo-btn {
+      width: 100%;
+      padding: 14px;
+      border: 1.5px dashed var(--border-strong);
+      border-radius: 12px;
+      background: var(--surface-2);
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 600;
+      min-height: 48px;
+    }
+    .photo-btn:active { background: var(--surface); transform: scale(0.99); }
+    /* Selects admin visibles (override le display:none HTML) */
+    select.admin-visible {
+      display: block !important;
+      width: 100%;
+      padding: 13px 14px;
+      border: 1px solid var(--border-strong);
+      border-radius: 12px;
+      background: var(--surface-2);
+      color: var(--text);
+      font-size: 16px;
+      margin-bottom: 10px;
+      appearance: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path fill='%237a7974' d='M6 8L2 4h8z'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 36px;
+    }
+    [data-theme="dark"] select.admin-visible {
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path fill='%238f8e88' d='M6 8L2 4h8z'/></svg>");
+    }
 
     /* Scroll smoothing */
     body { -webkit-overflow-scrolling: touch; }
@@ -833,12 +865,12 @@
     <input type="number" id="cleanPrice" class="form-input" placeholder="0" min="0" step="0.50"/>
 
     <label class="form-label">Remarques (état de la paire, instructions...)</label>
-    <textarea id="cleanRemarks" style="width:100%;padding:10px 12px;border:0.5px solid #d3d1c7;border-radius:10px;background:#f5f5f3;color:#1a1a18;font-size:14px;margin-bottom:10px;min-height:80px;resize:vertical;font-family:inherit;" placeholder="Ex: Semelle jaunie, tache sur le côté droit, attention lacets fragiles..."></textarea>
+    <textarea id="cleanRemarks" class="form-input" placeholder="Ex: Semelle jaunie, tache sur le côté droit, attention lacets fragiles..."></textarea>
 
     <label class="form-label">Photos de l'état de la paire</label>
     <div style="margin-bottom:10px;">
       <input type="file" id="cleanPhotos" accept="image/*" multiple capture="environment" style="display:none;" onchange="previewPhotos()"/>
-      <button onclick="document.getElementById('cleanPhotos').click()" style="width:100%;padding:10px;border:0.5px dashed #d3d1c7;border-radius:10px;background:#f5f5f3;color:#888780;font-size:13px;cursor:pointer;">📷 Prendre des photos</button>
+      <button onclick="document.getElementById('cleanPhotos').click()" class="photo-btn">📷 Prendre des photos</button>
       <div id="photoPreview" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;"></div>
     </div>
 
@@ -974,7 +1006,7 @@
 </div>
 
 <script>
-  const APP_VERSION = '2025-04-18-v6';
+  const APP_VERSION = '2025-04-18-v7';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   let currentData = null;
 
@@ -1812,15 +1844,19 @@
 
       // Upload photos séparément si présentes
       if (cleanPhotosData.length > 0 && result.cleaning?.id) {
+        let uploaded = 0, failed = 0;
         for (const photo of cleanPhotosData) {
           try {
-            await fetch(`${BACKEND_URL}/cleaning/${result.cleaning.id}/photo`, {
+            const r = await fetch(`${BACKEND_URL}/cleaning/${result.cleaning.id}/photo`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ photo })
             });
-          } catch(e) {}
+            if (r.ok) uploaded++; else failed++;
+          } catch(e) { failed++; }
         }
+        if (failed > 0) showToast(`⚠️ ${failed}/${cleanPhotosData.length} photo(s) non envoyée(s)`, 'warn');
+        else if (uploaded > 0) console.log(`[CLEANING] ${uploaded} photo(s) envoyée(s)`);
         // Récupérer la fiche à jour avec les photos
         try {
           const r2 = await fetch(`${BACKEND_URL}/cleanings`);
@@ -1966,6 +2002,19 @@
     if (avatar) { avatar.textContent = '★'; avatar.style.background = '#BA7517'; }
     if (nameEl) { nameEl.textContent = 'Admin'; nameEl.style.color = '#fff'; }
     if (subtitle) subtitle.textContent = 'Toutes boutiques';
+    // Admin a besoin de choisir manuellement employé + boutique
+    const allEmployees = ['Sacha', 'Mathys', 'Romane', 'Noa', 'Celeste', 'Louis'];
+    [['employeeSelect','— Choisir vendeur —'], ['purchaseEmployee','— Choisir acheteur —'], ['cleanEmployee','— Choisir nettoyeur —']].forEach(([id, ph]) => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      sel.innerHTML = `<option value="">${ph}</option>` + allEmployees.map(e => `<option value="${e}">${e}</option>`).join('');
+      sel.classList.add('admin-visible');
+    });
+    // Boutique aussi visible pour admin
+    ['boutiqueSelect','cleanBoutique'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (sel) sel.classList.add('admin-visible');
+    });
   }
 
   function checkPwd() {
