@@ -641,11 +641,28 @@ tr:hover td { background: var(--surface-alt); }
 .login-error { color: var(--accent); font-size: 13px; text-align: center; margin-top: 10px; display: none; }
 
 /* Responsive */
+@media (max-width: 840px) {
+  .topbar-inner {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 60px;
+    padding: 10px 16px;
+    row-gap: 10px;
+  }
+  .topbar-left { order: 1; }
+  .topbar-right { order: 2; margin-left: auto; }
+  .boutique-switch-pill {
+    order: 3;
+    flex-basis: 100%;
+    justify-content: stretch;
+  }
+  .bsw-btn { flex: 1; text-align: center; padding: 7px 12px; }
+  .tabs { top: auto; }
+}
 @media (max-width: 640px) {
   .kpi-grid { grid-template-columns: 1fr 1fr; }
   .charts-grid { grid-template-columns: 1fr; }
   .chart-card[style*="grid-column:span 2"] { grid-column: 1 !important; }
-  .topbar-inner { padding: 0 14px; }
   .content { padding: 16px 12px calc(20px + env(safe-area-inset-bottom)); }
   .topbar-title { font-size: 14px; }
   .btn { padding: 8px 12px; font-size: 11px; }
@@ -655,8 +672,42 @@ tr:hover td { background: var(--surface-alt); }
 @media (max-width: 480px) {
   .employee-pill-name { display: none; }
   .employee-pill { padding: 3px; }
-  .bsw-btn { padding: 5px 10px; font-size: 11px; }
 }
+/* Override les boutons hardcoded en inline style qui cassent le dark mode */
+#dashApp button[style*="background:#f5f5f3"],
+#dashApp button[style*="background:#2C2C2A"],
+#dashApp button[style*="background:#fff"],
+#dashApp a[style*="background:#fff"] {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border-strong) !important;
+  min-height: 38px;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  transition: transform .1s;
+}
+#dashApp button[style*="background:#2C2C2A"] {
+  background: var(--brand) !important;
+  color: var(--brand-ink) !important;
+  border-color: var(--brand) !important;
+}
+#dashApp button[style*="color:#A32D2D"],
+#dashApp a[style*="color:#A32D2D"],
+#dashApp button[style*="background:rgba(163,45,45"] {
+  background: var(--accent-dim) !important;
+  color: var(--accent) !important;
+  border: 1px solid var(--accent) !important;
+}
+#dashApp input[type="date"] {
+  padding: 8px 12px !important;
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: 10px !important;
+  font-size: 13px !important;
+  color-scheme: light dark;
+}
+[data-theme="dark"] #dashApp input[type="date"] { color-scheme: dark; }
 </style>
 </head>
 <body>
@@ -705,7 +756,7 @@ tr:hover td { background: var(--surface-alt); }
       </button>
       <a class="btn btn-green" href="#" onclick="exportCSV();return false;">CSV</a>
       <a class="icon-btn" href="index.html" aria-label="Retour caisse" title="Retour caisse">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M3 3h2l.4 2M7 13h10l3-7H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17M9 21a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm10 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
       </a>
       <button class="icon-btn" onclick="logout()" aria-label="Déconnexion" title="Déconnexion" style="color:var(--accent);">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -1090,7 +1141,7 @@ tr:hover td { background: var(--surface-alt); }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-18-v4';
+const DASH_VERSION = '2025-04-18-v5';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
