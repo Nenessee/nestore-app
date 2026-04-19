@@ -714,15 +714,24 @@ tr:hover td { background: var(--surface-alt); }
   background: var(--info-dim) !important;
   color: var(--info) !important;
 }
-/* Lignes de tableau colorées par le JS */
+/* Lignes de tableau colorées par le JS — tint subtil */
 #dashApp tr[style*="background:#FFF8F8"],
 #dashApp tr[style*="background:#fff8f8"] {
-  background: var(--accent-dim) !important;
+  background: rgba(232, 80, 78, 0.05) !important;
+}
+[data-theme="dark"] #dashApp tr[style*="background:#FFF8F8"],
+[data-theme="dark"] #dashApp tr[style*="background:#fff8f8"] {
+  background: rgba(255, 107, 104, 0.05) !important;
 }
 #dashApp tr[style*="background:#FFF8F8"] td,
 #dashApp tr[style*="background:#fff8f8"] td {
   background: transparent !important;
   color: var(--text) !important;
+  border-left: 2px solid transparent;
+}
+#dashApp tr[style*="background:#FFF8F8"] td:first-child,
+#dashApp tr[style*="background:#fff8f8"] td:first-child {
+  border-left: 2px solid var(--accent) !important;
 }
 #dashApp tr[style*="background:#F5FBF0"],
 #dashApp tr[style*="background:#f5fbf0"] {
@@ -1724,7 +1733,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-18-v12';
+const DASH_VERSION = '2025-04-18-v13';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
@@ -3375,11 +3384,17 @@ if (_s?.auth) {
 
   // Patch filterStock (stock en ligne)
   if (typeof window.filterStock === 'function') {
+    console.info('[Nestore] Recherche intelligente activée (Stock, Ventes, Rachats, Commandes, Nettoyage)');
     const _origStock = window.filterStock;
     window.filterStock = function() {
       const searchEl = document.getElementById('stockSearch');
       const q = (searchEl?.value || '').trim();
       if (!q || !window.allStockData) { return _origStock.apply(this, arguments); }
+      // Indicateur visuel "✨ recherche intelligente"
+      if (searchEl && !searchEl.dataset.smartHint) {
+        searchEl.placeholder = '✨ ' + (searchEl.placeholder || 'Rechercher...');
+        searchEl.dataset.smartHint = '1';
+      }
       // Réplique la logique mais avec smartMatch
       const boutique = document.getElementById('stockBoutiqueFilter').value;
       const days = document.getElementById('stockDaysFilter').value;
