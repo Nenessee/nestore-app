@@ -1115,6 +1115,142 @@ a:focus-visible, select:focus-visible, input:focus-visible {
   flex-shrink: 0;
 }
 @media (min-width: 1024px) { .cmdk-btn-icon { display: none; } }
+
+/* ====== STICKY PREMIÈRE COLONNE (tables larges) ====== */
+#stockTable th:first-child, #stockTable td:first-child,
+#stockTable th:nth-child(2), #stockTable td:nth-child(2),
+#salesTable th:first-child, #salesTable td:first-child,
+#rachatsTable th:first-child, #rachatsTable td:first-child,
+#cmdTable th:first-child, #cmdTable td:first-child,
+#cleanTable th:first-child, #cleanTable td:first-child {
+  position: sticky;
+  background: var(--surface);
+  z-index: 1;
+}
+#stockTable th:first-child, #stockTable td:first-child,
+#salesTable th:first-child, #salesTable td:first-child,
+#rachatsTable th:first-child, #rachatsTable td:first-child,
+#cmdTable th:first-child, #cmdTable td:first-child,
+#cleanTable th:first-child, #cleanTable td:first-child {
+  left: 0;
+  box-shadow: 1px 0 0 var(--border);
+}
+#stockTable th:nth-child(2), #stockTable td:nth-child(2) {
+  left: 40px;
+  box-shadow: 1px 0 0 var(--border);
+  min-width: 180px;
+}
+/* Sticky cells avec zebra */
+tbody tr:nth-child(even) td:first-child,
+tbody tr:nth-child(even) td:nth-child(2) {
+  background: var(--surface-alt) !important;
+}
+tbody tr:hover td:first-child,
+tbody tr:hover td:nth-child(2) {
+  background: var(--surface-alt) !important;
+}
+/* Sticky col + sticky header: coin haut-gauche au-dessus des autres */
+.table-card thead th:first-child, .table-card thead th:nth-child(2) {
+  z-index: 3;
+  background: var(--surface-alt);
+}
+
+/* ====== ROW CLICK HIGHLIGHT ====== */
+tbody tr.selected td {
+  background: var(--accent-dim) !important;
+  color: var(--text) !important;
+}
+tbody tr.selected td:first-child {
+  box-shadow: 3px 0 0 var(--accent), 1px 0 0 var(--accent);
+}
+
+/* ====== COPY FLASH (codes-barres) ====== */
+#dashApp [style*="monospace"] {
+  cursor: pointer;
+  transition: background .2s, color .2s, transform .1s;
+}
+#dashApp [style*="monospace"]:active { transform: scale(0.96); }
+#dashApp .copied-flash {
+  background: var(--success) !important;
+  color: #fff !important;
+}
+
+/* ====== TOAST DASHBOARD ====== */
+.toast {
+  position: fixed;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--brand);
+  color: var(--brand-ink);
+  padding: 12px 20px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  opacity: 0;
+  transition: opacity .2s, transform .2s;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 400;
+  box-shadow: var(--shadow-lg);
+  max-width: 90vw;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.success { background: var(--success); color: #fff; }
+.toast.error { background: var(--accent); color: #fff; }
+.toast.warn { background: var(--warning); color: #fff; }
+
+/* ====== LOADING SKELETONS ====== */
+@keyframes skelShimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skel {
+  display: inline-block;
+  height: 14px; border-radius: 4px;
+  background: linear-gradient(90deg, var(--surface-alt) 0px, var(--surface-2) 200px, var(--surface-alt) 400px);
+  background-size: 800px 100%;
+  animation: skelShimmer 1.4s infinite linear;
+}
+.loading .spinner-pro {
+  display: inline-block;
+  width: 22px; height: 22px;
+  border: 2.5px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  vertical-align: middle; margin-right: 10px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ====== G-KEY HINT OVERLAY ====== */
+.gkey-hint {
+  position: fixed;
+  bottom: 24px; left: 50%;
+  transform: translateX(-50%);
+  background: var(--brand);
+  color: var(--brand-ink);
+  padding: 10px 18px;
+  border-radius: 99px;
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 350;
+  box-shadow: var(--shadow-lg);
+  display: none;
+  gap: 8px;
+  align-items: center;
+}
+.gkey-hint.show { display: flex; }
+.gkey-hint .kbd { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.3); color: inherit; }
+
+/* Row click on data tables with clickable tr */
+tbody tr { transition: background .12s; }
+@media (hover: hover) {
+  tbody tr:not(.selected):hover td:not(:first-child):not(:nth-child(2)) {
+    background: var(--surface-alt) !important;
+  }
+}
 </style>
 </head>
 <body>
@@ -1569,7 +1705,7 @@ a:focus-visible, select:focus-visible, input:focus-visible {
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-18-v9';
+const DASH_VERSION = '2025-04-18-v10';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
@@ -2858,6 +2994,15 @@ if (_s?.auth) {
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
 </button>
 
+<!-- TOAST -->
+<div class="toast" id="dashToast"></div>
+
+<!-- G-KEY HINT -->
+<div class="gkey-hint" id="gkeyHint">
+  <span class="kbd">g</span> puis
+  <span class="kbd">v</span>entes · <span class="kbd">s</span>tock · <span class="kbd">r</span>achats · <span class="kbd">n</span>ettoyage · <span class="kbd">c</span>ommandes · <span class="kbd">t</span>ransferts
+</div>
+
 <script>
 /* ================= COMMAND PALETTE + POWER UX ================= */
 (function(){
@@ -3048,6 +3193,143 @@ if (_s?.auth) {
     set('qa60j', old60);
     set('qaNoCB', noCB);
   }, 1500);
+
+  /* ======= TOAST ======= */
+  function showDashToast(msg, type) {
+    const t = document.getElementById('dashToast');
+    if (!t) return;
+    t.textContent = msg;
+    t.className = 'toast show' + (type ? ' ' + type : '');
+    clearTimeout(showDashToast._to);
+    showDashToast._to = setTimeout(() => { t.className = 'toast'; }, 2500);
+  }
+  window.showDashToast = showDashToast;
+
+  /* ======= COPY-TO-CLIPBOARD sur codes-barres générés ======= */
+  async function copyToClipboard(text) {
+    try {
+      if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return true; }
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+      return true;
+    } catch { return false; }
+  }
+  document.body.addEventListener('click', async (e) => {
+    const el = e.target.closest('[style*="monospace"]');
+    if (!el || !el.textContent) return;
+    // Ignore les inputs et liens
+    if (el.tagName === 'INPUT' || el.tagName === 'A' || el.closest('a')) return;
+    const txt = el.textContent.trim();
+    if (!txt || txt.length < 3) return;
+    const ok = await copyToClipboard(txt);
+    if (ok) {
+      el.classList.add('copied-flash');
+      setTimeout(() => el.classList.remove('copied-flash'), 600);
+      showDashToast('Code-barres copié : ' + txt, 'success');
+    }
+  });
+
+  /* ======= ROW CLICK HIGHLIGHT ======= */
+  document.body.addEventListener('click', (e) => {
+    const tr = e.target.closest('tbody tr');
+    if (!tr) return;
+    // Ignore clics sur inputs / boutons / liens / selects
+    if (e.target.closest('button, a, input, select, textarea, [onclick], [style*="monospace"]')) return;
+    const already = tr.classList.contains('selected');
+    tr.parentElement.querySelectorAll('tr.selected').forEach(r => r.classList.remove('selected'));
+    if (!already) tr.classList.add('selected');
+  });
+
+  /* ======= PERSIST TAB ACTIF (nv_last_dash_tab) ======= */
+  function saveActiveTab() {
+    const active = document.querySelector('.tab.active');
+    if (!active) return;
+    const on = active.getAttribute('onclick') || '';
+    const m = on.match(/switchTab\(['"]([^'"]+)/);
+    if (m) try { localStorage.setItem('nv_last_dash_tab', m[1]); } catch {}
+  }
+  // Hook sur les clics d'onglets (sans modifier le JS existant)
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('.tab')) setTimeout(saveActiveTab, 10);
+  });
+  // Au chargement initial, restaure l'onglet
+  setTimeout(() => {
+    try {
+      const saved = localStorage.getItem('nv_last_dash_tab');
+      if (!saved || saved === 'ventes') return;
+      const btn = [...document.querySelectorAll('.tab')].find(t => (t.getAttribute('onclick') || '').includes(`switchTab('${saved}'`));
+      if (btn) btn.click();
+    } catch {}
+  }, 600);
+
+  /* ======= PERSIST FILTRES ======= */
+  const FILTER_IDS = [
+    'stockSearch','stockBoutiqueFilter','stockDaysFilter','stockBarcodeFilter','stockLocationFilter','stockScoreFilter','stockSortFilter',
+    'rachatsSearch','rachatsStatusFilter',
+    'cmdStatusFilter','cmdBoutiqueFilter','cmdSearch',
+    'cleanSearch','cleanStatusFilter','cleanBoutiqueFilter','cleanEmployeeFilter',
+    'trfPeriodFilter','trfDirectionFilter','trfEmployeeFilter',
+    'actEmployeeFilter','actTypeFilter','actPeriodFilter'
+  ];
+  function saveFilters() {
+    const state = {};
+    FILTER_IDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && el.value) state[id] = el.value;
+    });
+    try { localStorage.setItem('nv_dash_filters', JSON.stringify(state)); } catch {}
+  }
+  function restoreFilters() {
+    try {
+      const state = JSON.parse(localStorage.getItem('nv_dash_filters') || '{}');
+      Object.entries(state).forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.value = val;
+        el.dispatchEvent(new Event(el.tagName === 'INPUT' ? 'input' : 'change', { bubbles: true }));
+      });
+    } catch {}
+  }
+  FILTER_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('change', saveFilters);
+    el.addEventListener('input', saveFilters);
+  });
+  setTimeout(restoreFilters, 700);
+
+  /* ======= G-KEY SHORTCUTS (g puis v/s/r/n/c/t/a) ======= */
+  const tabMap = { v: 'ventes', s: 'stock', r: 'rachats', n: 'nettoyage', c: 'commandes', t: 'transferts', a: 'activite', o: 'rotation' };
+  let gMode = false;
+  let gTimeout = null;
+  document.addEventListener('keydown', (e) => {
+    const tag = document.activeElement?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    const open = document.getElementById('cmdkBackdrop')?.classList.contains('open');
+    if (open) return;
+    if (!gMode && e.key === 'g' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      gMode = true;
+      document.getElementById('gkeyHint')?.classList.add('show');
+      clearTimeout(gTimeout);
+      gTimeout = setTimeout(() => {
+        gMode = false;
+        document.getElementById('gkeyHint')?.classList.remove('show');
+      }, 1500);
+      return;
+    }
+    if (gMode) {
+      const name = tabMap[e.key.toLowerCase()];
+      gMode = false;
+      clearTimeout(gTimeout);
+      document.getElementById('gkeyHint')?.classList.remove('show');
+      if (name) {
+        e.preventDefault();
+        const btn = [...document.querySelectorAll('.tab')].find(t => (t.getAttribute('onclick') || '').includes(`switchTab('${name}'`));
+        if (btn) { btn.click(); showDashToast('→ ' + name.charAt(0).toUpperCase() + name.slice(1)); }
+      }
+    }
+  });
 })();
 </script>
 </body>
