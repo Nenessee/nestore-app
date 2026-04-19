@@ -1773,7 +1773,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-18-v17';
+const DASH_VERSION = '2025-04-18-v18';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
@@ -3159,6 +3159,38 @@ if (_s?.auth) {
     if (typeof window.filterStock === 'function') window.filterStock();
     document.querySelectorAll('.qa-pill.applied').forEach(p => p.classList.remove('applied'));
   };
+
+  /* Intercepte les clics des KPI cards "Localisés / Non localisés / +60j / Sans CB"
+     dont l'inline onclick ne reset pas les autres filtres exclusifs.
+     On les route vers quickStockFilter (qui gère le reset propre). */
+  const inverseFilterMap = {
+    'stockLocationFilter': 'location',
+    'stockDaysFilter': 'days',
+    'stockBarcodeFilter': 'barcode'
+  };
+  function patchSummaryKpis() {
+    document.querySelectorAll('#stockSummary .kpi[onclick]').forEach(kpi => {
+      if (kpi.dataset.nvIntercepted) return;
+      const oc = kpi.getAttribute('onclick') || '';
+      const m = oc.match(/getElementById\('([^']+)'\)\.value='([^']+)'/);
+      if (!m) return;
+      const targetId = m[1];
+      const value = m[2];
+      const type = inverseFilterMap[targetId];
+      if (!type) return;
+      kpi.removeAttribute('onclick');
+      kpi.onclick = (e) => { e.preventDefault(); window.quickStockFilter(type, value); };
+      kpi.dataset.nvIntercepted = '1';
+    });
+  }
+  // Observer pour patcher dès que loadStock re-render le summary
+  const sumEl = document.getElementById('stockSummary');
+  if (sumEl) {
+    const obs = new MutationObserver(patchSummaryKpis);
+    obs.observe(sumEl, { childList: true, subtree: true });
+  }
+  // Tentative initiale au cas où déjà rendu
+  setTimeout(patchSummaryKpis, 800);
 
   function render(query) {
     query = (query || '').trim().toLowerCase();
