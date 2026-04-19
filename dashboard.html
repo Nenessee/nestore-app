@@ -493,19 +493,28 @@ tr:hover td { background: var(--surface-alt); }
 .days-bar-fill { height: 100%; border-radius: 2px; opacity: 0.65; filter: saturate(0.85); }
 .score-bar { height: 4px; border-radius: 3px; background: var(--surface-alt); width: 60px; display: inline-block; vertical-align: middle; margin-right: 6px; opacity: 0.85; }
 .score-fill { height: 100%; border-radius: 3px; opacity: 0.7; filter: saturate(0.85); }
-/* "À brader" / autres badge-danger : moins saturé pour ne pas dominer */
+/* "À brader" / "Manquant" / badge-danger → routés en style WARNING (ambre)
+   le rouge devient overwhelming quand toutes les lignes sont alertes */
 .badge-danger {
-  background: rgba(232, 80, 78, 0.10);
-  color: #C04340;
+  background: rgba(186, 117, 23, 0.10);
+  color: #8a5512;
 }
 [data-theme="dark"] .badge-danger {
-  background: rgba(255, 107, 104, 0.12);
-  color: #FFB5B3;
+  background: rgba(232, 162, 71, 0.12);
+  color: #E8A247;
 }
-/* Score 0/faible affiché en rouge dans le JS — le rendre moins criard */
-#stockTable td span[style*="color:#"] { font-weight: 600; }
+/* Score 0 / valeurs rouges dans le JS — atténuées */
 #stockTable td span[style*="color:#A32D2D"],
-#stockTable td span[style*="color:#E24B4A"] { opacity: 0.75; }
+#stockTable td span[style*="color:#E24B4A"],
+#stockTable td span[style*="color:#791F1F"] {
+  opacity: 0.55 !important;
+  font-weight: 600;
+}
+/* Days/score bars: même couleur uniforme, très subtile */
+.days-bar-fill, .score-fill {
+  opacity: 0.45 !important;
+  filter: saturate(0.55) !important;
+}
 
 /* Bulk toolbar */
 .bulk-toolbar {
@@ -947,21 +956,22 @@ tr:hover td { background: var(--surface-alt); }
   .content { padding: 24px 20px; }
 }
 
-/* Zebra subtle sur desktop */
-@media (min-width: 768px) {
-  tbody tr:nth-child(even):not([style*="background"]) td {
-    background: rgba(0, 0, 0, 0.018);
-  }
-}
-[data-theme="dark"] tbody tr:nth-child(even):not([style*="background"]) td {
-  background: rgba(255, 255, 255, 0.018);
-}
+/* (Zebra retiré — l'attribut selector :not([style*="background"]) coûteux
+   était re-évalué à chaque hover/click sur 1000+ lignes) */
 
-/* ====== FOCUS RINGS PRO ====== */
-button:focus-visible, .tab:focus-visible, .bsw-btn:focus-visible,
-a:focus-visible, select:focus-visible, input:focus-visible {
+/* ====== FOCUS RINGS PRO (sauf tabs et icon-btns pour éviter la "barre" sur clic) ====== */
+button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+.tab:focus, .tab:focus-visible,
+.bsw-btn:focus, .bsw-btn:focus-visible,
+.icon-btn:focus, .icon-btn:focus-visible,
+.cmdk-btn:focus, .cmdk-btn:focus-visible,
+.cmdk-btn-icon:focus, .cmdk-btn-icon:focus-visible,
+.qa-pill:focus, .qa-pill:focus-visible,
+.period-btn:focus, .period-btn:focus-visible {
+  outline: none;
 }
 
 /* ====== KBD BADGES (pour command palette / shortcuts) ====== */
@@ -1747,7 +1757,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-18-v14';
+const DASH_VERSION = '2025-04-18-v15';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
