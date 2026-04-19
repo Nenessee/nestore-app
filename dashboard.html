@@ -845,6 +845,276 @@ tr:hover td { background: var(--surface-alt); }
 [data-theme="dark"] #dashApp input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(1);
 }
+
+/* ====== QUICK ACTIONS PILLS (en tête du Stock) ====== */
+.quick-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.qa-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  min-height: 42px;
+  transition: transform .12s, border-color .15s, background .15s;
+}
+.qa-pill:active { transform: scale(0.97); }
+.qa-pill:hover { border-color: var(--text-muted); }
+.qa-count {
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.qa-label { font-weight: 500; color: var(--text-muted); }
+.qa-danger { border-color: rgba(232, 80, 78, 0.3); background: var(--accent-dim); }
+.qa-danger .qa-count { color: var(--accent); }
+.qa-danger:hover { border-color: var(--accent); }
+.qa-warning { border-color: rgba(186, 117, 23, 0.3); background: var(--warning-dim); }
+.qa-warning .qa-count { color: var(--warning); }
+.qa-warning:hover { border-color: var(--warning); }
+.qa-info { border-color: rgba(24, 95, 165, 0.3); background: var(--info-dim); }
+.qa-info .qa-count { color: var(--info); }
+.qa-info:hover { border-color: var(--info); }
+.qa-reset {
+  margin-left: auto;
+  border-style: dashed;
+  color: var(--text-muted);
+}
+.qa-reset:hover { color: var(--text); }
+.qa-pill.applied {
+  border-width: 2px;
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+/* ====== STICKY TABLE HEADERS ====== */
+.table-card { position: relative; }
+@media (min-width: 768px) {
+  .table-card thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--surface-alt);
+    backdrop-filter: saturate(180%) blur(8px);
+    -webkit-backdrop-filter: saturate(180%) blur(8px);
+  }
+}
+
+/* ====== DESKTOP DATA DENSITY ====== */
+@media (min-width: 1024px) {
+  td { padding: 10px 14px; font-size: 13px; }
+  th { padding: 11px 14px; font-size: 10.5px; }
+  .badge { font-size: 10.5px; padding: 3px 9px; }
+  .kpi { padding: 16px 18px; }
+  .kpi-value { font-size: 26px; }
+  .kpi-label { font-size: 10px; }
+  .content { padding: 24px 20px; }
+}
+
+/* Zebra subtle sur desktop */
+@media (min-width: 768px) {
+  tbody tr:nth-child(even):not([style*="background"]) td {
+    background: rgba(0, 0, 0, 0.018);
+  }
+}
+[data-theme="dark"] tbody tr:nth-child(even):not([style*="background"]) td {
+  background: rgba(255, 255, 255, 0.018);
+}
+
+/* ====== FOCUS RINGS PRO ====== */
+button:focus-visible, .tab:focus-visible, .bsw-btn:focus-visible,
+a:focus-visible, select:focus-visible, input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ====== KBD BADGES (pour command palette / shortcuts) ====== */
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-family: -apple-system, BlinkMacSystemFont, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.kbd + .kbd { margin-left: 3px; }
+
+/* ====== COMMAND PALETTE ====== */
+.cmdk-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 300;
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  padding: max(8vh, 40px) 16px 20px;
+  padding-top: calc(max(8vh, 40px) + env(safe-area-inset-top));
+  animation: cmdkFade .15s ease;
+}
+.cmdk-backdrop.open { display: flex; }
+@keyframes cmdkFade { from { opacity: 0; } to { opacity: 1; } }
+.cmdk-modal {
+  width: 100%;
+  max-width: 560px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 18px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: cmdkSlide .18s cubic-bezier(.2,.7,.3,1);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 16vh - env(safe-area-inset-top) - 20px);
+}
+@keyframes cmdkSlide { from { transform: translateY(-12px); opacity: 0; } to { transform: none; opacity: 1; } }
+.cmdk-search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.cmdk-search svg { width: 18px; height: 18px; color: var(--text-muted); flex-shrink: 0; }
+.cmdk-input {
+  flex: 1;
+  border: none !important;
+  background: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  font-size: 16px !important;
+  font-weight: 500;
+  color: var(--text) !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+.cmdk-input::placeholder { color: var(--text-soft); }
+.cmdk-hint {
+  display: none;
+  font-size: 11px;
+  color: var(--text-soft);
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+@media (min-width: 640px) { .cmdk-hint { display: inline-flex; } }
+.cmdk-list {
+  overflow-y: auto;
+  max-height: 56vh;
+  padding: 8px;
+}
+.cmdk-group-label {
+  padding: 10px 12px 6px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: var(--text-soft);
+}
+.cmdk-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  min-height: 40px;
+}
+.cmdk-item .ic {
+  width: 28px; height: 28px;
+  background: var(--surface-alt);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.cmdk-item .lbl { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmdk-item .suffix { color: var(--text-soft); font-size: 11px; flex-shrink: 0; }
+.cmdk-item.selected { background: var(--accent-dim); color: var(--accent); }
+.cmdk-item.selected .ic { background: rgba(232,80,78,0.2); }
+.cmdk-item:hover:not(.selected) { background: var(--surface-alt); }
+.cmdk-empty { padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 14px; }
+.cmdk-footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-soft);
+}
+.cmdk-footer span { display: inline-flex; align-items: center; gap: 4px; }
+
+/* ====== BACK-TO-TOP ====== */
+.back-to-top {
+  position: fixed;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  right: 20px;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-md);
+  display: none;
+  align-items: center; justify-content: center;
+  z-index: 80;
+  transition: transform .15s, opacity .15s;
+}
+.back-to-top.visible { display: flex; }
+.back-to-top:active { transform: scale(0.92); }
+.back-to-top svg { width: 20px; height: 20px; }
+
+/* ====== COMMAND BUTTON (trigger in topbar) ====== */
+.cmdk-btn {
+  display: none;
+  align-items: center; gap: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  min-height: 38px;
+}
+.cmdk-btn:hover { border-color: var(--text-muted); color: var(--text); }
+.cmdk-btn svg { width: 14px; height: 14px; }
+@media (min-width: 1024px) { .cmdk-btn { display: inline-flex; } }
+.cmdk-btn-icon {
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  flex-shrink: 0;
+}
+@media (min-width: 1024px) { .cmdk-btn-icon { display: none; } }
 </style>
 </head>
 <body>
@@ -887,6 +1157,14 @@ tr:hover td { background: var(--surface-alt); }
         <div id="employeePillAvatar" class="employee-pill-avatar"></div>
         <span id="employeePillName" class="employee-pill-name"></span>
       </div>
+      <button class="cmdk-btn" onclick="cmdkOpen()" aria-label="Command palette" title="Command palette (Ctrl/⌘ + K)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span>Rechercher · navigation</span>
+        <span style="display:inline-flex;gap:3px;margin-left:12px;"><span class="kbd">⌘</span><span class="kbd">K</span></span>
+      </button>
+      <button class="cmdk-btn-icon" onclick="cmdkOpen()" aria-label="Rechercher" title="Rechercher">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
       <button class="icon-btn theme-toggle" onclick="toggleTheme()" aria-label="Changer de thème" title="Changer de thème">
         <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
         <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
@@ -993,6 +1271,19 @@ tr:hover td { background: var(--surface-alt); }
 <!-- TAB STOCK -->
 <div id="tab-stock" class="tab-panel">
 <div class="content">
+  <!-- Quick actions pills -->
+  <div class="quick-actions" id="stockQuickActions" style="display:none;">
+    <button class="qa-pill qa-danger" onclick="quickStockFilter('location','absent',this)" data-filter="location:absent">
+      <span class="qa-count" id="qaNotLoc">0</span><span class="qa-label">Non localisés</span>
+    </button>
+    <button class="qa-pill qa-warning" onclick="quickStockFilter('days','danger',this)" data-filter="days:danger">
+      <span class="qa-count" id="qa60j">0</span><span class="qa-label">+60 jours</span>
+    </button>
+    <button class="qa-pill qa-info" onclick="quickStockFilter('barcode','missing',this)" data-filter="barcode:missing">
+      <span class="qa-count" id="qaNoCB">0</span><span class="qa-label">Sans code-barres</span>
+    </button>
+    <button class="qa-pill qa-reset" onclick="resetStockFilters()">✕ Reset</button>
+  </div>
   <div style="margin-bottom:12px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
       <div class="section-title" style="margin:0;">Stock en ligne actuellement</div>
@@ -1278,7 +1569,7 @@ tr:hover td { background: var(--surface-alt); }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-18-v8';
+const DASH_VERSION = '2025-04-18-v9';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
@@ -2544,5 +2835,220 @@ if (_s?.auth) {
   </div>
   <div id="lbCounter" style="color:rgba(255,255,255,0.6);font-size:13px;"></div>
 </div>
+
+<!-- COMMAND PALETTE -->
+<div class="cmdk-backdrop" id="cmdkBackdrop" onclick="if(event.target===this)cmdkClose()">
+  <div class="cmdk-modal" role="dialog" aria-modal="true">
+    <div class="cmdk-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" class="cmdk-input" id="cmdkInput" placeholder="Naviguer, filtrer, agir…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <span class="cmdk-hint"><span class="kbd">↵</span> pour activer</span>
+    </div>
+    <div class="cmdk-list" id="cmdkList"></div>
+    <div class="cmdk-footer">
+      <span><span class="kbd">↑</span><span class="kbd">↓</span> naviguer</span>
+      <span><span class="kbd">↵</span> sélectionner</span>
+      <span><span class="kbd">esc</span> fermer</span>
+    </div>
+  </div>
+</div>
+
+<!-- BACK TO TOP -->
+<button class="back-to-top" id="backToTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Retour en haut">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<script>
+/* ================= COMMAND PALETTE + POWER UX ================= */
+(function(){
+  const commands = [
+    { group: 'Onglets', id: 'nav-ventes',     icon: '💰', label: 'Ventes — KPIs et tableau',     run: () => clickTab('ventes') },
+    { group: 'Onglets', id: 'nav-stock',      icon: '📦', label: 'Stock en ligne',              run: () => clickTab('stock') },
+    { group: 'Onglets', id: 'nav-rotation',   icon: '🔁', label: 'Rotation par marque',          run: () => clickTab('rotation') },
+    { group: 'Onglets', id: 'nav-rachats',    icon: '🛍', label: 'Rachats boutique',             run: () => clickTab('rachats') },
+    { group: 'Onglets', id: 'nav-nettoyage',  icon: '👟', label: 'Nettoyage',                   run: () => clickTab('nettoyage') },
+    { group: 'Onglets', id: 'nav-commandes',  icon: '🌐', label: 'Commandes web',                run: () => clickTab('commandes') },
+    { group: 'Onglets', id: 'nav-transferts', icon: '↔',  label: 'Transferts inter-boutiques',  run: () => clickTab('transferts') },
+    { group: 'Onglets', id: 'nav-activite',   icon: '📋', label: 'Journal d\'activité (admin)',  run: () => clickTab('activite') },
+
+    { group: 'Stock — filtres rapides', id: 'f-notloc',  icon: '📍', label: 'Filtrer : non localisés',    run: () => quickStockFilter('location','absent') },
+    { group: 'Stock — filtres rapides', id: 'f-60j',     icon: '⏱',  label: 'Filtrer : en ligne +60 jours', run: () => quickStockFilter('days','danger') },
+    { group: 'Stock — filtres rapides', id: 'f-30j',     icon: '⚠',  label: 'Filtrer : en ligne +30 jours', run: () => quickStockFilter('days','warn') },
+    { group: 'Stock — filtres rapides', id: 'f-nocb',    icon: '❓', label: 'Filtrer : sans code-barres',  run: () => quickStockFilter('barcode','missing') },
+    { group: 'Stock — filtres rapides', id: 'f-lille',   icon: '🏪', label: 'Boutique Lille uniquement',   run: () => quickStockFilter('boutique','Lille') },
+    { group: 'Stock — filtres rapides', id: 'f-dk',      icon: '🏪', label: 'Boutique DK uniquement',      run: () => quickStockFilter('boutique','DK') },
+    { group: 'Stock — filtres rapides', id: 'f-reset',   icon: '✕',  label: 'Réinitialiser les filtres',   run: () => resetStockFilters() },
+
+    { group: 'Périodes (onglet actif)', id: 'p-today', icon: '📅', label: 'Aujourd\'hui', run: () => clickPeriod(1) },
+    { group: 'Périodes (onglet actif)', id: 'p-7',     icon: '📅', label: '7 jours',      run: () => clickPeriod(7) },
+    { group: 'Périodes (onglet actif)', id: 'p-30',    icon: '📅', label: '30 jours',     run: () => clickPeriod(30) },
+    { group: 'Périodes (onglet actif)', id: 'p-90',    icon: '📅', label: '3 mois',       run: () => clickPeriod(90) },
+    { group: 'Périodes (onglet actif)', id: 'p-365',   icon: '📅', label: '1 an',         run: () => clickPeriod(365) },
+
+    { group: 'Actions',   id: 'a-csv',    icon: '📊', label: 'Exporter toutes les ventes (CSV)', run: () => typeof exportCSV === 'function' && exportCSV() },
+    { group: 'Actions',   id: 'a-refresh',icon: '↻',  label: 'Actualiser le stock Shopify',      run: () => { if (window.allStockData) window.allStockData = []; typeof loadStock === 'function' && loadStock(); clickTab('stock'); } },
+    { group: 'Interface', id: 'i-theme',  icon: '🎨', label: 'Basculer thème clair / sombre',    run: () => typeof toggleTheme === 'function' && toggleTheme() },
+    { group: 'Interface', id: 'i-caisse', icon: '🛒', label: 'Retour à l\'app caisse',            run: () => location.href = 'index.html' },
+    { group: 'Compte',    id: 'c-logout', icon: '↩',  label: 'Déconnexion',                       run: () => typeof logout === 'function' && logout() },
+  ];
+
+  let selectedIdx = 0;
+  let filtered = commands;
+
+  function clickTab(name) {
+    const tab = [...document.querySelectorAll('.tab, [class*="tab "]')].find(t => {
+      const on = t.getAttribute('onclick') || '';
+      return on.includes(`switchTab('${name}'`) || on.includes(`switchTab("${name}"`);
+    });
+    if (tab) tab.click();
+  }
+  function clickPeriod(days) {
+    const btns = [...document.querySelectorAll('.period-btn')];
+    const b = btns.find(b => (b.getAttribute('onclick') || '').includes(`setPeriod(${days},`));
+    if (b) b.click();
+  }
+  window.quickStockFilter = function(type, value, btn) {
+    clickTab('stock');
+    setTimeout(() => {
+      const map = {
+        location: 'stockLocationFilter',
+        days: 'stockDaysFilter',
+        barcode: 'stockBarcodeFilter',
+        boutique: 'stockBoutiqueFilter'
+      };
+      const sel = document.getElementById(map[type]);
+      if (sel) { sel.value = value; sel.dispatchEvent(new Event('change', { bubbles: true })); }
+      // Pill visual toggle
+      document.querySelectorAll('.qa-pill.applied').forEach(p => {
+        const df = p.dataset.filter || '';
+        if (df !== `${type}:${value}`) p.classList.remove('applied');
+      });
+      const activePill = document.querySelector(`.qa-pill[data-filter="${type}:${value}"]`);
+      if (activePill) activePill.classList.add('applied');
+    }, 50);
+  };
+  window.resetStockFilters = function() {
+    ['stockSearch','stockBoutiqueFilter','stockDaysFilter','stockBarcodeFilter','stockLocationFilter','stockScoreFilter'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.value = '';
+      el.dispatchEvent(new Event(el.tagName === 'INPUT' ? 'input' : 'change', { bubbles: true }));
+    });
+    document.querySelectorAll('.qa-pill.applied').forEach(p => p.classList.remove('applied'));
+  };
+
+  function render(query) {
+    query = (query || '').trim().toLowerCase();
+    filtered = query ? commands.filter(c => (c.label + ' ' + c.group).toLowerCase().includes(query)) : commands;
+    const list = document.getElementById('cmdkList');
+    if (!filtered.length) {
+      list.innerHTML = `<div class="cmdk-empty">Aucune commande ne correspond à "${query}"</div>`;
+      return;
+    }
+    selectedIdx = Math.min(selectedIdx, filtered.length - 1);
+    let html = '';
+    let lastGroup = null;
+    filtered.forEach((c, i) => {
+      if (c.group !== lastGroup) {
+        html += `<div class="cmdk-group-label">${c.group}</div>`;
+        lastGroup = c.group;
+      }
+      html += `<div class="cmdk-item${i === selectedIdx ? ' selected' : ''}" data-idx="${i}"><span class="ic">${c.icon}</span><span class="lbl">${c.label}</span></div>`;
+    });
+    list.innerHTML = html;
+    list.querySelectorAll('.cmdk-item').forEach(el => {
+      el.addEventListener('mouseenter', () => { selectedIdx = parseInt(el.dataset.idx); updateSelection(); });
+      el.addEventListener('click', () => { execute(filtered[parseInt(el.dataset.idx)]); });
+    });
+    scrollSelectedIntoView();
+  }
+  function updateSelection() {
+    document.querySelectorAll('.cmdk-item').forEach(el => {
+      el.classList.toggle('selected', parseInt(el.dataset.idx) === selectedIdx);
+    });
+    scrollSelectedIntoView();
+  }
+  function scrollSelectedIntoView() {
+    const el = document.querySelector('.cmdk-item.selected');
+    if (el) el.scrollIntoView({ block: 'nearest' });
+  }
+  function execute(cmd) {
+    cmdkClose();
+    if (cmd && typeof cmd.run === 'function') try { cmd.run(); } catch(e) { console.error(e); }
+  }
+  window.cmdkOpen = function() {
+    selectedIdx = 0;
+    const inp = document.getElementById('cmdkInput');
+    inp.value = '';
+    render('');
+    document.getElementById('cmdkBackdrop').classList.add('open');
+    setTimeout(() => inp.focus(), 60);
+  };
+  window.cmdkClose = function() {
+    document.getElementById('cmdkBackdrop').classList.remove('open');
+  };
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', e => {
+    const open = document.getElementById('cmdkBackdrop')?.classList.contains('open');
+    const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+    const mod = isMac ? e.metaKey : e.ctrlKey;
+    // Cmd/Ctrl + K
+    if (mod && (e.key === 'k' || e.key === 'K')) {
+      e.preventDefault();
+      if (open) cmdkClose(); else cmdkOpen();
+      return;
+    }
+    // Escape fermer modal ou cmdk
+    if (e.key === 'Escape') {
+      if (open) { e.preventDefault(); cmdkClose(); return; }
+      const m = document.querySelector('.modal.active');
+      if (m) { m.classList.remove('active'); return; }
+      const lb = document.getElementById('photoLightbox');
+      if (lb && lb.style.display === 'flex') { lb.style.display = 'none'; return; }
+    }
+    // / focus search (quand pas dans un input)
+    if (e.key === '/' && !open) {
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      const panel = document.querySelector('.tab-panel.active');
+      const s = panel?.querySelector('.search-input');
+      if (s) { e.preventDefault(); s.focus(); s.select(); }
+      return;
+    }
+    // Flèches et Enter dans la palette
+    if (!open) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); selectedIdx = (selectedIdx + 1) % filtered.length; updateSelection(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); selectedIdx = (selectedIdx - 1 + filtered.length) % filtered.length; updateSelection(); }
+    else if (e.key === 'Enter') { e.preventDefault(); execute(filtered[selectedIdx]); }
+  });
+  document.getElementById('cmdkInput').addEventListener('input', e => {
+    selectedIdx = 0;
+    render(e.target.value);
+  });
+
+  // Back-to-top
+  const btt = document.getElementById('backToTop');
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 400) btt.classList.add('visible');
+    else btt.classList.remove('visible');
+  }, { passive: true });
+
+  // Update quick-action counts
+  setInterval(() => {
+    const data = window.allStockData;
+    if (!Array.isArray(data) || !data.length) return;
+    const qa = document.getElementById('stockQuickActions');
+    if (qa) qa.style.display = 'flex';
+    const notLoc = data.filter(p => !p.inBoutique).length;
+    const old60 = data.filter(p => (p.daysOnline || 0) >= 60).length;
+    const noCB = data.filter(p => !p.barcode).length;
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set('qaNotLoc', notLoc);
+    set('qa60j', old60);
+    set('qaNoCB', noCB);
+  }, 1500);
+})();
+</script>
 </body>
 </html>
