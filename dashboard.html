@@ -1312,23 +1312,23 @@ tbody tr { transition: background .12s; }
         <div id="employeePillAvatar" class="employee-pill-avatar"></div>
         <span id="employeePillName" class="employee-pill-name"></span>
       </div>
-      <button class="cmdk-btn" onclick="cmdkOpen()" aria-label="Command palette" title="Command palette (Ctrl/⌘ + K)">
+      <button class="cmdk-btn" onclick="cmdkOpen()" aria-label="Command palette">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <span>Rechercher · navigation</span>
         <span style="display:inline-flex;gap:3px;margin-left:12px;"><span class="kbd">⌘</span><span class="kbd">K</span></span>
       </button>
-      <button class="cmdk-btn-icon" onclick="cmdkOpen()" aria-label="Rechercher" title="Rechercher">
+      <button class="cmdk-btn-icon" onclick="cmdkOpen()" aria-label="Rechercher">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       </button>
-      <button class="icon-btn theme-toggle" onclick="toggleTheme()" aria-label="Changer de thème" title="Changer de thème">
+      <button class="icon-btn theme-toggle" onclick="toggleTheme()" aria-label="Changer de thème">
         <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
         <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       </button>
       <a class="btn btn-green" href="#" onclick="exportCSV();return false;">CSV</a>
-      <a class="icon-btn" href="index.html" aria-label="Retour caisse" title="Retour caisse">
+      <a class="icon-btn" href="index.html" aria-label="Retour caisse">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
       </a>
-      <button class="icon-btn" onclick="logout()" aria-label="Déconnexion" title="Déconnexion" style="color:var(--accent);">
+      <button class="icon-btn" onclick="logout()" aria-label="Déconnexion" style="color:var(--accent);">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       </button>
     </div>
@@ -1724,7 +1724,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-18-v11';
+const DASH_VERSION = '2025-04-18-v12';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
