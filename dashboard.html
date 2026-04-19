@@ -1736,6 +1736,9 @@ tbody tr { transition: background .12s; }
       <option value="transfert">🔄 Transferts</option>
       <option value="login">🔑 Connexions</option>
       <option value="logout">👋 Déconnexions</option>
+      <option value="session_pause">💤 Quitte l'app</option>
+      <option value="session_resume">☀️ Revient sur l'app</option>
+      <option value="session_end">✕ Ferme l'app</option>
       <option value="lookup">🔎 Scans produits</option>
     </select>
     <select class="filter-select" id="actBoutiqueFilter" onchange="filterActivite()">
@@ -1846,7 +1849,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-19-v29';
+const DASH_VERSION = '2025-04-19-v30';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
@@ -2542,7 +2545,14 @@ async function loadActivite() {
       const meta = e.metadata || {};
       let label = '—';
       if (e.event_type === 'login') label = 'Session ouverte';
-      else if (e.event_type === 'logout') label = 'Session fermée';
+      else if (e.event_type === 'logout') label = 'Déconnexion manuelle';
+      else if (e.event_type === 'session_pause') label = 'Quitte l\'app (lock/swipe)';
+      else if (e.event_type === 'session_resume') {
+        const sec = Math.round((meta.awayMs || 0) / 1000);
+        const mn = Math.floor(sec / 60);
+        label = mn > 0 ? `Revient après ${mn}min ${sec%60}s` : `Revient après ${sec}s`;
+      }
+      else if (e.event_type === 'session_end') label = 'Ferme l\'app';
       else if (e.event_type === 'lookup') {
         const parts = [];
         if (meta.barcode) parts.push(meta.barcode);
@@ -2639,8 +2649,8 @@ function filterActivite() {
 
   // ====== Journal détaillé ======
   document.getElementById('actCount').textContent = `${filtered.length} action${filtered.length>1?'s':''}`;
-  const typeColors = { vente:'badge-ok', rachat:'badge-warning', nettoyage:'badge-lille', inventaire:'', transfert:'', login:'', logout:'', lookup:'' };
-  const typeLabels = { vente:'💰 Vente', rachat:'🛍 Rachat', nettoyage:'👟 Nettoyage', inventaire:'📦 Inventaire', transfert:'🔄 Transfert', login:'🔑 Connexion', logout:'👋 Déconnexion', lookup:'🔎 Scan' };
+  const typeColors = { vente:'badge-ok', rachat:'badge-warning', nettoyage:'badge-lille', inventaire:'', transfert:'', login:'', logout:'', lookup:'', session_pause:'', session_resume:'', session_end:'' };
+  const typeLabels = { vente:'💰 Vente', rachat:'🛍 Rachat', nettoyage:'👟 Nettoyage', inventaire:'📦 Inventaire', transfert:'🔄 Transfert', login:'🔑 Connexion', logout:'👋 Déconnexion', lookup:'🔎 Scan', session_pause:'💤 Quitte l\'app', session_resume:'☀️ Revient', session_end:'✕ Ferme l\'app' };
   document.getElementById('actTable').innerHTML = filtered.length ? filtered.slice(0, 500).map(a => {
     const parts = (a.at||'').match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
     const dateStr = parts ? `${parts[3]}/${parts[2]}/${parts[1].slice(2)}` : a.at;
@@ -3177,20 +3187,44 @@ let DASH_EMPLOYEE = null;
 function logEvent(type, metadata) {
   try {
     const session = JSON.parse(localStorage.getItem('nv_session') || '{}');
+    const body = JSON.stringify({
+      employee: session.employee || null,
+      boutique: session.boutique || null,
+      type,
+      metadata: metadata || {}
+    });
+    if (navigator.sendBeacon) {
+      const blob = new Blob([body], { type: 'application/json' });
+      if (navigator.sendBeacon(`${BACKEND_URL}/log/event`, blob)) return;
+    }
     fetch(`${BACKEND_URL}/log/event`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        employee: session.employee || null,
-        boutique: session.boutique || null,
-        type,
-        metadata: metadata || {}
-      }),
+      body,
       keepalive: true
     }).catch(() => {});
   } catch(e) {}
 }
 window.__nvLog = logEvent;
+
+// Session pause / resume / end (lock, swipe, switch app, ferme onglet)
+let _dashLastHiddenAt = 0;
+document.addEventListener('visibilitychange', () => {
+  const session = JSON.parse(localStorage.getItem('nv_session') || '{}');
+  if (!session.auth) return;
+  if (document.visibilityState === 'hidden') {
+    _dashLastHiddenAt = Date.now();
+    logEvent('session_pause');
+  } else if (document.visibilityState === 'visible' && _dashLastHiddenAt) {
+    const gap = Date.now() - _dashLastHiddenAt;
+    if (gap > 10000) logEvent('session_resume', { awayMs: gap });
+    _dashLastHiddenAt = 0;
+  }
+});
+window.addEventListener('pagehide', () => {
+  const session = JSON.parse(localStorage.getItem('nv_session') || '{}');
+  if (session.auth) logEvent('session_end');
+});
 
 function logout() {
   logEvent('logout');

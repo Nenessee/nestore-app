@@ -1011,7 +1011,7 @@
 </div>
 
 <script>
-  const APP_VERSION = '2025-04-19-v13';
+  const APP_VERSION = '2025-04-19-v14';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   let currentData = null;
 
@@ -2069,22 +2069,50 @@
   function logEvent(type, metadata) {
     try {
       const session = JSON.parse(localStorage.getItem('nv_session') || '{}');
-      const body = {
+      const body = JSON.stringify({
         employee: session.employee || null,
         boutique: session.boutique || null,
         type,
         metadata: metadata || {}
-      };
-      // Fire-and-forget (keepalive pour que ça parte même en cas de navigation)
+      });
+      // Pendant pagehide/visibilitychange, fetch peut être tué — on utilise sendBeacon
+      // qui est conçu pour les events de lifecycle (livraison garantie par le browser)
+      if (navigator.sendBeacon) {
+        const blob = new Blob([body], { type: 'application/json' });
+        if (navigator.sendBeacon(`${BACKEND_URL}/log/event`, blob)) return;
+      }
       fetch(`${BACKEND_URL}/log/event`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body,
         keepalive: true
       }).catch(() => {});
     } catch(e) {}
   }
   window.__nvLog = logEvent;
+
+  // Détection quand l'employé quitte l'app (lock écran, swipe, change d'onglet, ferme)
+  // iOS: visibilitychange 'hidden' fire sur lock + swipe + switch app
+  // Desktop: pareil + pagehide sur fermeture d'onglet
+  let _lastHiddenAt = 0;
+  document.addEventListener('visibilitychange', () => {
+    const session = JSON.parse(localStorage.getItem('nv_session') || '{}');
+    if (!session.auth) return;
+    if (document.visibilityState === 'hidden') {
+      // Debounce: si repasse visible → hidden en <2s (p.ex. notification brève), skip
+      _lastHiddenAt = Date.now();
+      logEvent('session_pause');
+    } else if (document.visibilityState === 'visible' && _lastHiddenAt) {
+      const gap = Date.now() - _lastHiddenAt;
+      // Si absent >10s, compte comme retour réel
+      if (gap > 10000) logEvent('session_resume', { awayMs: gap });
+      _lastHiddenAt = 0;
+    }
+  });
+  window.addEventListener('pagehide', () => {
+    const session = JSON.parse(localStorage.getItem('nv_session') || '{}');
+    if (session.auth) logEvent('session_end');
+  });
 
   function connectEmployee(employee, boutique) {
     localStorage.setItem('nv_session', JSON.stringify({auth:true, boutique, employee}));
