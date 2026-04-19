@@ -1201,6 +1201,25 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
     width: 40px !important; height: 40px !important;
   }
 }
+/* ====== PERF: virtualize off-screen rows ====== */
+/* Le browser ne peinte que les lignes visibles, énorme gain sur 1000+ rows */
+.table-card tbody tr {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 52px;
+}
+/* GPU accel sur les sticky cells pour scroll smooth */
+#stockTable td:first-child,
+#stockTable td:nth-child(2),
+#salesTable td:first-child,
+#rachatsTable td:first-child,
+#cmdTable td:first-child,
+#cleanTable td:first-child {
+  will-change: transform;
+  contain: layout;
+}
+/* Pas de transition sur tr (evite repaint à chaque hover) */
+tbody tr { transition: none !important; }
+
 /* Sticky cells uniformes (pas de zebra qui les fait alterner foncées) */
 tbody tr td:first-child,
 tbody tr td:nth-child(2) {
@@ -1806,7 +1825,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-19-v23';
+const DASH_VERSION = '2025-04-19-v24';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
@@ -3362,20 +3381,22 @@ if (_s?.auth) {
     else btt.classList.remove('visible');
   }, { passive: true });
 
-  // Update quick-action counts
+  // Update quick-action counts — uniquement quand le stock tab est actif
   setInterval(() => {
+    const panel = document.getElementById('tab-stock');
+    if (!panel || !panel.classList.contains('active')) return;
     const data = window.allStockData;
     if (!Array.isArray(data) || !data.length) return;
     const qa = document.getElementById('stockQuickActions');
-    if (qa) qa.style.display = 'flex';
+    if (qa && qa.style.display !== 'flex') qa.style.display = 'flex';
     const notLoc = data.filter(p => !p.inBoutique).length;
     const old60 = data.filter(p => (p.daysOnline || 0) >= 60).length;
     const noCB = data.filter(p => !p.barcode).length;
-    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    const set = (id, v) => { const el = document.getElementById(id); if (el && el.textContent !== String(v)) el.textContent = v; };
     set('qaNotLoc', notLoc);
     set('qa60j', old60);
     set('qaNoCB', noCB);
-  }, 1500);
+  }, 3000);
 
   /* ======= H-SCROLL DETECTION sur les wrappers de table =======
      Quand l'utilisateur scrolle à droite, ajoute .h-scrolled au wrapper
@@ -3396,10 +3417,8 @@ if (_s?.auth) {
   function bindAllScrolls() {
     document.querySelectorAll('.table-card > div[style*="overflow-x"]').forEach(bindScrollDetect);
   }
-  // Initial + ré-binding après chaque rendu de table
-  setTimeout(bindAllScrolls, 800);
-  const allObs = new MutationObserver(() => bindAllScrolls());
-  allObs.observe(document.body, { childList: true, subtree: true });
+  // Les wrappers sont du HTML statique — binding une seule fois au load suffit
+  setTimeout(bindAllScrolls, 500);
 
   /* ======= TOAST ======= */
   function showDashToast(msg, type) {
