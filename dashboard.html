@@ -1825,7 +1825,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-19-v24';
+const DASH_VERSION = '2025-04-19-v25';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
@@ -2661,27 +2661,47 @@ async function saveBarcode(variantId, input) {
 function onCheckLocation(barcode, checked, currentLoc) {
   const newLoc = checked ? 'en_magasin' : '';
   updateStockLocation(barcode, checked, newLoc);
-  // Mettre à jour visuellement le select de la même ligne
+  // Mettre à jour le state local immédiatement
   const p = allStockData.find(p => p.barcode === barcode);
   if (p) { p.inBoutique = checked; p.location = newLoc; }
-  filterStock();
+  // Re-render UNIQUEMENT si un filtre localisation est actif (sinon la ligne reste
+  // visible là où elle est, pas besoin de tout redessiner — gros gain de perf sur
+  // les grosses tables)
+  const locF = document.getElementById('stockLocationFilter')?.value;
+  const vintedF = document.getElementById('stockVintedFilter')?.value;
+  if (locF || vintedF) {
+    // Defer avec rAF pour garder le clic fluide
+    if (window._locFilterRaf) cancelAnimationFrame(window._locFilterRaf);
+    window._locFilterRaf = requestAnimationFrame(() => filterStock());
+  } else {
+    // Sinon, on met juste à jour la bg de la ligne (rouge subtil → transparent)
+    const row = document.querySelector(`#stockTable tr input[onchange*="onCheckLocation('${barcode}'"]`)?.closest('tr');
+    if (row) row.style.background = checked ? '' : '#FFF8F8';
+  }
 }
 
 async function onCheckVinted(barcode, checked) {
+  // Update state local immédiatement pour UI réactive
+  const p = allStockData.find(p => p.barcode === barcode);
+  if (p) p.onVinted = checked;
   try {
     const res = await fetch(`${BACKEND_URL}/stock/vinted`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ barcode, onVinted: checked, updatedBy: DASH_EMPLOYEE || DASH_BOUTIQUE || null })
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    const p = allStockData.find(p => p.barcode === barcode);
-    if (p) p.onVinted = checked;
     if (typeof showDashToast === 'function') {
       showDashToast(checked ? 'Marqué sur Vinted ✓' : 'Retiré de Vinted', 'success');
     }
+    // Re-render UNIQUEMENT si filtre Vinted actif (sinon rien à changer visuellement)
+    const vintedF = document.getElementById('stockVintedFilter')?.value;
+    if (vintedF) {
+      if (window._vintedFilterRaf) cancelAnimationFrame(window._vintedFilterRaf);
+      window._vintedFilterRaf = requestAnimationFrame(() => filterStock());
+    }
   } catch(e) {
+    if (p) p.onVinted = !checked;
     if (typeof showDashToast === 'function') showDashToast('Erreur réseau : ' + e.message, 'error');
-    // Revert l'état visuel
     const cb = document.querySelector(`input[onchange*="onCheckVinted('${barcode}'"]`);
     if (cb) cb.checked = !checked;
   }
