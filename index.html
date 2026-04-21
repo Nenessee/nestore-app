@@ -1013,7 +1013,7 @@
 </div>
 
 <script>
-  const APP_VERSION = '2025-04-19-v16';
+  const APP_VERSION = '2025-04-19-v17';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   let currentData = null;
 
@@ -1658,10 +1658,35 @@
   }
 
   function generateReturnPDF(orderId) {
+    console.log('[PDF retour] click orderId=', orderId);
     const orders = window._commandesOrders || [];
+    console.log('[PDF retour] orders en cache:', orders.length);
     const order = orders.find(o => String(o.id) === String(orderId));
-    if (!order) { showToast('Commande introuvable', 'error'); return; }
-    if (!window.jspdf || !window.JsBarcode) { showToast('Librairie PDF non chargée', 'error'); return; }
+    if (!order) {
+      console.error('[PDF retour] Commande introuvable pour id', orderId, 'ids dispo:', orders.map(o => o.id));
+      showToast('Commande introuvable — recharge la liste', 'error');
+      return;
+    }
+    if (!window.jspdf) {
+      console.error('[PDF retour] window.jspdf undefined — CDN jspdf bloqué ?');
+      showToast('Librairie PDF non chargée — vérifie console', 'error');
+      return;
+    }
+    if (!window.JsBarcode) {
+      console.error('[PDF retour] window.JsBarcode undefined — CDN jsbarcode bloqué ?');
+      showToast('Librairie code-barres non chargée', 'error');
+      return;
+    }
+    console.log('[PDF retour] Génération pour commande', order.order_number);
+    try {
+      _buildReturnPDF(order);
+    } catch (e) {
+      console.error('[PDF retour] Erreur génération:', e);
+      showToast('Erreur PDF : ' + e.message, 'error');
+    }
+  }
+
+  function _buildReturnPDF(order) {
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -1834,7 +1859,7 @@
     );
 
     // ===== SAVE =====
-    const filename = `retour_${order.order_number || orderId}.pdf`;
+    const filename = `retour_${order.order_number || order.id}.pdf`;
     doc.save(filename);
     showToast('PDF retour généré ✓', 'success');
   }
