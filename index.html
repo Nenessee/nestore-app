@@ -2027,10 +2027,6 @@
       console.warn('[PDF] Aucun barcode ni SKU dans les line_items. Mettre à jour le backend /orders/pending pour ajouter variant.barcode — voir instructions.');
       showToast('⚠ PDF sans codes-barres (backend à mettre à jour)', 'warn');
     }
-    const scannable = items.filter(it => {
-      const sku = it.sku || '';
-      return sku && /^[A-Za-z0-9\-\.\$\/\+\%\s]{3,}$/.test(sku);
-    });
     if (scannable.length) {
       doc.addPage();
       // Bandeau noir identique avec logo image
