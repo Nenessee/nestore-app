@@ -1013,7 +1013,7 @@
 </div>
 
 <script>
-  const APP_VERSION = '2025-04-19-v21';
+  const APP_VERSION = '2025-04-19-v22';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   let currentData = null;
 
@@ -2011,6 +2011,22 @@
     );
 
     // ===== PAGE 3 : CODES-BARRES SCANNABLES (usage interne équipe Nestore) =====
+    // Essaie barcode puis sku. Logue tout pour diagnostic.
+    console.log('[PDF page 3] items reçus:', items.map(it => ({
+      name: it.name,
+      sku: it.sku,
+      barcode: it.barcode,
+      variant_id: it.variant_id
+    })));
+    const scannable = items.map(it => ({
+      ...it,
+      _code: (it.barcode || it.sku || '').toString().trim()
+    })).filter(it => it._code && /^[A-Za-z0-9\-\.\$\/\+\%\s]{3,}$/.test(it._code));
+    console.log('[PDF page 3] scannable count:', scannable.length, '/', items.length);
+    if (scannable.length === 0 && items.length > 0) {
+      console.warn('[PDF] Aucun barcode ni SKU dans les line_items. Mettre à jour le backend /orders/pending pour ajouter variant.barcode — voir instructions.');
+      showToast('⚠ PDF sans codes-barres (backend à mettre à jour)', 'warn');
+    }
     const scannable = items.filter(it => {
       const sku = it.sku || '';
       return sku && /^[A-Za-z0-9\-\.\$\/\+\%\s]{3,}$/.test(sku);
@@ -2046,7 +2062,7 @@
       y2 += 14;
 
       scannable.forEach(item => {
-        const sku = String(item.sku).trim();
+        const sku = item._code;
         const cv = document.createElement('canvas');
         try {
           // Rendu HD — canvas haute résolution pour scan fiable
@@ -2100,7 +2116,8 @@
 
     const filename = `retour_${order.order_number || order.id}.pdf`;
     doc.save(filename);
-    showToast('PDF retour généré ✓', 'success');
+    if (scannable.length) showToast(`PDF retour généré ✓ (${scannable.length} code-barres)`, 'success');
+    else showToast('PDF retour généré (sans codes-barres — voir console)', 'warn');
   }
 
   async function restoreOrderStates() {
