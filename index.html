@@ -1013,7 +1013,7 @@
 </div>
 
 <script>
-  const APP_VERSION = '2025-04-19-v18';
+  const APP_VERSION = '2025-04-19-v19';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   let currentData = null;
 
@@ -1723,21 +1723,18 @@
   }
 
   function _buildReturnPDF(order) {
-
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const pageW = 210, pageH = 297;
-    const M = 15; // marge
+    const M = 15;
 
-    // ===== HEADER bandeau noir avec logo + titre =====
+    // ===== HEADER : bandeau noir =====
     doc.setFillColor(14, 14, 12);
     doc.rect(M, M, pageW - 2*M, 30, 'F');
-    // Logo "NESTORE" en orange
     doc.setTextColor(245, 185, 71);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(22);
     doc.text('NESTORE', M + 12, M + 19);
-    // Titre à droite
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(14);
     doc.text('FORMULAIRE DE RETOUR', pageW - M - 8, M + 19, { align: 'right' });
@@ -1758,7 +1755,6 @@
       doc.text(label, x, yPos);
       doc.setTextColor(14, 14, 12);
       doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
       doc.text(value || '', x, yPos + 5.5);
       doc.setDrawColor(180, 180, 180);
       doc.line(x, yPos + 7, x + colW - 6, yPos + 7);
@@ -1777,79 +1773,51 @@
     printField('Date de réception', '', M + 2*colW, y);
     y += 18;
 
-    // ===== SECTION 2 : ARTICLE(S) RETOURNÉ(S) =====
+    // ===== SECTION 2 : ARTICLE(S) RETOURNÉ(S) — 3 colonnes comme la maquette =====
     doc.setTextColor(186, 117, 23);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.text('ARTICLE(S) RETOURNÉ(S)', M, y);
     y += 7;
 
-    // Table header
     doc.setFillColor(248, 248, 245);
     doc.rect(M, y, pageW - 2*M, 8, 'F');
     doc.setTextColor(110, 110, 110);
     doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
-    doc.text('RÉFÉRENCE / NOM', M + 2, y + 5);
-    doc.text('TAILLE', M + 90, y + 5);
-    doc.text('CODE-BARRES', M + 110, y + 5);
-    doc.text('MOTIF DU RETOUR', M + 155, y + 5);
+    doc.text('Référence / Nom', M + 2, y + 5);
+    doc.text('Taille', M + 110, y + 5);
+    doc.text('Motif du retour', M + 140, y + 5);
     y += 10;
 
-    // Rows
     doc.setTextColor(14, 14, 12);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     const items = order.line_items || [];
-    const rowH = 14;
-    items.forEach((item, i) => {
+    const rowH = 12;
+    items.forEach(item => {
       const nameMatch = (item.name || '').match(/\(([^)]+)\)\s*$/);
       const taille = item.variant_title || (nameMatch ? nameMatch[1] : '');
-      const cleanName = (item.name || '').replace(/\s*\([^)]+\)\s*$/, '').substring(0, 42);
+      const cleanName = (item.name || '').replace(/\s*\([^)]+\)\s*$/, '').substring(0, 58);
       doc.text(cleanName, M + 2, y + 5);
-      doc.text(String(taille).substring(0, 10), M + 90, y + 5);
-
-      // Barcode image
-      const sku = item.sku || '';
-      if (sku && /^[A-Za-z0-9\-\.\$\/\+\%\s]+$/.test(sku)) {
-        try {
-          const cv = document.createElement('canvas');
-          window.JsBarcode(cv, sku, {
-            format: 'CODE128', width: 1.5, height: 32,
-            displayValue: true, fontSize: 11, margin: 0
-          });
-          const dataUrl = cv.toDataURL('image/png');
-          doc.addImage(dataUrl, 'PNG', M + 108, y - 1, 42, 12);
-        } catch(e) {
-          doc.setFont('courier', 'normal');
-          doc.text(sku, M + 110, y + 5);
-          doc.setFont('helvetica', 'normal');
-        }
-      } else if (sku) {
-        doc.setFont('courier', 'normal');
-        doc.text(sku, M + 110, y + 5);
-        doc.setFont('helvetica', 'normal');
-      }
-      // Motif ligne à remplir
+      doc.text(String(taille).substring(0, 12), M + 110, y + 5);
       doc.setDrawColor(200, 200, 200);
-      doc.line(M + 155, y + 7, pageW - M - 2, y + 7);
-      doc.setDrawColor(240, 240, 240);
-      doc.line(M, y + rowH - 1, pageW - M, y + rowH - 1);
+      doc.line(M + 2, y + 7, M + 105, y + 7);
+      doc.line(M + 110, y + 7, M + 135, y + 7);
+      doc.line(M + 140, y + 7, pageW - M - 2, y + 7);
       y += rowH;
     });
 
-    // Lignes vides pour compléter (min 3 lignes au total)
     const emptyLines = Math.max(0, 3 - items.length);
     for (let i = 0; i < emptyLines; i++) {
       doc.setDrawColor(200, 200, 200);
-      doc.line(M + 2, y + 7, M + 85, y + 7);
-      doc.line(M + 90, y + 7, M + 105, y + 7);
-      doc.line(M + 110, y + 7, M + 150, y + 7);
-      doc.line(M + 155, y + 7, pageW - M - 2, y + 7);
+      doc.line(M + 2, y + 7, M + 105, y + 7);
+      doc.line(M + 110, y + 7, M + 135, y + 7);
+      doc.line(M + 140, y + 7, pageW - M - 2, y + 7);
       y += rowH;
     }
 
-    y += 6;
+    y += 8;
 
     // ===== SECTION 3 : MODE DE REMBOURSEMENT =====
     doc.setTextColor(186, 117, 23);
@@ -1894,7 +1862,89 @@
       pageW / 2, pageH - 12, { align: 'center' }
     );
 
-    // ===== SAVE =====
+    // ===== PAGE 2 : CODES-BARRES SCANNABLES (usage interne équipe Nestore) =====
+    const scannable = items.filter(it => {
+      const sku = it.sku || '';
+      return sku && /^[A-Za-z0-9\-\.\$\/\+\%\s]{3,}$/.test(sku);
+    });
+    if (scannable.length) {
+      doc.addPage();
+      // Bandeau noir identique
+      doc.setFillColor(14, 14, 12);
+      doc.rect(M, M, pageW - 2*M, 30, 'F');
+      doc.setTextColor(245, 185, 71);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(22);
+      doc.text('NESTORE', M + 12, M + 19);
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(13);
+      doc.text('CODES-BARRES RETOUR', pageW - M - 8, M + 19, { align: 'right' });
+
+      let y2 = M + 44;
+      doc.setTextColor(186, 117, 23);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('ARTICLE(S) — À SCANNER À RÉCEPTION', M, y2);
+      y2 += 5;
+      doc.setTextColor(120, 120, 120);
+      doc.setFontSize(8.5);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Scannez le code-barres avec l\'app Nestore pour retrouver l\'article en stock.', M, y2 + 4);
+      y2 += 14;
+
+      scannable.forEach(item => {
+        const sku = String(item.sku).trim();
+        const cv = document.createElement('canvas');
+        try {
+          // Rendu HD — canvas haute résolution pour scan fiable
+          window.JsBarcode(cv, sku, {
+            format: 'CODE128',
+            width: 3,
+            height: 140,
+            displayValue: true,
+            fontSize: 32,
+            textMargin: 6,
+            margin: 10,
+            background: '#ffffff',
+            lineColor: '#000000'
+          });
+          const dataUrl = cv.toDataURL('image/png');
+          // 90mm × 26mm → taille optimale pour scanners caisse
+          doc.addImage(dataUrl, 'PNG', M, y2, 90, 26);
+        } catch(e) {
+          console.error('[Barcode]', sku, e);
+          doc.setTextColor(14, 14, 12);
+          doc.setFont('courier', 'bold');
+          doc.setFontSize(16);
+          doc.text(sku, M, y2 + 14);
+        }
+        // Description à droite du barcode
+        doc.setTextColor(14, 14, 12);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        const nameShort = (item.name || '').substring(0, 46);
+        doc.text(nameShort, M + 96, y2 + 9);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(120, 120, 120);
+        if (item.variant_title) doc.text(`Taille : ${item.variant_title}`, M + 96, y2 + 16);
+        doc.text(`Quantité : ${item.quantity || 1}`, M + 96, y2 + 22);
+        y2 += 36;
+        if (y2 > pageH - 40) {
+          doc.addPage();
+          y2 = M + 10;
+        }
+      });
+
+      doc.setTextColor(150, 150, 150);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'italic');
+      doc.text(
+        'Usage interne — à conserver par l\'équipe Nestore',
+        pageW / 2, pageH - 12, { align: 'center' }
+      );
+    }
+
     const filename = `retour_${order.order_number || order.id}.pdf`;
     doc.save(filename);
     showToast('PDF retour généré ✓', 'success');
