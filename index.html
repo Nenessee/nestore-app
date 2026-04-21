@@ -1013,7 +1013,7 @@
 </div>
 
 <script>
-  const APP_VERSION = '2025-04-19-v20';
+  const APP_VERSION = '2025-04-19-v21';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   let currentData = null;
 
@@ -1869,8 +1869,9 @@
     doc.line(M + 70, y + 1, pageW - M, y + 1);
     y += 14;
 
-    // ===== SECTION 4 : DATE + SIGNATURE =====
-    doc.setTextColor(14, 14, 12);
+    // ===== SECTION 4 : DATE + SIGNATURE (orange comme la maquette) =====
+    doc.setTextColor(186, 117, 23);
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     doc.text('Date :', M, y);
     doc.setDrawColor(180, 180, 180);
@@ -1886,7 +1887,130 @@
       pageW / 2, pageH - 12, { align: 'center' }
     );
 
-    // ===== PAGE 2 : CODES-BARRES SCANNABLES (usage interne équipe Nestore) =====
+    // ===== PAGE 2 : PROCÉDURE & CONDITIONS (match maquette) =====
+    doc.addPage();
+    // Bandeau noir + logo
+    doc.setFillColor(14, 14, 12);
+    doc.rect(M, M, pageW - 2*M, 30, 'F');
+    if (_nvLogoDataUrl) {
+      doc.addImage(_nvLogoDataUrl, 'JPEG', M + 4, M + 4, 22, 22);
+    } else {
+      doc.setTextColor(245, 185, 71);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(22);
+      doc.text('NESTORE', M + 12, M + 19);
+    }
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('PROCÉDURE & CONDITIONS', pageW - M - 8, M + 18, { align: 'right' });
+
+    let y3 = M + 44;
+
+    // ----- PROCÉDURE DE RETOUR -----
+    doc.setTextColor(186, 117, 23);
+    doc.setFont('helvetica', 'bolditalic');
+    doc.setFontSize(10);
+    doc.text('PROCÉDURE DE RETOUR', M, y3);
+    y3 += 3;
+    doc.setDrawColor(230, 230, 230);
+    doc.line(M, y3, pageW - M, y3);
+    y3 += 9;
+
+    const steps = [
+      ['Contactez notre service client', 'Envoyez un email à retour@nestorevintage.fr avec votre numéro de commande et ce formulaire complété.'],
+      ['Recevez votre bordereau', "Notre équipe vous enverra un bordereau d'expédition prépayé. Les frais de port sont avancés par Nestore et déduits du remboursement."],
+      ['Préparez votre colis', "Emballez l'article dans son emballage d'origine avec les étiquettes. Joignez ce formulaire dans le colis."],
+      ['Expédiez votre retour', "Collez le bordereau fourni par notre équipe sur votre colis et déposez-le au point de collecte indiqué."]
+    ];
+
+    steps.forEach(([title, desc], i) => {
+      // Carré noir avec numéro blanc
+      doc.setFillColor(14, 14, 12);
+      doc.rect(M, y3 - 4, 12, 16, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(15);
+      doc.text(String(i + 1), M + 6, y3 + 5.5, { align: 'center' });
+
+      // Titre step en bold noir
+      doc.setTextColor(14, 14, 12);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10.5);
+      doc.text(title, M + 18, y3);
+
+      // Description en orange
+      doc.setTextColor(186, 117, 23);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      const lines = doc.splitTextToSize(desc, pageW - 2*M - 20);
+      doc.text(lines, M + 18, y3 + 5);
+
+      y3 += 14 + (lines.length > 1 ? (lines.length - 1) * 4 : 0);
+    });
+
+    y3 += 6;
+
+    // ----- CONDITIONS DE RETOUR -----
+    doc.setTextColor(186, 117, 23);
+    doc.setFont('helvetica', 'bolditalic');
+    doc.setFontSize(10);
+    doc.text('CONDITIONS DE RETOUR', M, y3);
+    y3 += 3;
+    doc.setDrawColor(230, 230, 230);
+    doc.line(M, y3, pageW - M, y3);
+    y3 += 8;
+
+    const conditions = [
+      ['Délai', '14 jours après réception pour demander un retour. Tout retour sans demande préalable refusé.'],
+      ['État', "Articles non portés, non utilisés, étiquettes et emballage d'origine obligatoires. Nestore se réserve le droit de refuser le remboursement si l'article ne correspond pas."],
+      ['Exclusions', 'Articles en promotion et cartes-cadeaux non retournables.'],
+      ['Frais', 'Bordereau prépayé fourni par Nestore. Frais déduits du remboursement ou du crédit store.'],
+      ['Délai remb.', "10 jours ouvrables après approbation. Paiement initial : jusqu'à 72h selon banque. Au-delà de 15 jours ouvrables : retour@nestorevintage.fr."],
+      ['Échanges', "Retournez l'article et effectuez un achat séparé une fois le retour accepté."],
+      ['Droit UE', 'Droit de rétractation de 14 jours sans justification conformément à la réglementation européenne.']
+    ];
+
+    conditions.forEach(([label, value]) => {
+      doc.setTextColor(14, 14, 12);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text(label, M + 2, y3 + 3);
+
+      doc.setTextColor(186, 117, 23);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      const vLines = doc.splitTextToSize(value, pageW - M - 55);
+      doc.text(vLines, M + 50, y3 + 3);
+
+      const rowH2 = Math.max(8, vLines.length * 4 + 3);
+      doc.setDrawColor(230, 230, 230);
+      doc.line(M, y3 + rowH2, pageW - M, y3 + rowH2);
+      y3 += rowH2;
+    });
+
+    y3 += 10;
+
+    // Bandeau noir "Une question ?"
+    doc.setFillColor(14, 14, 12);
+    doc.rect(M, y3, pageW - 2*M, 14, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('Une question ?', M + 8, y3 + 9);
+    doc.setTextColor(245, 185, 71);
+    doc.text('retour@nestorevintage.fr', pageW - M - 8, y3 + 9, { align: 'right' });
+
+    // Credits bas de page
+    doc.setTextColor(150, 150, 150);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    doc.text(
+      'SAS Nestore Vintage — 39 rue de l\'Arc, 59800 Lille — retour@nestorevintage.fr — nestorevintage.fr',
+      pageW / 2, pageH - 12, { align: 'center' }
+    );
+
+    // ===== PAGE 3 : CODES-BARRES SCANNABLES (usage interne équipe Nestore) =====
     const scannable = items.filter(it => {
       const sku = it.sku || '';
       return sku && /^[A-Za-z0-9\-\.\$\/\+\%\s]{3,}$/.test(sku);
