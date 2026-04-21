@@ -20,7 +20,7 @@
     }
   </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <script>
     (function(){
@@ -1013,7 +1013,7 @@
 </div>
 
 <script>
-  const APP_VERSION = '2025-04-19-v17';
+  const APP_VERSION = '2025-04-19-v18';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   let currentData = null;
 
@@ -1657,7 +1657,25 @@
     showToast('Article signalé comme introuvable', 'error');
   }
 
-  function generateReturnPDF(orderId) {
+  // Charge un script dynamiquement en essayant plusieurs CDN (fallback
+  // pour les réseaux/adblockers qui bloquent cdnjs ou jsdelivr).
+  function _loadScriptFallback(urls, checkGlobal) {
+    return new Promise((resolve, reject) => {
+      if (checkGlobal()) return resolve();
+      let i = 0;
+      const tryNext = () => {
+        if (i >= urls.length) return reject(new Error('CDNs bloqués : ' + urls.join(', ')));
+        const s = document.createElement('script');
+        s.src = urls[i++];
+        s.onload = () => checkGlobal() ? resolve() : tryNext();
+        s.onerror = tryNext;
+        document.head.appendChild(s);
+      };
+      tryNext();
+    });
+  }
+
+  async function generateReturnPDF(orderId) {
     console.log('[PDF retour] click orderId=', orderId);
     const orders = window._commandesOrders || [];
     console.log('[PDF retour] orders en cache:', orders.length);
@@ -1667,15 +1685,33 @@
       showToast('Commande introuvable — recharge la liste', 'error');
       return;
     }
+    // Lazy-load jsPDF si pas déjà dispo (contourne les adblockers)
     if (!window.jspdf) {
-      console.error('[PDF retour] window.jspdf undefined — CDN jspdf bloqué ?');
-      showToast('Librairie PDF non chargée — vérifie console', 'error');
-      return;
+      showToast('Chargement de la librairie PDF…');
+      try {
+        await _loadScriptFallback([
+          'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js',
+          'https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js',
+          'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js'
+        ], () => !!window.jspdf);
+      } catch(e) {
+        console.error('[PDF retour]', e);
+        showToast('Librairie PDF bloquée par adblocker/réseau. Désactive-le pour ce site.', 'error');
+        return;
+      }
     }
     if (!window.JsBarcode) {
-      console.error('[PDF retour] window.JsBarcode undefined — CDN jsbarcode bloqué ?');
-      showToast('Librairie code-barres non chargée', 'error');
-      return;
+      try {
+        await _loadScriptFallback([
+          'https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js',
+          'https://unpkg.com/jsbarcode@3.11.6/dist/JsBarcode.all.min.js',
+          'https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js'
+        ], () => !!window.JsBarcode);
+      } catch(e) {
+        console.error('[PDF retour]', e);
+        showToast('Librairie code-barres bloquée', 'error');
+        return;
+      }
     }
     console.log('[PDF retour] Génération pour commande', order.order_number);
     try {
