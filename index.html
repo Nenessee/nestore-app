@@ -1013,7 +1013,7 @@
 </div>
 
 <script>
-  const APP_VERSION = '2025-04-19-v19';
+  const APP_VERSION = '2025-04-19-v20';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   let currentData = null;
 
@@ -1675,6 +1675,23 @@
     });
   }
 
+  // Préchargement du logo pour le PDF (évite await pendant la génération)
+  let _nvLogoDataUrl = null;
+  (function preloadLogo() {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const cv = document.createElement('canvas');
+        cv.width = img.naturalWidth;
+        cv.height = img.naturalHeight;
+        cv.getContext('2d').drawImage(img, 0, 0);
+        _nvLogoDataUrl = cv.toDataURL('image/jpeg', 0.92);
+      } catch(e) { console.warn('[Logo PDF]', e); }
+    };
+    img.src = 'logo.jpg';
+  })();
+
   async function generateReturnPDF(orderId) {
     console.log('[PDF retour] click orderId=', orderId);
     const orders = window._commandesOrders || [];
@@ -1728,22 +1745,29 @@
     const pageW = 210, pageH = 297;
     const M = 15;
 
-    // ===== HEADER : bandeau noir =====
+    // ===== HEADER : bandeau noir + logo image =====
     doc.setFillColor(14, 14, 12);
     doc.rect(M, M, pageW - 2*M, 30, 'F');
-    doc.setTextColor(245, 185, 71);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(22);
-    doc.text('NESTORE', M + 12, M + 19);
+    // Logo image (vrai logo NESTORE) à gauche, carré 22x22mm centré verticalement
+    if (_nvLogoDataUrl) {
+      doc.addImage(_nvLogoDataUrl, 'JPEG', M + 4, M + 4, 22, 22);
+    } else {
+      // Fallback texte si image pas chargée
+      doc.setTextColor(245, 185, 71);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(22);
+      doc.text('NESTORE', M + 12, M + 19);
+    }
     doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
-    doc.text('FORMULAIRE DE RETOUR', pageW - M - 8, M + 19, { align: 'right' });
+    doc.text('FORMULAIRE DE RETOUR', pageW - M - 8, M + 18, { align: 'right' });
 
     // ===== SECTION 1 : INFORMATIONS COMMANDE =====
     let y = M + 42;
     doc.setTextColor(186, 117, 23);
     doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('helvetica', 'bolditalic');
     doc.text('INFORMATIONS COMMANDE', M, y);
     y += 8;
 
@@ -1776,15 +1800,15 @@
     // ===== SECTION 2 : ARTICLE(S) RETOURNÉ(S) — 3 colonnes comme la maquette =====
     doc.setTextColor(186, 117, 23);
     doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('helvetica', 'bolditalic');
     doc.text('ARTICLE(S) RETOURNÉ(S)', M, y);
     y += 7;
 
     doc.setFillColor(248, 248, 245);
     doc.rect(M, y, pageW - 2*M, 8, 'F');
-    doc.setTextColor(110, 110, 110);
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(186, 117, 23);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bolditalic');
     doc.text('Référence / Nom', M + 2, y + 5);
     doc.text('Taille', M + 110, y + 5);
     doc.text('Motif du retour', M + 140, y + 5);
@@ -1822,7 +1846,7 @@
     // ===== SECTION 3 : MODE DE REMBOURSEMENT =====
     doc.setTextColor(186, 117, 23);
     doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('helvetica', 'bolditalic');
     doc.text('MODE DE REMBOURSEMENT SOUHAITÉ', M, y);
     y += 8;
 
@@ -1869,21 +1893,26 @@
     });
     if (scannable.length) {
       doc.addPage();
-      // Bandeau noir identique
+      // Bandeau noir identique avec logo image
       doc.setFillColor(14, 14, 12);
       doc.rect(M, M, pageW - 2*M, 30, 'F');
-      doc.setTextColor(245, 185, 71);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(22);
-      doc.text('NESTORE', M + 12, M + 19);
+      if (_nvLogoDataUrl) {
+        doc.addImage(_nvLogoDataUrl, 'JPEG', M + 4, M + 4, 22, 22);
+      } else {
+        doc.setTextColor(245, 185, 71);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(22);
+        doc.text('NESTORE', M + 12, M + 19);
+      }
       doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
       doc.setFontSize(13);
-      doc.text('CODES-BARRES RETOUR', pageW - M - 8, M + 19, { align: 'right' });
+      doc.text('CODES-BARRES RETOUR', pageW - M - 8, M + 18, { align: 'right' });
 
       let y2 = M + 44;
       doc.setTextColor(186, 117, 23);
       doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
+      doc.setFont('helvetica', 'bolditalic');
       doc.text('ARTICLE(S) — À SCANNER À RÉCEPTION', M, y2);
       y2 += 5;
       doc.setTextColor(120, 120, 120);
