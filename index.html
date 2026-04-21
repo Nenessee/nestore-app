@@ -1011,7 +1011,7 @@
 </div>
 
 <script>
-  const APP_VERSION = '2025-04-19-v14';
+  const APP_VERSION = '2025-04-19-v15';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   let currentData = null;
 
@@ -1609,19 +1609,26 @@
     }
   }
 
-  function markAside(orderId, itemId, btn) {
+  async function markAside(orderId, itemId, btn) {
     btn.textContent = '✓ Mis de côté';
     btn.style.background = '#888780';
     btn.disabled = true;
     const row = document.getElementById(`order-${orderId}-${itemId}`);
     if (row) row.style.opacity = '0.4';
-    // Persister en localStorage
-    const key = `aside_${orderId}_${itemId}`;
-    localStorage.setItem(key, 'done');
+    // Persister en localStorage ET backend
+    localStorage.setItem(`aside_${orderId}_${itemId}`, 'done');
+    try {
+      await fetch(`${BACKEND_URL}/orders/item-state`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: String(orderId), itemId: String(itemId), status: 'aside', employee: currentEmployee, boutique: currentBoutique }),
+        keepalive: true
+      });
+    } catch(e) {}
     showToast('Article mis de côté ✓', 'success');
   }
 
-  function markNotFound(orderId, itemId, btn) {
+  async function markNotFound(orderId, itemId, btn) {
     btn.disabled = true;
     btn.textContent = '❌';
     btn.style.background = '#A32D2D';
@@ -1633,26 +1640,45 @@
       notif.textContent = '⚠️ Article introuvable — à traiter dans Shopify';
       row.querySelector('div')?.appendChild(notif);
     }
-    const key = `notfound_${orderId}_${itemId}`;
-    localStorage.setItem(key, 'done');
+    localStorage.setItem(`notfound_${orderId}_${itemId}`, 'done');
+    try {
+      await fetch(`${BACKEND_URL}/orders/item-state`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: String(orderId), itemId: String(itemId), status: 'notfound', employee: currentEmployee, boutique: currentBoutique }),
+        keepalive: true
+      });
+    } catch(e) {}
     showToast('Article signalé comme introuvable', 'error');
   }
 
-  function restoreOrderStates() {
-    // Restaurer l'état des boutons après rechargement
+  async function restoreOrderStates() {
+    // Récupère l'état depuis le backend (source de vérité), fallback localStorage
+    let backendStates = {};
+    try {
+      const res = await fetch(`${BACKEND_URL}/orders/states`);
+      if (res.ok) backendStates = await res.json();
+    } catch(e) {}
     document.querySelectorAll('[id^="order-"]').forEach(row => {
       const parts = row.id.split('-');
       if (parts.length < 3) return;
       const orderId = parts[1];
       const itemId = parts[2];
-      if (localStorage.getItem(`aside_${orderId}_${itemId}`)) {
+      const remoteStatus = backendStates[`${orderId}_${itemId}`]?.status;
+      const asideLocal = localStorage.getItem(`aside_${orderId}_${itemId}`);
+      const notFoundLocal = localStorage.getItem(`notfound_${orderId}_${itemId}`);
+      const status = remoteStatus || (asideLocal ? 'aside' : (notFoundLocal ? 'notfound' : null));
+      if (status === 'aside') {
         row.style.opacity = '0.4';
         const btn = row.querySelector('button');
         if (btn) { btn.textContent = '✓ Mis de côté'; btn.style.background = '#888780'; btn.disabled = true; }
+        // Resynchronise localStorage depuis backend au cas où
+        localStorage.setItem(`aside_${orderId}_${itemId}`, 'done');
       }
-      if (localStorage.getItem(`notfound_${orderId}_${itemId}`)) {
+      if (status === 'notfound') {
         const btn2 = row.querySelectorAll('button')[1];
         if (btn2) { btn2.disabled = true; btn2.style.background = '#A32D2D'; btn2.style.color = '#fff'; }
+        localStorage.setItem(`notfound_${orderId}_${itemId}`, 'done');
       }
     });
   }
