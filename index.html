@@ -1013,7 +1013,7 @@
 </div>
 
 <script>
-  const APP_VERSION = '2025-04-19-v23';
+  const APP_VERSION = '2025-04-19-v24';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   let currentData = null;
 
@@ -1106,6 +1106,14 @@
       currentData.selectedLocationId = matchedLocation?.id;
 
       area.innerHTML = `<div class="product-card">
+        ${data.onVinted ? `
+        <div style="background:rgba(232,80,78,0.12);border:1px solid rgba(232,80,78,0.4);border-radius:12px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
+          <span style="font-size:22px;">⚠️</span>
+          <div style="flex:1;">
+            <div style="font-weight:700;font-size:13px;color:#A32D2D;">Aussi en ligne sur Vinted</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Pense à retirer l'annonce après la vente pour éviter une double vente.</div>
+          </div>
+        </div>` : ''}
         <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;">
           ${data.image ? `<img src="${data.image}" style="width:80px;height:80px;object-fit:cover;border-radius:10px;flex-shrink:0;">` : ''}
           <div style="flex:1;">
@@ -1116,6 +1124,7 @@
               </div>
               <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
                 <span class="badge ${badgeClass}">${data.boutique}</span>
+                ${data.onVinted ? '<span class="badge" style="background:#09B1BA;color:#fff;">VINTED</span>' : ''}
                 ${isSold ? `<span class="badge badge-stock0">Stock 0</span>` : ''}
               </div>
             </div>
@@ -1188,6 +1197,11 @@
       addToHistory(currentData, employee, document.getElementById('boutiqueSelect').value);
       showToast('Stock mis à 0 sur Shopify ✓', 'success');
 
+      // Si l'article est sur Vinted → alerte forte pour éviter double vente
+      if (result.onVinted || currentData.onVinted) {
+        showVintedReminder(currentData.name || currentData.product_name, currentData.barcode);
+      }
+
       document.getElementById('barcodeInput').value = '';
       document.getElementById('productArea').innerHTML = '';
       document.getElementById('barcodeInput').focus();
@@ -1252,6 +1266,62 @@
     } catch (err) {
       showToast('Erreur réseau : ' + err.message, 'error');
       if (btn) { btn.disabled = false; btn.textContent = `🔄 Transférer vers ${toBoutique}`; }
+    }
+  }
+
+  // Rappel Vinted après vente d'un article qui y est en ligne — évite les doubles ventes
+  function showVintedReminder(productName, barcode) {
+    const existing = document.getElementById('vintedReminderModal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'vintedReminderModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);';
+    modal.innerHTML = `
+      <div style="background:var(--surface);border-radius:20px;padding:22px;max-width:420px;width:100%;box-shadow:var(--shadow-lg);border:1px solid var(--border-strong);">
+        <div style="text-align:center;margin-bottom:14px;">
+          <div style="font-size:48px;">⚠️</div>
+          <div style="font-size:18px;font-weight:800;letter-spacing:-0.02em;margin-top:6px;color:var(--text);">Article encore sur Vinted</div>
+        </div>
+        <div style="background:rgba(232,80,78,0.1);padding:14px;border-radius:12px;border-left:3px solid var(--accent);margin-bottom:16px;">
+          <div style="font-weight:700;font-size:14px;color:var(--text);">${(productName || '').substring(0, 80)}</div>
+          ${barcode ? `<div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-family:monospace;">${barcode}</div>` : ''}
+        </div>
+        <div style="font-size:14px;color:var(--text);line-height:1.55;margin-bottom:18px;">
+          <strong>Retire l'annonce Vinted maintenant</strong> pour éviter qu'un client achète un article déjà vendu et devoir annuler sa commande.
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button onclick="confirmVintedRemoved('${(barcode||'').replace(/'/g,'')}',this)" style="padding:15px;background:#3B6D11;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;min-height:50px;">
+            ✓ J'ai retiré de Vinted
+          </button>
+          <button onclick="document.getElementById('vintedReminderModal').remove()" style="padding:13px;background:transparent;color:var(--text-muted);border:none;font-size:13px;cursor:pointer;min-height:44px;">
+            Plus tard
+          </button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+
+  async function confirmVintedRemoved(barcode, btn) {
+    if (!barcode) {
+      document.getElementById('vintedReminderModal')?.remove();
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = 'Mise à jour…';
+    try {
+      const res = await fetch(`${BACKEND_URL}/stock/vinted`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ barcode, onVinted: false, updatedBy: currentEmployee || null })
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      showToast('✓ Article retiré de Vinted côté app', 'success');
+      document.getElementById('vintedReminderModal')?.remove();
+    } catch(e) {
+      showToast('Erreur réseau — retire manuellement dans le dashboard', 'error');
+      btn.disabled = false;
+      btn.textContent = "✓ J'ai retiré de Vinted";
     }
   }
 
@@ -2221,6 +2291,11 @@
 
       addToHistory({ name: productName, barcode, price, boutique: document.getElementById('boutiqueSelect').value, image: null }, employee, document.getElementById('boutiqueSelect').value);
       showToast('Vente enregistrée ✓', 'success');
+
+      if (result.onVinted) {
+        showVintedReminder(productName, barcode);
+      }
+
       document.getElementById('barcodeInput').value = '';
       document.getElementById('productArea').innerHTML = '';
       document.getElementById('barcodeInput').focus();
