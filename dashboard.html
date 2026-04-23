@@ -1896,7 +1896,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-19-v31';
+const DASH_VERSION = '2025-04-19-v32';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
@@ -3979,15 +3979,27 @@ if (_s?.auth) {
     const session = JSON.parse(localStorage.getItem('nv_session') || '{}');
     if (session.boutique !== 'admin' && session.employee !== 'admin') {
       if (typeof showDashToast === 'function') showDashToast('Accès admin requis', 'error');
+      const fallback = document.querySelector('.tab[onclick*="switchTab(\'ventes\'"]');
+      if (fallback) fallback.click();
       return;
     }
     let token = getAdminToken();
     if (!token) {
       token = prompt('Entre la clé admin SEO (variable ADMIN_API_KEY du serveur Railway) :');
-      if (token) localStorage.setItem('nv_admin_key', token);
+      if (token && token.trim()) {
+        localStorage.setItem('nv_admin_key', token.trim());
+      } else {
+        // Annulation ou clé vide → on sort du panel SEO
+        if (typeof showDashToast === 'function') showDashToast('Accès SEO refusé — clé requise', 'warn');
+        const fallback = document.querySelector('.tab[onclick*="switchTab(\'ventes\'"]');
+        if (fallback) fallback.click();
+        return;
+      }
     }
     const badge = document.getElementById('seoAuthBadge');
-    if (badge) badge.textContent = token ? '✓ Clé admin configurée' : '⚠ Clé admin manquante';
+    if (badge) {
+      badge.innerHTML = '✓ Clé admin configurée · <a href="#" onclick="event.preventDefault();localStorage.removeItem(\'nv_admin_key\');initSeoTab();" style="color:var(--accent);">changer</a>';
+    }
   };
 
   window.regenerateSeoOne = async function() {
