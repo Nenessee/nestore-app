@@ -1525,6 +1525,9 @@ tbody tr { transition: background .12s; }
 <!-- TAB STOCK -->
 <div id="tab-stock" class="tab-panel">
 <div class="content">
+  <!-- Banner rappels Vinted vendus à retirer -->
+  <div id="vintedPendingBanner" style="display:none;margin-bottom:16px;"></div>
+
   <!-- Quick actions pills -->
   <div class="quick-actions" id="stockQuickActions" style="display:none;">
     <button class="qa-pill qa-danger" onclick="quickStockFilter('location','absent',this)" data-filter="location:absent">
@@ -1898,7 +1901,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-19-v34';
+const DASH_VERSION = '2025-04-19-v35';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
@@ -2001,7 +2004,10 @@ function switchTab(name, el) {
   el.classList.add('active');
   document.getElementById(`tab-${name}`).classList.add('active');
   if (name === 'ventes') loadVentes();
-  if (name === 'stock' && allStockData.length === 0) loadStock();
+  if (name === 'stock') {
+    if (allStockData.length === 0) loadStock();
+    loadVintedPending();
+  }
   if (name === 'rotation') loadRotation();
   if (name === 'rachats') loadRachats();
   if (name === 'nettoyage') loadCleanings();
@@ -3969,6 +3975,90 @@ if (_s?.auth) {
     };
   }
 })();
+
+/* ================= VINTED PENDING (vendus mais encore sur Vinted) ================= */
+window.loadVintedPending = async function() {
+  const banner = document.getElementById('vintedPendingBanner');
+  if (!banner) return;
+  try {
+    const session = JSON.parse(localStorage.getItem('nv_session') || '{}');
+    const b = session.boutique && session.boutique !== 'admin' ? '?boutique=' + session.boutique : '';
+    const res = await fetch(`${BACKEND_URL}/vinted/pending${b}`);
+    if (!res.ok) { banner.style.display = 'none'; return; }
+    const items = await res.json();
+    if (!Array.isArray(items) || items.length === 0) { banner.style.display = 'none'; return; }
+    banner.style.display = 'block';
+    banner.innerHTML = `
+      <div style="background:var(--accent-dim);border:1px solid var(--accent);border-radius:14px;overflow:hidden;">
+        <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--border);">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:20px;">⚠️</span>
+            <div>
+              <div style="font-weight:700;color:var(--accent);font-size:14px;">
+                ${items.length} article${items.length > 1 ? 's' : ''} vendu${items.length > 1 ? 's' : ''} — à retirer de Vinted
+              </div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">
+                Évite les doubles ventes en retirant ces annonces dès maintenant.
+              </div>
+            </div>
+          </div>
+          <button onclick="document.getElementById('vintedPendingBanner').style.display='none'" style="background:transparent;border:0;color:var(--text-muted);font-size:18px;cursor:pointer;padding:4px 8px;line-height:1;">✕</button>
+        </div>
+        <div style="max-height:320px;overflow-y:auto;">
+          ${items.map(it => {
+            const date = it.sold_at ? it.sold_at.match(/T(\d{2}:\d{2})/)?.[1] || '' : '';
+            const day = it.sold_at ? it.sold_at.substring(0,10).split('-').reverse().join('/') : '';
+            const img = it.image_url
+              ? `<img src="${it.image_url}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0;">`
+              : `<div style="width:40px;height:40px;border-radius:6px;background:var(--surface-alt);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">👕</div>`;
+            return `
+              <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);" data-barcode="${it.barcode || ''}">
+                ${img}
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${it.product_name || '—'}</div>
+                  <div style="font-size:11px;color:var(--text-muted);font-family:monospace;margin-top:2px;">${it.barcode || '—'}${it.brand ? ' · ' + it.brand : ''}</div>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Vendu ${day} à ${date} · ${it.employee || '?'} · ${it.boutique || '?'}</div>
+                </div>
+                <button onclick="markVintedRemoved('${it.barcode}',this)" style="padding:8px 14px;background:var(--success);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;min-height:36px;flex-shrink:0;white-space:nowrap;">✓ Retiré</button>
+              </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+  } catch(e) {
+    console.warn('[Vinted pending]', e);
+    banner.style.display = 'none';
+  }
+};
+
+window.markVintedRemoved = async function(barcode, btn) {
+  if (!barcode) return;
+  btn.disabled = true;
+  btn.textContent = '…';
+  try {
+    const session = JSON.parse(localStorage.getItem('nv_session') || '{}');
+    await fetch(`${BACKEND_URL}/stock/vinted`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ barcode, onVinted: false, updatedBy: session.employee || null })
+    });
+    // Retire la ligne de la liste
+    const row = btn.closest('[data-barcode]');
+    if (row) row.remove();
+    if (typeof showDashToast === 'function') showDashToast('Retiré de Vinted ✓', 'success');
+    // Met à jour le state allStockData si chargé
+    if (window.allStockData) {
+      const p = window.allStockData.find(p => p.barcode === barcode);
+      if (p) p.onVinted = false;
+    }
+    // Si plus d'items → masque le banner
+    const banner = document.getElementById('vintedPendingBanner');
+    if (banner && !banner.querySelector('[data-barcode]')) banner.style.display = 'none';
+  } catch(e) {
+    if (typeof showDashToast === 'function') showDashToast('Erreur réseau', 'error');
+    btn.disabled = false;
+    btn.textContent = '✓ Retiré';
+  }
+};
 
 /* ================= SEO ADMIN (admin only) ================= */
 (function(){
