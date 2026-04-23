@@ -1013,7 +1013,7 @@
 </div>
 
 <script>
-  const APP_VERSION = '2025-04-19-v24';
+  const APP_VERSION = '2025-04-19-v25';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   let currentData = null;
 
@@ -1096,6 +1096,11 @@
       }
 
       currentData = data;
+      // Fallback: si backend ne retourne pas onVinted, utilise la map locale
+      if (data.onVinted === undefined && window._vintedMap && data.barcode) {
+        data.onVinted = window._vintedMap[data.barcode] === true;
+        currentData.onVinted = data.onVinted;
+      }
       const isSold = data.totalStock === 0;
       const badgeClass = data.boutique === 'DK' ? 'badge-dk' : 'badge-lille';
 
@@ -2329,6 +2334,20 @@
     document.getElementById('purchaseCount').textContent = `${count} rachat${count>1?'s':''}`;
   }
 
+  // Cache map barcode→onVinted pour fallback si le backend /product/:barcode ne retourne pas onVinted
+  window._vintedMap = {};
+  async function loadVintedMap() {
+    try {
+      const res = await fetch(`${BACKEND_URL}/stock/locations`);
+      if (!res.ok) return;
+      const map = await res.json();
+      window._vintedMap = {};
+      Object.entries(map || {}).forEach(([bc, v]) => {
+        if (v && v.onVinted) window._vintedMap[bc] = true;
+      });
+    } catch(e) {}
+  }
+
   async function loadTodaySales() {
     try {
       const bParam = currentBoutique && currentBoutique !== 'admin' ? `&boutique=${currentBoutique}` : '';
@@ -2688,6 +2707,7 @@
     loadTodaySales();
     loadRecentPurchases();
     loadActiveCleanings();
+    loadVintedMap();
   }
 
   const _s = JSON.parse(localStorage.getItem('nv_session') || 'null');
@@ -2701,6 +2721,7 @@
     loadTodaySales();
     loadRecentPurchases();
     loadActiveCleanings();
+    loadVintedMap();
   }
 
 
