@@ -1431,9 +1431,9 @@ tbody tr { transition: background .12s; }
 
 <div class="tabs">
   <div class="tabs-inner">
-    <div class="tab active" onclick="switchTab('ventes',this)">Ventes</div>
+    <div class="tab active" onclick="switchTab('ventes',this)">Scan &amp; Ventes</div>
     <div class="tab" onclick="switchTab('stock',this)">Stock en ligne</div>
-    <div class="tab" onclick="switchTab('rotation',this)">Rotation</div>
+    <div class="tab" id="tabRotation" onclick="switchTab('rotation',this)">Rotation</div>
     <div class="tab" onclick="switchTab('rachats',this)">Rachats</div>
     <div class="tab" onclick="switchTab('nettoyage',this)">Nettoyage</div>
     <div class="tab" onclick="switchTab('commandes',this)">Commandes web</div>
@@ -1481,6 +1481,7 @@ tbody tr { transition: background .12s; }
         onchange="setCustomRange()"/>
     </div>
   </div>
+  <div id="ventesAdminOnly">
   <div class="kpi-grid" id="kpiGrid"><div class="loading">Chargement...</div></div>
   <div class="charts-grid">
     <div class="chart-card" style="grid-column:span 2;">
@@ -1504,6 +1505,7 @@ tbody tr { transition: background .12s; }
       <div class="chart-wrap"><canvas id="brandsChart"></canvas></div>
     </div>
   </div>
+  </div><!-- fin ventesAdminOnly -->
   <div class="table-card">
     <div class="table-header">
       <span class="table-title">Toutes les ventes</span>
@@ -1896,7 +1898,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-19-v32';
+const DASH_VERSION = '2025-04-19-v33';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
@@ -3305,11 +3307,16 @@ function initDashboard(boutique, employee) {
   const sw = document.getElementById('boutiqueSwitch');
   sw.style.display = boutique === 'admin' ? 'flex' : 'none';
 
-  // Onglets admin seulement (Activité + SEO)
+  // Onglets admin seulement (Activité + SEO + Rotation)
   const tabAct = document.getElementById('tabActivite');
   if (tabAct) tabAct.style.display = boutique === 'admin' ? 'block' : 'none';
   const tabSeo = document.getElementById('tabSeo');
   if (tabSeo) tabSeo.style.display = boutique === 'admin' ? 'block' : 'none';
+  const tabRot = document.getElementById('tabRotation');
+  if (tabRot) tabRot.style.display = boutique === 'admin' ? 'block' : 'none';
+  // KPIs + graphiques Scan & Ventes masqués pour non-admin (historique seul visible)
+  const ventesAdmin = document.getElementById('ventesAdminOnly');
+  if (ventesAdmin) ventesAdmin.style.display = boutique === 'admin' ? 'block' : 'none';
 
   // Badge employé
   const pill = document.getElementById('employeePill');
