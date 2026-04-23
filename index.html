@@ -1013,7 +1013,7 @@
 </div>
 
 <script>
-  const APP_VERSION = '2025-04-19-v22';
+  const APP_VERSION = '2025-04-19-v23';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   let currentData = null;
 
@@ -1745,26 +1745,26 @@
     const pageW = 210, pageH = 297;
     const M = 15;
 
-    // ===== HEADER : bandeau noir + logo image =====
-    doc.setFillColor(14, 14, 12);
-    doc.rect(M, M, pageW - 2*M, 30, 'F');
-    // Logo image (vrai logo NESTORE) à gauche, carré 22x22mm centré verticalement
-    if (_nvLogoDataUrl) {
-      doc.addImage(_nvLogoDataUrl, 'JPEG', M + 4, M + 4, 22, 22);
-    } else {
-      // Fallback texte si image pas chargée
-      doc.setTextColor(245, 185, 71);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(22);
-      doc.text('NESTORE', M + 12, M + 19);
-    }
-    doc.setTextColor(255, 255, 255);
+    // ===== HEADER LIGHT (pas de bandeau noir — ink saving) =====
+    // Logo texte NESTORE en orange + titre à droite en noir
+    doc.setTextColor(230, 155, 50);
+    doc.setFont('helvetica', 'bolditalic');
+    doc.setFontSize(22);
+    doc.text('NESTORE', M, M + 6);
+
+    doc.setTextColor(14, 14, 12);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
-    doc.text('FORMULAIRE DE RETOUR', pageW - M - 8, M + 18, { align: 'right' });
+    doc.text('FORMULAIRE DE RETOUR', pageW - M, M + 6, { align: 'right' });
+
+    // Trait fin orange de séparation
+    doc.setDrawColor(186, 117, 23);
+    doc.setLineWidth(0.4);
+    doc.line(M, M + 11, pageW - M, M + 11);
+    doc.setLineWidth(0.1);
 
     // ===== SECTION 1 : INFORMATIONS COMMANDE =====
-    let y = M + 42;
+    let y = M + 22;
     doc.setTextColor(186, 117, 23);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bolditalic');
@@ -1887,25 +1887,22 @@
       pageW / 2, pageH - 12, { align: 'center' }
     );
 
-    // ===== PAGE 2 : PROCÉDURE & CONDITIONS (match maquette) =====
+    // ===== PAGE 2 : PROCÉDURE & CONDITIONS (ink-saving) =====
     doc.addPage();
-    // Bandeau noir + logo
-    doc.setFillColor(14, 14, 12);
-    doc.rect(M, M, pageW - 2*M, 30, 'F');
-    if (_nvLogoDataUrl) {
-      doc.addImage(_nvLogoDataUrl, 'JPEG', M + 4, M + 4, 22, 22);
-    } else {
-      doc.setTextColor(245, 185, 71);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(22);
-      doc.text('NESTORE', M + 12, M + 19);
-    }
-    doc.setTextColor(255, 255, 255);
+    doc.setTextColor(230, 155, 50);
+    doc.setFont('helvetica', 'bolditalic');
+    doc.setFontSize(22);
+    doc.text('NESTORE', M, M + 6);
+    doc.setTextColor(14, 14, 12);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
-    doc.text('PROCÉDURE & CONDITIONS', pageW - M - 8, M + 18, { align: 'right' });
+    doc.text('PROCÉDURE & CONDITIONS', pageW - M, M + 6, { align: 'right' });
+    doc.setDrawColor(186, 117, 23);
+    doc.setLineWidth(0.4);
+    doc.line(M, M + 11, pageW - M, M + 11);
+    doc.setLineWidth(0.1);
 
-    let y3 = M + 44;
+    let y3 = M + 22;
 
     // ----- PROCÉDURE DE RETOUR -----
     doc.setTextColor(186, 117, 23);
@@ -1925,28 +1922,30 @@
     ];
 
     steps.forEach(([title, desc], i) => {
-      // Carré noir avec numéro blanc
-      doc.setFillColor(14, 14, 12);
-      doc.rect(M, y3 - 4, 12, 16, 'F');
-      doc.setTextColor(255, 255, 255);
+      // Cercle contour orange avec numéro orange (pas de remplissage noir)
+      doc.setDrawColor(186, 117, 23);
+      doc.setLineWidth(0.6);
+      doc.circle(M + 4, y3 + 2, 4);
+      doc.setTextColor(186, 117, 23);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(15);
-      doc.text(String(i + 1), M + 6, y3 + 5.5, { align: 'center' });
+      doc.setFontSize(11);
+      doc.text(String(i + 1), M + 4, y3 + 4, { align: 'center' });
+      doc.setLineWidth(0.1);
 
       // Titre step en bold noir
       doc.setTextColor(14, 14, 12);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10.5);
-      doc.text(title, M + 18, y3);
+      doc.text(title, M + 12, y3);
 
       // Description en orange
       doc.setTextColor(186, 117, 23);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
-      const lines = doc.splitTextToSize(desc, pageW - 2*M - 20);
-      doc.text(lines, M + 18, y3 + 5);
+      const lines = doc.splitTextToSize(desc, pageW - 2*M - 14);
+      doc.text(lines, M + 12, y3 + 5);
 
-      y3 += 14 + (lines.length > 1 ? (lines.length - 1) * 4 : 0);
+      y3 += 13 + (lines.length > 1 ? (lines.length - 1) * 4 : 0);
     });
 
     y3 += 6;
@@ -1991,15 +1990,17 @@
 
     y3 += 10;
 
-    // Bandeau noir "Une question ?"
-    doc.setFillColor(14, 14, 12);
-    doc.rect(M, y3, pageW - 2*M, 14, 'F');
-    doc.setTextColor(255, 255, 255);
+    // "Une question ?" en texte simple (ink-saving, plus de bandeau noir)
+    doc.setTextColor(14, 14, 12);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
-    doc.text('Une question ?', M + 8, y3 + 9);
-    doc.setTextColor(245, 185, 71);
-    doc.text('retour@nestorevintage.fr', pageW - M - 8, y3 + 9, { align: 'right' });
+    doc.text('Une question ?', M, y3 + 6);
+    doc.setTextColor(186, 117, 23);
+    doc.text('retour@nestorevintage.fr', pageW - M, y3 + 6, { align: 'right' });
+    doc.setDrawColor(186, 117, 23);
+    doc.setLineWidth(0.4);
+    doc.line(M, y3 + 10, pageW - M, y3 + 10);
+    doc.setLineWidth(0.1);
 
     // Credits bas de page
     doc.setTextColor(150, 150, 150);
@@ -2029,23 +2030,20 @@
     }
     if (scannable.length) {
       doc.addPage();
-      // Bandeau noir identique avec logo image
-      doc.setFillColor(14, 14, 12);
-      doc.rect(M, M, pageW - 2*M, 30, 'F');
-      if (_nvLogoDataUrl) {
-        doc.addImage(_nvLogoDataUrl, 'JPEG', M + 4, M + 4, 22, 22);
-      } else {
-        doc.setTextColor(245, 185, 71);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(22);
-        doc.text('NESTORE', M + 12, M + 19);
-      }
-      doc.setTextColor(255, 255, 255);
+      doc.setTextColor(230, 155, 50);
+      doc.setFont('helvetica', 'bolditalic');
+      doc.setFontSize(22);
+      doc.text('NESTORE', M, M + 6);
+      doc.setTextColor(14, 14, 12);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(13);
-      doc.text('CODES-BARRES RETOUR', pageW - M - 8, M + 18, { align: 'right' });
+      doc.text('CODES-BARRES RETOUR', pageW - M, M + 6, { align: 'right' });
+      doc.setDrawColor(186, 117, 23);
+      doc.setLineWidth(0.4);
+      doc.line(M, M + 11, pageW - M, M + 11);
+      doc.setLineWidth(0.1);
 
-      let y2 = M + 44;
+      let y2 = M + 22;
       doc.setTextColor(186, 117, 23);
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bolditalic');
