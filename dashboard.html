@@ -1439,7 +1439,7 @@ tbody tr { transition: background .12s; }
     <div class="tab" onclick="switchTab('commandes',this)">Commandes web</div>
     <div class="tab" onclick="switchTab('transferts',this)">Transferts</div>
     <div class="tab" id="tabActivite" style="display:none;" onclick="switchTab('activite',this)">Activité</div>
-    <div class="tab" id="tabSeo" style="display:none;" onclick="switchTab('seo',this)">SEO</div>
+    <div class="tab" id="tabSeo" style="display:none;" onclick="guardSeoTab(this)">SEO</div>
   </div>
 </div>
 
@@ -1898,7 +1898,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-19-v33';
+const DASH_VERSION = '2025-04-19-v34';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
@@ -3972,8 +3972,6 @@ if (_s?.auth) {
 
 /* ================= SEO ADMIN (admin only) ================= */
 (function(){
-  // Token admin côté frontend — stocké en localStorage quand admin se connecte.
-  // Le serveur vérifie via env ADMIN_API_KEY (doit matcher).
   function getAdminToken() {
     try {
       const session = JSON.parse(localStorage.getItem('nv_session') || '{}');
@@ -3982,30 +3980,32 @@ if (_s?.auth) {
     } catch(e) { return null; }
   }
 
-  window.initSeoTab = function() {
+  // Guard: vérifie la clé AVANT de switcher vers l'onglet SEO.
+  // Si cancel ou clé vide → l'onglet ne s'ouvre jamais, l'utilisateur reste où il est.
+  window.guardSeoTab = function(el) {
     const session = JSON.parse(localStorage.getItem('nv_session') || '{}');
     if (session.boutique !== 'admin' && session.employee !== 'admin') {
       if (typeof showDashToast === 'function') showDashToast('Accès admin requis', 'error');
-      const fallback = document.querySelector('.tab[onclick*="switchTab(\'ventes\'"]');
-      if (fallback) fallback.click();
       return;
     }
-    let token = getAdminToken();
+    let token = localStorage.getItem('nv_admin_key');
     if (!token) {
-      token = prompt('Entre la clé admin SEO (variable ADMIN_API_KEY du serveur Railway) :');
-      if (token && token.trim()) {
-        localStorage.setItem('nv_admin_key', token.trim());
-      } else {
-        // Annulation ou clé vide → on sort du panel SEO
+      const entered = prompt('Entre la clé admin SEO (variable ADMIN_API_KEY du serveur Railway) :');
+      if (!entered || !entered.trim()) {
         if (typeof showDashToast === 'function') showDashToast('Accès SEO refusé — clé requise', 'warn');
-        const fallback = document.querySelector('.tab[onclick*="switchTab(\'ventes\'"]');
-        if (fallback) fallback.click();
-        return;
+        return; // NE PAS switcher — l'utilisateur reste sur l'onglet actuel
       }
+      localStorage.setItem('nv_admin_key', entered.trim());
     }
+    // Clé OK → on peut switcher vers le panel SEO
+    if (typeof switchTab === 'function') switchTab('seo', el);
+  };
+
+  // Au premier affichage du panel SEO (on y arrive seulement via le guard, donc token dispo)
+  window.initSeoTab = function() {
     const badge = document.getElementById('seoAuthBadge');
     if (badge) {
-      badge.innerHTML = '✓ Clé admin configurée · <a href="#" onclick="event.preventDefault();localStorage.removeItem(\'nv_admin_key\');initSeoTab();" style="color:var(--accent);">changer</a>';
+      badge.innerHTML = '✓ Clé admin configurée · <a href="#" onclick="event.preventDefault();localStorage.removeItem(\'nv_admin_key\');const v=document.querySelector(\'.tab[onclick*=ventes]\');if(v)v.click();" style="color:var(--accent);">changer</a>';
     }
   };
 
