@@ -1439,6 +1439,7 @@ tbody tr { transition: background .12s; }
     <div class="tab" onclick="switchTab('commandes',this)">Commandes web</div>
     <div class="tab" onclick="switchTab('transferts',this)">Transferts</div>
     <div class="tab" id="tabActivite" style="display:none;" onclick="switchTab('activite',this)">Activité</div>
+    <div class="tab" id="tabSeo" style="display:none;" onclick="switchTab('seo',this)">SEO</div>
   </div>
 </div>
 
@@ -1774,6 +1775,52 @@ tbody tr { transition: background .12s; }
 </div>
 </div>
 
+<!-- TAB SEO (admin seulement) -->
+<div id="tab-seo" class="tab-panel">
+<div class="content">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+    <span class="section-title">SEO automatique Shopify</span>
+    <span id="seoAuthBadge" style="font-size:11px;color:var(--text-muted);"></span>
+  </div>
+
+  <div class="kpi" style="margin-bottom:16px;padding:16px 18px;">
+    <div style="font-size:13px;color:var(--text);line-height:1.55;">
+      <strong>Automatique :</strong> dès qu'un produit est créé sur Shopify, le webhook
+      génère un meta title et une meta description optimisés, puis les injecte sans
+      intervention humaine.
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:10px;line-height:1.5;">
+      <strong>Format :</strong><br>
+      <span style="font-family:monospace;">Title : [Titre] | Seconde main authentifié — Nestore Vintage</span><br>
+      <span style="font-family:monospace;">Description : Achetez [marque] [type] d'occasion chez Nestore Vintage. 100% authentifié, livraison rapide, retours 14 jours. [taille]</span>
+    </div>
+  </div>
+
+  <!-- Régénérer un produit -->
+  <div class="table-card" style="margin-bottom:16px;padding:18px;">
+    <div class="table-title" style="margin-bottom:12px;">Régénérer le SEO d'un produit</div>
+    <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+      <div style="flex:1;min-width:220px;">
+        <label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:6px;">Product ID Shopify ou code-barres</label>
+        <input class="search-input" id="seoProductInput" placeholder="ex: 7234567890123 ou N20004977" style="width:100%;"/>
+      </div>
+      <button class="btn btn-green" onclick="regenerateSeoOne()" style="min-height:42px;">⚙️ Régénérer</button>
+    </div>
+    <div id="seoOneResult" style="margin-top:12px;font-size:13px;"></div>
+  </div>
+
+  <!-- Régénérer tous -->
+  <div class="table-card" style="padding:18px;">
+    <div class="table-title" style="margin-bottom:8px;">Régénérer le SEO de TOUS les produits actifs</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.5;">
+      Parcourt tout le catalogue Shopify et écrase les meta title/description existants. Opération longue (quelques minutes) qui tourne en arrière-plan côté serveur.
+    </div>
+    <button class="btn btn-red" onclick="regenerateSeoAll()" style="min-height:42px;">🔁 Lancer régénération complète</button>
+    <div id="seoBulkResult" style="margin-top:12px;font-size:13px;"></div>
+  </div>
+</div>
+</div>
+
 <!-- TAB COMMANDES WEB -->
 <div id="tab-commandes" class="tab-panel">
 <div class="content">
@@ -1849,7 +1896,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-19-v30';
+const DASH_VERSION = '2025-04-19-v31';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
@@ -1959,6 +2006,7 @@ function switchTab(name, el) {
   if (name === 'commandes') loadDashCommandes();
   if (name === 'transferts') loadTransferts();
   if (name === 'activite') loadActivite();
+  if (name === 'seo') initSeoTab();
 }
 
 async function api(path) {
@@ -3257,9 +3305,11 @@ function initDashboard(boutique, employee) {
   const sw = document.getElementById('boutiqueSwitch');
   sw.style.display = boutique === 'admin' ? 'flex' : 'none';
 
-  // Onglet Activité — admin seulement
+  // Onglets admin seulement (Activité + SEO)
   const tabAct = document.getElementById('tabActivite');
   if (tabAct) tabAct.style.display = boutique === 'admin' ? 'block' : 'none';
+  const tabSeo = document.getElementById('tabSeo');
+  if (tabSeo) tabSeo.style.display = boutique === 'admin' ? 'block' : 'none';
 
   // Badge employé
   const pill = document.getElementById('employeePill');
@@ -3911,6 +3961,103 @@ if (_s?.auth) {
       if (typeof renderCleaningsTable === 'function') renderCleaningsTable(filtered);
     };
   }
+})();
+
+/* ================= SEO ADMIN (admin only) ================= */
+(function(){
+  // Token admin côté frontend — stocké en localStorage quand admin se connecte.
+  // Le serveur vérifie via env ADMIN_API_KEY (doit matcher).
+  function getAdminToken() {
+    try {
+      const session = JSON.parse(localStorage.getItem('nv_session') || '{}');
+      if (session.boutique !== 'admin' && session.employee !== 'admin') return null;
+      return localStorage.getItem('nv_admin_key') || '';
+    } catch(e) { return null; }
+  }
+
+  window.initSeoTab = function() {
+    const session = JSON.parse(localStorage.getItem('nv_session') || '{}');
+    if (session.boutique !== 'admin' && session.employee !== 'admin') {
+      if (typeof showDashToast === 'function') showDashToast('Accès admin requis', 'error');
+      return;
+    }
+    let token = getAdminToken();
+    if (!token) {
+      token = prompt('Entre la clé admin SEO (variable ADMIN_API_KEY du serveur Railway) :');
+      if (token) localStorage.setItem('nv_admin_key', token);
+    }
+    const badge = document.getElementById('seoAuthBadge');
+    if (badge) badge.textContent = token ? '✓ Clé admin configurée' : '⚠ Clé admin manquante';
+  };
+
+  window.regenerateSeoOne = async function() {
+    const token = getAdminToken();
+    if (!token) { showDashToast('Clé admin manquante — recharge l\'onglet SEO', 'error'); return; }
+    const raw = (document.getElementById('seoProductInput').value || '').trim();
+    if (!raw) { showDashToast('Entre un ID produit ou code-barres', 'warn'); return; }
+    const out = document.getElementById('seoOneResult');
+    out.innerHTML = '<span class="spinner-pro"></span> Régénération en cours…';
+    try {
+      // Si l'input ressemble à un code-barres, on résout d'abord via /product/:barcode
+      let productId = raw;
+      if (!/^\d+$/.test(raw)) {
+        const r = await fetch(`${BACKEND_URL}/product/${encodeURIComponent(raw)}`);
+        const d = await r.json();
+        if (!r.ok || !d.productId) throw new Error('Code-barres introuvable');
+        productId = d.productId;
+      }
+      const res = await fetch(`${BACKEND_URL}/seo/regenerate/${productId}`, {
+        method: 'POST',
+        headers: { 'X-NV-Admin-Token': token, 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 403) {
+          localStorage.removeItem('nv_admin_key');
+          throw new Error('Clé admin refusée — re-saisir');
+        }
+        throw new Error(data.error || 'Erreur serveur');
+      }
+      out.innerHTML = `
+        <div style="padding:10px;background:var(--success-dim);border-left:3px solid var(--success);border-radius:8px;margin-top:8px;">
+          <div style="font-weight:600;color:var(--success);margin-bottom:6px;">✓ SEO mis à jour sur Shopify</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:2px;">TITLE</div>
+          <div style="font-family:monospace;font-size:12px;margin-bottom:8px;">${data.metaTitle || ''}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:2px;">DESCRIPTION</div>
+          <div style="font-family:monospace;font-size:12px;">${data.metaDesc || ''}</div>
+        </div>`;
+      showDashToast('SEO régénéré ✓', 'success');
+    } catch(e) {
+      out.innerHTML = `<div style="padding:10px;background:var(--accent-dim);border-left:3px solid var(--accent);border-radius:8px;color:var(--accent);font-size:13px;">Erreur : ${e.message}</div>`;
+    }
+  };
+
+  window.regenerateSeoAll = async function() {
+    const token = getAdminToken();
+    if (!token) { showDashToast('Clé admin manquante', 'error'); return; }
+    if (!confirm('Régénérer le SEO de TOUS les produits Shopify ? Cela peut prendre plusieurs minutes.')) return;
+    const out = document.getElementById('seoBulkResult');
+    out.innerHTML = '<span class="spinner-pro"></span> Lancement…';
+    try {
+      const res = await fetch(`${BACKEND_URL}/seo/regenerate-all`, {
+        method: 'POST',
+        headers: { 'X-NV-Admin-Token': token, 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 403) localStorage.removeItem('nv_admin_key');
+        throw new Error(data.error || 'Erreur serveur');
+      }
+      out.innerHTML = `
+        <div style="padding:10px;background:var(--info-dim);border-left:3px solid var(--info);border-radius:8px;color:var(--info);font-size:13px;">
+          🔄 Régénération lancée côté serveur. Suis l'avancement dans les logs Railway
+          (cherche [SEO bulk] pour le décompte final). Tu peux quitter cet onglet.
+        </div>`;
+      showDashToast('Régénération lancée ✓', 'success');
+    } catch(e) {
+      out.innerHTML = `<div style="padding:10px;background:var(--accent-dim);border-left:3px solid var(--accent);border-radius:8px;color:var(--accent);font-size:13px;">Erreur : ${e.message}</div>`;
+    }
+  };
 })();
 </script>
 </body>
