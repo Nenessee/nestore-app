@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2025-04-19-logo';
+const CACHE_VERSION = 'nestore-v2025-04-25-cam';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

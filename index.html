@@ -793,7 +793,10 @@
     <div class="scan-row">
       <input type="text" id="barcodeInput" class="scan-input" placeholder="Pointer le scanner ici..." autofocus />
       <button class="btn-search" id="searchBtn" onclick="lookupProduct()">Rechercher</button>
+      <button class="btn-search" id="venteScanBtn" onclick="toggleVenteScan()" title="Scanner avec la caméra" aria-label="Scanner avec la caméra" style="background:#185FA5;padding:0 14px;">📷</button>
     </div>
+    <div id="venteReader" style="display:none;border-radius:10px;overflow:hidden;margin-top:10px;"></div>
+    <div id="venteScanStatus" style="display:none;margin-top:8px;font-size:13px;color:#888780;text-align:center;"></div>
   </div>
 
   <div id="productArea"></div>
@@ -1013,7 +1016,7 @@
 </div>
 
 <script>
-  const APP_VERSION = '2025-04-19-v25';
+  const APP_VERSION = '2025-04-25-v26-cam';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   let currentData = null;
 
@@ -1382,9 +1385,9 @@
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
     el.classList.add('active');
     document.getElementById(`apptab-${name}`).classList.add('active');
-    if (name === 'rachat') document.getElementById('purchaseBarcodeInput').focus();
-    else if (name === 'commandes') loadCommandes();
-    else if (name === 'inventaire') initInventaireTab();
+    if (name === 'rachat') { try { stopVenteScan(); } catch(_){} document.getElementById('purchaseBarcodeInput').focus(); }
+    else if (name === 'commandes') { try { stopVenteScan(); } catch(_){} loadCommandes(); }
+    else if (name === 'inventaire') { try { stopVenteScan(); } catch(_){} initInventaireTab(); }
     else { stopInventaireScan(); document.getElementById('barcodeInput').focus(); }
   }
 
@@ -1566,6 +1569,87 @@
         if (reader) reader.style.display = 'none';
       });
     } else if (reader) { reader.style.display = 'none'; }
+  }
+
+  // --- CAMÉRA SCAN ONGLET CAISSE ---
+  let venteScanner = null;
+  let venteScanning = false;
+
+  function toggleVenteScan() {
+    if (venteScanning) { stopVenteScan(); } else { startVenteScan(); }
+  }
+
+  function startVenteScan() {
+    getAudioCtx();
+    const reader = document.getElementById('venteReader');
+    const status = document.getElementById('venteScanStatus');
+    const btn = document.getElementById('venteScanBtn');
+    reader.style.display = 'block';
+    status.style.display = 'block';
+    status.textContent = 'Démarrage de la caméra...';
+    status.style.color = '#888780';
+    btn.textContent = '✕';
+    btn.style.background = '#A32D2D';
+    venteScanning = true;
+
+    const formats = [
+      Html5QrcodeSupportedFormats.EAN_13,
+      Html5QrcodeSupportedFormats.EAN_8,
+      Html5QrcodeSupportedFormats.CODE_128,
+      Html5QrcodeSupportedFormats.CODE_39,
+      Html5QrcodeSupportedFormats.UPC_A,
+      Html5QrcodeSupportedFormats.UPC_E,
+      Html5QrcodeSupportedFormats.QR_CODE,
+      Html5QrcodeSupportedFormats.ITF,
+    ];
+
+    venteScanner = new Html5Qrcode('venteReader', { formatsToSupport: formats, verbose: false });
+    venteScanner.start(
+      { facingMode: 'environment' },
+      {
+        fps: 15,
+        qrbox: (w, h) => ({
+          width: Math.round(w * 0.92),
+          height: Math.round(h * 0.35)
+        }),
+        aspectRatio: 16/9,
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+      },
+      async (barcode) => {
+        if (!venteScanning) return;
+        scanFeedback(true);
+        status.textContent = `✓ ${barcode}`;
+        status.style.color = '#3B6D11';
+        const inp = document.getElementById('barcodeInput');
+        if (inp) inp.value = barcode;
+        stopVenteScan();
+        lookupProduct();
+      },
+      () => {}
+    ).then(() => {
+      status.textContent = 'Pointe la caméra sur un code-barres...';
+    }).catch(() => {
+      showToast('Impossible d\'accéder à la caméra', 'error');
+      stopVenteScan();
+    });
+  }
+
+  function stopVenteScan() {
+    venteScanning = false;
+    const btn = document.getElementById('venteScanBtn');
+    const reader = document.getElementById('venteReader');
+    const status = document.getElementById('venteScanStatus');
+    if (btn) { btn.textContent = '📷'; btn.style.background = '#185FA5'; }
+    if (venteScanner) {
+      venteScanner.stop().catch(() => {}).finally(() => {
+        if (venteScanner) { try { venteScanner.clear(); } catch(e) {} venteScanner = null; }
+        if (reader) reader.style.display = 'none';
+        if (status) status.style.display = 'none';
+      });
+    } else {
+      if (reader) reader.style.display = 'none';
+      if (status) status.style.display = 'none';
+    }
   }
 
   function addToInvList({ barcode, name, image, employee, time, warning }) {
@@ -2557,6 +2641,7 @@
     currentEmployee = null;
     if (_appUpdateInterval) { clearInterval(_appUpdateInterval); _appUpdateInterval = null; }
     try { stopInventaireScan(); } catch(_) {}
+    try { stopVenteScan(); } catch(_) {}
     document.getElementById('mainApp').style.display = 'none';
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('stepPwd').style.display = 'block';
