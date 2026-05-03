@@ -1823,6 +1823,21 @@ tbody tr { transition: background .12s; }
     <button class="btn btn-red" onclick="regenerateSeoAll()" style="min-height:42px;">🔁 Lancer régénération complète</button>
     <div id="seoBulkResult" style="margin-top:12px;font-size:13px;"></div>
   </div>
+
+  <!-- Doublons SEO (produits dupliqués) -->
+  <div class="table-card" style="padding:18px;margin-top:16px;">
+    <div class="table-title" style="margin-bottom:8px;">Détecter les doublons SEO (produits dupliqués)</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.5;">
+      Quand tu duplique un produit Shopify, le meta title/description est copié à l'identique.
+      Cet outil scanne le catalogue, repère les groupes de produits qui partagent la même balise SEO,
+      puis régénère uniquement les doublons (le plus ancien de chaque groupe est conservé).
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-blue" onclick="scanSeoDuplicates()" style="min-height:42px;">🔎 Scanner les doublons</button>
+      <button class="btn btn-green" id="seoDupRegenBtn" onclick="regenerateSeoDuplicates()" style="min-height:42px;display:none;">⚙️ Régénérer les doublons</button>
+    </div>
+    <div id="seoDupResult" style="margin-top:12px;font-size:13px;"></div>
+  </div>
 </div>
 </div>
 
@@ -1901,7 +1916,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-19-v35';
+const DASH_VERSION = '2025-04-25-v36-seodup';
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
@@ -4165,6 +4180,93 @@ window.markVintedRemoved = async function(barcode, btn) {
       showDashToast('Régénération lancée ✓', 'success');
     } catch(e) {
       out.innerHTML = `<div style="padding:10px;background:var(--accent-dim);border-left:3px solid var(--accent);border-radius:8px;color:var(--accent);font-size:13px;">Erreur : ${e.message}</div>`;
+    }
+  };
+
+  let _seoDupCount = 0;
+  window.scanSeoDuplicates = async function() {
+    const token = getAdminToken();
+    if (!token) { showDashToast('Clé admin manquante', 'error'); return; }
+    const out = document.getElementById('seoDupResult');
+    const btn = document.getElementById('seoDupRegenBtn');
+    btn.style.display = 'none';
+    out.innerHTML = '<span class="spinner-pro"></span> Scan en cours (peut prendre 30-60s)…';
+    try {
+      const res = await fetch(`${BACKEND_URL}/seo/duplicates`, {
+        headers: { 'X-NV-Admin-Token': token }
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 403) localStorage.removeItem('nv_admin_key');
+        throw new Error(data.error || 'Erreur serveur');
+      }
+      const groups = data.groups || [];
+      _seoDupCount = data.duplicates_count || 0;
+      if (!groups.length) {
+        out.innerHTML = `<div style="padding:10px;background:var(--success-dim,#EAF3DE);border-left:3px solid var(--success);border-radius:8px;color:var(--success);font-size:13px;">✓ Aucun doublon SEO détecté sur ${data.scanned || 0} produits scannés.</div>`;
+        return;
+      }
+      const rows = groups.slice(0, 50).map(g => {
+        const items = (g.products || []).map((p, i) => {
+          const isOriginal = i === 0;
+          const flag = isOriginal
+            ? '<span style="display:inline-block;padding:1px 6px;background:var(--success-dim,#EAF3DE);color:var(--success);border-radius:4px;font-size:10px;font-weight:700;margin-right:6px;">ORIGINAL</span>'
+            : '<span style="display:inline-block;padding:1px 6px;background:var(--warn-dim,#FFF3E0);color:var(--warn,#BA7517);border-radius:4px;font-size:10px;font-weight:700;margin-right:6px;">DOUBLON</span>';
+          const date = p.created_at ? new Date(p.created_at).toLocaleDateString('fr-FR') : '';
+          return `<div style="padding:4px 0;font-size:12px;">${flag}<span style="color:var(--text);">${p.title || p.id}</span> <span style="color:var(--text-muted);font-size:11px;">${date}</span></div>`;
+        }).join('');
+        return `<div style="padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;font-family:monospace;">${(g.seo_title || '').slice(0,80)}…</div>
+          ${items}
+        </div>`;
+      }).join('');
+      const more = groups.length > 50 ? `<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">… et ${groups.length - 50} autres groupes (la régénération les traitera tous).</div>` : '';
+      out.innerHTML = `
+        <div style="padding:10px;background:var(--warn-dim,#FFF3E0);border-left:3px solid var(--warn,#BA7517);border-radius:8px;color:var(--warn,#BA7517);font-size:13px;margin-bottom:12px;">
+          <strong>${groups.length} groupes de doublons</strong> — ${_seoDupCount} produits seront régénérés (l'original le plus ancien est gardé).
+        </div>
+        ${rows}${more}`;
+      btn.textContent = `⚙️ Régénérer les ${_seoDupCount} doublons`;
+      btn.style.display = 'inline-flex';
+    } catch(e) {
+      out.innerHTML = `<div style="padding:10px;background:var(--accent-dim);border-left:3px solid var(--accent);border-radius:8px;color:var(--accent);font-size:13px;">Erreur : ${e.message}</div>`;
+    }
+  };
+
+  window.regenerateSeoDuplicates = async function() {
+    const token = getAdminToken();
+    if (!token) { showDashToast('Clé admin manquante', 'error'); return; }
+    if (!_seoDupCount) { showDashToast('Lance d\'abord un scan', 'warn'); return; }
+    if (!confirm(`Régénérer le SEO de ${_seoDupCount} produits dupliqués ? L'original le plus ancien de chaque groupe est conservé.`)) return;
+    const out = document.getElementById('seoDupResult');
+    const btn = document.getElementById('seoDupRegenBtn');
+    btn.disabled = true;
+    out.insertAdjacentHTML('afterbegin', '<div id="seoDupRunning" style="padding:10px;background:var(--info-dim);border-left:3px solid var(--info);border-radius:8px;color:var(--info);font-size:13px;margin-bottom:12px;"><span class="spinner-pro"></span> Lancement…</div>');
+    try {
+      const res = await fetch(`${BACKEND_URL}/seo/regenerate-duplicates`, {
+        method: 'POST',
+        headers: { 'X-NV-Admin-Token': token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keepOldest: true })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 403) localStorage.removeItem('nv_admin_key');
+        throw new Error(data.error || 'Erreur serveur');
+      }
+      const running = document.getElementById('seoDupRunning');
+      if (running) running.outerHTML = `
+        <div style="padding:10px;background:var(--info-dim);border-left:3px solid var(--info);border-radius:8px;color:var(--info);font-size:13px;margin-bottom:12px;">
+          🔄 Régénération lancée côté serveur. Suis l'avancement dans les logs Railway
+          (cherche [SEO dup]). Re-scanne dans quelques minutes pour vérifier.
+        </div>`;
+      btn.style.display = 'none';
+      showDashToast('Régénération doublons lancée ✓', 'success');
+    } catch(e) {
+      const running = document.getElementById('seoDupRunning');
+      if (running) running.remove();
+      out.insertAdjacentHTML('afterbegin', `<div style="padding:10px;background:var(--accent-dim);border-left:3px solid var(--accent);border-radius:8px;color:var(--accent);font-size:13px;margin-bottom:12px;">Erreur : ${e.message}</div>`);
+    } finally {
+      btn.disabled = false;
     }
   };
 })();
