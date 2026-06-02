@@ -1839,6 +1839,20 @@ tbody tr { transition: background .12s; }
     </div>
     <div id="seoPendingResult" style="margin-top:12px;font-size:13px;"></div>
   </div>
+
+  <!-- Corriger les URLs (handles) -->
+  <div class="table-card" style="padding:18px;margin-top:16px;">
+    <div class="table-title" style="margin-bottom:8px;">Corriger les URLs qui ne correspondent pas au produit</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.5;">
+      Shopify ne met pas à jour l'URL (handle) quand on renomme un produit (ex. après duplication) :
+      l'URL reste celle de l'ancien produit. Cet outil réaligne l'URL sur le titre actuel et crée une
+      redirection 301 de l'ancienne vers la nouvelle (les liens déjà partagés continuent de marcher).
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-green" onclick="fixSeoHandles()" style="min-height:42px;">🔗 Corriger toutes les URLs</button>
+    </div>
+    <div id="seoHandlesResult" style="margin-top:12px;font-size:13px;"></div>
+  </div>
 </div>
 </div>
 
@@ -1917,7 +1931,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v40-employee-view';
+const DASH_VERSION = '2025-04-25-v41-fix-handles';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -4323,6 +4337,33 @@ window.markVintedRemoved = async function(barcode, btn) {
       out.insertAdjacentHTML('afterbegin', `<div style="padding:10px;background:var(--accent-dim);border-left:3px solid var(--accent);border-radius:8px;color:var(--accent);font-size:13px;margin-bottom:12px;">Erreur : ${e.message}</div>`);
     } finally {
       btn.disabled = false;
+    }
+  };
+
+  window.fixSeoHandles = async function() {
+    const token = getAdminToken();
+    if (!token) { showDashToast('Clé admin manquante', 'error'); return; }
+    if (!confirm('Corriger les URLs de tous les produits dont le handle ne correspond pas au titre ?\nUne redirection 301 est créée pour chaque URL modifiée.')) return;
+    const out = document.getElementById('seoHandlesResult');
+    out.innerHTML = '<div style="padding:10px;background:var(--info-dim);border-left:3px solid var(--info);border-radius:8px;color:var(--info);font-size:13px;"><span class="spinner-pro"></span> Analyse du catalogue…</div>';
+    try {
+      const res = await fetch(`${BACKEND_URL}/seo/fix-handles`, {
+        method: 'POST',
+        headers: { 'X-NV-Admin-Token': token, 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 403) localStorage.removeItem('nv_admin_key');
+        throw new Error(data.error || 'Erreur serveur');
+      }
+      out.innerHTML = `
+        <div style="padding:10px;background:var(--info-dim);border-left:3px solid var(--info);border-radius:8px;color:var(--info);font-size:13px;">
+          🔗 Correction lancée : ${data.queued} URL(s) à corriger sur ${data.scanned} produits.
+          Suis l'avancement dans les logs Railway (cherche [fix-handles]).
+        </div>`;
+      showDashToast(`Correction des URLs lancée (${data.queued}) ✓`, 'success');
+    } catch(e) {
+      out.innerHTML = `<div style="padding:10px;background:var(--accent-dim);border-left:3px solid var(--accent);border-radius:8px;color:var(--accent);font-size:13px;">Erreur : ${e.message}</div>`;
     }
   };
 })();
