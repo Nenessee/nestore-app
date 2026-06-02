@@ -1917,7 +1917,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v39-auth';
+const DASH_VERSION = '2025-04-25-v40-employee-view';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -2621,7 +2621,6 @@ function renderTransferts() {
 let allActiviteData = [];
 
 async function loadActivite() {
-  if(!ensureAdminKey()){showToast('Journal d\'activité réservé à l\'admin', 'warn');return;}
   const days = document.getElementById('actPeriodFilter')?.value || 1;
   document.getElementById('actTable').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr>';
   try {
@@ -3365,20 +3364,25 @@ function initDashboard(boutique, employee) {
   document.getElementById('dashTitle').textContent = 'Nestore';
   document.getElementById('dashSubtitle').textContent = boutique === 'admin' ? 'Toutes boutiques' : 'Dashboard ' + boutique;
 
-  // Switcher boutique — admin seulement
+  // Switcher boutique — visible pour tous ; on synchronise la pill active
+  // sur la boutique courante (un employé démarre sur sa boutique, peut passer
+  // sur "Tout" ou l'autre boutique en lecture).
   const sw = document.getElementById('boutiqueSwitch');
-  sw.style.display = boutique === 'admin' ? 'flex' : 'none';
+  sw.style.display = 'flex';
+  sw.querySelectorAll('.bsw-btn').forEach(p => {
+    p.classList.toggle('active', (p.getAttribute('onclick') || '').includes(`'${boutique}'`));
+  });
 
-  // Onglets admin seulement (Activité + SEO + Rotation)
+  // Onglets : SEO reste admin seulement ; Activité + Rotation visibles pour tous (lecture)
   const tabAct = document.getElementById('tabActivite');
-  if (tabAct) tabAct.style.display = boutique === 'admin' ? 'block' : 'none';
+  if (tabAct) tabAct.style.display = 'block';
   const tabSeo = document.getElementById('tabSeo');
   if (tabSeo) tabSeo.style.display = boutique === 'admin' ? 'block' : 'none';
   const tabRot = document.getElementById('tabRotation');
-  if (tabRot) tabRot.style.display = boutique === 'admin' ? 'block' : 'none';
-  // KPIs + graphiques Scan & Ventes masqués pour non-admin (historique seul visible)
+  if (tabRot) tabRot.style.display = 'block';
+  // KPIs + graphiques Scan & Ventes : visibles pour tous
   const ventesAdmin = document.getElementById('ventesAdminOnly');
-  if (ventesAdmin) ventesAdmin.style.display = boutique === 'admin' ? 'block' : 'none';
+  if (ventesAdmin) ventesAdmin.style.display = 'block';
 
   // Badge employé
   const pill = document.getElementById('employeePill');
@@ -3396,10 +3400,10 @@ function initDashboard(boutique, employee) {
     pill.style.display = 'none';
   }
 
-  // Masquer filtres boutique pour non-admins
+  // Filtres boutique : visibles pour tous (utiles en lecture)
   ['stockBoutiqueFilter','cmdBoutiqueFilter','cleanBoutiqueFilter','cleanEmployeeFilter'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.style.display = boutique === 'admin' ? '' : 'none';
+    if (el) el.style.display = '';
   });
 
   // Actions réservées à l'admin (export CSV, soldes en masse) — masquées sinon
@@ -3501,12 +3505,12 @@ if (_s?.auth) {
   const commands = [
     { group: 'Onglets', id: 'nav-ventes',     icon: '💰', label: 'Ventes — KPIs et tableau',     run: () => clickTab('ventes') },
     { group: 'Onglets', id: 'nav-stock',      icon: '📦', label: 'Stock en ligne',              run: () => clickTab('stock') },
-    { group: 'Onglets', id: 'nav-rotation',   icon: '🔁', label: 'Rotation par marque',          admin: true, run: () => clickTab('rotation') },
+    { group: 'Onglets', id: 'nav-rotation',   icon: '🔁', label: 'Rotation par marque',          run: () => clickTab('rotation') },
     { group: 'Onglets', id: 'nav-rachats',    icon: '🛍', label: 'Rachats boutique',             run: () => clickTab('rachats') },
     { group: 'Onglets', id: 'nav-nettoyage',  icon: '👟', label: 'Nettoyage',                   run: () => clickTab('nettoyage') },
     { group: 'Onglets', id: 'nav-commandes',  icon: '🌐', label: 'Commandes web',                run: () => clickTab('commandes') },
     { group: 'Onglets', id: 'nav-transferts', icon: '↔',  label: 'Transferts inter-boutiques',  run: () => clickTab('transferts') },
-    { group: 'Onglets', id: 'nav-activite',   icon: '📋', label: 'Journal d\'activité (admin)',  admin: true, run: () => clickTab('activite') },
+    { group: 'Onglets', id: 'nav-activite',   icon: '📋', label: 'Journal d\'activité',          run: () => clickTab('activite') },
 
     { group: 'Stock — filtres rapides', id: 'f-notloc',  icon: '📍', label: 'Filtrer : non localisés',    run: () => quickStockFilter('location','absent') },
     { group: 'Stock — filtres rapides', id: 'f-60j',     icon: '⏱',  label: 'Filtrer : en ligne +60 jours', run: () => quickStockFilter('days','danger') },
