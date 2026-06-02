@@ -1418,7 +1418,7 @@ tbody tr { transition: background .12s; }
         <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
         <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       </button>
-      <a class="btn btn-green" href="#" onclick="exportCSV();return false;">CSV</a>
+      <a class="btn btn-green js-admin-only" href="#" onclick="exportCSV();return false;">CSV</a>
       <button class="icon-btn" onclick="location.href='index.html'" aria-label="Retour caisse">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
       </button>
@@ -1545,8 +1545,8 @@ tbody tr { transition: background .12s; }
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
       <div class="section-title" style="margin:0;">Stock en ligne actuellement</div>
       <div style="display:flex;gap:8px;">
-        <button class="btn btn-red" onclick="openSoldeModalBulk()" style="font-size:13px;">Appliquer soldes sélection</button>
-        <button class="btn" onclick="openSoldeModalAll60()" style="font-size:13px;background:rgba(163,45,45,0.15);border-color:#A32D2D;color:#A32D2D;">Solder tous les +60j</button>
+        <button class="btn btn-red js-admin-only" onclick="openSoldeModalBulk()" style="font-size:13px;">Appliquer soldes sélection</button>
+        <button class="btn js-admin-only" onclick="openSoldeModalAll60()" style="font-size:13px;background:rgba(163,45,45,0.15);border-color:#A32D2D;color:#A32D2D;">Solder tous les +60j</button>
       </div>
     </div>
     <div class="filters-row">
@@ -1602,7 +1602,7 @@ tbody tr { transition: background .12s; }
   <div id="stockSummary" style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;"></div>
   <div class="bulk-toolbar" id="bulkToolbar">
     <span id="bulkCount" style="font-size:13px;">0 article sélectionné</span>
-    <button class="btn btn-red" onclick="openSoldeModalBulk()" style="font-size:12px;">Appliquer réduction</button>
+    <button class="btn btn-red js-admin-only" onclick="openSoldeModalBulk()" style="font-size:12px;">Appliquer réduction</button>
     <button class="btn" onclick="deselectAll()" style="font-size:12px;">Tout désélectionner</button>
   </div>
   <div class="table-card">
@@ -1917,7 +1917,38 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v37-seopending';
+const DASH_VERSION = '2025-04-25-v39-auth';
+
+// Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
+const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
+// Demande (et mémorise) la clé admin pour les actions réservées à l'admin.
+function ensureAdminKey() {
+  let k = localStorage.getItem('nv_admin_key');
+  if (!k) {
+    k = prompt('Clé admin requise pour cette action (variable ADMIN_API_KEY du serveur Railway) :');
+    if (!k || !k.trim()) return null;
+    k = k.trim();
+    localStorage.setItem('nv_admin_key', k);
+  }
+  return k;
+}
+// Injecte l'en-tête employé sur tout appel backend, + l'en-tête admin si une
+// clé admin est connue. Les routes admin (requireAdmin) exigent ce dernier.
+(function () {
+  const _fetch = window.fetch.bind(window);
+  window.fetch = function (input, init) {
+    const url = typeof input === 'string' ? input : (input && input.url) || '';
+    if (url.indexOf(BACKEND_URL) === 0) {
+      init = init || {};
+      const h = new Headers(init.headers || {});
+      if (!h.has('X-NV-Token')) h.set('X-NV-Token', NV_TOKEN);
+      const adminKey = localStorage.getItem('nv_admin_key');
+      if (adminKey && !h.has('X-NV-Admin-Token')) h.set('X-NV-Admin-Token', adminKey);
+      init.headers = h;
+    }
+    return _fetch(input, init);
+  };
+})();
 
 function showToast(msg, type = '') {
   let t = document.getElementById('dashToast');
@@ -2333,6 +2364,7 @@ function updateBulkToolbar() {
 
 let soldeTargets = [];
 function openSoldeModalBulk() {
+  if(!ensureAdminKey()){showToast('Action réservée à l\'admin', 'warn');return;}
   if(selectedProducts.size===0){showToast('Sélectionne au moins un article', 'warn');return;}
   soldeTargets = allStockData.filter(p=>selectedProducts.has(p.id));
   document.getElementById('soldeModalTitle').textContent = `Réduction sur ${soldeTargets.length} article${soldeTargets.length>1?'s':''}`;
@@ -2341,6 +2373,7 @@ function openSoldeModalBulk() {
 }
 
 function openSoldeModalAll60() {
+  if(!ensureAdminKey()){showToast('Action réservée à l\'admin', 'warn');return;}
   soldeTargets = allStockData.filter(p=>p.daysOnline>=60);
   if(soldeTargets.length===0){showToast('Aucun article +60 jours', 'warn');return;}
   document.getElementById('soldeModalTitle').textContent = `Solder ${soldeTargets.length} articles (+60 jours)`;
@@ -2588,6 +2621,7 @@ function renderTransferts() {
 let allActiviteData = [];
 
 async function loadActivite() {
+  if(!ensureAdminKey()){showToast('Journal d\'activité réservé à l\'admin', 'warn');return;}
   const days = document.getElementById('actPeriodFilter')?.value || 1;
   document.getElementById('actTable').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr>';
   try {
@@ -2937,7 +2971,12 @@ async function updateStockLocation(barcode, inBoutique, location) {
   } catch(e) { showToast('Erreur réseau : ' + e.message, 'error'); }
 }
 
-function exportCSV() { window.location.href=`${BACKEND_URL}/analytics/export`; }
+function exportCSV() {
+  const k = ensureAdminKey();
+  if (!k) { showToast('Clé admin requise pour l\'export', 'warn'); return; }
+  // Navigation directe → le jeton passe en query (requireAdmin l'accepte).
+  window.location.href = `${BACKEND_URL}/analytics/export?admin_token=${encodeURIComponent(k)}`;
+}
 
 async function loadCleanings() {
   const [stats, data] = await Promise.all([api('/cleanings/stats'), api('/cleanings')]);
@@ -3267,7 +3306,8 @@ function logEvent(type, metadata) {
     });
     if (navigator.sendBeacon) {
       const blob = new Blob([body], { type: 'application/json' });
-      if (navigator.sendBeacon(`${BACKEND_URL}/log/event`, blob)) return;
+      // sendBeacon ne porte pas d'en-tête → jeton passé en query (requireAuth l'accepte)
+      if (navigator.sendBeacon(`${BACKEND_URL}/log/event?token=${encodeURIComponent(NV_TOKEN)}`, blob)) return;
     }
     fetch(`${BACKEND_URL}/log/event`, {
       method: 'POST',
@@ -3360,6 +3400,11 @@ function initDashboard(boutique, employee) {
   ['stockBoutiqueFilter','cmdBoutiqueFilter','cleanBoutiqueFilter','cleanEmployeeFilter'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = boutique === 'admin' ? '' : 'none';
+  });
+
+  // Actions réservées à l'admin (export CSV, soldes en masse) — masquées sinon
+  document.querySelectorAll('.js-admin-only').forEach(el => {
+    el.style.display = boutique === 'admin' ? '' : 'none';
   });
 
   loadVentes();
@@ -3456,12 +3501,12 @@ if (_s?.auth) {
   const commands = [
     { group: 'Onglets', id: 'nav-ventes',     icon: '💰', label: 'Ventes — KPIs et tableau',     run: () => clickTab('ventes') },
     { group: 'Onglets', id: 'nav-stock',      icon: '📦', label: 'Stock en ligne',              run: () => clickTab('stock') },
-    { group: 'Onglets', id: 'nav-rotation',   icon: '🔁', label: 'Rotation par marque',          run: () => clickTab('rotation') },
+    { group: 'Onglets', id: 'nav-rotation',   icon: '🔁', label: 'Rotation par marque',          admin: true, run: () => clickTab('rotation') },
     { group: 'Onglets', id: 'nav-rachats',    icon: '🛍', label: 'Rachats boutique',             run: () => clickTab('rachats') },
     { group: 'Onglets', id: 'nav-nettoyage',  icon: '👟', label: 'Nettoyage',                   run: () => clickTab('nettoyage') },
     { group: 'Onglets', id: 'nav-commandes',  icon: '🌐', label: 'Commandes web',                run: () => clickTab('commandes') },
     { group: 'Onglets', id: 'nav-transferts', icon: '↔',  label: 'Transferts inter-boutiques',  run: () => clickTab('transferts') },
-    { group: 'Onglets', id: 'nav-activite',   icon: '📋', label: 'Journal d\'activité (admin)',  run: () => clickTab('activite') },
+    { group: 'Onglets', id: 'nav-activite',   icon: '📋', label: 'Journal d\'activité (admin)',  admin: true, run: () => clickTab('activite') },
 
     { group: 'Stock — filtres rapides', id: 'f-notloc',  icon: '📍', label: 'Filtrer : non localisés',    run: () => quickStockFilter('location','absent') },
     { group: 'Stock — filtres rapides', id: 'f-60j',     icon: '⏱',  label: 'Filtrer : en ligne +60 jours', run: () => quickStockFilter('days','danger') },
@@ -3488,6 +3533,17 @@ if (_s?.auth) {
 
   let selectedIdx = 0;
   let filtered = commands;
+
+  // Source de vérité du rôle : la boutique de session ('admin' = accès complet)
+  function dashIsAdmin() {
+    try { return JSON.parse(localStorage.getItem('nv_session') || '{}').boutique === 'admin'; }
+    catch (_) { return false; }
+  }
+  // Commandes effectivement accessibles selon le rôle (masque les onglets admin pour les employés)
+  function visibleCommands() {
+    const admin = dashIsAdmin();
+    return commands.filter(c => !c.admin || admin);
+  }
 
   function clickTab(name) {
     const tab = [...document.querySelectorAll('.tab, [class*="tab "]')].find(t => {
@@ -3578,7 +3634,8 @@ if (_s?.auth) {
 
   function render(query) {
     query = (query || '').trim().toLowerCase();
-    filtered = query ? commands.filter(c => (c.label + ' ' + c.group).toLowerCase().includes(query)) : commands;
+    const base = visibleCommands();
+    filtered = query ? base.filter(c => (c.label + ' ' + c.group).toLowerCase().includes(query)) : base;
     const list = document.getElementById('cmdkList');
     if (!filtered.length) {
       list.innerHTML = `<div class="cmdk-empty">Aucune commande ne correspond à "${query}"</div>`;
@@ -3777,7 +3834,8 @@ if (_s?.auth) {
       const saved = localStorage.getItem('nv_last_dash_tab');
       if (!saved || saved === 'ventes') return;
       const btn = [...document.querySelectorAll('.tab')].find(t => (t.getAttribute('onclick') || '').includes(`switchTab('${saved}'`));
-      if (btn) btn.click();
+      // Ne restaure pas un onglet masqué (onglet admin pour un employé non-admin)
+      if (btn && btn.offsetParent !== null) btn.click();
     } catch {}
   }, 600);
 

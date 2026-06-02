@@ -1016,8 +1016,26 @@
 </div>
 
 <script>
-  const APP_VERSION = '2025-04-25-v26-cam';
+  const APP_VERSION = '2025-04-25-v27-auth';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
+  // Jeton employé envoyé au backend sur chaque appel (doit correspondre à
+  // EMPLOYEE_API_KEY sur Railway). Bloque les accès directs à l'API par URL.
+  const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
+  // Injecte l'en-tête d'auth sur toute requête vers le backend (laisse les
+  // appels externes — CDN, version-check — intacts).
+  (function () {
+    const _fetch = window.fetch.bind(window);
+    window.fetch = function (input, init) {
+      const url = typeof input === 'string' ? input : (input && input.url) || '';
+      if (url.indexOf(BACKEND_URL) === 0) {
+        init = init || {};
+        const h = new Headers(init.headers || {});
+        if (!h.has('X-NV-Token')) h.set('X-NV-Token', NV_TOKEN);
+        init.headers = h;
+      }
+      return _fetch(input, init);
+    };
+  })();
   let currentData = null;
 
   // Vérifier les mises à jour toutes les 30 secondes
@@ -2746,7 +2764,8 @@
       // qui est conçu pour les events de lifecycle (livraison garantie par le browser)
       if (navigator.sendBeacon) {
         const blob = new Blob([body], { type: 'application/json' });
-        if (navigator.sendBeacon(`${BACKEND_URL}/log/event`, blob)) return;
+        // sendBeacon ne porte pas d'en-tête → jeton passé en query (requireAuth l'accepte)
+        if (navigator.sendBeacon(`${BACKEND_URL}/log/event?token=${encodeURIComponent(NV_TOKEN)}`, blob)) return;
       }
       fetch(`${BACKEND_URL}/log/event`, {
         method: 'POST',
