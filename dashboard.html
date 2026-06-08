@@ -1931,7 +1931,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v43-orders-shared';
+const DASH_VERSION = '2025-04-25-v44-bugfix';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -4020,9 +4020,10 @@ if (_s?.auth) {
       if (!q) return _origRachats.apply(this, arguments);
       const filtered = window.allRachatsData.filter(r => {
         if (!smartMatch(q, r.product_name, r.brand, r.barcode, r.employee)) return false;
+        // Aligné sur filterRachats : "postés" = isPosted, "à mettre en ligne" = ni vendu ni posté
         if (status === 'sold' && r.computed_status !== 'sold') return false;
-        if (status === 'pending' && r.computed_status !== 'pending') return false;
-        if (status === 'posted' && r.computed_status !== 'posted') return false;
+        if (status === 'pending' && (r.computed_status === 'sold' || r.isPosted)) return false;
+        if (status === 'posted' && !r.isPosted) return false;
         return true;
       });
       if (typeof renderRachatsTable === 'function') renderRachatsTable(filtered);
@@ -4041,7 +4042,7 @@ if (_s?.auth) {
         if (!smartMatch(q, o.customer, o.product_name, o.barcode, String(o.order_number))) return false;
         if (boutique && o.boutique !== boutique) return false;
         if (status === 'pending' && (o.isAside || o.fulfillment_status === 'fulfilled')) return false;
-        if (status === 'aside' && !o.isAside) return false;
+        if (status === 'aside' && (!o.isAside || o.fulfillment_status === 'fulfilled')) return false;
         if (status === 'fulfilled' && o.fulfillment_status !== 'fulfilled') return false;
         return true;
       });
