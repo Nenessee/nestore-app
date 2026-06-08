@@ -1019,7 +1019,7 @@
 </div>
 
 <script>
-  const APP_VERSION = '2025-04-25-v28-push';
+  const APP_VERSION = '2025-04-25-v29-push-filter';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   // Jeton employé envoyé au backend sur chaque appel (doit correspondre à
   // EMPLOYEE_API_KEY sur Railway). Bloque les accès directs à l'API par URL.
@@ -1081,9 +1081,11 @@
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(key)
       });
+      const body = sub.toJSON();
+      body.boutique = currentBoutique || 'admin';
       const resp = await fetch(`${BACKEND_URL}/push/subscribe`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sub)
+        body: JSON.stringify(body)
       });
       if (!resp.ok) throw new Error('Enregistrement serveur échoué');
       updateNotifBtn(true);
@@ -1091,6 +1093,21 @@
     } catch (e) {
       showToast('Erreur notifications : ' + e.message, 'error');
     }
+  }
+  // Resynchronise la boutique de l'abonnement à chaque connexion (si déjà abonné)
+  async function syncPushBoutique() {
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (!sub) return;
+      const body = sub.toJSON();
+      body.boutique = currentBoutique || 'admin';
+      await fetch(`${BACKEND_URL}/push/subscribe`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }).catch(() => {});
+    } catch (_) {}
   }
   // Reflète l'état au chargement
   if ('serviceWorker' in navigator && 'PushManager' in window) {
@@ -2874,6 +2891,7 @@
     loadRecentPurchases();
     loadActiveCleanings();
     loadVintedMap();
+    syncPushBoutique();
   }
 
   const _s = JSON.parse(localStorage.getItem('nv_session') || 'null');
@@ -2888,6 +2906,7 @@
     loadRecentPurchases();
     loadActiveCleanings();
     loadVintedMap();
+    syncPushBoutique();
   }
 
 

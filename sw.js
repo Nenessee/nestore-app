@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2025-04-25-push';
+const CACHE_VERSION = 'nestore-v2025-04-25-push2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -37,6 +37,7 @@ self.addEventListener('push', (event) => {
     renotify: true,
     data: { url: '/' }
   };
+  if (data.image) options.image = data.image;
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
