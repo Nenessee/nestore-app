@@ -1019,7 +1019,7 @@
 </div>
 
 <script>
-  const APP_VERSION = '2025-04-25-v29-push-filter';
+  const APP_VERSION = '2025-04-25-v30-bugfix';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   // Jeton employé envoyé au backend sur chaque appel (doit correspondre à
   // EMPLOYEE_API_KEY sur Railway). Bloque les accès directs à l'API par URL.
@@ -1076,7 +1076,9 @@
       const perm = await Notification.requestPermission();
       if (perm !== 'granted') { showToast('Notifications refusées dans les réglages', 'warn'); return; }
       const r = await fetch(`${BACKEND_URL}/push/vapid-public`);
+      if (!r.ok) throw new Error('clé serveur indisponible');
       const { key } = await r.json();
+      if (!key) throw new Error('clé de notification manquante');
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(key)
@@ -1831,7 +1833,7 @@
       const boutique = currentBoutique;
       let items = [];
       for (const order of orders) {
-        for (const item of order.line_items) {
+        for (const item of (order.line_items || [])) {
           const tags = item.tags || [];
           const itemBoutique = tags.includes('dk') ? 'DK' : 'Lille';
           if (boutique !== 'admin' && itemBoutique !== boutique) continue;
@@ -2557,7 +2559,8 @@
     const sel = document.getElementById('cleanService');
     const opt = sel.options[sel.selectedIndex];
     const price = opt.dataset.price;
-    if (price !== undefined) document.getElementById('cleanPrice').value = price;
+    // "Autre" = saisie manuelle → ne pas écraser le champ avec 0
+    if (price !== undefined && sel.value !== 'Autre') document.getElementById('cleanPrice').value = price;
   }
 
   let cleanPhotosData = [];
@@ -2736,7 +2739,8 @@
       .forEach(k => localStorage.removeItem(k));
     currentBoutique = null;
     currentEmployee = null;
-    if (_appUpdateInterval) { clearInterval(_appUpdateInterval); _appUpdateInterval = null; }
+    // (on laisse tourner _appUpdateInterval : la vérif de version reste utile
+    //  sur l'écran de login et survit à un logout/login dans la même session)
     try { stopInventaireScan(); } catch(_) {}
     try { stopVenteScan(); } catch(_) {}
     document.getElementById('mainApp').style.display = 'none';
