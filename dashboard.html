@@ -1931,7 +1931,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v42-handles-wording';
+const DASH_VERSION = '2025-04-25-v43-orders-shared';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -2494,13 +2494,15 @@ let allCommandesData = [];
 async function loadDashCommandes() {
   document.getElementById('cmdTable').innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr>';
   try {
-    const data = await fetch(`${BACKEND_URL}/orders/all`).then(r => r.json());
-    // Fusionner avec localStorage pour statut "mis de côté"
-    allCommandesData = data.map(o => ({
-      ...o,
-      isAside: !!localStorage.getItem(`aside_${o.order_id}_${o.line_item_id}`),
-      isNotFound: !!localStorage.getItem(`notfound_${o.order_id}_${o.line_item_id}`)
-    }));
+    const [data, states] = await Promise.all([
+      fetch(`${BACKEND_URL}/orders/all`).then(r => r.json()),
+      fetch(`${BACKEND_URL}/orders/states`).then(r => r.ok ? r.json() : {}).catch(() => ({}))
+    ]);
+    // Statut "mis de côté" / "introuvable" partagé via le backend (visible par tous)
+    allCommandesData = data.map(o => {
+      const st = states[`${o.order_id}_${o.line_item_id}`]?.status;
+      return { ...o, isAside: st === 'aside', isNotFound: st === 'notfound' };
+    });
 
     const total = allCommandesData.length;
     const pending = allCommandesData.filter(o => o.fulfillment_status === 'unfulfilled' && !o.isAside).length;
