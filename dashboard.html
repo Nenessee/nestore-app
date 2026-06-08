@@ -1931,7 +1931,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v44-bugfix';
+const DASH_VERSION = '2025-04-25-v45-bugfix2';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -2007,6 +2007,15 @@ function switchDashBoutique(boutique, btn) {
   document.getElementById('dashSubtitle').textContent = boutique === 'admin' ? 'Toutes boutiques' : 'Dashboard ' + boutique;
   allStockData = [];
   loadVentes(); loadRotation(); loadRachats(); loadCleanings();
+  // Recharge aussi l'onglet actif s'il n'est pas dans la liste ci-dessus
+  // (sinon il garde les données de la boutique précédente jusqu'à un re-clic).
+  const active = document.querySelector('.tab.active');
+  const m = active && (active.getAttribute('onclick') || '').match(/switchTab\('([^']+)'/);
+  const name = m && m[1];
+  if (name === 'stock') loadStock();
+  else if (name === 'commandes') loadDashCommandes();
+  else if (name === 'transferts') loadTransferts();
+  else if (name === 'activite') loadActivite();
 }
 // Afficher le switcher si admin, sinon juste label boutique
 let currentPeriod = 7;
@@ -2082,8 +2091,17 @@ async function api(path) {
   const sep = path.includes('?') ? '&' : '?';
   const boutiqueParam = DASH_BOUTIQUE !== 'admin' ? `${sep}boutique=${DASH_BOUTIQUE}` : '';
   const res = await fetch(`${BACKEND_URL}${path}${boutiqueParam}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status} sur ${path}`);
   return res.json();
 }
+// Filet de sécurité : prévient quand un chargement de données échoue (au lieu
+// d'un onglet bloqué sur "Chargement..." sans explication).
+window.addEventListener('unhandledrejection', (e) => {
+  const msg = (e && e.reason && e.reason.message) || '';
+  if (/HTTP \d|Failed to fetch|NetworkError|Load failed/i.test(msg)) {
+    if (typeof showDashToast === 'function') showDashToast('Erreur de chargement — réessaie ou recharge', 'error');
+  }
+});
 function fmt(n) { return parseFloat(n).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'; }
 
 function trendHtml(current, previous) {
@@ -2419,6 +2437,7 @@ async function applySolde() {
         method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({productIds:batch.map(p=>p.id),variantIds:batch.map(p=>p.variantId),discountPercent:discount,tagName,addToCollection:addCollection})
       });
+      if (res.status === 403) { localStorage.removeItem('nv_admin_key'); throw new Error('Clé admin invalide — ressaisis-la'); }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
     } catch(e) {
       document.getElementById('progressText').textContent = `⚠️ Erreur batch ${i/BATCH+1} : ${e.message}`;

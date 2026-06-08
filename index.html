@@ -1019,7 +1019,7 @@
 </div>
 
 <script>
-  const APP_VERSION = '2025-04-25-v30-bugfix';
+  const APP_VERSION = '2025-04-25-v31-bugfix2';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   // Jeton employé envoyé au backend sur chaque appel (doit correspondre à
   // EMPLOYEE_API_KEY sur Railway). Bloque les accès directs à l'API par URL.
@@ -2627,14 +2627,19 @@
       if (cleanPhotosData.length > 0 && result.cleaning?.id) {
         let uploaded = 0, failed = 0;
         for (const photo of cleanPhotosData) {
-          try {
-            const r = await fetch(`${BACKEND_URL}/cleaning/${result.cleaning.id}/photo`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ photo })
-            });
-            if (r.ok) uploaded++; else failed++;
-          } catch(e) { failed++; }
+          let ok = false;
+          // 2 tentatives par photo (réduit les pertes sur réseau instable)
+          for (let attempt = 0; attempt < 2 && !ok; attempt++) {
+            try {
+              const r = await fetch(`${BACKEND_URL}/cleaning/${result.cleaning.id}/photo`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ photo })
+              });
+              if (r.ok) ok = true;
+            } catch(e) {}
+          }
+          if (ok) uploaded++; else failed++;
         }
         if (failed > 0) showToast(`⚠️ ${failed}/${cleanPhotosData.length} photo(s) non envoyée(s)`, 'warn');
         else if (uploaded > 0) console.log(`[CLEANING] ${uploaded} photo(s) envoyée(s)`);
