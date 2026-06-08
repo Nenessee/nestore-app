@@ -1440,6 +1440,7 @@ tbody tr { transition: background .12s; }
     <div class="tab" onclick="switchTab('transferts',this)">Transferts</div>
     <div class="tab" id="tabActivite" style="display:none;" onclick="switchTab('activite',this)">Activité</div>
     <div class="tab" id="tabSeo" style="display:none;" onclick="guardSeoTab(this)">SEO</div>
+    <div class="tab" id="tabVeille" style="display:none;" onclick="switchTab('veille',this)">Veille</div>
   </div>
 </div>
 
@@ -1927,11 +1928,33 @@ tbody tr { transition: background .12s; }
     </div>
   </div>
 </div>
+
+<!-- TAB VEILLE (admin only) -->
+<div id="tab-veille" class="tab-panel">
+<div class="content">
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px;">
+    <select class="filter-select" id="veilleCompetitor" onchange="veilleOnFilterChange()">
+      <option value="all">Tous les concurrents (vue comparée)</option>
+    </select>
+    <div id="veillePeriods" style="display:flex;gap:4px;">
+      <button class="period-btn" onclick="veilleSetPeriod(7,this)">7j</button>
+      <button class="period-btn active" onclick="veilleSetPeriod(30,this)">30j</button>
+      <button class="period-btn" onclick="veilleSetPeriod(90,this)">90j</button>
+      <button class="period-btn" onclick="veilleSetPeriod(0,this)">Tout</button>
+    </div>
+    <input class="search-input" id="veilleBrand" placeholder="Filtrer par marque…" style="max-width:200px;" oninput="veilleDebouncedFilter()"/>
+    <button class="btn btn-green" onclick="veilleTestCollect()" style="margin-left:auto;">↻ Tester la collecte</button>
+  </div>
+  <div id="veilleNote" style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.5;"></div>
+  <div id="veilleBody"><div class="loading">Chargement…</div></div>
+</div>
+</div>
+
 </div>
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v46-contrast';
+const DASH_VERSION = '2025-04-25-v47-veille';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -2085,6 +2108,7 @@ function switchTab(name, el) {
   if (name === 'transferts') loadTransferts();
   if (name === 'activite') loadActivite();
   if (name === 'seo') initSeoTab();
+  if (name === 'veille') loadVeille();
 }
 
 async function api(path) {
@@ -3388,6 +3412,177 @@ function logout() {
   document.getElementById('dashPwdError').style.display = 'none';
 }
 
+/* ════════ VEILLE CONCURRENTIELLE (admin only) ════════ */
+let veilleState = { competitorId:'all', days:30, brand:'', competitors:[], salesPage:1, salesSort:'date', salesDir:'desc', lastTotalPages:1 };
+let _veilleBrandTimer = null;
+function veilleEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function veilleErr(e){ return `<div style="padding:30px;text-align:center;color:var(--accent);">Erreur de chargement : ${veilleEsc(e&&e.message||e)}</div>`; }
+function veilleRangeParams(){
+  const q=[];
+  if (veilleState.days>0){ q.push('from='+new Date(Date.now()-veilleState.days*86400000).toISOString().slice(0,10)); }
+  if (veilleState.brand){ q.push('brand='+encodeURIComponent(veilleState.brand)); }
+  return q;
+}
+
+async function loadVeille(){
+  if (!ensureAdminKey()){ document.getElementById('veilleBody').innerHTML='<div style="padding:30px;text-align:center;color:var(--accent);">Accès admin requis</div>'; return; }
+  if (!veilleState.competitors.length){
+    try {
+      const list = await fetch(`${BACKEND_URL}/api/competitors`).then(r=>r.ok?r.json():[]);
+      veilleState.competitors = Array.isArray(list)?list:[];
+      const sel=document.getElementById('veilleCompetitor');
+      sel.innerHTML='<option value="all">Tous les concurrents (vue comparée)</option>'+
+        veilleState.competitors.map(c=>`<option value="${c.id}">${veilleEsc(c.name)}${c.is_active?'':' (inactif)'}</option>`).join('');
+    } catch(e){}
+  }
+  veilleRender();
+}
+function veilleOnFilterChange(){ veilleState.competitorId=document.getElementById('veilleCompetitor').value; veilleState.salesPage=1; veilleRender(); }
+function veilleSetPeriod(days,btn){ veilleState.days=days; veilleState.salesPage=1; document.querySelectorAll('#veillePeriods .period-btn').forEach(b=>b.classList.remove('active')); if(btn)btn.classList.add('active'); veilleRender(); }
+function veilleDebouncedFilter(){ clearTimeout(_veilleBrandTimer); _veilleBrandTimer=setTimeout(()=>{ veilleState.brand=document.getElementById('veilleBrand').value.trim(); veilleState.salesPage=1; veilleRender(); },350); }
+async function veilleTestCollect(){
+  if (!ensureAdminKey()) return;
+  showDashToast('Collecte lancée — patiente ~1 min puis reclique sur l\'onglet', 'success');
+  try { await fetch(`${BACKEND_URL}/api/competitors/collect`, { method:'POST' }); } catch(e){}
+  // rafraîchit les compteurs de la liste après un délai
+  setTimeout(async ()=>{ try { veilleState.competitors=[]; await loadVeille(); } catch(e){} }, 70000);
+}
+function veilleRender(){
+  veilleState.competitorId==='all' ? veilleRenderOverview() : veilleRenderDetail(parseInt(veilleState.competitorId,10));
+}
+
+async function veilleRenderOverview(){
+  const body=document.getElementById('veilleBody');
+  body.innerHTML='<div class="loading">Chargement…</div>';
+  document.getElementById('veilleNote').textContent='Volumes en ORDRE DE GRANDEUR — inférés des disparitions de stock sur les catalogues publics. Clique une ligne pour le détail.';
+  const q=veilleRangeParams().filter(x=>!x.startsWith('brand'));
+  try {
+    const rows=await fetch(`${BACKEND_URL}/api/competitors/overview${q.length?'?'+q.join('&'):''}`).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});
+    let html='<div class="table-card"><div style="overflow-x:auto;"><table><thead><tr><th>Concurrent</th><th>Fiabilité</th><th>Volume</th><th>Prix moyen</th><th>Délai moyen</th><th>Marques dominantes</th></tr></thead><tbody>';
+    for (const r of rows){
+      const badges=[];
+      if (r.has_exact_stock) badges.push('<span style="display:inline-block;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;background:var(--success-dim);color:var(--success);">stock exact</span>');
+      if (r.is_consignment) badges.push('<span style="display:inline-block;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;background:var(--warning-dim);color:var(--warning);">dépôt-vente ⚠</span>');
+      if (!r.is_active) badges.push('<span style="font-size:10px;color:var(--text-soft);">inactif</span>');
+      html+=`<tr style="cursor:pointer;" onclick="document.getElementById('veilleCompetitor').value='${r.id}';veilleOnFilterChange();"><td><strong>${veilleEsc(r.name)}</strong><br><span style="font-size:11px;color:var(--text-muted);">${veilleEsc(r.domain)}</span></td><td>${badges.join(' ')||'—'}</td><td style="font-weight:700;">${r.volume||0}</td><td>${r.avg_price?fmt(r.avg_price):'—'}</td><td>${r.avg_days!=null?r.avg_days+' j':'—'}</td><td style="font-size:12px;color:var(--text-muted);">${veilleEsc((r.top_brands||[]).join(', '))||'—'}</td></tr>`;
+    }
+    html+='</tbody></table></div></div>';
+    body.innerHTML=html;
+  } catch(e){ body.innerHTML=veilleErr(e); }
+}
+
+async function veilleRenderDetail(id){
+  const body=document.getElementById('veilleBody');
+  const comp=veilleState.competitors.find(c=>c.id===id);
+  body.innerHTML='<div class="loading">Chargement…</div>';
+  document.getElementById('veilleNote').textContent=(comp&&comp.is_consignment)?'⚠ Dépôt-vente : volumes très bruités (pièces reprises par les clients), à prendre avec une large marge.':'Volumes en ordre de grandeur, inférés des disparitions de stock (~1h de précision).';
+  const base=veilleRangeParams();
+  const statsQs=base.length?'?'+base.join('&'):'';
+  const salesQs='?'+base.concat([`sort=${veilleState.salesSort}`,`dir=${veilleState.salesDir}`,`page=${veilleState.salesPage}`]).join('&');
+  try {
+    const [stats,sales]=await Promise.all([
+      fetch(`${BACKEND_URL}/api/competitors/${id}/stats${statsQs}`).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}),
+      fetch(`${BACKEND_URL}/api/competitors/${id}/sales${salesQs}`).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+    ]);
+    veilleState.lastTotalPages=sales.totalPages||1;
+    body.innerHTML=veilleDetailHTML(stats,sales);
+    veilleRenderCharts(stats);
+    veilleRenderHeatmap(stats.heatmap);
+  } catch(e){ body.innerHTML=veilleErr(e); }
+}
+
+function veilleDetailHTML(stats,sales){
+  const t=stats.totals||{};
+  const kpi=(label,val)=>`<div class="kpi"><div class="kpi-label">${label}</div><div class="kpi-value">${val}</div></div>`;
+  let html='<div class="kpi-grid" style="margin-bottom:20px;">'+
+    kpi('Volume écoulé', (t.volume||0))+
+    kpi('Prix moyen', t.avg_price?fmt(t.avg_price):'—')+
+    kpi('Délai moyen', t.avg_days!=null?t.avg_days+' j':'—')+
+    kpi('Ventes détectées', (t.lines||0))+'</div>';
+  html+='<div class="charts-grid" style="margin-bottom:20px;">'+
+    '<div class="chart-card" style="grid-column:span 2;"><div class="chart-title">Volume écoulé / jour</div><div class="chart-wrap"><canvas id="veilleVolChart"></canvas></div></div>'+
+    '<div class="chart-card"><div class="chart-title">Top marques (volume)</div><div class="chart-wrap"><canvas id="veilleBrandChart"></canvas></div></div>'+
+    '</div>';
+  // heatmap
+  html+='<div class="table-card" style="padding:16px;margin-bottom:20px;"><div class="table-title" style="margin-bottom:10px;">Quand leurs pièces partent (heure × jour)</div><div id="veilleHeatmap" style="overflow-x:auto;"></div><div style="font-size:11px;color:var(--text-soft);margin-top:8px;">Plus la case est rouge, plus de pièces partent sur ce créneau. Pics tard le soir = probablement online ; pics samedi après-midi = probablement boutique.</div></div>';
+  // marques détail
+  const byBrand=stats.byBrand||[];
+  if (byBrand.length){
+    html+='<div class="table-card" style="margin-bottom:20px;"><div class="table-header"><span class="table-title">Par marque</span></div><div style="overflow-x:auto;"><table><thead><tr><th>Marque</th><th>Volume</th><th>Délai moyen</th><th>Prix moyen</th></tr></thead><tbody>';
+    for (const b of byBrand) html+=`<tr><td>${veilleEsc(b.brand)}</td><td style="font-weight:600;">${b.volume}</td><td>${b.avg_days!=null?b.avg_days+' j':'—'}</td><td>${b.avg_price?fmt(b.avg_price):'—'}</td></tr>`;
+    html+='</tbody></table></div></div>';
+  }
+  // tableau grain fin
+  const sortArrow=(c)=> veilleState.salesSort===c ? (veilleState.salesDir==='asc'?' ▲':' ▼') : '';
+  const th=(c,lbl)=>`<th style="cursor:pointer;user-select:none;" onclick="veilleSort('${c}')">${lbl}${sortArrow(c)}</th>`;
+  html+='<div class="table-card"><div class="table-header"><span class="table-title">Pièces écoulées (détail)</span><button class="btn btn-green" style="font-size:12px;" onclick="veilleExportCSV()">Export CSV</button></div><div style="overflow-x:auto;"><table><thead><tr>'+
+    th('title','Article')+th('brand','Marque')+th('price','Prix')+th('listed','Mis en ligne')+th('date','Disparu le')+th('days','Jours en ligne')+'</tr></thead><tbody>';
+  const days=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+  if (!(sales.rows||[]).length) html+='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted);">Aucune vente inférée sur la période (la donnée s\'accumule au fil des heures).</td></tr>';
+  for (const r of (sales.rows||[])){
+    const dis=r.disappeared_at?new Date(r.disappeared_at):null;
+    const disTxt=dis?`${dis.toLocaleDateString('fr-FR')} ${String(r.sold_hour).padStart(2,'0')}h (${days[r.sold_dow]||''})`:'—';
+    html+=`<tr><td>${veilleEsc(r.title)}${r.qty_sold>1?` <span style="font-size:10px;color:var(--accent);">×${r.qty_sold}</span>`:''}</td><td style="color:var(--text-muted);">${veilleEsc(r.brand)||'—'}</td><td style="font-weight:600;">${r.price?fmt(r.price):'—'}</td><td style="color:var(--text-muted);font-size:12px;">${r.first_seen_at?new Date(r.first_seen_at).toLocaleDateString('fr-FR'):'—'}</td><td style="font-size:12px;">${disTxt}</td><td>${r.days_listed!=null?r.days_listed+' j':'—'}</td></tr>`;
+  }
+  html+='</tbody></table></div>';
+  // pagination
+  const tp=sales.totalPages||1, pg=sales.page||1;
+  if (tp>1){
+    html+=`<div style="display:flex;justify-content:center;align-items:center;gap:12px;padding:14px;font-size:13px;">
+      <button class="btn" style="font-size:12px;" ${pg<=1?'disabled':''} onclick="veilleSalesGoto(${pg-1})">‹ Préc.</button>
+      <span style="color:var(--text-muted);">Page ${pg} / ${tp} · ${sales.total} pièces</span>
+      <button class="btn" style="font-size:12px;" ${pg>=tp?'disabled':''} onclick="veilleSalesGoto(${pg+1})">Suiv. ›</button></div>`;
+  }
+  html+='</div>';
+  return html;
+}
+
+function veilleSort(col){ if(veilleState.salesSort===col){ veilleState.salesDir=veilleState.salesDir==='asc'?'desc':'asc'; } else { veilleState.salesSort=col; veilleState.salesDir='desc'; } veilleState.salesPage=1; veilleRender(); }
+function veilleSalesGoto(n){ if(n<1||n>veilleState.lastTotalPages) return; veilleState.salesPage=n; veilleRender(); }
+
+function veilleRenderCharts(stats){
+  const byDay=stats.byDay||[];
+  if (document.getElementById('veilleVolChart')) makeChart('veilleVolChart','line', byDay.map(r=>r.day), [{label:'Volume', data:byDay.map(r=>+r.volume), borderColor:'#E8504E', backgroundColor:'rgba(232,80,78,0.12)', fill:true, tension:0.3, pointRadius:2}]);
+  const top=(stats.byBrand||[]).slice(0,8);
+  if (document.getElementById('veilleBrandChart')) makeChart('veilleBrandChart','bar', top.map(b=>b.brand), [{label:'Volume', data:top.map(b=>+b.volume), backgroundColor:'#185FA5', borderRadius:4}]);
+}
+
+function veilleRenderHeatmap(heatmap){
+  const el=document.getElementById('veilleHeatmap'); if(!el) return;
+  const grid={}; let max=0;
+  for (const h of (heatmap||[])){ const v=+h.volume||0; grid[`${h.sold_dow}_${h.sold_hour}`]=v; if(v>max)max=v; }
+  const days=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+  let html='<div style="display:grid;grid-template-columns:34px repeat(24,1fr);gap:2px;min-width:560px;font-size:9px;align-items:center;">';
+  html+='<div></div>'+Array.from({length:24},(_,h)=>`<div style="text-align:center;color:var(--text-soft);">${h%2===0?h:''}</div>`).join('');
+  for (let i=0;i<7;i++){ const dow=(i+1)%7; // Lun..Dim
+    html+=`<div style="color:var(--text-muted);padding-right:4px;text-align:right;">${days[dow]}</div>`;
+    for (let h=0;h<24;h++){ const v=grid[`${dow}_${h}`]||0; const it=max?v/max:0; const bg=v?`rgba(232,80,78,${(0.12+it*0.88).toFixed(3)})`:'var(--surface-2,#f5f4ef)'; html+=`<div title="${days[dow]} ${h}h : ${v}" style="aspect-ratio:1;border-radius:2px;background:${bg};"></div>`; }
+  }
+  html+='</div>';
+  el.innerHTML=html;
+}
+
+async function veilleExportCSV(){
+  if (veilleState.competitorId==='all'){ showDashToast('Choisis un concurrent d\'abord', 'warn'); return; }
+  const base=veilleRangeParams();
+  let page=1,total=1,all=[];
+  try {
+    do {
+      const qs='?'+base.concat([`sort=${veilleState.salesSort}`,`dir=${veilleState.salesDir}`,`page=${page}`]).join('&');
+      const d=await fetch(`${BACKEND_URL}/api/competitors/${veilleState.competitorId}/sales${qs}`).then(r=>r.json());
+      all=all.concat(d.rows||[]); total=d.totalPages||1; page++;
+    } while (page<=total && page<=40);
+  } catch(e){ showDashToast('Export échoué', 'error'); return; }
+  const days=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+  const esc=v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`;
+  const header=['Article','Marque','Prix','Mis en ligne','Disparu le','Heure','Jour','Jours en ligne','Quantite'];
+  const lines=[header.join(',')].concat(all.map(r=>[
+    esc(r.title),esc(r.brand),r.price||'',(r.first_seen_at||'').slice(0,10),(r.disappeared_at||'').slice(0,10),r.sold_hour,days[r.sold_dow]||'',r.days_listed,r.qty_sold
+  ].join(',')));
+  const blob=new Blob(['﻿'+lines.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='veille_ventes.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+
 function initDashboard(boutique, employee) {
   DASH_BOUTIQUE = boutique;
   DASH_EMPLOYEE = employee || null;
@@ -3413,6 +3608,15 @@ function initDashboard(boutique, employee) {
   if (tabAct) tabAct.style.display = 'block';
   const tabSeo = document.getElementById('tabSeo');
   if (tabSeo) tabSeo.style.display = boutique === 'admin' ? 'block' : 'none';
+  // Onglet Veille : strictement admin — RETIRÉ du DOM pour les non-admin (pas juste masqué)
+  const tabVeille = document.getElementById('tabVeille');
+  const panelVeille = document.getElementById('tab-veille');
+  if (boutique === 'admin') {
+    if (tabVeille) tabVeille.style.display = 'block';
+  } else {
+    if (tabVeille) tabVeille.remove();
+    if (panelVeille) panelVeille.remove();
+  }
   const tabRot = document.getElementById('tabRotation');
   if (tabRot) tabRot.style.display = 'block';
   // KPIs + graphiques Scan & Ventes : visibles pour tous
