@@ -1962,7 +1962,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v56-spy-mobile';
+const DASH_VERSION = '2025-04-25-v57-spy-nestore';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -3477,7 +3477,7 @@ async function veilleRenderOverview(){
       const tracked=cInfo.tracked_now||0;
       const lastScan=cInfo.last_scan?new Date(cInfo.last_scan):null;
       const scanTxt=lastScan?`il y a ${Math.max(0,Math.round((Date.now()-lastScan)/60000))} min`:'jamais';
-      const trackedCell=tracked>0?`<strong>${tracked}</strong> <span style="font-size:10px;color:var(--text-soft);">(scan ${scanTxt})</span>`:`<span style="color:var(--accent);">0 — non lu</span>`;
+      const trackedCell=r.platform==='self'?`<span style="display:inline-block;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;background:var(--success-dim);color:var(--success);">données complètes</span>`:(tracked>0?`<strong>${tracked}</strong> <span style="font-size:10px;color:var(--text-soft);">(scan ${scanTxt})</span>`:`<span style="color:var(--accent);">0 — non lu</span>`);
       html+=`<tr style="cursor:pointer;" onclick="document.getElementById('veilleCompetitor').value='${r.id}';veilleOnFilterChange();"><td><strong>${veilleEsc(r.name)}</strong><br><span style="font-size:11px;color:var(--text-muted);">${veilleEsc(r.domain)}</span></td><td>${trackedCell}</td><td>${badges.join(' ')||'—'}</td><td style="font-weight:700;">${r.volume||0}</td><td>${r.avg_price?fmt(r.avg_price):'—'}</td><td>${r.avg_days!=null?r.avg_days+' j':'—'}</td><td style="font-size:12px;color:var(--text-muted);">${veilleEsc((r.top_brands||[]).join(', '))||'—'}</td></tr>`;
     }
     html+='</tbody></table></div></div>';
@@ -3489,7 +3489,7 @@ async function veilleRenderDetail(id){
   const body=document.getElementById('veilleBody');
   const comp=veilleState.competitors.find(c=>c.id===id);
   body.innerHTML='<div class="loading">Chargement…</div>';
-  document.getElementById('veilleNote').textContent=(comp&&comp.is_consignment)?'⚠ Dépôt-vente : volumes très bruités (pièces reprises par les clients), à prendre avec une large marge.':'Volumes en ordre de grandeur, inférés des disparitions de stock (~1h de précision).';
+  document.getElementById('veilleNote').textContent=(comp&&comp.platform==='self')?'Nos données internes complètes (ventes/achats réels) — référence pour comparer aux concurrents.':((comp&&comp.is_consignment)?'⚠ Dépôt-vente : volumes très bruités (pièces reprises par les clients), à prendre avec une large marge.':'Volumes en ordre de grandeur, inférés des disparitions de stock (~1h de précision).');
   const base=veilleRangeParams();
   if (veilleState.mode==='arrivals') base.push('mode=arrivals');
   const statsQs=base.length?'?'+base.join('&'):'';
@@ -3520,7 +3520,7 @@ function veilleDetailHTML(stats,sales,catalog){
     kpi('Prix moyen', t.avg_price?fmt(t.avg_price):'—')+
     (arr?'':kpi('Délai moyen', t.avg_days!=null?t.avg_days+' j':'—'))+
     kpi(arr?'Articles ajoutés':'Ventes détectées', (t.lines||0))+'</div>';
-  if (catalog) {
+  if (catalog && catalog.total_variants) {
     const tv=catalog.total_variants||0, tp=catalog.total_products||0, av=catalog.available_variants||0;
     const brandRows=(catalog.top_brands||[]).slice(0,8).map(b=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:0.5px solid var(--border);"><span>${veilleEsc(b.brand)}</span><span style="color:var(--text-muted);">${b.variants} var · ${b.products} prod</span></div>`).join('')||'—';
     const prodRows=(catalog.top_products||[]).slice(0,8).map(pr=>`<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:3px 0;border-bottom:0.5px solid var(--border);"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${veilleEsc(pr.title)}</span><span style="flex-shrink:0;color:${pr.variants>=10?'var(--accent)':'var(--text-muted)'};">${pr.variants} var</span></div>`).join('')||'—';
