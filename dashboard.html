@@ -1954,7 +1954,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v53-catalog';
+const DASH_VERSION = '2025-04-25-v54-arrivals';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -3413,7 +3413,7 @@ function logout() {
 }
 
 /* ════════ VEILLE CONCURRENTIELLE (admin only) ════════ */
-let veilleState = { competitorId:'all', days:30, brand:'', competitors:[], salesPage:1, salesSort:'date', salesDir:'desc', lastTotalPages:1 };
+let veilleState = { competitorId:'all', days:30, mode:'sales', brand:'', competitors:[], salesPage:1, salesSort:'date', salesDir:'desc', lastTotalPages:1 };
 let _veilleBrandTimer = null;
 function veilleEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function veilleErr(e){ return `<div style="padding:30px;text-align:center;color:var(--accent);">Erreur de chargement : ${veilleEsc(e&&e.message||e)}</div>`; }
@@ -3439,6 +3439,7 @@ async function loadVeille(){
 }
 function veilleOnFilterChange(){ veilleState.competitorId=document.getElementById('veilleCompetitor').value; veilleState.salesPage=1; veilleRender(); }
 function veilleSetPeriod(days,btn){ veilleState.days=days; veilleState.salesPage=1; document.querySelectorAll('#veillePeriods .period-btn').forEach(b=>b.classList.remove('active')); if(btn)btn.classList.add('active'); veilleRender(); }
+  function veilleSetMode(m){ veilleState.mode=m; veilleState.salesPage=1; veilleState.salesSort='date'; veilleState.salesDir='desc'; veilleRender(); }
 function veilleDebouncedFilter(){ clearTimeout(_veilleBrandTimer); _veilleBrandTimer=setTimeout(()=>{ veilleState.brand=document.getElementById('veilleBrand').value.trim(); veilleState.salesPage=1; veilleRender(); },350); }
 async function veilleTestCollect(){
   if (!ensureAdminKey()) return;
@@ -3482,6 +3483,7 @@ async function veilleRenderDetail(id){
   body.innerHTML='<div class="loading">Chargement…</div>';
   document.getElementById('veilleNote').textContent=(comp&&comp.is_consignment)?'⚠ Dépôt-vente : volumes très bruités (pièces reprises par les clients), à prendre avec une large marge.':'Volumes en ordre de grandeur, inférés des disparitions de stock (~1h de précision).';
   const base=veilleRangeParams();
+  if (veilleState.mode==='arrivals') base.push('mode=arrivals');
   const statsQs=base.length?'?'+base.join('&'):'';
   const salesQs='?'+base.concat([`sort=${veilleState.salesSort}`,`dir=${veilleState.salesDir}`,`page=${veilleState.salesPage}`]).join('&');
   try {
@@ -3499,12 +3501,17 @@ async function veilleRenderDetail(id){
 
 function veilleDetailHTML(stats,sales,catalog){
   const t=stats.totals||{};
+  const arr = veilleState.mode === 'arrivals';
   const kpi=(label,val)=>`<div class="kpi"><div class="kpi-label">${label}</div><div class="kpi-value">${val}</div></div>`;
-  let html='<div class="kpi-grid" style="margin-bottom:20px;">'+
-    kpi('Volume écoulé', (t.volume||0))+
+  let html=`<div style="display:flex;gap:4px;margin-bottom:16px;flex-wrap:wrap;">
+    <button class="period-btn${arr?'':' active'}" onclick="veilleSetMode('sales')">Ventes (sorties)</button>
+    <button class="period-btn${arr?' active':''}" onclick="veilleSetMode('arrivals')">Arrivages (rachats)</button>
+  </div>`;
+  html+='<div class="kpi-grid" style="margin-bottom:20px;">'+
+    kpi(arr?'Arrivages':'Volume écoulé', (t.volume||0))+
     kpi('Prix moyen', t.avg_price?fmt(t.avg_price):'—')+
-    kpi('Délai moyen', t.avg_days!=null?t.avg_days+' j':'—')+
-    kpi('Ventes détectées', (t.lines||0))+'</div>';
+    (arr?'':kpi('Délai moyen', t.avg_days!=null?t.avg_days+' j':'—'))+
+    kpi(arr?'Articles ajoutés':'Ventes détectées', (t.lines||0))+'</div>';
   if (catalog) {
     const tv=catalog.total_variants||0, tp=catalog.total_products||0, av=catalog.available_variants||0;
     const brandRows=(catalog.top_brands||[]).slice(0,8).map(b=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:0.5px solid var(--border);"><span>${veilleEsc(b.brand)}</span><span style="color:var(--text-muted);">${b.variants} var · ${b.products} prod</span></div>`).join('')||'—';
@@ -3522,29 +3529,29 @@ function veilleDetailHTML(stats,sales,catalog){
     </div>`;
   }
   html+='<div class="charts-grid" style="margin-bottom:20px;">'+
-    '<div class="chart-card" style="grid-column:span 2;"><div class="chart-title">Volume écoulé / jour</div><div class="chart-wrap"><canvas id="veilleVolChart"></canvas></div></div>'+
+    '<div class="chart-card" style="grid-column:span 2;"><div class="chart-title">'+(arr?'Arrivages':'Volume écoulé')+' / jour</div><div class="chart-wrap"><canvas id="veilleVolChart"></canvas></div></div>'+
     '<div class="chart-card"><div class="chart-title">Top marques (volume)</div><div class="chart-wrap"><canvas id="veilleBrandChart"></canvas></div></div>'+
     '</div>';
   // heatmap
-  html+='<div class="table-card" style="padding:16px;margin-bottom:20px;"><div class="table-title" style="margin-bottom:10px;">Quand leurs pièces partent (heure × jour)</div><div id="veilleHeatmap" style="overflow-x:auto;"></div><div style="font-size:11px;color:var(--text-soft);margin-top:8px;">Plus la case est rouge, plus de pièces partent sur ce créneau. Pics tard le soir = probablement online ; pics samedi après-midi = probablement boutique.</div></div>';
+  html+='<div class="table-card" style="padding:16px;margin-bottom:20px;"><div class="table-title" style="margin-bottom:10px;">'+(arr?'Quand ils mettent en ligne (heure × jour)':'Quand leurs pièces partent (heure × jour)')+'</div><div id="veilleHeatmap" style="overflow-x:auto;"></div><div style="font-size:11px;color:var(--text-soft);margin-top:8px;">'+(arr?'Plus la case est rouge, plus ils ajoutent d\'articles sur ce créneau (réassort/sourcing).':'Plus la case est rouge, plus de pièces partent sur ce créneau. Pics tard le soir = probablement online ; pics samedi après-midi = probablement boutique.')+'</div></div>';
   // marques détail
   const byBrand=stats.byBrand||[];
   if (byBrand.length){
-    html+='<div class="table-card" style="margin-bottom:20px;"><div class="table-header"><span class="table-title">Par marque</span></div><div style="overflow-x:auto;"><table><thead><tr><th>Marque</th><th>Volume</th><th>Délai moyen</th><th>Prix moyen</th></tr></thead><tbody>';
-    for (const b of byBrand) html+=`<tr><td>${veilleEsc(b.brand)}</td><td style="font-weight:600;">${b.volume}</td><td>${b.avg_days!=null?b.avg_days+' j':'—'}</td><td>${b.avg_price?fmt(b.avg_price):'—'}</td></tr>`;
+    html+='<div class="table-card" style="margin-bottom:20px;"><div class="table-header"><span class="table-title">Par marque</span></div><div style="overflow-x:auto;"><table><thead><tr><th>Marque</th><th>Volume</th>'+(arr?'':'<th>Délai moyen</th>')+'<th>Prix moyen</th></tr></thead><tbody>';
+    for (const b of byBrand) html+=`<tr><td>${veilleEsc(b.brand)}</td><td style="font-weight:600;">${b.volume}</td>${arr?'':`<td>${b.avg_days!=null?b.avg_days+' j':'—'}</td>`}<td>${b.avg_price?fmt(b.avg_price):'—'}</td></tr>`;
     html+='</tbody></table></div></div>';
   }
   // tableau grain fin
   const sortArrow=(c)=> veilleState.salesSort===c ? (veilleState.salesDir==='asc'?' ▲':' ▼') : '';
   const th=(c,lbl)=>`<th style="cursor:pointer;user-select:none;" onclick="veilleSort('${c}')">${lbl}${sortArrow(c)}</th>`;
-  html+='<div class="table-card"><div class="table-header"><span class="table-title">Pièces écoulées (détail)</span><button class="btn btn-green" style="font-size:12px;" onclick="veilleExportCSV()">Export CSV</button></div><div style="overflow-x:auto;"><table><thead><tr>'+
-    th('title','Article')+th('brand','Marque')+th('price','Prix')+th('listed','Mis en ligne')+th('date','Disparu le')+th('days','Jours en ligne')+'</tr></thead><tbody>';
+  html+='<div class="table-card"><div class="table-header"><span class="table-title">'+(arr?'Articles mis en ligne (détail)':'Pièces écoulées (détail)')+'</span><button class="btn btn-green" style="font-size:12px;" onclick="veilleExportCSV()">Export CSV</button></div><div style="overflow-x:auto;"><table><thead><tr>'+
+    th('title','Article')+th('brand','Marque')+th('price','Prix')+(arr?'':th('listed','Mis en ligne'))+th('date',arr?'Mis en ligne le':'Disparu le')+(arr?'':th('days','Jours en ligne'))+'</tr></thead><tbody>';
   const days=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
-  if (!(sales.rows||[]).length) html+='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted);">Aucune vente inférée sur la période (la donnée s\'accumule au fil des heures).</td></tr>';
+  if (!(sales.rows||[]).length) html+='<tr><td colspan="'+(arr?4:6)+'" style="text-align:center;padding:24px;color:var(--text-muted);">'+(arr?'Aucun arrivage détecté sur la période':'Aucune vente inférée sur la période')+' (la donnée s\'accumule au fil des heures).</td></tr>';
   for (const r of (sales.rows||[])){
     const dis=r.disappeared_at?new Date(r.disappeared_at):null;
     const disTxt=dis?`${dis.toLocaleDateString('fr-FR')} ${String(r.sold_hour).padStart(2,'0')}h (${days[r.sold_dow]||''})`:'—';
-    html+=`<tr><td>${veilleEsc(r.title)}${r.qty_sold>1?` <span style="font-size:10px;color:var(--accent);">×${r.qty_sold}</span>`:''}</td><td style="color:var(--text-muted);">${veilleEsc(r.brand)||'—'}</td><td style="font-weight:600;">${r.price?fmt(r.price):'—'}</td><td style="color:var(--text-muted);font-size:12px;">${r.first_seen_at?new Date(r.first_seen_at).toLocaleDateString('fr-FR'):'—'}</td><td style="font-size:12px;">${disTxt}</td><td>${r.days_listed!=null?r.days_listed+' j':'—'}</td></tr>`;
+    html+=`<tr><td>${veilleEsc(r.title)}${(!arr&&r.qty_sold>1)?` <span style="font-size:10px;color:var(--accent);">×${r.qty_sold}</span>`:''}</td><td style="color:var(--text-muted);">${veilleEsc(r.brand)||'—'}</td><td style="font-weight:600;">${r.price?fmt(r.price):'—'}</td>${arr?'':`<td style="color:var(--text-muted);font-size:12px;">${r.first_seen_at?new Date(r.first_seen_at).toLocaleDateString('fr-FR'):'—'}</td>`}<td style="font-size:12px;">${disTxt}</td>${arr?'':`<td>${r.days_listed!=null?r.days_listed+' j':'—'}</td>`}</tr>`;
   }
   html+='</tbody></table></div>';
   // pagination
@@ -3587,6 +3594,7 @@ function veilleRenderHeatmap(heatmap){
 async function veilleExportCSV(){
   if (veilleState.competitorId==='all'){ showDashToast('Choisis un concurrent d\'abord', 'warn'); return; }
   const base=veilleRangeParams();
+  if (veilleState.mode==='arrivals') base.push('mode=arrivals');
   let page=1,total=1,all=[];
   try {
     do {
