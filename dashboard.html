@@ -1962,7 +1962,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v58-spy-nestore-catalog';
+const DASH_VERSION = '2025-04-25-v59-spy-nestore-diag';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -3494,20 +3494,23 @@ async function veilleRenderDetail(id){
   if (veilleState.mode==='arrivals') base.push('mode=arrivals');
   const statsQs=base.length?'?'+base.join('&'):'';
   const salesQs='?'+base.concat([`sort=${veilleState.salesSort}`,`dir=${veilleState.salesDir}`,`page=${veilleState.salesPage}`]).join('&');
+  const isSelf=!!(comp&&comp.platform==='self');
+  const diagQs=veilleRangeParams().filter(x=>!x.startsWith('brand'));
   try {
-    const [stats,sales,catalog]=await Promise.all([
+    const [stats,sales,catalog,diag]=await Promise.all([
       fetch(`${BACKEND_URL}/api/competitors/${id}/stats${statsQs}`).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}),
       fetch(`${BACKEND_URL}/api/competitors/${id}/sales${salesQs}`).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}),
-      fetch(`${BACKEND_URL}/api/competitors/${id}/catalog`).then(r=>r.ok?r.json():null).catch(()=>null)
+      fetch(`${BACKEND_URL}/api/competitors/${id}/catalog`).then(r=>r.ok?r.json():null).catch(()=>null),
+      isSelf?fetch(`${BACKEND_URL}/api/competitors/${id}/self-diagnostic${diagQs.length?'?'+diagQs.join('&'):''}`).then(r=>r.ok?r.json():null).catch(()=>null):Promise.resolve(null)
     ]);
     veilleState.lastTotalPages=sales.totalPages||1;
-    body.innerHTML=veilleDetailHTML(stats,sales,catalog);
+    body.innerHTML=veilleDetailHTML(stats,sales,catalog,diag);
     veilleRenderCharts(stats);
     veilleRenderHeatmap(stats.heatmap);
   } catch(e){ body.innerHTML=veilleErr(e); }
 }
 
-function veilleDetailHTML(stats,sales,catalog){
+function veilleDetailHTML(stats,sales,catalog,diag){
   const t=stats.totals||{};
   const arr = veilleState.mode === 'arrivals';
   const kpi=(label,val)=>`<div class="kpi"><div class="kpi-label">${label}</div><div class="kpi-value">${val}</div></div>`;
@@ -3527,6 +3530,26 @@ function veilleDetailHTML(stats,sales,catalog){
       <div style="font-size:13px;color:var(--text-muted);line-height:1.5;">
         ${op!=null?`<strong style="color:var(--text);font-size:18px;">${op}</strong> produits actuellement en ligne sur notre boutique Shopify.`:'Nombre de produits en ligne indisponible (token Shopify ?).'}
         <span style="color:var(--text-soft);"> Données internes complètes — sert de référence pour comparer aux concurrents.</span>
+      </div>
+    </div>`;
+  }
+  if (diag) {
+    const chanRows=(diag.byChannel||[]).map(c=>`<div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:0.5px solid var(--border);"><span>${veilleEsc(c.boutique)}</span><span style="color:var(--text-muted);"><strong style="color:var(--text);">${c.n}</strong> ventes · ${fmt(c.revenue)}</span></div>`).join('')||'—';
+    const hasDup=(diag.dup_extra||0)>0;
+    const exRows=(diag.examples||[]).slice(0,8).map(e=>`<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:3px 0;border-bottom:0.5px solid var(--border);"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${veilleEsc(e.product_name)} · ${fmt(e.price)}</span><span style="flex-shrink:0;color:var(--accent);">×${e.occurrences} (${e.span_minutes} min)</span></div>`).join('');
+    html+=`<div class="table-card" style="padding:16px;margin-bottom:20px;">
+      <div class="table-title" style="margin-bottom:10px;">Diagnostic du volume (d'où viennent les ventes)</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;">
+        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text-soft);margin-bottom:6px;">Par canal</div>${chanRows}</div>
+        <div>
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text-soft);margin-bottom:6px;">Doublons web probables</div>
+          <div style="font-size:13px;line-height:1.6;">
+            Ventes site : <strong>${diag.web_total||0}</strong><br>
+            Doublons suspects : <strong style="color:${hasDup?'var(--accent)':'var(--success)'};">${diag.dup_extra||0}</strong>
+            ${hasDup?`<div style="font-size:11px;color:var(--text-soft);margin-top:4px;">Lignes web identiques réinsérées &lt; 1 h après — probablement des webhooks Shopify livrés en double. Volume réel ≈ <strong style="color:var(--text);">${(diag.total||0)-(diag.dup_extra||0)}</strong> au lieu de ${diag.total||0}.</div>`:`<div style="font-size:11px;color:var(--text-soft);margin-top:4px;">Aucun doublon évident — le volume reflète tes vraies ventes.</div>`}
+          </div>
+          ${exRows?`<div style="margin-top:10px;">${exRows}</div>`:''}
+        </div>
       </div>
     </div>`;
   }
