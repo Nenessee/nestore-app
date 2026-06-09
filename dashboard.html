@@ -1962,7 +1962,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v65-daily-ca';
+const DASH_VERSION = '2025-04-25-v66-ca-ranking';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -3463,12 +3463,26 @@ function veilleRender(){
 async function veilleRenderOverview(){
   const body=document.getElementById('veilleBody');
   body.innerHTML='<div class="loading">Chargement…</div>';
-  document.getElementById('veilleNote').textContent='Volumes en ORDRE DE GRANDEUR — inférés des disparitions de stock sur les catalogues publics. Clique une ligne pour le détail.';
+  document.getElementById('veilleNote').textContent='Classement par CA sur la période. CA = volume × prix moyen. Nestore = exact ; concurrents = estimation basse (inférée des disparitions de stock). Clique une ligne pour le détail.';
   const q=veilleRangeParams().filter(x=>!x.startsWith('brand'));
   try {
     const rows=await fetch(`${BACKEND_URL}/api/competitors/overview${q.length?'?'+q.join('&'):''}`).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});
-    let html='<div class="table-card"><div style="overflow-x:auto;"><table><thead><tr><th>Concurrent</th><th>Catalogue dispo (produits)</th><th>Fiabilité</th><th>Volume</th><th>Prix moyen</th><th>Délai moyen</th><th>Marques dominantes</th></tr></thead><tbody>';
+    // CA = volume × prix moyen (pour Nestore : COUNT×AVG = somme exacte ; concurrents : estimation)
+    rows.forEach(r=>{ r._ca = Number(r.volume||0) * Number(r.avg_price||0); });
+    rows.sort((a,b)=> b._ca - a._ca);
+    // Podium top 3 par CA
+    const medal=['🥇','🥈','🥉']; const edge=['#FFD700','#C0C0C0','#CD7F32'];
+    let html='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px;">';
+    rows.slice(0,3).forEach((r,i)=>{
+      html+=`<div class="kpi" style="border-left:3px solid ${edge[i]};cursor:pointer;" onclick="document.getElementById('veilleCompetitor').value='${r.id}';veilleOnFilterChange();">
+        <div class="kpi-label">${medal[i]} ${veilleEsc(r.name)}</div>
+        <div class="kpi-value">${fmt(r._ca)}${r.platform!=='self'?' <span style="font-size:11px;color:var(--text-soft);">est.</span>':''}</div></div>`;
+    });
+    html+='</div>';
+    html+='<div class="table-card"><div style="overflow-x:auto;"><table><thead><tr><th>#</th><th>Boutique</th><th>CA (période)</th><th>Catalogue dispo (produits)</th><th>Fiabilité</th><th>Volume</th><th>Prix moyen</th><th>Délai moyen</th><th>Marques dominantes</th></tr></thead><tbody>';
+    let rank=0;
     for (const r of rows){
+      rank++;
       const badges=[];
       if (r.has_exact_stock) badges.push('<span style="display:inline-block;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;background:var(--success-dim);color:var(--success);">stock exact</span>');
       if (r.is_consignment) badges.push('<span style="display:inline-block;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;background:var(--warning-dim);color:var(--warning);">dépôt-vente ⚠</span>');
@@ -3478,7 +3492,10 @@ async function veilleRenderOverview(){
       const lastScan=cInfo.last_scan?new Date(cInfo.last_scan):null;
       const scanTxt=lastScan?`il y a ${Math.max(0,Math.round((Date.now()-lastScan)/60000))} min`:'jamais';
       const trackedCell=r.platform==='self'?(tracked>0?`<strong>${tracked}</strong> <span style="font-size:10px;color:var(--text-soft);">en stock</span>`:`<span style="display:inline-block;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;background:var(--success-dim);color:var(--success);">données complètes</span>`):(lastScan?`<strong>${tracked}</strong> <span style="font-size:10px;color:var(--text-soft);">dispo (scan ${scanTxt})</span>`:`<span style="color:var(--accent);">0 — non lu</span>`);
-      html+=`<tr style="cursor:pointer;" onclick="document.getElementById('veilleCompetitor').value='${r.id}';veilleOnFilterChange();"><td><strong>${veilleEsc(r.name)}</strong><br><span style="font-size:11px;color:var(--text-muted);">${veilleEsc(r.domain)}</span></td><td>${trackedCell}</td><td>${badges.join(' ')||'—'}</td><td style="font-weight:700;">${r.volume||0}</td><td>${r.avg_price?fmt(r.avg_price):'—'}</td><td>${r.avg_days!=null?r.avg_days+' j':'—'}</td><td style="font-size:12px;color:var(--text-muted);">${veilleEsc((r.top_brands||[]).join(', '))||'—'}</td></tr>`;
+      const rankCell=rank<=3?`<span style="font-size:16px;">${medal[rank-1]}</span>`:`<span style="color:var(--text-muted);font-weight:700;">${rank}</span>`;
+      const caCell=`${fmt(r._ca)}${r.platform!=='self'?' <span style="font-size:10px;color:var(--text-soft);">est.</span>':''}`;
+      const selfBg=r.platform==='self'?'background:var(--success-dim);':'';
+      html+=`<tr style="cursor:pointer;${selfBg}" onclick="document.getElementById('veilleCompetitor').value='${r.id}';veilleOnFilterChange();"><td style="text-align:center;">${rankCell}</td><td><strong>${veilleEsc(r.name)}</strong><br><span style="font-size:11px;color:var(--text-muted);">${veilleEsc(r.domain)}</span></td><td style="font-weight:700;">${caCell}</td><td>${trackedCell}</td><td>${badges.join(' ')||'—'}</td><td>${r.volume||0}</td><td>${r.avg_price?fmt(r.avg_price):'—'}</td><td>${r.avg_days!=null?r.avg_days+' j':'—'}</td><td style="font-size:12px;color:var(--text-muted);">${veilleEsc((r.top_brands||[]).join(', '))||'—'}</td></tr>`;
     }
     html+='</tbody></table></div></div>';
     body.innerHTML=html;
