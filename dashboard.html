@@ -1962,7 +1962,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v62-spy-daily';
+const DASH_VERSION = '2025-04-25-v63-daily-all';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -3523,8 +3523,8 @@ function veilleDetailHTML(stats,sales,catalog,diag){
     kpi('Prix moyen', t.avg_price?fmt(t.avg_price):'—')+
     (arr?'':kpi('Délai moyen', t.avg_days!=null?t.avg_days+' j':'—'))+
     kpi(arr?'Articles ajoutés':'Ventes détectées', (t.lines||0))+
-    (stats.self?kpi(arr?"Rachats aujourd'hui":"Ventes aujourd'hui", (stats.today?stats.today.volume:0)+(stats.today&&stats.today.revenue?` <span style="font-size:13px;color:var(--text-soft);font-weight:600;">· ${fmt(stats.today.revenue)}</span>`:'')):'')+
-    (stats.self?kpi('Moyenne / jour', stats.avg_per_day!=null?stats.avg_per_day:'—'):'')+'</div>';
+    kpi(stats.self?(arr?"Rachats aujourd'hui":"Ventes aujourd'hui"):(arr?"Arrivages du jour (est.)":"Ventes du jour (est.)"), (stats.today?stats.today.volume:0)+(stats.self&&stats.today&&stats.today.revenue?` <span style="font-size:13px;color:var(--text-soft);font-weight:600;">· ${fmt(stats.today.revenue)}</span>`:''))+
+    kpi(stats.self?'Moyenne / jour':'Moyenne / jour (est.)', stats.avg_per_day!=null?stats.avg_per_day:'—')+'</div>';
   if (catalog && catalog.self) {
     const op=catalog.online_products;
     html+=`<div class="table-card" style="padding:16px;margin-bottom:20px;">
