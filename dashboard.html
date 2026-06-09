@@ -1962,7 +1962,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v64-daily-clientcalc';
+const DASH_VERSION = '2025-04-25-v65-daily-ca';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -3519,8 +3519,17 @@ function veilleDetailHTML(stats,sales,catalog,diag){
   const _todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
   let _todayVol = (stats.today != null) ? stats.today.volume
                   : (((stats.byDay||[]).find(d=>d.day===_todayStr)||{}).volume || 0);
-  const _todayExtra = (stats.self && stats.today && stats.today.revenue)
-    ? ` <span style="font-size:13px;color:var(--text-soft);font-weight:600;">· ${fmt(stats.today.revenue)}</span>` : '';
+  // CA du jour : exact si le serveur le fournit (Nestore, ou concurrents une fois #32 déployé),
+  // sinon estimé côté front pour les concurrents = ventes du jour × prix moyen de la période.
+  let _todayRev = null, _todayApprox = false;
+  if (stats.today && stats.today.revenue != null && Number(stats.today.revenue) > 0) {
+    _todayRev = stats.today.revenue;
+  } else if (!stats.self) {
+    const _ap = Number(t.avg_price || 0);
+    if (_ap > 0 && Number(_todayVol) > 0) { _todayRev = _ap * Number(_todayVol); _todayApprox = true; }
+  }
+  const _todayExtra = (_todayRev != null)
+    ? ` <span style="font-size:13px;color:var(--text-soft);font-weight:600;">· ${_todayApprox ? '~' : ''}${fmt(_todayRev)}</span>` : '';
   let _avg;
   if (stats.avg_per_day != null) { _avg = stats.avg_per_day; }
   else {
