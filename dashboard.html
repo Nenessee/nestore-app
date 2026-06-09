@@ -1962,7 +1962,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v63-daily-all';
+const DASH_VERSION = '2025-04-25-v64-daily-clientcalc';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -3514,6 +3514,21 @@ function veilleDetailHTML(stats,sales,catalog,diag){
   const t=stats.totals||{};
   const arr = veilleState.mode === 'arrivals';
   const kpi=(label,val)=>`<div class="kpi"><div class="kpi-label">${label}</div><div class="kpi-value">${val}</div></div>`;
+  // Ventes du jour + moyenne/jour : on prend les valeurs serveur si présentes,
+  // sinon on les dérive de byDay/totals (déjà renvoyés) — marche même sans le dernier déploiement serveur.
+  const _todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
+  let _todayVol = (stats.today != null) ? stats.today.volume
+                  : (((stats.byDay||[]).find(d=>d.day===_todayStr)||{}).volume || 0);
+  const _todayExtra = (stats.self && stats.today && stats.today.revenue)
+    ? ` <span style="font-size:13px;color:var(--text-soft);font-weight:600;">· ${fmt(stats.today.revenue)}</span>` : '';
+  let _avg;
+  if (stats.avg_per_day != null) { _avg = stats.avg_per_day; }
+  else {
+    const _tv = Number(t.volume||0);
+    let _days = veilleState.days>0 ? veilleState.days : 1;
+    if (veilleState.days===0) { const bd=stats.byDay||[]; if (bd.length) { const first=new Date(bd[0].day+'T00:00:00'); _days=Math.max(1, Math.round((Date.now()-first)/86400000)+1); } }
+    _avg = _tv ? (_tv/_days).toFixed(2) : '—';
+  }
   let html=`<div style="display:flex;gap:4px;margin-bottom:16px;flex-wrap:wrap;">
     <button class="period-btn${arr?'':' active'}" onclick="veilleSetMode('sales')">Ventes (sorties)</button>
     <button class="period-btn${arr?' active':''}" onclick="veilleSetMode('arrivals')">Arrivages (rachats)</button>
@@ -3523,8 +3538,8 @@ function veilleDetailHTML(stats,sales,catalog,diag){
     kpi('Prix moyen', t.avg_price?fmt(t.avg_price):'—')+
     (arr?'':kpi('Délai moyen', t.avg_days!=null?t.avg_days+' j':'—'))+
     kpi(arr?'Articles ajoutés':'Ventes détectées', (t.lines||0))+
-    kpi(stats.self?(arr?"Rachats aujourd'hui":"Ventes aujourd'hui"):(arr?"Arrivages du jour (est.)":"Ventes du jour (est.)"), (stats.today?stats.today.volume:0)+(stats.self&&stats.today&&stats.today.revenue?` <span style="font-size:13px;color:var(--text-soft);font-weight:600;">· ${fmt(stats.today.revenue)}</span>`:''))+
-    kpi(stats.self?'Moyenne / jour':'Moyenne / jour (est.)', stats.avg_per_day!=null?stats.avg_per_day:'—')+'</div>';
+    kpi(stats.self?(arr?"Rachats aujourd'hui":"Ventes aujourd'hui"):(arr?"Arrivages du jour (est.)":"Ventes du jour (est.)"), _todayVol+_todayExtra)+
+    kpi(stats.self?'Moyenne / jour':'Moyenne / jour (est.)', _avg)+'</div>';
   if (catalog && catalog.self) {
     const op=catalog.online_products;
     html+=`<div class="table-card" style="padding:16px;margin-bottom:20px;">
