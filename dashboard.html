@@ -698,10 +698,18 @@ tr:hover td { background: var(--surface-alt); }
   .charts-grid { grid-template-columns: 1fr; }
   .chart-card[style*="grid-column:span 2"] { grid-column: 1 !important; }
   .content { padding: 16px 12px calc(20px + env(safe-area-inset-bottom)); }
-  .topbar-title { font-size: 14px; }
+  /* En-tête plus propre : titre lisible, sous-titre et recherche masqués (redondants/encombrants) */
+  .topbar-title { font-size: 16px; white-space: nowrap; overflow: visible; }
+  .topbar-boutique { display: none; }
+  .cmdk-btn-icon { display: none; }
+  .topbar-left { gap: 10px; }
+  .topbar-right { gap: 6px; }
   .btn { padding: 8px 12px; font-size: 11px; }
   .section-title { font-size: 16px; }
   .kpi-value { font-size: 24px; }
+  /* Tableaux plus compacts pour faire tenir plus de colonnes sur petit écran */
+  .table-card table { font-size: 12px; }
+  .table-card th, .table-card td { padding: 9px 10px; }
 }
 @media (max-width: 480px) {
   .employee-pill-name { display: none; }
@@ -1954,7 +1962,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v54-arrivals';
+const DASH_VERSION = '2025-04-25-v55-mobileui';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
