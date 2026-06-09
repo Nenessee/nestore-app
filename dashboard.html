@@ -1946,7 +1946,6 @@ tbody tr { transition: background .12s; }
     </div>
     <input class="search-input" id="veilleBrand" placeholder="Filtrer par marque…" style="max-width:200px;" oninput="veilleDebouncedFilter()"/>
     <button class="btn btn-green" onclick="veilleTestCollect()" style="margin-left:auto;">↻ Tester la collecte</button>
-    <button class="btn" onclick="veilleReset()" style="border-color:#A32D2D;color:#A32D2D;">Réinitialiser</button>
   </div>
   <div id="veilleNote" style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.5;"></div>
   <div id="veilleBody"><div class="loading">Chargement…</div></div>
@@ -1955,7 +1954,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v51-spy';
+const DASH_VERSION = '2025-04-25-v52-spy';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -3447,16 +3446,6 @@ async function veilleTestCollect(){
   try { await fetch(`${BACKEND_URL}/api/competitors/collect`, { method:'POST' }); } catch(e){}
   // rafraîchit les compteurs de la liste après un délai
   setTimeout(async ()=>{ try { veilleState.competitors=[]; await loadVeille(); } catch(e){} }, 70000);
-}
-async function veilleReset(){
-  if (!ensureAdminKey()) return;
-  if (!confirm('Effacer toutes les données de veille (snapshots + ventes inférées) et repartir de zéro ?\nLes concurrents et leurs réglages sont conservés.')) return;
-  try {
-    const r = await fetch(`${BACKEND_URL}/api/competitors/reset`, { method:'POST' });
-    if (!r.ok) throw new Error('HTTP '+r.status);
-    showDashToast('Veille réinitialisée — relance « Tester la collecte »', 'success');
-    veilleState.competitors=[]; await loadVeille();
-  } catch(e){ showDashToast('Échec : '+e.message, 'error'); }
 }
 function veilleRender(){
   veilleState.competitorId==='all' ? veilleRenderOverview() : veilleRenderDetail(parseInt(veilleState.competitorId,10));
