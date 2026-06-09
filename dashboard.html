@@ -1440,7 +1440,7 @@ tbody tr { transition: background .12s; }
     <div class="tab" onclick="switchTab('transferts',this)">Transferts</div>
     <div class="tab" id="tabActivite" style="display:none;" onclick="switchTab('activite',this)">Activité</div>
     <div class="tab" id="tabSeo" style="display:none;" onclick="guardSeoTab(this)">SEO</div>
-    <div class="tab" id="tabVeille" style="display:none;" onclick="switchTab('veille',this)">Veille</div>
+    <div class="tab" id="tabVeille" style="display:none;" onclick="switchTab('veille',this)">SPY</div>
   </div>
 </div>
 
@@ -1938,6 +1938,7 @@ tbody tr { transition: background .12s; }
       <option value="all">Tous les concurrents (vue comparée)</option>
     </select>
     <div id="veillePeriods" style="display:flex;gap:4px;">
+      <button class="period-btn" onclick="veilleSetPeriod(1,this)">1j</button>
       <button class="period-btn" onclick="veilleSetPeriod(7,this)">7j</button>
       <button class="period-btn active" onclick="veilleSetPeriod(30,this)">30j</button>
       <button class="period-btn" onclick="veilleSetPeriod(90,this)">90j</button>
@@ -1954,7 +1955,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v50-veille-tracked';
+const DASH_VERSION = '2025-04-25-v51-spy';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
