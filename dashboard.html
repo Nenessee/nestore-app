@@ -1954,7 +1954,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v52-spy';
+const DASH_VERSION = '2025-04-25-v53-catalog';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -3485,18 +3485,19 @@ async function veilleRenderDetail(id){
   const statsQs=base.length?'?'+base.join('&'):'';
   const salesQs='?'+base.concat([`sort=${veilleState.salesSort}`,`dir=${veilleState.salesDir}`,`page=${veilleState.salesPage}`]).join('&');
   try {
-    const [stats,sales]=await Promise.all([
+    const [stats,sales,catalog]=await Promise.all([
       fetch(`${BACKEND_URL}/api/competitors/${id}/stats${statsQs}`).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}),
-      fetch(`${BACKEND_URL}/api/competitors/${id}/sales${salesQs}`).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+      fetch(`${BACKEND_URL}/api/competitors/${id}/sales${salesQs}`).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}),
+      fetch(`${BACKEND_URL}/api/competitors/${id}/catalog`).then(r=>r.ok?r.json():null).catch(()=>null)
     ]);
     veilleState.lastTotalPages=sales.totalPages||1;
-    body.innerHTML=veilleDetailHTML(stats,sales);
+    body.innerHTML=veilleDetailHTML(stats,sales,catalog);
     veilleRenderCharts(stats);
     veilleRenderHeatmap(stats.heatmap);
   } catch(e){ body.innerHTML=veilleErr(e); }
 }
 
-function veilleDetailHTML(stats,sales){
+function veilleDetailHTML(stats,sales,catalog){
   const t=stats.totals||{};
   const kpi=(label,val)=>`<div class="kpi"><div class="kpi-label">${label}</div><div class="kpi-value">${val}</div></div>`;
   let html='<div class="kpi-grid" style="margin-bottom:20px;">'+
@@ -3504,6 +3505,22 @@ function veilleDetailHTML(stats,sales){
     kpi('Prix moyen', t.avg_price?fmt(t.avg_price):'—')+
     kpi('Délai moyen', t.avg_days!=null?t.avg_days+' j':'—')+
     kpi('Ventes détectées', (t.lines||0))+'</div>';
+  if (catalog) {
+    const tv=catalog.total_variants||0, tp=catalog.total_products||0, av=catalog.available_variants||0;
+    const brandRows=(catalog.top_brands||[]).slice(0,8).map(b=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:0.5px solid var(--border);"><span>${veilleEsc(b.brand)}</span><span style="color:var(--text-muted);">${b.variants} var · ${b.products} prod</span></div>`).join('')||'—';
+    const prodRows=(catalog.top_products||[]).slice(0,8).map(pr=>`<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:3px 0;border-bottom:0.5px solid var(--border);"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${veilleEsc(pr.title)}</span><span style="flex-shrink:0;color:${pr.variants>=10?'var(--accent)':'var(--text-muted)'};">${pr.variants} var</span></div>`).join('')||'—';
+    html+=`<div class="table-card" style="padding:16px;margin-bottom:20px;">
+      <div class="table-title" style="margin-bottom:6px;">Composition du catalogue suivi</div>
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px;line-height:1.5;">
+        <strong style="color:var(--text);">${tv}</strong> variantes sur <strong style="color:var(--text);">${tp}</strong> produits distincts · ${av} disponibles.
+        <span style="color:var(--text-soft);">Une taille/coloris = 1 variante. Un produit avec beaucoup de variantes (en rouge) = soit plein de tailles, soit un doublon d'annonces.</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text-soft);margin-bottom:4px;">Top marques (catalogue)</div>${brandRows}</div>
+        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text-soft);margin-bottom:4px;">Plus gros produits</div>${prodRows}</div>
+      </div>
+    </div>`;
+  }
   html+='<div class="charts-grid" style="margin-bottom:20px;">'+
     '<div class="chart-card" style="grid-column:span 2;"><div class="chart-title">Volume écoulé / jour</div><div class="chart-wrap"><canvas id="veilleVolChart"></canvas></div></div>'+
     '<div class="chart-card"><div class="chart-title">Top marques (volume)</div><div class="chart-wrap"><canvas id="veilleBrandChart"></canvas></div></div>'+
