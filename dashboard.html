@@ -1962,7 +1962,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v55-mobileui';
+const DASH_VERSION = '2025-04-25-v56-spy-mobile';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -3530,7 +3530,7 @@ function veilleDetailHTML(stats,sales,catalog){
         <strong style="color:var(--text);">${tv}</strong> variantes sur <strong style="color:var(--text);">${tp}</strong> produits distincts · ${av} disponibles.
         <span style="color:var(--text-soft);">Une taille/coloris = 1 variante. Un produit avec beaucoup de variantes (en rouge) = soit plein de tailles, soit un doublon d'annonces.</span>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px;">
         <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text-soft);margin-bottom:4px;">Top marques (catalogue)</div>${brandRows}</div>
         <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text-soft);margin-bottom:4px;">Plus gros produits</div>${prodRows}</div>
       </div>
