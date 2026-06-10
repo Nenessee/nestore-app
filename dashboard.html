@@ -1955,6 +1955,12 @@ tbody tr { transition: background .12s; }
     <input class="search-input" id="veilleBrand" placeholder="Filtrer par marque…" style="max-width:200px;" oninput="veilleDebouncedFilter()"/>
     <button class="btn btn-green" onclick="veilleTestCollect()" style="margin-left:auto;">↻ Tester la collecte</button>
   </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px;font-size:13px;padding:8px 12px;background:var(--surface);border-radius:8px;">
+    <span style="color:var(--text-muted);">🌐 Ventes du site (Shopify) :</span>
+    <button class="btn" onclick="webSalesRegister()">Activer le suivi</button>
+    <button class="btn" onclick="webSalesBackfill()">Importer l'historique</button>
+    <span id="webSalesResult" style="color:var(--text-soft);flex:1;min-width:160px;"></span>
+  </div>
   <div id="veilleNote" style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.5;"></div>
   <div id="veilleBody"><div class="loading">Chargement…</div></div>
 </div>
@@ -1962,7 +1968,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v67-period-fix';
+const DASH_VERSION = '2025-04-25-v68-websales';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -3459,6 +3465,31 @@ async function veilleTestCollect(){
   try { await fetch(`${BACKEND_URL}/api/competitors/collect`, { method:'POST' }); } catch(e){}
   // rafraîchit les compteurs de la liste après un délai
   setTimeout(async ()=>{ try { veilleState.competitors=[]; await loadVeille(); } catch(e){} }, 70000);
+}
+async function webSalesRegister(){
+  if (!ensureAdminKey()) return;
+  const out=document.getElementById('webSalesResult'); if(out) out.textContent='Activation…';
+  try {
+    const r=await fetch(`${BACKEND_URL}/webhook/register`,{method:'POST'});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){ if(out) out.textContent='Erreur : '+(d.error||('HTTP '+r.status)); showDashToast('Échec activation','error'); return; }
+    if(out) out.textContent = (d.status==='déjà enregistré') ? 'Déjà actif ✓' : 'Activé ✓ — les nouvelles commandes du site seront comptées';
+    showDashToast('Suivi des ventes du site activé','success');
+  } catch(e){ if(out) out.textContent='Erreur réseau'; }
+}
+async function webSalesBackfill(){
+  if (!ensureAdminKey()) return;
+  const days = prompt('Importer les commandes du site des combien de derniers jours ?', '180');
+  if (days===null) return;
+  const n = Math.max(1, parseInt(days,10)||180);
+  const out=document.getElementById('webSalesResult'); if(out) out.textContent='Import en cours… (jusqu\'à 1-2 min, ne ferme pas)';
+  try {
+    const r=await fetch(`${BACKEND_URL}/webhook/backfill-orders?days=${n}`,{method:'POST'});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){ if(out) out.textContent='Erreur : '+(d.error||('HTTP '+r.status)); showDashToast('Échec import','error'); return; }
+    if(out) out.textContent=`Import terminé : ${d.inserted} ventes ajoutées, ${d.skipped} déjà présentes (${d.orders} commandes scannées).`;
+    showDashToast(`${d.inserted} ventes du site importées`,'success');
+  } catch(e){ if(out) out.textContent='Erreur réseau (le serveur continue peut-être en arrière-plan, recharge dans 1 min)'; }
 }
 function veilleRender(){
   veilleState.competitorId==='all' ? veilleRenderOverview() : veilleRenderDetail(parseInt(veilleState.competitorId,10));
