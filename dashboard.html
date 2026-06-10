@@ -1962,7 +1962,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v77-categories';
+const DASH_VERSION = '2025-04-25-v78-cat-clickable';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -3431,7 +3431,7 @@ function logout() {
 }
 
 /* ════════ VEILLE CONCURRENTIELLE (admin only) ════════ */
-let veilleState = { competitorId:'all', days:30, mode:'sales', brand:'', competitors:[], salesPage:1, salesSort:'date', salesDir:'desc', lastTotalPages:1, prodPage:1, prodSort:'value', prodDir:'desc', prodQ:'' };
+let veilleState = { competitorId:'all', days:30, mode:'sales', brand:'', competitors:[], salesPage:1, salesSort:'date', salesDir:'desc', lastTotalPages:1, prodPage:1, prodSort:'value', prodDir:'desc', prodQ:'', prodCategory:'' };
 let _veilleBrandTimer = null;
 function veilleEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function veilleErr(e){ return `<div style="padding:30px;text-align:center;color:var(--accent);">Erreur de chargement : ${veilleEsc(e&&e.message||e)}</div>`; }
@@ -3526,7 +3526,7 @@ async function veilleRenderOverview(){
 async function veilleRenderDetail(id){
   const body=document.getElementById('veilleBody');
   const comp=veilleState.competitors.find(c=>c.id===id);
-  if(veilleState._prodFor!==id){ veilleState.prodPage=1; veilleState.prodQ=''; veilleState.prodSort='value'; veilleState.prodDir='desc'; veilleState._prodFor=id; }
+  if(veilleState._prodFor!==id){ veilleState.prodPage=1; veilleState.prodQ=''; veilleState.prodSort='value'; veilleState.prodDir='desc'; veilleState.prodCategory=''; veilleState._prodFor=id; }
   body.innerHTML='<div class="loading">Chargement…</div>';
   document.getElementById('veilleNote').textContent=(comp&&comp.platform==='self')?'Nos données internes complètes (ventes/achats réels) — référence pour comparer aux concurrents.':((comp&&comp.is_consignment)?'⚠ Dépôt-vente : volumes très bruités (pièces reprises par les clients), à prendre avec une large marge.':'Volumes en ordre de grandeur, inférés des disparitions de stock (~1h de précision).');
   const base=veilleRangeParams();
@@ -3556,23 +3556,27 @@ async function veilleRenderProducts(id){
   card.innerHTML='<div class="loading" style="padding:20px;">Chargement des articles…</div>';
   const qs=[`sort=${veilleState.prodSort}`,`dir=${veilleState.prodDir}`,`page=${veilleState.prodPage}`];
   if(veilleState.prodQ) qs.push('q='+encodeURIComponent(veilleState.prodQ));
+  if(veilleState.prodCategory) qs.push('category='+encodeURIComponent(veilleState.prodCategory));
   try{
     const d=await fetch(`${BACKEND_URL}/api/competitors/${id}/products?${qs.join('&')}`).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});
     const sortBtn=(key,label)=>`<button class="period-btn${veilleState.prodSort===key?' active':''}" onclick="veilleSetProdSort('${key}')">${label}${veilleState.prodSort===key?(veilleState.prodDir==='desc'?' ↓':' ↑'):''}</button>`;
+    const catBanner=veilleState.prodCategory?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:13px;"><span style="background:var(--accent);color:#fff;padding:3px 10px;border-radius:20px;font-weight:600;">Catégorie : ${veilleEsc(veilleState.prodCategory)}</span><button class="period-btn" onclick="veilleFilterCategory('${veilleState.prodCategory.replace(/'/g,"\\'")}')">✕ tout afficher</button></div>`:'';
     let h=`<div class="table-card" style="padding:16px;margin-bottom:20px;">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
         <div class="table-title">Articles & valorisation</div>
         <div style="font-size:13px;color:var(--text-muted);">Valeur comptée : <strong style="color:var(--text);">${fmt(d.counted_value||0)}</strong> ${d.gross_value&&d.gross_value!==d.counted_value?`<span style="color:var(--text-soft);">/ ${fmt(d.gross_value)} brut</span>`:''}</div>
       </div>
-      <div style="font-size:11px;color:var(--text-soft);margin-bottom:10px;">Décoche un article pour le sortir du calcul (ex. quantité/prix aberrant). Sauvegardé. ${d.total} articles dispo.</div>
+      ${catBanner}
+      <div style="font-size:11px;color:var(--text-soft);margin-bottom:10px;">Décoche un article pour le sortir du calcul (ex. quantité/prix aberrant). Sauvegardé. ${d.total} articles${veilleState.prodCategory?' dans cette catégorie':' dispo'}.</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
         <input id="veilleProdSearch" placeholder="Rechercher…" value="${veilleEsc(veilleState.prodQ)}" onkeydown="if(event.key==='Enter')veilleProdSearch()" style="flex:1;min-width:140px;padding:7px 10px;border:0.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;">
         <span style="font-size:11px;color:var(--text-soft);">Trier :</span>${sortBtn('value','Valeur')}${sortBtn('price','Prix')}${sortBtn('units','Pièces')}${sortBtn('title','Nom')}
       </div>
-      <div style="overflow-x:auto;"><table><thead><tr><th>Compter</th><th>Article</th><th>Marque</th><th>Prix</th><th>Pièces</th><th>Valeur</th></tr></thead><tbody>`;
+      <div style="overflow-x:auto;"><table><thead><tr><th>Compter</th><th>Article</th><th>Marque</th><th>Catégorie</th><th>Prix</th><th>Pièces</th><th>Valeur</th></tr></thead><tbody>`;
+    const catIcon={'Chaussures':'👟','Vêtements':'👕','Accessoires':'🧢','Autre':'📦'};
     for(const r of d.rows){
       const priceTxt=(r.min_price!=null)?(Number(r.min_price)===Number(r.max_price)?fmt(r.min_price):`${fmt(r.min_price)}–${fmt(r.max_price)}`):'—';
-      h+=`<tr style="${r.excluded?'opacity:0.45;':''}"><td style="text-align:center;"><input type="checkbox" ${r.excluded?'':'checked'} onchange="veilleToggleProduct(${id},'${encodeURIComponent(r.product_handle)}',!this.checked)"></td><td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${veilleEsc(r.title||'(sans titre)')}</td><td style="font-size:12px;color:var(--text-muted);">${veilleEsc(r.brand||'—')}</td><td>${priceTxt}</td><td>${r.units}</td><td style="font-weight:700;">${fmt(r.value)}</td></tr>`;
+      h+=`<tr style="${r.excluded?'opacity:0.45;':''}"><td style="text-align:center;"><input type="checkbox" ${r.excluded?'':'checked'} onchange="veilleToggleProduct(${id},'${encodeURIComponent(r.product_handle)}',!this.checked)"></td><td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${veilleEsc(r.title||'(sans titre)')}</td><td style="font-size:12px;color:var(--text-muted);">${veilleEsc(r.brand||'—')}</td><td style="font-size:12px;color:var(--text-muted);white-space:nowrap;">${catIcon[r.category]||''} ${veilleEsc(r.category||'—')}</td><td>${priceTxt}</td><td>${r.units}</td><td style="font-weight:700;">${fmt(r.value)}</td></tr>`;
     }
     h+='</tbody></table></div>';
     if((d.totalPages||1)>1){
@@ -3588,6 +3592,7 @@ async function veilleRenderProducts(id){
 function veilleSetProdSort(key){ if(veilleState.prodSort===key) veilleState.prodDir=veilleState.prodDir==='desc'?'asc':'desc'; else { veilleState.prodSort=key; veilleState.prodDir='desc'; } veilleState.prodPage=1; veilleRenderProducts(parseInt(veilleState.competitorId,10)); }
 function veilleProdPage(p){ veilleState.prodPage=Math.max(1,p); veilleRenderProducts(parseInt(veilleState.competitorId,10)); }
 function veilleProdSearch(){ const el=document.getElementById('veilleProdSearch'); veilleState.prodQ=el?el.value.trim():''; veilleState.prodPage=1; veilleRenderProducts(parseInt(veilleState.competitorId,10)); }
+function veilleFilterCategory(cat){ veilleState.prodCategory=(veilleState.prodCategory===cat)?'':cat; veilleState.prodPage=1; const id=parseInt(veilleState.competitorId,10); veilleRenderProducts(id); const card=document.getElementById('veilleProductsCard'); if(card&&veilleState.prodCategory) setTimeout(()=>card.scrollIntoView({behavior:'smooth',block:'start'}),60); }
 async function veilleToggleProduct(id,handleEnc,excluded){
   const handle=decodeURIComponent(handleEnc);
   try{
@@ -3698,9 +3703,10 @@ function veilleDetailHTML(stats,sales,catalog,diag){
     const totP=catalog.categories.reduce((a,b)=>a+Number(b.pieces||0),0)||1;
     const cells=catalog.categories.map(c=>{
       const pct=Math.round(Number(c.pieces||0)/totP*100);
-      return `<div class="kpi"><div class="kpi-label">${icon[c.category]||''} ${c.category}</div><div class="kpi-value">${c.pieces} <span style="font-size:12px;color:var(--text-soft);">pièces</span></div><div class="kpi-sub">${eur(c.value)} · ${pct}%</div></div>`;
+      const active=veilleState.prodCategory===c.category;
+      return `<div class="kpi" style="cursor:pointer;${active?'border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);':''}" onclick="veilleFilterCategory('${c.category.replace(/'/g,"\\\\'")}')"><div class="kpi-label">${icon[c.category]||''} ${c.category} →</div><div class="kpi-value">${c.pieces} <span style="font-size:12px;color:var(--text-soft);">pièces</span></div><div class="kpi-sub">${eur(c.value)} · ${pct}%</div></div>`;
     }).join('');
-    html+=`<div class="table-card" style="padding:16px;margin-bottom:20px;"><div class="table-title" style="margin-bottom:12px;">Répartition par catégorie</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;">${cells}</div><div style="font-size:11px;color:var(--text-soft);margin-top:10px;">Catégorie déduite du type de produit / du titre — classement automatique (affinable).</div></div>`;
+    html+=`<div class="table-card" style="padding:16px;margin-bottom:20px;"><div class="table-title" style="margin-bottom:12px;">Répartition par catégorie</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;">${cells}</div><div style="font-size:11px;color:var(--text-soft);margin-top:10px;">Clique une catégorie pour voir les articles dedans (et repérer les erreurs). Classement automatique (affinable).</div></div>`;
   }
   html+='<div class="charts-grid" style="margin-bottom:20px;">'+
     '<div class="chart-card" style="grid-column:span 2;"><div class="chart-title">'+(arr?'Arrivages':'Volume écoulé')+' / jour</div><div class="chart-wrap"><canvas id="veilleVolChart"></canvas></div></div>'+
