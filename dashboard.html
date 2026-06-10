@@ -1962,7 +1962,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v79-charts-resilient';
+const DASH_VERSION = '2025-04-25-v80-sizes-col';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -3573,11 +3573,12 @@ async function veilleRenderProducts(id){
         <input id="veilleProdSearch" placeholder="Rechercher…" value="${veilleEsc(veilleState.prodQ)}" onkeydown="if(event.key==='Enter')veilleProdSearch()" style="flex:1;min-width:140px;padding:7px 10px;border:0.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;">
         <span style="font-size:11px;color:var(--text-soft);">Trier :</span>${sortBtn('value','Valeur')}${sortBtn('price','Prix')}${sortBtn('units','Pièces')}${sortBtn('title','Nom')}
       </div>
-      <div style="overflow-x:auto;"><table><thead><tr><th>Compter</th><th>Article</th><th>Marque</th><th>Catégorie</th><th>Prix</th><th>Pièces</th><th>Valeur</th></tr></thead><tbody>`;
+      <div style="overflow-x:auto;"><table><thead><tr><th>Compter</th><th>Article</th><th>Marque</th><th>Catégorie</th><th>Tailles</th><th>Prix</th><th>Pièces</th><th>Valeur</th></tr></thead><tbody>`;
     const catIcon={'Chaussures':'👟','Vêtements':'👕','Accessoires':'🧢','Autre':'📦'};
     for(const r of d.rows){
       const priceTxt=(r.min_price!=null)?(Number(r.min_price)===Number(r.max_price)?fmt(r.min_price):`${fmt(r.min_price)}–${fmt(r.max_price)}`):'—';
-      h+=`<tr style="${r.excluded?'opacity:0.45;':''}"><td style="text-align:center;"><input type="checkbox" ${r.excluded?'':'checked'} onchange="veilleToggleProduct(${id},'${encodeURIComponent(r.product_handle)}',!this.checked)"></td><td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${veilleEsc(r.title||'(sans titre)')}</td><td style="font-size:12px;color:var(--text-muted);">${veilleEsc(r.brand||'—')}</td><td style="font-size:12px;color:var(--text-muted);white-space:nowrap;">${catIcon[r.category]||''} ${veilleEsc(r.category||'—')}</td><td>${priceTxt}</td><td>${r.units}</td><td style="font-weight:700;">${fmt(r.value)}</td></tr>`;
+      const sizesTxt=(r.sizes&&r.sizes.length)?veilleEsc(r.sizes.slice(0,6).join(', ')+(r.sizes.length>6?'…':'')):'<span style="color:var(--accent);">aucune</span>';
+      h+=`<tr style="${r.excluded?'opacity:0.45;':''}"><td style="text-align:center;"><input type="checkbox" ${r.excluded?'':'checked'} onchange="veilleToggleProduct(${id},'${encodeURIComponent(r.product_handle)}',!this.checked)"></td><td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${veilleEsc(r.title||'(sans titre)')}</td><td style="font-size:12px;color:var(--text-muted);">${veilleEsc(r.brand||'—')}</td><td style="font-size:12px;color:var(--text-muted);white-space:nowrap;">${catIcon[r.category]||''} ${veilleEsc(r.category||'—')}</td><td style="font-size:11px;color:var(--text-muted);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${sizesTxt}</td><td>${priceTxt}</td><td>${r.units}</td><td style="font-weight:700;">${fmt(r.value)}</td></tr>`;
     }
     h+='</tbody></table></div>';
     if((d.totalPages||1)>1){
