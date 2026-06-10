@@ -1962,7 +1962,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v69-websales-auto';
+const DASH_VERSION = '2025-04-25-v70-stock-value';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -3483,7 +3483,7 @@ async function veilleRenderOverview(){
         <div class="kpi-value">${fmt(r._ca)}${r.platform!=='self'?' <span style="font-size:11px;color:var(--text-soft);">est.</span>':''}</div></div>`;
     });
     html+='</div>';
-    html+='<div class="table-card"><div style="overflow-x:auto;"><table><thead><tr><th>#</th><th>Boutique</th><th>CA (période)</th><th>Catalogue dispo (produits)</th><th>Fiabilité</th><th>Volume</th><th>Prix moyen</th><th>Délai moyen</th><th>Marques dominantes</th></tr></thead><tbody>';
+    html+='<div class="table-card"><div style="overflow-x:auto;"><table><thead><tr><th>#</th><th>Boutique</th><th>CA (période)</th><th>Catalogue dispo (produits)</th><th>Valeur stock</th><th>Fiabilité</th><th>Volume</th><th>Prix moyen</th><th>Délai moyen</th><th>Marques dominantes</th></tr></thead><tbody>';
     let rank=0;
     for (const r of rows){
       rank++;
@@ -3499,7 +3499,8 @@ async function veilleRenderOverview(){
       const rankCell=rank<=3?`<span style="font-size:16px;">${medal[rank-1]}</span>`:`<span style="color:var(--text-muted);font-weight:700;">${rank}</span>`;
       const caCell=`${fmt(r._ca)}${r.platform!=='self'?' <span style="font-size:10px;color:var(--text-soft);">est.</span>':''}`;
       const selfBg=r.platform==='self'?'background:var(--success-dim);':'';
-      html+=`<tr style="cursor:pointer;${selfBg}" onclick="document.getElementById('veilleCompetitor').value='${r.id}';veilleOnFilterChange();"><td style="text-align:center;">${rankCell}</td><td><strong>${veilleEsc(r.name)}</strong><br><span style="font-size:11px;color:var(--text-muted);">${veilleEsc(r.domain)}</span></td><td style="font-weight:700;">${caCell}</td><td>${trackedCell}</td><td>${badges.join(' ')||'—'}</td><td>${r.volume||0}</td><td>${r.avg_price?fmt(r.avg_price):'—'}</td><td>${r.avg_days!=null?r.avg_days+' j':'—'}</td><td style="font-size:12px;color:var(--text-muted);">${veilleEsc((r.top_brands||[]).join(', '))||'—'}</td></tr>`;
+      const stockValCell=(r.stock_value!=null && Number(r.stock_value)>0)?`<strong>${fmt(r.stock_value)}</strong>`:'—';
+      html+=`<tr style="cursor:pointer;${selfBg}" onclick="document.getElementById('veilleCompetitor').value='${r.id}';veilleOnFilterChange();"><td style="text-align:center;">${rankCell}</td><td><strong>${veilleEsc(r.name)}</strong><br><span style="font-size:11px;color:var(--text-muted);">${veilleEsc(r.domain)}</span></td><td style="font-weight:700;">${caCell}</td><td>${trackedCell}</td><td>${stockValCell}</td><td>${badges.join(' ')||'—'}</td><td>${r.volume||0}</td><td>${r.avg_price?fmt(r.avg_price):'—'}</td><td>${r.avg_days!=null?r.avg_days+' j':'—'}</td><td style="font-size:12px;color:var(--text-muted);">${veilleEsc((r.top_brands||[]).join(', '))||'—'}</td></tr>`;
     }
     html+='</tbody></table></div></div>';
     body.innerHTML=html;
@@ -3607,7 +3608,7 @@ function veilleDetailHTML(stats,sales,catalog,diag){
     html+=`<div class="table-card" style="padding:16px;margin-bottom:20px;">
       <div class="table-title" style="margin-bottom:6px;">Composition du catalogue suivi</div>
       <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px;line-height:1.5;">
-        <strong style="color:var(--text);">${tv}</strong> variantes sur <strong style="color:var(--text);">${tp}</strong> produits distincts · ${av} disponibles.
+        <strong style="color:var(--text);">${tv}</strong> variantes sur <strong style="color:var(--text);">${tp}</strong> produits distincts · ${av} disponibles.${catalog.stock_value?` Valeur du stock dispo : <strong style="color:var(--text);">${fmt(catalog.stock_value)}</strong>.`:''}
         <span style="color:var(--text-soft);">Une taille/coloris = 1 variante. Un produit avec beaucoup de variantes (en rouge) = soit plein de tailles, soit un doublon d'annonces.</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px;">
