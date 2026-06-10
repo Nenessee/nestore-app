@@ -1962,7 +1962,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v76-no-delai';
+const DASH_VERSION = '2025-04-25-v77-categories';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -3691,6 +3691,16 @@ function veilleDetailHTML(stats,sales,catalog,diag){
         <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text-soft);margin-bottom:4px;">Plus gros produits</div>${prodRows}</div>
       </div>
     </div>`;
+  }
+  if (catalog && catalog.categories && catalog.categories.length) {
+    const eur=(n)=>Math.round(n).toLocaleString('fr-FR')+' €';
+    const icon={'Chaussures':'👟','Vêtements':'👕','Accessoires':'🧢','Autre':'📦'};
+    const totP=catalog.categories.reduce((a,b)=>a+Number(b.pieces||0),0)||1;
+    const cells=catalog.categories.map(c=>{
+      const pct=Math.round(Number(c.pieces||0)/totP*100);
+      return `<div class="kpi"><div class="kpi-label">${icon[c.category]||''} ${c.category}</div><div class="kpi-value">${c.pieces} <span style="font-size:12px;color:var(--text-soft);">pièces</span></div><div class="kpi-sub">${eur(c.value)} · ${pct}%</div></div>`;
+    }).join('');
+    html+=`<div class="table-card" style="padding:16px;margin-bottom:20px;"><div class="table-title" style="margin-bottom:12px;">Répartition par catégorie</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;">${cells}</div><div style="font-size:11px;color:var(--text-soft);margin-top:10px;">Catégorie déduite du type de produit / du titre — classement automatique (affinable).</div></div>`;
   }
   html+='<div class="charts-grid" style="margin-bottom:20px;">'+
     '<div class="chart-card" style="grid-column:span 2;"><div class="chart-title">'+(arr?'Arrivages':'Volume écoulé')+' / jour</div><div class="chart-wrap"><canvas id="veilleVolChart"></canvas></div></div>'+
