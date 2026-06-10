@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-10-catclick';
+const CACHE_VERSION = 'nestore-v2026-06-10-chartsafe';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
