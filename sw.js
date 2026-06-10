@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-09-websalesauto';
+const CACHE_VERSION = 'nestore-v2026-06-09-stockvalue';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
