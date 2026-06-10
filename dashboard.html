@@ -1962,7 +1962,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v72-stock-realistic';
+const DASH_VERSION = '2025-04-25-v73-comp-products';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -3431,7 +3431,7 @@ function logout() {
 }
 
 /* ════════ VEILLE CONCURRENTIELLE (admin only) ════════ */
-let veilleState = { competitorId:'all', days:30, mode:'sales', brand:'', competitors:[], salesPage:1, salesSort:'date', salesDir:'desc', lastTotalPages:1 };
+let veilleState = { competitorId:'all', days:30, mode:'sales', brand:'', competitors:[], salesPage:1, salesSort:'date', salesDir:'desc', lastTotalPages:1, prodPage:1, prodSort:'value', prodDir:'desc', prodQ:'' };
 let _veilleBrandTimer = null;
 function veilleEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function veilleErr(e){ return `<div style="padding:30px;text-align:center;color:var(--accent);">Erreur de chargement : ${veilleEsc(e&&e.message||e)}</div>`; }
@@ -3493,7 +3493,7 @@ async function veilleRenderOverview(){
         <div class="kpi-value">${fmt(r._ca)}${r.platform!=='self'?' <span style="font-size:11px;color:var(--text-soft);">est.</span>':''}</div></div>`;
     });
     html+='</div>';
-    html+='<div class="table-card"><div style="overflow-x:auto;"><table><thead><tr><th>#</th><th>Boutique</th><th>CA (période)</th><th>Catalogue dispo (produits)</th><th>Valeur stock</th><th>Fiabilité</th><th>Volume</th><th>Prix moyen</th><th>Délai moyen</th><th>Marques dominantes</th></tr></thead><tbody>';
+    html+='<div class="table-card"><div style="overflow-x:auto;"><table><thead><tr><th>#</th><th>Boutique</th><th>CA (période)</th><th>Catalogue dispo (pièces)</th><th>Valeur stock</th><th>Fiabilité</th><th>Volume</th><th>Prix moyen</th><th>Délai moyen</th><th>Marques dominantes</th></tr></thead><tbody>';
     let rank=0;
     for (const r of rows){
       rank++;
@@ -3522,6 +3522,7 @@ async function veilleRenderOverview(){
 async function veilleRenderDetail(id){
   const body=document.getElementById('veilleBody');
   const comp=veilleState.competitors.find(c=>c.id===id);
+  if(veilleState._prodFor!==id){ veilleState.prodPage=1; veilleState.prodQ=''; veilleState.prodSort='value'; veilleState.prodDir='desc'; veilleState._prodFor=id; }
   body.innerHTML='<div class="loading">Chargement…</div>';
   document.getElementById('veilleNote').textContent=(comp&&comp.platform==='self')?'Nos données internes complètes (ventes/achats réels) — référence pour comparer aux concurrents.':((comp&&comp.is_consignment)?'⚠ Dépôt-vente : volumes très bruités (pièces reprises par les clients), à prendre avec une large marge.':'Volumes en ordre de grandeur, inférés des disparitions de stock (~1h de précision).');
   const base=veilleRangeParams();
@@ -3541,7 +3542,54 @@ async function veilleRenderDetail(id){
     body.innerHTML=veilleDetailHTML(stats,sales,catalog,diag);
     veilleRenderCharts(stats);
     veilleRenderHeatmap(stats.heatmap);
+    if(!isSelf) veilleRenderProducts(id);
   } catch(e){ body.innerHTML=veilleErr(e); }
+}
+
+async function veilleRenderProducts(id){
+  const card=document.getElementById('veilleProductsCard');
+  if(!card) return;
+  card.innerHTML='<div class="loading" style="padding:20px;">Chargement des articles…</div>';
+  const qs=[`sort=${veilleState.prodSort}`,`dir=${veilleState.prodDir}`,`page=${veilleState.prodPage}`];
+  if(veilleState.prodQ) qs.push('q='+encodeURIComponent(veilleState.prodQ));
+  try{
+    const d=await fetch(`${BACKEND_URL}/api/competitors/${id}/products?${qs.join('&')}`).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});
+    const sortBtn=(key,label)=>`<button class="period-btn${veilleState.prodSort===key?' active':''}" onclick="veilleSetProdSort('${key}')">${label}${veilleState.prodSort===key?(veilleState.prodDir==='desc'?' ↓':' ↑'):''}</button>`;
+    let h=`<div class="table-card" style="padding:16px;margin-bottom:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
+        <div class="table-title">Articles & valorisation</div>
+        <div style="font-size:13px;color:var(--text-muted);">Valeur comptée : <strong style="color:var(--text);">${fmt(d.counted_value||0)}</strong> ${d.gross_value&&d.gross_value!==d.counted_value?`<span style="color:var(--text-soft);">/ ${fmt(d.gross_value)} brut</span>`:''}</div>
+      </div>
+      <div style="font-size:11px;color:var(--text-soft);margin-bottom:10px;">Décoche un article pour le sortir du calcul (ex. quantité/prix aberrant). Sauvegardé. ${d.total} articles dispo.</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
+        <input id="veilleProdSearch" placeholder="Rechercher…" value="${veilleEsc(veilleState.prodQ)}" onkeydown="if(event.key==='Enter')veilleProdSearch()" style="flex:1;min-width:140px;padding:7px 10px;border:0.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;">
+        <span style="font-size:11px;color:var(--text-soft);">Trier :</span>${sortBtn('value','Valeur')}${sortBtn('price','Prix')}${sortBtn('units','Pièces')}${sortBtn('title','Nom')}
+      </div>
+      <div style="overflow-x:auto;"><table><thead><tr><th>Compter</th><th>Article</th><th>Marque</th><th>Prix</th><th>Pièces</th><th>Valeur</th></tr></thead><tbody>`;
+    for(const r of d.rows){
+      const priceTxt=(r.min_price!=null)?(Number(r.min_price)===Number(r.max_price)?fmt(r.min_price):`${fmt(r.min_price)}–${fmt(r.max_price)}`):'—';
+      h+=`<tr style="${r.excluded?'opacity:0.45;':''}"><td style="text-align:center;"><input type="checkbox" ${r.excluded?'':'checked'} onchange="veilleToggleProduct(${id},'${encodeURIComponent(r.product_handle)}',!this.checked)"></td><td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${veilleEsc(r.title||'(sans titre)')}</td><td style="font-size:12px;color:var(--text-muted);">${veilleEsc(r.brand||'—')}</td><td>${priceTxt}</td><td>${r.units}</td><td style="font-weight:700;">${fmt(r.value)}</td></tr>`;
+    }
+    h+='</tbody></table></div>';
+    if((d.totalPages||1)>1){
+      h+=`<div style="display:flex;justify-content:center;gap:10px;align-items:center;margin-top:12px;">
+        <button class="period-btn" ${veilleState.prodPage<=1?'disabled':''} onclick="veilleProdPage(${veilleState.prodPage-1})">‹ Préc.</button>
+        <span style="font-size:12px;color:var(--text-muted);">Page ${d.page}/${d.totalPages}</span>
+        <button class="period-btn" ${veilleState.prodPage>=d.totalPages?'disabled':''} onclick="veilleProdPage(${veilleState.prodPage+1})">Suiv. ›</button></div>`;
+    }
+    h+='</div>';
+    card.innerHTML=h;
+  }catch(e){ card.innerHTML=veilleErr(e); }
+}
+function veilleSetProdSort(key){ if(veilleState.prodSort===key) veilleState.prodDir=veilleState.prodDir==='desc'?'asc':'desc'; else { veilleState.prodSort=key; veilleState.prodDir='desc'; } veilleState.prodPage=1; veilleRenderProducts(parseInt(veilleState.competitorId,10)); }
+function veilleProdPage(p){ veilleState.prodPage=Math.max(1,p); veilleRenderProducts(parseInt(veilleState.competitorId,10)); }
+function veilleProdSearch(){ const el=document.getElementById('veilleProdSearch'); veilleState.prodQ=el?el.value.trim():''; veilleState.prodPage=1; veilleRenderProducts(parseInt(veilleState.competitorId,10)); }
+async function veilleToggleProduct(id,handleEnc,excluded){
+  const handle=decodeURIComponent(handleEnc);
+  try{
+    await fetch(`${BACKEND_URL}/api/competitors/${id}/products/exclude`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({handle,excluded})});
+    veilleRenderProducts(id);
+  }catch(e){ showDashToast&&showDashToast('Erreur enregistrement','error'); }
 }
 
 function veilleDetailHTML(stats,sales,catalog,diag){
@@ -3673,6 +3721,7 @@ function veilleDetailHTML(stats,sales,catalog,diag){
       <button class="btn" style="font-size:12px;" ${pg>=tp?'disabled':''} onclick="veilleSalesGoto(${pg+1})">Suiv. ›</button></div>`;
   }
   html+='</div>';
+  if(!stats.self) html+='<div id="veilleProductsCard"></div>';
   return html;
 }
 
