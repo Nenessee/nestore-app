@@ -1962,7 +1962,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v78-cat-clickable';
+const DASH_VERSION = '2025-04-25-v79-charts-resilient';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -2166,6 +2166,7 @@ async function loadSummary() {
 }
 
 function makeChart(id, type, labels, datasets, options={}) {
+  if(typeof Chart==='undefined') return;
   if(charts[id]) charts[id].destroy();
   const ctx = document.getElementById(id)?.getContext('2d');
   if(!ctx) return;
@@ -3544,8 +3545,8 @@ async function veilleRenderDetail(id){
     ]);
     veilleState.lastTotalPages=sales.totalPages||1;
     body.innerHTML=veilleDetailHTML(stats,sales,catalog,diag);
-    veilleRenderCharts(stats);
-    veilleRenderHeatmap(stats.heatmap);
+    try { veilleRenderCharts(stats); } catch(e){ console.warn('charts indispo', e); }
+    try { veilleRenderHeatmap(stats.heatmap); } catch(e){ console.warn('heatmap indispo', e); }
     veilleRenderProducts(id);
   } catch(e){ body.innerHTML=veilleErr(e); }
 }
@@ -3751,6 +3752,7 @@ function veilleSort(col){ if(veilleState.salesSort===col){ veilleState.salesDir=
 function veilleSalesGoto(n){ if(n<1||n>veilleState.lastTotalPages) return; veilleState.salesPage=n; veilleRender(); }
 
 function veilleRenderCharts(stats){
+  if(typeof Chart==='undefined'){ document.querySelectorAll('.chart-wrap').forEach(el=>{el.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-soft);font-size:12px;">Graphique indisponible (Chart.js non chargé)</div>';}); return; }
   const byDay=stats.byDay||[];
   if (document.getElementById('veilleVolChart')) makeChart('veilleVolChart','line', byDay.map(r=>r.day), [{label:'Volume', data:byDay.map(r=>+r.volume), borderColor:'#E8504E', backgroundColor:'rgba(232,80,78,0.12)', fill:true, tension:0.3, pointRadius:2}]);
   const top=(stats.byBrand||[]).slice(0,8);
