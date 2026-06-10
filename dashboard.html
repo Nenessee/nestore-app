@@ -1962,7 +1962,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v73-comp-products';
+const DASH_VERSION = '2025-04-25-v74-nestore-products';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -3542,7 +3542,7 @@ async function veilleRenderDetail(id){
     body.innerHTML=veilleDetailHTML(stats,sales,catalog,diag);
     veilleRenderCharts(stats);
     veilleRenderHeatmap(stats.heatmap);
-    if(!isSelf) veilleRenderProducts(id);
+    veilleRenderProducts(id);
   } catch(e){ body.innerHTML=veilleErr(e); }
 }
 
@@ -3721,7 +3721,7 @@ function veilleDetailHTML(stats,sales,catalog,diag){
       <button class="btn" style="font-size:12px;" ${pg>=tp?'disabled':''} onclick="veilleSalesGoto(${pg+1})">Suiv. ›</button></div>`;
   }
   html+='</div>';
-  if(!stats.self) html+='<div id="veilleProductsCard"></div>';
+  html+='<div id="veilleProductsCard"></div>';
   return html;
 }
 
