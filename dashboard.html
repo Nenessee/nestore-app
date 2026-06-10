@@ -1962,7 +1962,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v66-ca-ranking';
+const DASH_VERSION = '2025-04-25-v67-period-fix';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -3427,7 +3427,11 @@ function veilleEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'
 function veilleErr(e){ return `<div style="padding:30px;text-align:center;color:var(--accent);">Erreur de chargement : ${veilleEsc(e&&e.message||e)}</div>`; }
 function veilleRangeParams(){
   const q=[];
-  if (veilleState.days>0){ q.push('from='+new Date(Date.now()-veilleState.days*86400000).toISOString().slice(0,10)); }
+  // "Nj" = N jours calendaires INCLUANT aujourd'hui (Paris) → "1j" = aujourd'hui seulement (reset à minuit).
+  if (veilleState.days>0){
+    const d=new Date(Date.now()-(veilleState.days-1)*86400000);
+    q.push('from='+d.toLocaleDateString('en-CA',{timeZone:'Europe/Paris'}));
+  }
   if (veilleState.brand){ q.push('brand='+encodeURIComponent(veilleState.brand)); }
   return q;
 }
