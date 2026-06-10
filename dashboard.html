@@ -1962,7 +1962,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v71-stock-value-nestore';
+const DASH_VERSION = '2025-04-25-v72-stock-realistic';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -2262,7 +2262,10 @@ async function loadStock() {
   const onVintedCount = allStockData.filter(p=>p.barcode&&p.onVinted).length;
   const avgScore = allStockData.length ? Math.round(allStockData.reduce((a,b)=>a+(b.score||0),0)/allStockData.length) : 0;
   const _sumPrice = (arr)=>arr.reduce((a,b)=>a+(Number(b.price)||0),0);
-  const valTotal=_sumPrice(allStockData), valLille=_sumPrice(allStockData.filter(p=>p.boutique==='Lille')), valDK=_sumPrice(allStockData.filter(p=>p.boutique==='DK'));
+  let valTotal=_sumPrice(allStockData), valLille=_sumPrice(allStockData.filter(p=>p.boutique==='Lille')), valDK=_sumPrice(allStockData.filter(p=>p.boutique==='DK'));
+  // Valeur réaliste (par variante × vraie quantité) calculée côté serveur ; repli sur la somme par produit
+  const _srvVal = await api('/stock/value').catch(()=>null);
+  if (_srvVal && _srvVal.total!=null) { valTotal=_srvVal.total; valLille=_srvVal.lille; valDK=_srvVal.dk; }
   const eur=(n)=>Math.round(n).toLocaleString('fr-FR')+' €';
   window._nestoreStock={ total:valTotal, lille:valLille, dk:valDK, at:Date.now() };
   document.getElementById('stockSummary').innerHTML = `
