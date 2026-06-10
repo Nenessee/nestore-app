@@ -1962,7 +1962,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v74-nestore-products';
+const DASH_VERSION = '2025-04-25-v75-pieces-refresh';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -3480,7 +3480,11 @@ async function veilleRenderOverview(){
   document.getElementById('veilleNote').textContent='Classement par CA sur la période. CA = volume × prix moyen. Nestore = exact ; concurrents = estimation basse (inférée des disparitions de stock). Clique une ligne pour le détail.';
   const q=veilleRangeParams().filter(x=>!x.startsWith('brand'));
   try {
-    const rows=await fetch(`${BACKEND_URL}/api/competitors/overview${q.length?'?'+q.join('&'):''}`).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});
+    const [rows,freshComp]=await Promise.all([
+      fetch(`${BACKEND_URL}/api/competitors/overview${q.length?'?'+q.join('&'):''}`).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}),
+      fetch(`${BACKEND_URL}/api/competitors`).then(r=>r.ok?r.json():null).catch(()=>null)
+    ]);
+    if(Array.isArray(freshComp)) veilleState.competitors=freshComp; // pièces à jour après (dé)cochage
     // CA = volume × prix moyen (pour Nestore : COUNT×AVG = somme exacte ; concurrents : estimation)
     rows.forEach(r=>{ r._ca = Number(r.volume||0) * Number(r.avg_price||0); });
     rows.sort((a,b)=> b._ca - a._ca);
@@ -3589,6 +3593,8 @@ async function veilleToggleProduct(id,handleEnc,excluded){
   try{
     await fetch(`${BACKEND_URL}/api/competitors/${id}/products/exclude`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({handle,excluded})});
     veilleRenderProducts(id);
+    // rafraîchit le compte de pièces (et la valeur) pour la vue d'ensemble
+    fetch(`${BACKEND_URL}/api/competitors`).then(r=>r.ok?r.json():null).then(list=>{ if(Array.isArray(list)) veilleState.competitors=list; }).catch(()=>{});
   }catch(e){ showDashToast&&showDashToast('Erreur enregistrement','error'); }
 }
 
