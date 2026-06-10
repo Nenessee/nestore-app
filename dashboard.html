@@ -1962,7 +1962,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v70-stock-value';
+const DASH_VERSION = '2025-04-25-v71-stock-value-nestore';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -2261,7 +2261,14 @@ async function loadStock() {
   const notLocalized = allStockData.filter(p=>p.barcode&&!p.inBoutique).length;
   const onVintedCount = allStockData.filter(p=>p.barcode&&p.onVinted).length;
   const avgScore = allStockData.length ? Math.round(allStockData.reduce((a,b)=>a+(b.score||0),0)/allStockData.length) : 0;
+  const _sumPrice = (arr)=>arr.reduce((a,b)=>a+(Number(b.price)||0),0);
+  const valTotal=_sumPrice(allStockData), valLille=_sumPrice(allStockData.filter(p=>p.boutique==='Lille')), valDK=_sumPrice(allStockData.filter(p=>p.boutique==='DK'));
+  const eur=(n)=>Math.round(n).toLocaleString('fr-FR')+' €';
+  window._nestoreStock={ total:valTotal, lille:valLille, dk:valDK, at:Date.now() };
   document.getElementById('stockSummary').innerHTML = `
+    <div class="kpi"><div class="kpi-label">💰 Valeur stock (total)</div><div class="kpi-value" style="color:#3B6D11;">${eur(valTotal)}</div><div class="kpi-sub">${total} articles en ligne</div></div>
+    <div class="kpi"><div class="kpi-label">Valeur stock Lille</div><div class="kpi-value">${eur(valLille)}</div></div>
+    <div class="kpi"><div class="kpi-label">Valeur stock Dunkerque</div><div class="kpi-value">${eur(valDK)}</div></div>
     <div class="kpi"><div class="kpi-label">Total en ligne</div><div class="kpi-value">${total}</div></div>
     <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('stockLocationFilter').value='present';filterStock();">
       <div class="kpi-label">Localisés ✓</div>
@@ -3499,7 +3506,9 @@ async function veilleRenderOverview(){
       const rankCell=rank<=3?`<span style="font-size:16px;">${medal[rank-1]}</span>`:`<span style="color:var(--text-muted);font-weight:700;">${rank}</span>`;
       const caCell=`${fmt(r._ca)}${r.platform!=='self'?' <span style="font-size:10px;color:var(--text-soft);">est.</span>':''}`;
       const selfBg=r.platform==='self'?'background:var(--success-dim);':'';
-      const stockValCell=(r.stock_value!=null && Number(r.stock_value)>0)?`<strong>${fmt(r.stock_value)}</strong>`:'—';
+      let _svVal=r.stock_value;
+      if ((_svVal==null||Number(_svVal)===0) && r.platform==='self' && window._nestoreStock && window._nestoreStock.total) _svVal=window._nestoreStock.total;
+      const stockValCell=(_svVal!=null && Number(_svVal)>0)?`<strong>${fmt(_svVal)}</strong>`:'—';
       html+=`<tr style="cursor:pointer;${selfBg}" onclick="document.getElementById('veilleCompetitor').value='${r.id}';veilleOnFilterChange();"><td style="text-align:center;">${rankCell}</td><td><strong>${veilleEsc(r.name)}</strong><br><span style="font-size:11px;color:var(--text-muted);">${veilleEsc(r.domain)}</span></td><td style="font-weight:700;">${caCell}</td><td>${trackedCell}</td><td>${stockValCell}</td><td>${badges.join(' ')||'—'}</td><td>${r.volume||0}</td><td>${r.avg_price?fmt(r.avg_price):'—'}</td><td>${r.avg_days!=null?r.avg_days+' j':'—'}</td><td style="font-size:12px;color:var(--text-muted);">${veilleEsc((r.top_brands||[]).join(', '))||'—'}</td></tr>`;
     }
     html+='</tbody></table></div></div>';
@@ -3573,12 +3582,21 @@ function veilleDetailHTML(stats,sales,catalog,diag){
     kpi(stats.self?'Moyenne / jour':'Moyenne / jour (est.)', _avg)+'</div>';
   if (catalog && catalog.self) {
     const op=catalog.online_products;
+    const svT=catalog.stock_value!=null?catalog.stock_value:(window._nestoreStock?window._nestoreStock.total:null);
+    const svL=catalog.stock_value_lille!=null?catalog.stock_value_lille:(window._nestoreStock?window._nestoreStock.lille:null);
+    const svD=catalog.stock_value_dk!=null?catalog.stock_value_dk:(window._nestoreStock?window._nestoreStock.dk:null);
+    const eur=(n)=>Math.round(n).toLocaleString('fr-FR')+' €';
     html+=`<div class="table-card" style="padding:16px;margin-bottom:20px;">
       <div class="table-title" style="margin-bottom:6px;">Catalogue disponible</div>
       <div style="font-size:13px;color:var(--text-muted);line-height:1.5;">
         ${op!=null?`<strong style="color:var(--text);font-size:18px;">${op}</strong> produits en stock (disponibles à la vente) sur notre boutique Shopify.`:'Nombre de produits en stock indisponible (token Shopify ?).'}
         <span style="color:var(--text-soft);"> Données internes complètes — sert de référence pour comparer aux concurrents.</span>
       </div>
+      ${svT!=null?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-top:14px;">
+        <div class="kpi"><div class="kpi-label">💰 Valeur stock (total)</div><div class="kpi-value" style="color:#3B6D11;">${eur(svT)}</div></div>
+        ${svL!=null?`<div class="kpi"><div class="kpi-label">Valeur Lille</div><div class="kpi-value">${eur(svL)}</div></div>`:''}
+        ${svD!=null?`<div class="kpi"><div class="kpi-label">Valeur Dunkerque</div><div class="kpi-value">${eur(svD)}</div></div>`:''}
+      </div>`:''}
     </div>`;
   }
   if (diag) {
