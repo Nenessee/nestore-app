@@ -1944,7 +1944,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v82-seo-newonly';
+const DASH_VERSION = '2025-04-25-v83-spy-size-col';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -3689,13 +3689,13 @@ function veilleDetailHTML(stats,sales,catalog,diag){
   const sortArrow=(c)=> veilleState.salesSort===c ? (veilleState.salesDir==='asc'?' ▲':' ▼') : '';
   const th=(c,lbl)=>`<th style="cursor:pointer;user-select:none;" onclick="veilleSort('${c}')">${lbl}${sortArrow(c)}</th>`;
   html+='<div class="table-card"><div class="table-header"><span class="table-title">'+(arr?'Articles mis en ligne (détail)':'Pièces écoulées (détail)')+'</span><button class="btn btn-green" style="font-size:12px;" onclick="veilleExportCSV()">Export CSV</button></div><div style="overflow-x:auto;"><table><thead><tr>'+
-    th('title','Article')+th('brand','Marque')+th('price','Prix')+(arr?'':th('listed','Mis en ligne'))+th('date',arr?'Mis en ligne le':'Disparu le')+(arr?'':th('days','Jours en ligne'))+'</tr></thead><tbody>';
+    th('title','Article')+th('brand','Marque')+'<th>Taille</th>'+th('price','Prix')+(arr?'':th('listed','Mis en ligne'))+th('date',arr?'Mis en ligne le':'Disparu le')+(arr?'':th('days','Jours en ligne'))+'</tr></thead><tbody>';
   const days=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
-  if (!(sales.rows||[]).length) html+='<tr><td colspan="'+(arr?4:6)+'" style="text-align:center;padding:24px;color:var(--text-muted);">'+(arr?'Aucun arrivage détecté sur la période':'Aucune vente inférée sur la période')+' (la donnée s\'accumule au fil des heures).</td></tr>';
+  if (!(sales.rows||[]).length) html+='<tr><td colspan="'+(arr?5:7)+'" style="text-align:center;padding:24px;color:var(--text-muted);">'+(arr?'Aucun arrivage détecté sur la période':'Aucune vente inférée sur la période')+' (la donnée s\'accumule au fil des heures).</td></tr>';
   for (const r of (sales.rows||[])){
     const dis=r.disappeared_at?new Date(r.disappeared_at):null;
     const disTxt=dis?`${dis.toLocaleDateString('fr-FR')} ${String(r.sold_hour).padStart(2,'0')}h (${days[r.sold_dow]||''})`:'—';
-    html+=`<tr><td>${veilleEsc(r.title)}${(!arr&&r.qty_sold>1)?` <span style="font-size:10px;color:var(--accent);">×${r.qty_sold}</span>`:''}</td><td style="color:var(--text-muted);">${veilleEsc(r.brand)||'—'}</td><td style="font-weight:600;">${r.price?fmt(r.price):'—'}</td>${arr?'':`<td style="color:var(--text-muted);font-size:12px;">${r.first_seen_at?new Date(r.first_seen_at).toLocaleDateString('fr-FR'):'—'}</td>`}<td style="font-size:12px;">${disTxt}</td>${arr?'':`<td>${r.days_listed!=null?r.days_listed+' j':'—'}</td>`}</tr>`;
+    html+=`<tr><td>${veilleEsc(r.title)}${(!arr&&r.qty_sold>1)?` <span style="font-size:10px;color:var(--accent);">×${r.qty_sold}</span>`:''}</td><td style="color:var(--text-muted);">${veilleEsc(r.brand)||'—'}</td><td style="font-weight:600;font-size:12px;">${r.variant_size?veilleEsc(r.variant_size):'—'}</td><td style="font-weight:600;">${r.price?fmt(r.price):'—'}</td>${arr?'':`<td style="color:var(--text-muted);font-size:12px;">${r.first_seen_at?new Date(r.first_seen_at).toLocaleDateString('fr-FR'):'—'}</td>`}<td style="font-size:12px;">${disTxt}</td>${arr?'':`<td>${r.days_listed!=null?r.days_listed+' j':'—'}</td>`}</tr>`;
   }
   html+='</tbody></table></div>';
   // pagination
@@ -3751,9 +3751,9 @@ async function veilleExportCSV(){
   } catch(e){ showDashToast('Export échoué', 'error'); return; }
   const days=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
   const esc=v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`;
-  const header=['Article','Marque','Prix','Mis en ligne','Disparu le','Heure','Jour','Jours en ligne','Quantite'];
+  const header=['Article','Marque','Taille','Prix','Mis en ligne','Disparu le','Heure','Jour','Jours en ligne','Quantite'];
   const lines=[header.join(',')].concat(all.map(r=>[
-    esc(r.title),esc(r.brand),r.price||'',(r.first_seen_at||'').slice(0,10),(r.disappeared_at||'').slice(0,10),r.sold_hour,days[r.sold_dow]||'',r.days_listed,r.qty_sold
+    esc(r.title),esc(r.brand),esc(r.variant_size),r.price||'',(r.first_seen_at||'').slice(0,10),(r.disappeared_at||'').slice(0,10),r.sold_hour,days[r.sold_dow]||'',r.days_listed,r.qty_sold
   ].join(',')));
   const blob=new Blob(['﻿'+lines.join('\n')],{type:'text/csv;charset=utf-8;'});
   const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='veille_ventes.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
