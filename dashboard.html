@@ -1838,8 +1838,10 @@ tbody tr { transition: background .12s; }
       Les anciennes URLs (souvent héritées d'une duplication) ne sont plus accessibles.
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn btn-green" onclick="fixSeoHandles()" style="min-height:42px;">🔗 Corriger toutes les URLs</button>
+      <button class="btn btn-green" onclick="fixSeoHandles(true)" style="min-height:42px;">🆕 Corriger seulement les nouveaux</button>
+      <button class="btn" onclick="fixSeoHandles(false)" style="min-height:42px;">🔗 Corriger tout le catalogue</button>
     </div>
+    <div style="font-size:11px;color:var(--text-soft);margin-top:8px;">« Nouveaux » = produits créés depuis ta dernière correction (rapide). « Tout le catalogue » rescanne tout (plus long).</div>
     <div id="seoHandlesResult" style="margin-top:12px;font-size:13px;"></div>
   </div>
 </div>
@@ -1942,7 +1944,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v81-no-rotation';
+const DASH_VERSION = '2025-04-25-v82-seo-newonly';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -4737,14 +4739,15 @@ window.markVintedRemoved = async function(barcode, btn) {
     }
   };
 
-  window.fixSeoHandles = async function() {
+  window.fixSeoHandles = async function(onlyNew) {
     const token = getAdminToken();
     if (!token) { showDashToast('Clé admin manquante', 'error'); return; }
-    if (!confirm('Corriger les URLs de tous les produits dont le handle ne correspond pas au titre ?\nLes anciennes URLs ne seront plus accessibles (pas de redirection).')) return;
+    const scope = onlyNew ? 'des produits créés depuis ta dernière correction' : 'de TOUT le catalogue';
+    if (!confirm(`Corriger les URLs ${scope} dont le handle ne correspond pas au titre ?\nLes anciennes URLs ne seront plus accessibles (pas de redirection).`)) return;
     const out = document.getElementById('seoHandlesResult');
-    out.innerHTML = '<div style="padding:10px;background:var(--info-dim);border-left:3px solid var(--info);border-radius:8px;color:var(--info);font-size:13px;"><span class="spinner-pro"></span> Analyse du catalogue…</div>';
+    out.innerHTML = '<div style="padding:10px;background:var(--info-dim);border-left:3px solid var(--info);border-radius:8px;color:var(--info);font-size:13px;"><span class="spinner-pro"></span> '+(onlyNew?'Analyse des nouveaux produits…':'Analyse du catalogue…')+'</div>';
     try {
-      const res = await fetch(`${BACKEND_URL}/seo/fix-handles`, {
+      const res = await fetch(`${BACKEND_URL}/seo/fix-handles${onlyNew?'?onlyNew=1':''}`, {
         method: 'POST',
         headers: { 'X-NV-Admin-Token': token, 'Content-Type': 'application/json' }
       });
@@ -4755,7 +4758,7 @@ window.markVintedRemoved = async function(barcode, btn) {
       }
       out.innerHTML = `
         <div style="padding:10px;background:var(--info-dim);border-left:3px solid var(--info);border-radius:8px;color:var(--info);font-size:13px;">
-          🔗 Correction lancée : ${data.queued} URL(s) à corriger sur ${data.scanned} produits.
+          🔗 Correction lancée (${data.onlyNew?'nouveaux seulement':'tout le catalogue'}) : ${data.queued} URL(s) à corriger sur ${data.scanned} produits scannés.
           Suis l'avancement dans les logs Railway (cherche [fix-handles]).
         </div>`;
       showDashToast(`Correction des URLs lancée (${data.queued}) ✓`, 'success');
