@@ -1441,7 +1441,6 @@ tbody tr { transition: background .12s; }
   <div class="tabs-inner">
     <div class="tab active" onclick="switchTab('ventes',this)">Scan &amp; Ventes</div>
     <div class="tab" onclick="switchTab('stock',this)">Stock en ligne</div>
-    <div class="tab" id="tabRotation" onclick="switchTab('rotation',this)">Rotation</div>
     <div class="tab" onclick="switchTab('rachats',this)">Rachats</div>
     <div class="tab" onclick="switchTab('nettoyage',this)">Nettoyage</div>
     <div class="tab" onclick="switchTab('commandes',this)">Commandes web</div>
@@ -1635,25 +1634,6 @@ tbody tr { transition: background .12s; }
 </div>
 </div>
 
-<!-- TAB ROTATION -->
-<div id="tab-rotation" class="tab-panel">
-<div class="content">
-  <div class="kpi-grid" id="rotationKpis" style="margin-bottom:24px;"><div class="loading">Chargement...</div></div>
-  <div class="charts-grid">
-    <div class="chart-card" style="grid-column:span 2;">
-      <div class="chart-title">Vitesse de vente par marque (jours moyens)</div>
-      <div class="chart-wrap" style="height:300px;"><canvas id="rotationChart"></canvas></div>
-    </div>
-  </div>
-  <div class="table-card">
-    <div class="table-header"><span class="table-title">Rotation par marque</span></div>
-    <div style="overflow-x:auto;"><table>
-      <thead><tr><th>Marque</th><th>Ventes</th><th>Jours moy. pour vendre</th><th>Vitesse</th></tr></thead>
-      <tbody id="rotationTable"><tr><td colspan="4" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
-    </table></div>
-  </div>
-</div>
-</div>
 
 <!-- TAB RACHATS -->
 <div id="tab-rachats" class="tab-panel">
@@ -1962,7 +1942,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v80-sizes-col';
+const DASH_VERSION = '2025-04-25-v81-no-rotation';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -2037,7 +2017,7 @@ function switchDashBoutique(boutique, btn) {
   btn.classList.add('active');
   document.getElementById('dashSubtitle').textContent = boutique === 'admin' ? 'Toutes boutiques' : 'Dashboard ' + boutique;
   allStockData = [];
-  loadVentes(); loadRotation(); loadRachats(); loadCleanings();
+  loadVentes(); loadRachats(); loadCleanings();
   // Recharge aussi l'onglet actif s'il n'est pas dans la liste ci-dessus
   // (sinon il garde les données de la boutique précédente jusqu'à un re-clic).
   const active = document.querySelector('.tab.active');
@@ -2109,7 +2089,6 @@ function switchTab(name, el) {
     if (allStockData.length === 0) loadStock();
     loadVintedPending();
   }
-  if (name === 'rotation') loadRotation();
   if (name === 'rachats') loadRachats();
   if (name === 'nettoyage') loadCleanings();
   if (name === 'commandes') loadDashCommandes();
@@ -2496,25 +2475,6 @@ async function applySolde() {
 
   document.getElementById('progressText').textContent=`✓ ${done} articles soldés à -${discount}% avec succès !`;
   setTimeout(()=>{ closeSoldeModal(); deselectAll(); allStockData=[]; loadStock(); },2000);
-}
-
-async function loadRotation() {
-  const data = await api('/analytics/rotation');
-  document.getElementById('rotationKpis').innerHTML = data.length ? `
-    <div class="kpi"><div class="kpi-label">Marques analysées</div><div class="kpi-value">${data.length}</div><div class="kpi-sub">min. 2 ventes</div></div>
-    <div class="kpi"><div class="kpi-label">Rotation la plus rapide</div><div class="kpi-value green" style="font-size:18px;">${data[0]?.brand||'—'}</div><div class="kpi-sub">${data[0]?.avg_days||'?'} jours moy.</div></div>
-    <div class="kpi"><div class="kpi-label">Rotation la plus lente</div><div class="kpi-value" style="color:#A32D2D;font-size:18px;">${data[data.length-1]?.brand||'—'}</div><div class="kpi-sub">${data[data.length-1]?.avg_days||'?'} jours moy.</div></div>
-  ` : '<div class="kpi"><div class="kpi-label">Pas encore assez de données</div><div class="kpi-value">—</div></div>';
-  if(data.length) {
-    makeChart('rotationChart','bar',data.map(d=>d.brand),[{
-      label:'Jours moyens',data:data.map(d=>parseInt(d.avg_days)),
-      backgroundColor:data.map(d=>parseInt(d.avg_days)<14?'#5DCAA5':parseInt(d.avg_days)<30?'#EF9F27':'#E24B4A'),borderRadius:4
-    }],{indexAxis:'y'});
-  }
-  document.getElementById('rotationTable').innerHTML = data.length ? data.map(d=>{
-    const speed=parseInt(d.avg_days)<14?'<span class="badge badge-ok">Rapide</span>':parseInt(d.avg_days)<30?'<span class="badge badge-warning">Moyen</span>':'<span class="badge badge-danger">Lent</span>';
-    return `<tr><td style="font-weight:500;">${d.brand}</td><td>${d.count}</td><td>${d.avg_days} jours</td><td>${speed}</td></tr>`;
-  }).join('') : '<tr><td colspan="4" style="text-align:center;padding:30px;color:#888780;">Pas encore assez de données (2+ ventes par marque avec date produit requises)</td></tr>';
 }
 
 async function sendDailyEmail() {
@@ -3817,7 +3777,7 @@ function initDashboard(boutique, employee) {
     p.classList.toggle('active', (p.getAttribute('onclick') || '').includes(`'${boutique}'`));
   });
 
-  // Onglets : SEO reste admin seulement ; Activité + Rotation visibles pour tous (lecture)
+  // Onglets : SEO reste admin seulement ; Activité visible pour tous (lecture)
   const tabAct = document.getElementById('tabActivite');
   if (tabAct) tabAct.style.display = 'block';
   const tabSeo = document.getElementById('tabSeo');
@@ -3831,8 +3791,6 @@ function initDashboard(boutique, employee) {
     if (tabVeille) tabVeille.remove();
     if (panelVeille) panelVeille.remove();
   }
-  const tabRot = document.getElementById('tabRotation');
-  if (tabRot) tabRot.style.display = 'block';
   // KPIs + graphiques Scan & Ventes : visibles pour tous
   const ventesAdmin = document.getElementById('ventesAdminOnly');
   if (ventesAdmin) ventesAdmin.style.display = 'block';
@@ -3958,7 +3916,6 @@ if (_s?.auth) {
   const commands = [
     { group: 'Onglets', id: 'nav-ventes',     icon: '💰', label: 'Ventes — KPIs et tableau',     run: () => clickTab('ventes') },
     { group: 'Onglets', id: 'nav-stock',      icon: '📦', label: 'Stock en ligne',              run: () => clickTab('stock') },
-    { group: 'Onglets', id: 'nav-rotation',   icon: '🔁', label: 'Rotation par marque',          run: () => clickTab('rotation') },
     { group: 'Onglets', id: 'nav-rachats',    icon: '🛍', label: 'Rachats boutique',             run: () => clickTab('rachats') },
     { group: 'Onglets', id: 'nav-nettoyage',  icon: '👟', label: 'Nettoyage',                   run: () => clickTab('nettoyage') },
     { group: 'Onglets', id: 'nav-commandes',  icon: '🌐', label: 'Commandes web',                run: () => clickTab('commandes') },
@@ -4333,7 +4290,7 @@ if (_s?.auth) {
   setTimeout(restoreFilters, 700);
 
   /* ======= G-KEY SHORTCUTS (g puis v/s/r/n/c/t/a) ======= */
-  const tabMap = { v: 'ventes', s: 'stock', r: 'rachats', n: 'nettoyage', c: 'commandes', t: 'transferts', a: 'activite', o: 'rotation' };
+  const tabMap = { v: 'ventes', s: 'stock', r: 'rachats', n: 'nettoyage', c: 'commandes', t: 'transferts', a: 'activite' };
   let gMode = false;
   let gTimeout = null;
   document.addEventListener('keydown', (e) => {
