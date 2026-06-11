@@ -1778,74 +1778,36 @@ tbody tr { transition: background .12s; }
   </div>
 
   <div class="kpi" style="margin-bottom:16px;padding:16px 18px;">
+    <div style="font-size:14px;color:var(--success);font-weight:700;margin-bottom:6px;">✅ SEO &amp; URLs 100% automatiques</div>
     <div style="font-size:13px;color:var(--text);line-height:1.55;">
-      <strong>Automatique :</strong> dès qu'un produit est créé sur Shopify, le webhook
-      génère un meta title et une meta description optimisés, puis les injecte sans
-      intervention humaine.
+      Chaque produit créé, renommé ou dupliqué sur Shopify reçoit tout seul son meta title, sa meta description et son URL alignée sur le titre. Rien à cliquer.
     </div>
     <div style="font-size:12px;color:var(--text-muted);margin-top:10px;line-height:1.5;">
-      <strong>Format :</strong><br>
-      <span style="font-family:monospace;">Title : [Titre] | Seconde main authentifié — Nestore Vintage</span><br>
-      <span style="font-family:monospace;">Description : Achetez [marque] [type] d'occasion chez Nestore Vintage. 100% authentifié, livraison rapide, retours 14 jours. [taille]</span>
+      <strong>Format :</strong> <span style="font-family:monospace;">[Titre] | Seconde main authentifié — Nestore Vintage</span>
     </div>
   </div>
 
-  <!-- Régénérer un produit -->
-  <div class="table-card" style="margin-bottom:16px;padding:18px;">
-    <div class="table-title" style="margin-bottom:12px;">Régénérer le SEO d'un produit</div>
-    <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
-      <div style="flex:1;min-width:220px;">
-        <label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:6px;">Product ID Shopify ou code-barres</label>
-        <input class="search-input" id="seoProductInput" placeholder="ex: 7234567890123 ou N20004977" style="width:100%;"/>
-      </div>
-      <button class="btn btn-green" onclick="regenerateSeoOne()" style="min-height:42px;">⚙️ Régénérer</button>
+  <div class="kpi-grid" id="seoStats" style="margin-bottom:16px;"></div>
+
+  <div class="table-card" style="padding:18px;margin-bottom:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+      <div class="table-title">Historique des corrections</div>
+      <button class="btn" onclick="loadSeoLog()" style="font-size:12px;">↻ Rafraîchir</button>
     </div>
-    <div id="seoOneResult" style="margin-top:12px;font-size:13px;"></div>
+    <div id="seoLogResult" style="overflow-x:auto;"><div class="loading">Chargement…</div></div>
   </div>
 
-  <!-- Régénérer tous -->
   <div class="table-card" style="padding:18px;">
-    <div class="table-title" style="margin-bottom:8px;">Régénérer le SEO de TOUS les produits actifs</div>
+    <div class="table-title" style="margin-bottom:8px;">Rattraper l'existant (à faire une fois)</div>
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.5;">
-      Parcourt tout le catalogue Shopify et écrase les meta title/description existants. Opération longue (quelques minutes) qui tourne en arrière-plan côté serveur.
-    </div>
-    <button class="btn btn-red" onclick="regenerateSeoAll()" style="min-height:42px;">🔁 Lancer régénération complète</button>
-    <div id="seoBulkResult" style="margin-top:12px;font-size:13px;"></div>
-  </div>
-
-  <!-- Produits sans SEO traité -->
-  <div class="table-card" style="padding:18px;margin-top:16px;">
-    <div class="table-title" style="margin-bottom:8px;">Mettre à jour uniquement les produits non traités</div>
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.5;">
-      Chaque produit est marqué (<span style="font-family:monospace;">nestore.seo_generated_at</span>) après génération automatique
-      du SEO. Cet outil liste les produits qui n'ont pas ce marqueur — typiquement les doublons créés
-      manuellement depuis Shopify Admin sans déclencher le webhook — puis régénère uniquement
-      ceux-là, sans toucher aux produits déjà traités.
+      L'automatisation gère les nouveautés. Pour les produits déjà en ligne <em>avant</em> son activation, lance un rattrapage ponctuel :
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn btn-blue" onclick="scanSeoPending()" style="min-height:42px;">🔎 Scanner les produits non traités</button>
-      <button class="btn btn-green" id="seoPendingRegenBtn" onclick="regenerateSeoPending()" style="min-height:42px;display:none;">⚙️ Régénérer</button>
+      <button class="btn btn-green" onclick="seoCatchupPending()" style="min-height:42px;">🔁 Générer le SEO manquant</button>
+      <button class="btn" onclick="fixSeoHandles(false)" style="min-height:42px;">🔗 Corriger les URLs du catalogue</button>
     </div>
     <div id="seoPendingResult" style="margin-top:12px;font-size:13px;"></div>
-  </div>
-
-  <!-- Corriger les URLs (handles) -->
-  <div class="table-card" style="padding:18px;margin-top:16px;">
-    <div class="table-title" style="margin-bottom:8px;">Corriger les URLs qui ne correspondent pas au produit</div>
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.5;">
-      Shopify ne met pas à jour l'URL (handle) quand on renomme un produit (ex. après duplication) :
-      l'URL reste celle de l'ancien produit. Cet outil réaligne l'URL sur le titre actuel du produit.
-      Les anciennes URLs (souvent héritées d'une duplication) ne sont plus accessibles.
-    </div>
-    <div style="font-size:12px;color:var(--success);background:var(--success-dim);border-radius:8px;padding:8px 12px;margin-bottom:12px;">
-      ✅ <strong>Automatique :</strong> chaque nouveau produit (et chaque renommage/duplication) reçoit désormais son SEO + sa bonne URL tout seul, sans rien faire. Les boutons ci-dessous ne servent plus qu'à rattraper l'existant.
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn btn-green" onclick="fixSeoHandles(true)" style="min-height:42px;">🆕 Corriger seulement les nouveaux</button>
-      <button class="btn" onclick="fixSeoHandles(false)" style="min-height:42px;">🔗 Corriger tout le catalogue</button>
-    </div>
-    <div style="font-size:11px;color:var(--text-soft);margin-top:8px;">« Nouveaux » = produits créés depuis ta dernière correction (rapide). « Tout le catalogue » rescanne tout (plus long).</div>
-    <div id="seoHandlesResult" style="margin-top:12px;font-size:13px;"></div>
+    <div id="seoHandlesResult" style="margin-top:8px;font-size:13px;"></div>
   </div>
 </div>
 </div>
@@ -1947,7 +1909,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v84-seo-auto-note';
+const DASH_VERSION = '2025-04-25-v85-seo-history';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -4591,6 +4553,52 @@ window.markVintedRemoved = async function(barcode, btn) {
     if (badge) {
       badge.innerHTML = '✓ Clé admin configurée · <a href="#" onclick="event.preventDefault();localStorage.removeItem(\'nv_admin_key\');const v=document.querySelector(\'.tab[onclick*=ventes]\');if(v)v.click();" style="color:var(--accent);">changer</a>';
     }
+    loadSeoLog();
+  };
+
+  window.loadSeoLog = async function() {
+    const token = getAdminToken();
+    const box = document.getElementById('seoLogResult');
+    const stats = document.getElementById('seoStats');
+    if (!token) { if(box) box.innerHTML = '<div style="padding:16px;color:var(--accent);">Clé admin requise</div>'; return; }
+    if (box) box.innerHTML = '<div class="loading">Chargement…</div>';
+    try {
+      const d = await fetch(`${BACKEND_URL}/seo/log?limit=80`, { headers: { 'X-NV-Admin-Token': token } }).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});
+      if (stats) stats.innerHTML =
+        `<div class="kpi"><div class="kpi-label">Corrections (24h)</div><div class="kpi-value" style="color:var(--success);">${d.last24||0}</div></div>`+
+        `<div class="kpi"><div class="kpi-label">SEO générés (total)</div><div class="kpi-value">${d.seo_total||0}</div></div>`+
+        `<div class="kpi"><div class="kpi-label">URLs corrigées (total)</div><div class="kpi-value">${d.url_total||0}</div></div>`;
+      if (!box) return;
+      if (!(d.rows||[]).length) { box.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);">Aucune correction encore enregistrée. Ajoute ou renomme un produit sur Shopify pour voir l\'automatisation agir ici.</div>'; return; }
+      let h = '<table><thead><tr><th>Quand</th><th>Type</th><th>Produit / détail</th><th>Source</th></tr></thead><tbody>';
+      for (const r of d.rows) {
+        const dt = r.at ? new Date(r.at) : null;
+        const when = dt ? dt.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+        const isSeo = r.action === 'seo';
+        const badge = isSeo ? '<span style="background:var(--info-dim);color:var(--info);padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;">SEO</span>' : '<span style="background:var(--warning-dim);color:var(--warning);padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;">URL</span>';
+        const src = r.source==='auto' ? '<span style="color:var(--success);">auto</span>' : '<span style="color:var(--text-soft);">manuel</span>';
+        const detail = veilleEsc ? veilleEsc(r.detail||r.title||'') : (r.detail||r.title||'');
+        h += `<tr><td style="font-size:12px;color:var(--text-muted);white-space:nowrap;">${when}</td><td>${badge}</td><td style="font-size:12px;max-width:340px;overflow:hidden;text-overflow:ellipsis;">${detail}</td><td style="font-size:12px;">${src}</td></tr>`;
+      }
+      h += '</tbody></table>';
+      box.innerHTML = h;
+    } catch(e) { if(box) box.innerHTML = `<div style="padding:16px;color:var(--accent);">Erreur : ${e.message}</div>`; }
+  };
+
+  window.seoCatchupPending = async function() {
+    const token = getAdminToken();
+    if (!token) { showDashToast('Clé admin manquante', 'error'); return; }
+    if (!confirm('Générer le SEO des produits déjà en ligne qui n\'en ont pas encore ?')) return;
+    const out = document.getElementById('seoPendingResult');
+    out.innerHTML = '<div style="padding:10px;background:var(--info-dim);border-left:3px solid var(--info);border-radius:8px;color:var(--info);font-size:13px;"><span class="spinner-pro"></span> Analyse + génération en cours…</div>';
+    try {
+      const res = await fetch(`${BACKEND_URL}/seo/regenerate-pending`, { method:'POST', headers:{ 'X-NV-Admin-Token': token, 'Content-Type':'application/json' } });
+      const d = await res.json();
+      if (!res.ok) { if(res.status===403) localStorage.removeItem('nv_admin_key'); throw new Error(d.error||'Erreur serveur'); }
+      out.innerHTML = `<div style="padding:10px;background:var(--success-dim);border-left:3px solid var(--success);border-radius:8px;color:var(--success);font-size:13px;">🔁 Lancé : ${d.queued!=null?d.queued:(d.count!=null?d.count:'—')} produit(s) à traiter. Suis l'avancement dans l'historique ci-dessus (et logs Railway [SEO]).</div>`;
+      showDashToast('Rattrapage SEO lancé ✓', 'success');
+      setTimeout(loadSeoLog, 4000);
+    } catch(e) { out.innerHTML = `<div style="padding:10px;background:var(--accent-dim);border-left:3px solid var(--accent);border-radius:8px;color:var(--accent);font-size:13px;">Erreur : ${e.message}</div>`; }
   };
 
   window.regenerateSeoOne = async function() {
