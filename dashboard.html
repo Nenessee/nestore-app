@@ -1837,6 +1837,9 @@ tbody tr { transition: background .12s; }
       l'URL reste celle de l'ancien produit. Cet outil réaligne l'URL sur le titre actuel du produit.
       Les anciennes URLs (souvent héritées d'une duplication) ne sont plus accessibles.
     </div>
+    <div style="font-size:12px;color:var(--success);background:var(--success-dim);border-radius:8px;padding:8px 12px;margin-bottom:12px;">
+      ✅ <strong>Automatique :</strong> chaque nouveau produit (et chaque renommage/duplication) reçoit désormais son SEO + sa bonne URL tout seul, sans rien faire. Les boutons ci-dessous ne servent plus qu'à rattraper l'existant.
+    </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn btn-green" onclick="fixSeoHandles(true)" style="min-height:42px;">🆕 Corriger seulement les nouveaux</button>
       <button class="btn" onclick="fixSeoHandles(false)" style="min-height:42px;">🔗 Corriger tout le catalogue</button>
@@ -1944,7 +1947,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v83-spy-size-col';
+const DASH_VERSION = '2025-04-25-v84-seo-auto-note';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
