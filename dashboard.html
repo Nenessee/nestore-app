@@ -1798,14 +1798,18 @@ tbody tr { transition: background .12s; }
   </div>
 
   <div class="table-card" style="padding:18px;">
-    <div class="table-title" style="margin-bottom:8px;">Rattraper l'existant (à faire une fois)</div>
+    <div class="table-title" style="margin-bottom:8px;">Rattraper l'existant</div>
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.5;">
-      L'automatisation gère les nouveautés. Pour les produits déjà en ligne <em>avant</em> son activation, lance un rattrapage ponctuel :
+      L'automatisation gère les nouveautés. Ce bouton ne traite que les produits <strong>pas encore faits</strong> (SEO + URL) — il saute ceux déjà traités, donc tu peux le relancer sans refaire tout le catalogue.
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn btn-green" onclick="seoCatchupAll()" style="min-height:42px;">🔁 Tout rattraper (SEO + URLs)</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <button class="btn btn-green" onclick="seoCatchupPending()" style="min-height:42px;">🔁 Rattraper ce qui manque (SEO + URLs)</button>
     </div>
     <div id="seoPendingResult" style="margin-top:12px;font-size:13px;"></div>
+    <div style="font-size:11px;color:var(--text-soft);margin-top:14px;border-top:0.5px solid var(--border);padding-top:10px;">
+      Cas rare : si une <em>ancienne</em> annonce déjà traitée a été renommée avant l'automatisation, son URL peut être périmée sans être détectée ici.
+      <a href="#" onclick="event.preventDefault();fixSeoHandles(false);" style="color:var(--accent);">Re-scanner toutes les URLs du catalogue</a> (plus long).
+    </div>
     <div id="seoHandlesResult" style="margin-top:8px;font-size:13px;"></div>
   </div>
 </div>
@@ -1908,7 +1912,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v86-seo-catchall';
+const DASH_VERSION = '2025-04-25-v87-seo-incremental';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -4587,15 +4591,16 @@ window.markVintedRemoved = async function(barcode, btn) {
   window.seoCatchupPending = async function() {
     const token = getAdminToken();
     if (!token) { showDashToast('Clé admin manquante', 'error'); return; }
-    if (!confirm('Générer le SEO des produits déjà en ligne qui n\'en ont pas encore ?')) return;
+    if (!confirm('Traiter (SEO + URL) les produits pas encore faits ? Les produits déjà traités sont sautés.')) return;
     const out = document.getElementById('seoPendingResult');
-    out.innerHTML = '<div style="padding:10px;background:var(--info-dim);border-left:3px solid var(--info);border-radius:8px;color:var(--info);font-size:13px;"><span class="spinner-pro"></span> Analyse + génération en cours…</div>';
+    out.innerHTML = '<div style="padding:10px;background:var(--info-dim);border-left:3px solid var(--info);border-radius:8px;color:var(--info);font-size:13px;"><span class="spinner-pro"></span> Recherche des produits non traités + correction SEO/URL…</div>';
     try {
       const res = await fetch(`${BACKEND_URL}/seo/regenerate-pending`, { method:'POST', headers:{ 'X-NV-Admin-Token': token, 'Content-Type':'application/json' } });
       const d = await res.json();
       if (!res.ok) { if(res.status===403) localStorage.removeItem('nv_admin_key'); throw new Error(d.error||'Erreur serveur'); }
-      out.innerHTML = `<div style="padding:10px;background:var(--success-dim);border-left:3px solid var(--success);border-radius:8px;color:var(--success);font-size:13px;">🔁 Lancé : ${d.queued!=null?d.queued:(d.count!=null?d.count:'—')} produit(s) à traiter. Suis l'avancement dans l'historique ci-dessus (et logs Railway [SEO]).</div>`;
-      showDashToast('Rattrapage SEO lancé ✓', 'success');
+      const n = d.queued!=null?d.queued:(d.count!=null?d.count:'—');
+      out.innerHTML = `<div style="padding:10px;background:var(--success-dim);border-left:3px solid var(--success);border-radius:8px;color:var(--success);font-size:13px;">🔁 ${n===0?'Rien à rattraper — tout est déjà à jour ✓':'Lancé : '+n+' produit(s) non traité(s) (SEO + URL). Suis l\'avancement dans l\'historique ci-dessus.'}</div>`;
+      showDashToast(n===0?'Déjà à jour ✓':'Rattrapage lancé ✓', 'success');
       setTimeout(loadSeoLog, 4000);
     } catch(e) { out.innerHTML = `<div style="padding:10px;background:var(--accent-dim);border-left:3px solid var(--accent);border-radius:8px;color:var(--accent);font-size:13px;">Erreur : ${e.message}</div>`; }
   };
