@@ -1803,8 +1803,7 @@ tbody tr { transition: background .12s; }
       L'automatisation gère les nouveautés. Pour les produits déjà en ligne <em>avant</em> son activation, lance un rattrapage ponctuel :
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn btn-green" onclick="seoCatchupPending()" style="min-height:42px;">🔁 Générer le SEO manquant</button>
-      <button class="btn" onclick="fixSeoHandles(false)" style="min-height:42px;">🔗 Corriger les URLs du catalogue</button>
+      <button class="btn btn-green" onclick="seoCatchupAll()" style="min-height:42px;">🔁 Tout rattraper (SEO + URLs)</button>
     </div>
     <div id="seoPendingResult" style="margin-top:12px;font-size:13px;"></div>
     <div id="seoHandlesResult" style="margin-top:8px;font-size:13px;"></div>
@@ -1909,7 +1908,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v85-seo-history';
+const DASH_VERSION = '2025-04-25-v86-seo-catchall';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -4598,6 +4597,27 @@ window.markVintedRemoved = async function(barcode, btn) {
       out.innerHTML = `<div style="padding:10px;background:var(--success-dim);border-left:3px solid var(--success);border-radius:8px;color:var(--success);font-size:13px;">🔁 Lancé : ${d.queued!=null?d.queued:(d.count!=null?d.count:'—')} produit(s) à traiter. Suis l'avancement dans l'historique ci-dessus (et logs Railway [SEO]).</div>`;
       showDashToast('Rattrapage SEO lancé ✓', 'success');
       setTimeout(loadSeoLog, 4000);
+    } catch(e) { out.innerHTML = `<div style="padding:10px;background:var(--accent-dim);border-left:3px solid var(--accent);border-radius:8px;color:var(--accent);font-size:13px;">Erreur : ${e.message}</div>`; }
+  };
+
+  // Rattrapage complet : SEO manquant + URLs du catalogue, en parallèle
+  window.seoCatchupAll = async function() {
+    const token = getAdminToken();
+    if (!token) { showDashToast('Clé admin manquante', 'error'); return; }
+    if (!confirm('Lancer le rattrapage complet : générer le SEO manquant ET corriger les URLs de tout le catalogue ?')) return;
+    const out = document.getElementById('seoPendingResult');
+    out.innerHTML = '<div style="padding:10px;background:var(--info-dim);border-left:3px solid var(--info);border-radius:8px;color:var(--info);font-size:13px;"><span class="spinner-pro"></span> Rattrapage SEO + URLs lancé…</div>';
+    const hdr = { 'X-NV-Admin-Token': token, 'Content-Type': 'application/json' };
+    const call = (path) => fetch(`${BACKEND_URL}${path}`, { method:'POST', headers:hdr }).then(r=>r.json().then(d=>({ok:r.ok,status:r.status,d}))).catch(e=>({ok:false,d:{error:e.message}}));
+    try {
+      const [seo, url] = await Promise.all([ call('/seo/regenerate-pending'), call('/seo/fix-handles') ]);
+      if ((seo.status===403)||(url.status===403)) localStorage.removeItem('nv_admin_key');
+      const seoTxt = seo.ok ? `SEO : ${seo.d.queued!=null?seo.d.queued:(seo.d.count!=null?seo.d.count:'lancé')} produit(s)` : `SEO : erreur (${seo.d.error||''})`;
+      const urlTxt = url.ok ? `URLs : ${url.d.queued!=null?url.d.queued:'lancé'} sur ${url.d.scanned!=null?url.d.scanned:'?'} scannés` : `URLs : erreur (${url.d.error||''})`;
+      const okAll = seo.ok && url.ok;
+      out.innerHTML = `<div style="padding:10px;background:${okAll?'var(--success-dim)':'var(--warning-dim)'};border-left:3px solid ${okAll?'var(--success)':'var(--warning)'};border-radius:8px;color:${okAll?'var(--success)':'var(--warning)'};font-size:13px;">🔁 Rattrapage lancé — ${seoTxt} · ${urlTxt}. Suis l'avancement dans l'historique ci-dessus.</div>`;
+      showDashToast(okAll?'Rattrapage complet lancé ✓':'Rattrapage lancé (voir détails)', okAll?'success':'warn');
+      setTimeout(loadSeoLog, 4000); setTimeout(loadSeoLog, 12000);
     } catch(e) { out.innerHTML = `<div style="padding:10px;background:var(--accent-dim);border-left:3px solid var(--accent);border-radius:8px;color:var(--accent);font-size:13px;">Erreur : ${e.message}</div>`; }
   };
 
