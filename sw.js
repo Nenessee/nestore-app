@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-10-norotation';
+const CACHE_VERSION = 'nestore-v2026-06-10-seonewonly';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
