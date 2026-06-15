@@ -2745,21 +2745,20 @@
   function logoutApp() {
     // Log avant de clear la session pour que l'événement garde l'employé
     if (typeof window.__nvLog === 'function') window.__nvLog('logout');
+    const _tok = localStorage.getItem('nv_auth');
     localStorage.removeItem('nv_session');
-    ['nv_dash_auth','nv_dash_boutique','nv_dash_employee','nv_auth','nv_boutique','nv_employee']
+    ['nv_dash_auth','nv_dash_boutique','nv_dash_employee','nv_auth','nv_user','nv_boutique','nv_employee']
       .forEach(k => localStorage.removeItem(k));
     currentBoutique = null;
     currentEmployee = null;
-    // (on laisse tourner _appUpdateInterval : la vérif de version reste utile
-    //  sur l'écran de login et survit à un logout/login dans la même session)
     try { stopInventaireScan(); } catch(_) {}
     try { stopVenteScan(); } catch(_) {}
-    document.getElementById('mainApp').style.display = 'none';
-    document.getElementById('loginScreen').style.display = 'flex';
-    document.getElementById('stepPwd').style.display = 'block';
-    document.getElementById('stepEmployee').style.display = 'none';
-    document.getElementById('pwdInput').value = '';
-    document.getElementById('pwdError').style.display = 'none';
+    // Révoque la session serveur puis recharge → le gate ré-affiche le bon écran
+    // (écran prénom + code si le login est obligatoire, sinon ancien mot de passe).
+    (async () => {
+      try { if (_tok) await fetch(`${BACKEND_URL}/auth/logout`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token:_tok }) }).catch(()=>{}); } catch(_) {}
+      location.reload();
+    })();
   }
 
   function applyEmployee(employee) {
@@ -2985,17 +2984,37 @@
       const d=await res.json().catch(()=>({}));
       if(!res.ok){ if(err)err.textContent=d.error||'Échec de connexion'; if(btn){btn.disabled=false;btn.textContent='Se connecter';} return; }
       try{ localStorage.setItem('nv_auth', d.token); localStorage.setItem('nv_user', JSON.stringify({name:d.name,role:d.role,boutique:d.boutique})); }catch(_){}
-      location.reload();
+      const ov=document.getElementById('nvLoginOverlay'); if(ov) ov.style.display='none';
+      if(btn){btn.disabled=false;btn.textContent='Se connecter';}
+      nvEnterApp({name:d.name, role:d.role, boutique:d.boutique});
     }catch(e){ if(err)err.textContent='Erreur réseau'; if(btn){btn.disabled=false;btn.textContent='Se connecter';} }
+  };
+  // Entre dans l'app après une connexion réussie (réutilise le flux boutique existant)
+  window.nvEnterApp=function(u){
+    try {
+      const bq = (u && u.role==='admin') ? 'admin' : ((u && u.boutique) || 'Lille');
+      if (typeof connectEmployee === 'function') connectEmployee(u.name, bq);
+      else location.reload();
+    } catch(_) { location.reload(); }
   };
   window.nvLogout=async function(){
     try{ const t=localStorage.getItem('nv_auth'); if(t){ await fetch(`${BACKEND_URL}/auth/logout`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:t})}).catch(()=>{}); } }catch(_){}
     try{ localStorage.removeItem('nv_auth'); localStorage.removeItem('nv_user'); }catch(_){}
     location.reload();
   };
-  // Gate proactif : dès le chargement, si la connexion est requise et qu'on n'est pas authentifié → écran de login
+  // Gate proactif au chargement : décide quoi afficher selon l'état d'authentification serveur
   (async function(){
-    try { const r = await fetch(`${BACKEND_URL}/auth/me`); if (r && r.status === 401) nvShowLogin(); } catch(_){}
+    try {
+      const r = await fetch(`${BACKEND_URL}/auth/me`);
+      if (r && r.status === 401) { nvShowLogin(); return; }        // login requis, pas connecté → écran prénom + code
+      const d = await r.json().catch(()=>({}));
+      const u = d && d.user;
+      if (u && u.name && u.name !== 'legacy' && u.id) {                   // déjà connecté par compte
+        let s=null; try{ s=JSON.parse(localStorage.getItem('nv_session')||'null'); }catch(_){}
+        if (!(s && s.auth)) nvEnterApp(u);                               // entre dans l'app si pas déjà repris via session locale
+      }
+      // sinon (jeton legacy, login non obligatoire) → on laisse l'ancien écran mot de passe
+    } catch(_){}
   })();
 })();
 </script>
