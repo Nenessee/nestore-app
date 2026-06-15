@@ -1442,6 +1442,7 @@ tbody tr { transition: background .12s; }
     <div class="tab active" onclick="switchTab('ventes',this)">Scan &amp; Ventes</div>
     <div class="tab" onclick="switchTab('stock',this)">Stock en ligne</div>
     <div class="tab" onclick="switchTab('rachats',this)">Rachats</div>
+    <div class="tab" onclick="switchTab('depots',this)">Dépôts</div>
     <div class="tab" onclick="switchTab('nettoyage',this)">Nettoyage</div>
     <div class="tab" onclick="switchTab('commandes',this)">Commandes web</div>
     <div class="tab" onclick="switchTab('transferts',this)">Transferts</div>
@@ -1852,6 +1853,25 @@ tbody tr { transition: background .12s; }
   </div>
 </div>
 </div>
+<!-- TAB DÉPÔTS-VENTE -->
+<div id="tab-depots" class="tab-panel">
+<div class="content">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+    <span class="section-title" style="margin:0;">Dépôts-vente</span>
+    <span id="depotsSummary" style="font-size:13px;color:var(--text-muted);"></span>
+  </div>
+  <div style="font-size:12px;color:var(--text-soft);margin-bottom:14px;">Articles confiés par un déposant — on le paie (montant convenu) seulement quand l'article se vend.</div>
+  <div class="table-card">
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>Article</th><th>Déposant</th><th>À reverser</th><th>Déposé le</th><th>Limite</th><th>Statut</th><th>Action</th></tr></thead>
+        <tbody id="depotsTable"><tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Chargement…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
 <div id="tab-nettoyage" class="tab-panel">
 <div class="content">
   <div class="kpi-grid" id="cleanKpis" style="margin-bottom:24px;"><div class="loading">Chargement...</div></div>
@@ -1945,7 +1965,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v100-reset-inventaire';
+const DASH_VERSION = '2025-04-25-v101-depot-vente';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2097,6 +2117,7 @@ function switchTab(name, el) {
     loadVintedPending();
   }
   if (name === 'rachats') loadRachats();
+  if (name === 'depots') loadDepots();
   if (name === 'nettoyage') loadCleanings();
   if (name === 'commandes') loadDashCommandes();
   if (name === 'transferts') loadTransferts();
@@ -3230,6 +3251,45 @@ document.addEventListener('DOMContentLoaded', () => {
   document.body.appendChild(inp);
 });
 
+function _escD(x){ return String(x==null?'':x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+async function loadDepots() {
+  const tbody = document.getElementById('depotsTable');
+  const summary = document.getElementById('depotsSummary');
+  try {
+    const rows = await api('/deposits');
+    if (!rows || !rows.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Aucun dépôt-vente</td></tr>'; if (summary) summary.textContent = ''; return; }
+    const toPay = rows.filter(r => r.depot_status === 'vendu' && r.payment_status !== 'regle');
+    const due = toPay.reduce((a, r) => a + (parseFloat(r.depositor_due) || 0), 0);
+    if (summary) summary.textContent = `${rows.length} dépôt(s) · ${toPay.length} à payer (${due.toFixed(2)}€)`;
+    tbody.innerHTML = rows.map(r => {
+      const dep = _escD(r.depositor_name) + (r.depositor_phone ? ` · ${_escD(r.depositor_phone)}` : '');
+      const depose = r.purchased_at ? new Date(r.purchased_at).toLocaleDateString('fr-FR') : '—';
+      const limite = r.deposit_deadline ? new Date(r.deposit_deadline).toLocaleDateString('fr-FR') : '—';
+      let statut, action = '';
+      if (r.depot_status === 'restitue') { statut = '<span style="color:#888780;">Restitué</span>'; }
+      else if (r.depot_status === 'vendu') {
+        if (r.payment_status === 'regle') statut = '<span style="color:var(--success);">Vendu · payé</span>';
+        else { statut = '<span style="color:#D85A30;font-weight:600;">Vendu · à payer</span>'; action = `<button class="btn btn-green" style="font-size:11px;padding:4px 8px;" onclick="markDepositPaid(${r.id})">Marquer payé</button>`; }
+      } else {
+        statut = r.overdue ? '<span style="color:#D85A30;">En dépôt · délai dépassé</span>' : '<span>En dépôt</span>';
+        action = `<button class="btn" style="font-size:11px;padding:4px 8px;" onclick="restituerDepot(${r.id})">Restituer</button>`;
+      }
+      const due2 = (parseFloat(r.depositor_due) || 0).toFixed(2) + '€';
+      const rowBg = (r.overdue && r.depot_status === 'en_depot') ? 'background:#FFF8F8;' : '';
+      return `<tr style="${rowBg}"><td><strong>${_escD(r.product_name)}</strong>${r.brand ? '<br><span style="font-size:11px;color:#888780;">' + _escD(r.brand) + '</span>' : ''}</td><td>${dep}</td><td>${due2}</td><td>${depose}</td><td>${limite}</td><td>${statut}</td><td>${action}</td></tr>`;
+    }).join('');
+  } catch (e) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--accent);">Erreur : ' + e.message + '</td></tr>'; }
+}
+async function markDepositPaid(id) {
+  if (!confirm('Confirmer : le déposant a bien été payé ?')) return;
+  try { const r = await fetch(`${BACKEND_URL}/deposit/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ paymentStatus:'regle' }) }); if (!r.ok) throw new Error('HTTP '+r.status); showDashToast('Déposant payé ✓','success'); loadDepots(); }
+  catch(e){ showDashToast('Erreur','error'); }
+}
+async function restituerDepot(id) {
+  if (!confirm('Marquer cet article comme restitué au déposant (invendu) ?')) return;
+  try { const r = await fetch(`${BACKEND_URL}/deposit/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ depotStatus:'restitue' }) }); if (!r.ok) throw new Error('HTTP '+r.status); showDashToast('Article restitué','success'); loadDepots(); }
+  catch(e){ showDashToast('Erreur','error'); }
+}
 async function loadRachats() {
   const [stats, data, stockData] = await Promise.all([
     api('/purchases/stats'),
