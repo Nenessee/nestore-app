@@ -1377,6 +1377,11 @@ tbody tr { transition: background .12s; }
 /* ===== Onglet Objectif : champs alignés (évite le débordement dû à min-width:200px de .search-input) ===== */
 #tab-objectif .search-input{min-width:0;box-sizing:border-box;}
 #tab-objectif select.search-input,#tab-objectif input.search-input{max-width:100%;}
+/* ===== Onglet Équipe : grille de saisie propre ===== */
+#tab-equipe .search-input{min-width:0;box-sizing:border-box;}
+.eq-addgrid{display:grid;grid-template-columns:minmax(160px,2.5fr) minmax(120px,1fr) minmax(110px,1fr) minmax(140px,1fr) auto;gap:12px;align-items:end;}
+.eq-lbl{font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.03em;display:block;margin-bottom:6px;}
+@media(max-width:680px){.eq-addgrid{grid-template-columns:1fr 1fr;}.eq-addgrid>button{grid-column:1 / -1;}}
 /* ===== Barre de progression Vector ===== */
 .vector-track{position:relative;height:48px;margin:34px 56px 14px 6px;border-radius:6px;background:#1a1c22;}
 .vector-fill{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:6px 0 0 6px;overflow:hidden;transition:width 1s cubic-bezier(.22,1,.36,1);}
@@ -1625,6 +1630,7 @@ tbody tr { transition: background .12s; }
   <!-- Tableau des saisies du mois -->
   <div class="table-card" style="padding:18px;">
     <div class="table-title" id="objEntriesTitle" style="margin-bottom:12px;">Saisies du mois</div>
+    <div id="objMissingAlert"></div>
     <div style="overflow-x:auto;"><table><thead><tr><th>Date</th><th id="objColBoutique" style="display:none;">Boutique</th><th>CA (€)</th><th>Saisi par</th><th id="objColAction" style="display:none;"></th></tr></thead><tbody id="objEntriesTable"><tr><td colspan="5" style="text-align:center;padding:20px;color:#888780;">—</td></tr></tbody></table></div>
   </div>
 </div>
@@ -2021,13 +2027,13 @@ tbody tr { transition: background .12s; }
   </div>
 
   <div class="table-card" style="padding:18px;margin-bottom:16px;">
-    <div class="table-title" style="margin-bottom:12px;">Ajouter un employé</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
-      <div style="flex:1;min-width:140px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Prénom</label><input id="euName" class="search-input" placeholder="ex: Sophie" style="width:100%;"/></div>
-      <div style="width:120px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Code (PIN)</label><input id="euPin" class="search-input" inputmode="numeric" placeholder="4 (employé) / 6 (admin)" style="width:100%;"/></div>
-      <div style="width:120px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Boutique</label><select id="euBoutique" class="search-input" style="width:100%;"><option value="">—</option><option value="Lille">Lille</option><option value="DK">Dunkerque</option></select></div>
-      <div style="width:120px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Rôle</label><select id="euRole" class="search-input" style="width:100%;"><option value="employee">Employé</option><option value="admin">Admin (lecture)</option><option value="superadmin">Superadmin</option></select></div>
-      <button class="btn btn-green" onclick="equipeAddUser()" style="min-height:42px;">＋ Ajouter</button>
+    <div class="table-title" style="margin-bottom:14px;">Ajouter un employé</div>
+    <div class="eq-addgrid">
+      <div><label class="eq-lbl">Prénom</label><input id="euName" class="search-input" placeholder="ex: Sophie" style="width:100%;"/></div>
+      <div><label class="eq-lbl">Code (PIN)</label><input id="euPin" class="search-input" inputmode="numeric" placeholder="4 à 6 chiffres" style="width:100%;"/></div>
+      <div><label class="eq-lbl">Boutique</label><select id="euBoutique" class="search-input" style="width:100%;"><option value="">—</option><option value="Lille">Lille</option><option value="DK">Dunkerque</option></select></div>
+      <div><label class="eq-lbl">Rôle</label><select id="euRole" class="search-input" style="width:100%;"><option value="employee">Employé</option><option value="admin">Admin (lecture)</option><option value="superadmin">Superadmin</option></select></div>
+      <button class="btn btn-green" onclick="equipeAddUser()" style="min-height:42px;white-space:nowrap;">＋ Ajouter</button>
     </div>
     <div id="euAddResult" style="margin-top:10px;font-size:13px;"></div>
   </div>
@@ -2063,7 +2069,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v110-obj-missing-kpi';
+const DASH_VERSION = '2025-04-25-v111-equipe-saisies-revoke';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -3535,6 +3541,7 @@ function expectedOpenDays(b, ym) {
   if (ym === today.slice(0, 7)) days = days.filter(d => d <= today); // mois courant : jusqu'à aujourd'hui
   return days;
 }
+function objDayShort(date) { return new Date(date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit' }); }
 function renderObjEntries(d) {
   const tb = document.getElementById('objEntriesTable');
   const rows = (d && d.rows) || [];
@@ -3543,33 +3550,37 @@ function renderObjEntries(d) {
   const colAct = document.getElementById('objColAction'); if (colAct) colAct.style.display = adm ? '' : 'none';
   const colB = document.getElementById('objColBoutique'); if (colB) colB.style.display = '';
   _objEntries = {}; rows.forEach(r => { _objEntries[r.boutique + '|' + r.date] = r.amount_ttc; });
-  // Fusion : tous les jours d'ouverture attendus + les saisies → on repère les jours MANQUANTS
-  const entered = {}; rows.forEach(r => { entered[r.boutique + '|' + r.date] = r; });
-  let merged = [];
-  objScopeBoutiques().forEach(b => {
-    expectedOpenDays(b, ym).forEach(date => {
-      const e = entered[b + '|' + date];
-      merged.push({ boutique: b, date, amount: e ? e.amount_ttc : null, by: e ? (e.updated_by || e.entered_by || '') : '', missing: !e });
-      if (e) delete entered[b + '|' + date];
-    });
-  });
-  // Saisies sur un jour non attendu (ex : férié saisi quand même) → on les garde
-  Object.values(entered).forEach(e => merged.push({ boutique: e.boutique, date: e.date, amount: e.amount_ttc, by: (e.updated_by || e.entered_by || ''), missing: false }));
-  merged.sort((a, b) => a.date < b.date ? 1 : (a.date > b.date ? -1 : (a.boutique < b.boutique ? -1 : 1)));
-  const missingCount = merged.filter(m => m.missing).length;
-  // Titre + compteur + pastille onglet
+  // Jours d'ouverture attendus sans saisie → liste des MANQUANTS (affichée en encart compact)
+  const entered = {}; rows.forEach(r => { entered[r.boutique + '|' + r.date] = true; });
+  const missing = [];
+  objScopeBoutiques().forEach(b => { expectedOpenDays(b, ym).forEach(date => { if (!entered[b + '|' + date]) missing.push({ boutique: b, date }); }); });
+  missing.sort((a, b) => a.date < b.date ? 1 : (a.date > b.date ? -1 : 0));
+  // Titre + compteur + pastille
   const titleEl = document.getElementById('objEntriesTitle');
-  if (titleEl) titleEl.innerHTML = 'Saisies du mois' + (missingCount > 0 ? ` <span style="color:#E8504E;font-weight:600;font-size:13px;">· ${missingCount} jour${missingCount > 1 ? 's' : ''} manquant${missingCount > 1 ? 's' : ''}</span>` : '');
+  if (titleEl) titleEl.innerHTML = 'Saisies du mois' + (missing.length ? ` <span style="color:#E8504E;font-weight:600;font-size:13px;">· ${missing.length} jour${missing.length > 1 ? 's' : ''} manquant${missing.length > 1 ? 's' : ''}</span>` : '');
   const badge = document.getElementById('objectifBadge');
-  const isCurrentMonth = ym === new Date().toLocaleDateString('en-CA').slice(0, 7);
-  if (badge && isCurrentMonth) badge.style.display = missingCount > 0 ? 'inline-block' : 'none';
-  if (!merged.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#888780;">—</td></tr>'; return; }
-  tb.innerHTML = merged.map(m => {
-    const day = new Date(m.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit' });
-    const amountCell = m.missing ? '<span style="color:#E8504E;font-weight:600;">Manquant</span>' : fmtEur(m.amount);
-    const act = adm ? `<td><button class="btn" style="font-size:11px;padding:4px 8px;${m.missing ? 'background:#E8504E;color:#fff;border-color:#E8504E;' : ''}" onclick="objEditEntry('${m.boutique}','${m.date}', ${m.amount == null ? 'null' : Number(m.amount)})">${m.missing ? 'Saisir' : 'Modifier'}</button></td>` : '';
-    const rowStyle = m.missing ? 'background:rgba(232,80,78,.07);' : '';
-    return `<tr style="${rowStyle}"><td>${day}</td><td>${objBoutiqueLabel(m.boutique)}</td><td>${amountCell}</td><td style="color:var(--text-muted);font-size:12px;">${m.by}</td>${act}</tr>`;
+  if (badge && ym === new Date().toLocaleDateString('en-CA').slice(0, 7)) badge.style.display = missing.length ? 'inline-block' : 'none';
+  // Encart compact des jours manquants (chips, cliquables pour l'admin)
+  const alertBox = document.getElementById('objMissingAlert');
+  if (alertBox) {
+    if (!missing.length) alertBox.innerHTML = '';
+    else {
+      const chips = missing.map(m => {
+        const lbl = `${objBoutiqueLabel(m.boutique)} · ${objDayShort(m.date)}`;
+        const click = adm ? ` onclick="objEditEntry('${m.boutique}','${m.date}',null)"` : '';
+        return `<span${click} style="display:inline-block;background:var(--card,#fff);border:1px solid rgba(232,80,78,.4);color:#c0392b;border-radius:999px;padding:4px 11px;font-size:12px;${adm ? 'cursor:pointer;' : ''}">${lbl}</span>`;
+      }).join('');
+      alertBox.innerHTML = `<div style="background:rgba(232,80,78,.07);border:1px solid rgba(232,80,78,.25);border-radius:12px;padding:12px 14px;margin-bottom:14px;">
+        <div style="font-weight:700;color:#E8504E;font-size:13px;margin-bottom:8px;">⚠️ ${missing.length} jour${missing.length > 1 ? 's' : ''} sans saisie${adm ? ' — clique un jour pour le saisir' : ''}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">${chips}</div></div>`;
+    }
+  }
+  // Tableau = uniquement les saisies réelles (compact)
+  const actual = rows.slice().sort((a, b) => a.date < b.date ? 1 : (a.date > b.date ? -1 : (a.boutique < b.boutique ? -1 : 1)));
+  if (!actual.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#888780;">Aucune saisie ce mois</td></tr>'; return; }
+  tb.innerHTML = actual.map(r => {
+    const act = adm ? `<td><button class="btn" style="font-size:11px;padding:4px 8px;" onclick="objEditEntry('${r.boutique}','${r.date}', ${Number(r.amount_ttc)})">Modifier</button></td>` : '';
+    return `<tr><td>${objDayShort(r.date)}</td><td>${objBoutiqueLabel(r.boutique)}</td><td>${fmtEur(r.amount_ttc)}</td><td style="color:var(--text-muted);font-size:12px;">${(r.updated_by || r.entered_by || '')}</td>${act}</tr>`;
   }).join('');
 }
 // Admin/superadmin : charge une saisie existante (n'importe quelle boutique/date) dans la carte de saisie.
@@ -5153,7 +5164,7 @@ window.markVintedRemoved = async function(barcode, btn) {
       const cfg = await fetch(`${BACKEND_URL}/auth/config`).then(r=>r.json());
       if (cfgBox) {
         cfgBox.innerHTML = `<strong style="color:var(--success);">Connexion par compte : toujours obligatoire.</strong> Le jeton public a été supprimé — aucun accès sans compte. · ${cfg.active_users||0} compte(s) actif(s).`
-          + `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border,#34312a);"><button class="btn" onclick="equipeTestEncryption()">Tester le chiffrement</button> <span id="encTestResult" style="font-size:13px;margin-left:8px;">—</span></div>`;
+          + `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border,#34312a);display:flex;flex-wrap:wrap;gap:10px;align-items:center;"><button class="btn" onclick="equipeTestEncryption()">Tester le chiffrement</button> <span id="encTestResult" style="font-size:13px;">—</span><button class="btn" style="color:var(--accent);border-color:var(--accent);" onclick="equipeRevokeAll()">Déconnecter tous les appareils</button> <span id="revokeResult" style="font-size:13px;"></span></div>`;
       }
     } catch(e){ if(cfgBox)cfgBox.textContent='Erreur : '+e.message; }
     if (listBox) listBox.innerHTML='<div class="loading">Chargement…</div>';
@@ -5183,6 +5194,16 @@ window.markVintedRemoved = async function(barcode, btn) {
       if (d.ok) out.innerHTML = '<span style="color:var(--success);">✓ Chiffrement actif et fonctionnel</span>';
       else if (d.configured === false) out.innerHTML = '<span style="color:var(--warning);">Clé DATA_ENC_KEY absente — à ajouter dans Railway</span>';
       else out.innerHTML = '<span style="color:var(--accent);">Problème : '+(d.error||'inconnu')+'</span>';
+    } catch(e){ if(out) out.innerHTML='<span style="color:var(--accent);">Erreur réseau</span>'; }
+  };
+  window.equipeRevokeAll = async function() {
+    if (!confirm('Déconnecter TOUS les appareils ?\n\nToutes les sessions sont révoquées : chaque personne (y compris toi) devra se reconnecter avec son code. Utile pour fermer une ancienne app restée ouverte sur un téléphone.')) return;
+    const out = document.getElementById('revokeResult'); if (out) out.textContent = '…';
+    try {
+      const r = await fetch(`${BACKEND_URL}/auth/sessions/revoke-all`, { method:'POST', headers:{'Content-Type':'application/json'} });
+      const d = await r.json().catch(()=>({}));
+      if (!r.ok) { if(out) out.innerHTML = '<span style="color:var(--accent);">'+(d.error||'Erreur')+'</span>'; return; }
+      if (out) out.innerHTML = `<span style="color:var(--success);">✓ ${d.revoked||0} session(s) fermée(s) — reconnexion requise partout</span>`;
     } catch(e){ if(out) out.innerHTML='<span style="color:var(--accent);">Erreur réseau</span>'; }
   };
   window.equipeAddUser = async function() {
