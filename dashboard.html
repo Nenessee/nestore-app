@@ -2058,7 +2058,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v104-vector-assets';
+const DASH_VERSION = '2025-04-25-v105-mp4-music';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -3396,7 +3396,7 @@ async function restituerDepot(id) {
 // ===================== Onglet Objectif (CA boutique + Vector) =====================
 let _objMusicAudio = null;
 let _objEntries = {};
-const OBJ_MUSIC_SOURCES = ['assets/vector-theme.mp3', 'assets/vector-theme.ogg', 'assets/vector-jingle.wav'];
+const OBJ_MUSIC_SOURCES = ['assets/vector-theme.mp3', 'assets/vector-theme.ogg', 'assets/vector_musique.mp4'];
 function objIsAdmin() { return DASH_BOUTIQUE === 'admin'; }
 function objSelectedBoutique() {
   if (objIsAdmin()) { const s = document.getElementById('objBoutiqueSel'); return (s && s.value) || 'Lille'; }
