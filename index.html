@@ -822,18 +822,45 @@
     <div class="scan-row" style="margin-bottom:10px;">
       <input type="text" id="purchaseBarcodeInput" class="form-input" style="margin:0;" placeholder="Scanner le code-barres..."/>
     </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button type="button" id="modeRachatBtn" onclick="setPurchaseMode('rachat')" style="flex:1;padding:10px;border-radius:10px;border:1px solid #d3d1c7;font-weight:600;cursor:pointer;background:#2C2C2A;color:#fff;">Rachat</button>
+      <button type="button" id="modeDepotBtn" onclick="setPurchaseMode('depot')" style="flex:1;padding:10px;border-radius:10px;border:1px solid #d3d1c7;font-weight:600;cursor:pointer;background:#f5f5f3;color:#2C2C2A;">Dépôt-vente</button>
+    </div>
     <label class="form-label">Nom de l'article *</label>
     <input type="text" id="purchaseName" class="form-input" placeholder="Ex: Sweat Stone Island"/>
     <label class="form-label">Marque</label>
     <input type="text" id="purchaseBrand" class="form-input" placeholder="Ex: Stone Island"/>
     <div class="form-row">
-      <div style="flex:1;">
+      <div style="flex:1;" id="rachatPriceField">
         <label class="form-label">Prix d'achat (€) *</label>
         <input type="number" id="purchasePriceIn" class="form-input" placeholder="0" min="0" step="0.50"/>
       </div>
       <div style="flex:1;">
         <label class="form-label">Prix de vente estimé (€)</label>
         <input type="number" id="purchasePriceOut" class="form-input" placeholder="0" min="0" step="0.50"/>
+      </div>
+    </div>
+    <!-- Champs dépôt-vente (masqués en mode rachat) -->
+    <div id="depotFields" style="display:none;">
+      <div class="form-row">
+        <div style="flex:1;">
+          <label class="form-label">Nom du déposant *</label>
+          <input type="text" id="depositorName" class="form-input" placeholder="Ex: Marie D."/>
+        </div>
+        <div style="flex:1;">
+          <label class="form-label">Téléphone</label>
+          <input type="tel" id="depositorPhone" class="form-input" placeholder="06…"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div style="flex:1;">
+          <label class="form-label">Montant à reverser si vendu (€) *</label>
+          <input type="number" id="depositorDue" class="form-input" placeholder="0" min="0" step="0.50"/>
+        </div>
+        <div style="flex:1;">
+          <label class="form-label">Date limite de dépôt</label>
+          <input type="date" id="depositDeadline" class="form-input"/>
+        </div>
       </div>
     </div>
     <select id="purchaseEmployee" style="display:none;"></select>
@@ -2410,44 +2437,65 @@
   }
 
 
+  let purchaseMode = 'rachat';
+  function setPurchaseMode(m) {
+    purchaseMode = m;
+    const isDepot = m === 'depot';
+    document.getElementById('depotFields').style.display = isDepot ? 'block' : 'none';
+    document.getElementById('rachatPriceField').style.display = isDepot ? 'none' : 'block';
+    const btn = document.getElementById('purchaseBtn');
+    if (btn && !btn.disabled) btn.textContent = isDepot ? 'Enregistrer le dépôt-vente' : 'Enregistrer le rachat';
+    const rb = document.getElementById('modeRachatBtn'), db = document.getElementById('modeDepotBtn');
+    const base = 'flex:1;padding:10px;border-radius:10px;border:1px solid #d3d1c7;font-weight:600;cursor:pointer;';
+    const on = 'background:#2C2C2A;color:#fff;', off = 'background:#f5f5f3;color:#2C2C2A;';
+    if (rb) rb.style.cssText = base + (isDepot ? off : on);
+    if (db) db.style.cssText = base + (isDepot ? on : off);
+  }
   async function savePurchase() {
+    const isDepot = purchaseMode === 'depot';
     const barcode = document.getElementById('purchaseBarcodeInput').value.trim();
     const productName = document.getElementById('purchaseName').value.trim();
     const brand = document.getElementById('purchaseBrand').value.trim();
     const purchasePrice = document.getElementById('purchasePriceIn').value;
     const estimatedPrice = document.getElementById('purchasePriceOut').value;
     const employee = document.getElementById('purchaseEmployee').value;
+    const depositorName = document.getElementById('depositorName').value.trim();
+    const depositorPhone = document.getElementById('depositorPhone').value.trim();
+    const depositorDue = document.getElementById('depositorDue').value;
+    const depositDeadline = document.getElementById('depositDeadline').value;
+    const defaultLabel = isDepot ? 'Enregistrer le dépôt-vente' : 'Enregistrer le rachat';
 
     if (!productName) { showToast('Nom de l\'article requis', 'error'); return; }
-    if (!purchasePrice) { showToast('Prix d\'achat requis', 'error'); return; }
     if (!employee) { showToast('Sélectionne un employé', 'error'); return; }
+    if (isDepot) {
+      if (!depositorName) { showToast('Nom du déposant requis', 'error'); return; }
+      if (!depositorDue) { showToast('Montant à reverser requis', 'error'); return; }
+    } else if (!purchasePrice) { showToast('Prix d\'achat requis', 'error'); return; }
 
     const btn = document.getElementById('purchaseBtn');
     btn.disabled = true; btn.textContent = 'Enregistrement...';
 
     try {
+      const boutique = currentBoutique === 'admin' ? document.getElementById('boutiqueSelect').value : currentBoutique;
+      const body = isDepot
+        ? { type: 'depot', barcode, productName, brand, estimatedPrice, employee, boutique, depositorName, depositorPhone, depositorDue, depositDeadline }
+        : { barcode, productName, brand, purchasePrice, estimatedPrice, employee, boutique };
       const res = await fetch(`${BACKEND_URL}/purchase`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ barcode, productName, brand, purchasePrice, estimatedPrice, employee, boutique: currentBoutique === 'admin' ? document.getElementById('boutiqueSelect').value : currentBoutique })
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
       });
-      const result = await res.json();
+      const result = await res.json().catch(() => ({}));
 
-      if (res.status === 409) { showToast('Ce code-barres a déjà été racheté', 'error'); btn.disabled=false; btn.textContent='Enregistrer le rachat'; return; }
-      if (!res.ok || !result.success) { showToast('Erreur, réessaie', 'error'); btn.disabled=false; btn.textContent='Enregistrer le rachat'; return; }
+      if (res.status === 409) { showToast('Ce code-barres a déjà été enregistré', 'error'); btn.disabled=false; btn.textContent=defaultLabel; return; }
+      if (!res.ok || !result.success) { showToast(result.error || 'Erreur, réessaie', 'error'); btn.disabled=false; btn.textContent=defaultLabel; return; }
 
-      showToast('Rachat enregistré ✓', 'success');
-      addToPurchaseHistory({ barcode, productName, brand, purchasePrice, estimatedPrice, employee });
+      showToast(isDepot ? 'Dépôt-vente enregistré ✓' : 'Rachat enregistré ✓', 'success');
+      if (!isDepot) addToPurchaseHistory({ barcode, productName, brand, purchasePrice, estimatedPrice, employee });
 
-      document.getElementById('purchaseBarcodeInput').value = '';
-      document.getElementById('purchaseName').value = '';
-      document.getElementById('purchaseBrand').value = '';
-      document.getElementById('purchasePriceIn').value = '';
-      document.getElementById('purchasePriceOut').value = '';
+      ['purchaseBarcodeInput','purchaseName','purchaseBrand','purchasePriceIn','purchasePriceOut','depositorName','depositorPhone','depositorDue','depositDeadline'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
       document.getElementById('purchaseBarcodeInput').focus();
 
     } catch(err) { showToast('Erreur réseau', 'error'); }
-    btn.disabled = false; btn.textContent = 'Enregistrer le rachat';
+    btn.disabled = false; btn.textContent = defaultLabel;
   }
 
   async function markPurchaseAsSold(purchaseId, productName, brand, price, barcode) {
