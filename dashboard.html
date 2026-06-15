@@ -2069,7 +2069,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v111-equipe-saisies-revoke';
+const DASH_VERSION = '2025-04-25-v112-nokey';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2094,8 +2094,9 @@ function ensureAdminKey() {
       init = init || {};
       const h = new Headers(init.headers || {});
       if (!h.has('X-NV-Token')) { let st=null; try{ st=localStorage.getItem('nv_auth'); }catch(_){} if (st) h.set('X-NV-Token', st); }
-      const adminKey = localStorage.getItem('nv_admin_key');
-      if (adminKey && !h.has('X-NV-Admin-Token')) h.set('X-NV-Admin-Token', adminKey);
+      // La clé maître n'est PLUS envoyée automatiquement (elle court-circuitait les sessions).
+      // L'accès admin passe par la session (rôle admin/superadmin). La clé reste un secours
+      // explicite, envoyée uniquement par les actions qui en ont besoin.
       init.headers = h;
     }
     const p = _fetch(input, init);
@@ -3926,7 +3927,7 @@ function logout() {
   const _tok = localStorage.getItem('nv_auth');
   localStorage.removeItem('nv_session');
   // Nettoie les anciennes clés laissées par d'anciennes versions
-  ['nv_dash_auth','nv_dash_boutique','nv_dash_employee','nv_auth','nv_user','nv_boutique','nv_employee']
+  ['nv_dash_auth','nv_dash_boutique','nv_dash_employee','nv_auth','nv_user','nv_admin_key','nv_boutique','nv_employee']
     .forEach(k => localStorage.removeItem(k));
   DASH_EMPLOYEE = null;
   if (_dashUpdateInterval) { clearInterval(_dashUpdateInterval); _dashUpdateInterval = null; }
@@ -5557,7 +5558,7 @@ window.markVintedRemoved = async function(barcode, btn) {
   };
   window.nvLogout=async function(){
     try{ const t=localStorage.getItem('nv_auth'); if(t){ await fetch(`${BACKEND_URL}/auth/logout`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:t})}).catch(()=>{}); } }catch(_){}
-    try{ localStorage.removeItem('nv_auth'); localStorage.removeItem('nv_user'); localStorage.removeItem('nv_session'); }catch(_){}
+    try{ localStorage.removeItem('nv_auth'); localStorage.removeItem('nv_user'); localStorage.removeItem('nv_session'); localStorage.removeItem('nv_admin_key'); }catch(_){}
     location.reload();
   };
   // Gate proactif au chargement : décide quoi afficher selon l'état d'authentification serveur
