@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-15-obj-polish';
+const CACHE_VERSION = 'nestore-v2026-06-15-obj-fixes';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

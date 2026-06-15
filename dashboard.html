@@ -1374,6 +1374,9 @@ tbody tr { transition: background .12s; }
 #dashApp td { vertical-align: middle; }
 </style>
 <style>
+/* ===== Onglet Objectif : champs alignés (évite le débordement dû à min-width:200px de .search-input) ===== */
+#tab-objectif .search-input{min-width:0;box-sizing:border-box;}
+#tab-objectif select.search-input,#tab-objectif input.search-input{max-width:100%;}
 /* ===== Barre de progression Vector ===== */
 .vector-track{position:relative;height:48px;margin:36px 54px 12px 34px;border-radius:6px;background:#1a1c22;}
 .vector-fill{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:6px 0 0 6px;overflow:hidden;transition:width 1s cubic-bezier(.22,1,.36,1);}
@@ -2059,7 +2062,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v108-obj-polish';
+const DASH_VERSION = '2025-04-25-v109-obj-fixes';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2111,6 +2114,11 @@ function showToast(msg, type = '') {
   t._to = setTimeout(() => { t.style.opacity = '0'; }, 2800);
 }
 
+async function nvHardReload(){
+  try{ if('caches' in window){ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); } }catch(_){}
+  try{ if(navigator.serviceWorker){ const rs=await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r=>r.update().catch(()=>{}))); } }catch(_){}
+  location.reload();
+}
 let _dashUpdateInterval = setInterval(() => {
   fetch(location.href + '?nocache=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -2123,7 +2131,7 @@ let _dashUpdateInterval = setInterval(() => {
           b.id = 'dashUpdateBanner';
           b.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#3B6D11;color:#fff;text-align:center;padding:12px;font-size:13px;font-weight:600;z-index:9999;cursor:pointer;';
           b.textContent = '🔄 Nouvelle version disponible — Appuyer pour actualiser';
-          b.onclick = () => location.reload();
+          b.onclick = nvHardReload;
           document.body.prepend(b);
         }
       }
@@ -3480,7 +3488,19 @@ function renderObjProgress(p) {
   document.getElementById('objMtd').textContent = 'CA : ' + fmtEur(p.mtd_ttc);
   document.getElementById('objTarget').textContent = 'Objectif : ' + (p.target_ttc == null ? '—' : fmtEur(p.target_ttc));
   document.getElementById('vectorFill').style.width = shown + '%';
-  document.getElementById('vectorDog').style.left = shown + '%';
+  // Position de Vector : centré sur la tête de la progression, mais clampé pour qu'à 0% il soit
+  // entièrement posé au DÉBUT de la barre (et non à moitié dehors → faux effet d'avance).
+  const _track = document.getElementById('vectorTrack');
+  const _dogEl = document.getElementById('vectorDog');
+  const _tw = _track ? _track.clientWidth : 0;
+  if (_tw > 0) {
+    const _half = 29;
+    let _px = (shown / 100) * _tw;
+    _px = Math.max(_half, Math.min(_tw - _half, _px));
+    _dogEl.style.left = _px + 'px';
+  } else {
+    _dogEl.style.left = shown + '%';
+  }
   let lvl = 0; const a = pct == null ? 0 : pct;
   if (a >= 82) lvl = 4; else if (a >= 55) lvl = 3; else if (a >= 28) lvl = 2; else if (a >= 3) lvl = 1;
   document.getElementById('vectorBowl').src = 'assets/bowl_' + lvl + '.svg';
