@@ -1944,7 +1944,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v98-enctest';
+const DASH_VERSION = '2025-04-25-v99-ventes-employe';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2160,6 +2160,13 @@ function makeChart(id, type, labels, datasets, options={}) {
 }
 
 async function loadVentes() {
+  // Employés : uniquement l'historique des ventes (ni récap KPI ni graphiques).
+  if (DASH_BOUTIQUE !== 'admin') {
+    const recent = await api(`/analytics/recent?limit=9999&${getDateParams()}`);
+    allSalesData = recent;
+    renderSalesTable(recent);
+    return;
+  }
   loadSummary();
   const [daily, hourly, boutiques, employees, brands, recent] = await Promise.all([
     api(`/analytics/daily?${getDateParams()}`),
@@ -3825,9 +3832,10 @@ function initDashboard(boutique, employee) {
     if (tabVeille) tabVeille.remove();
     if (panelVeille) panelVeille.remove();
   }
-  // KPIs + graphiques Scan & Ventes : visibles pour tous
+  // KPIs + graphiques Scan & Ventes : admin/superadmin uniquement.
+  // Les employés ne voient que l'historique des ventes (table « Toutes les ventes »).
   const ventesAdmin = document.getElementById('ventesAdminOnly');
-  if (ventesAdmin) ventesAdmin.style.display = 'block';
+  if (ventesAdmin) ventesAdmin.style.display = boutique === 'admin' ? 'block' : 'none';
 
   // Badge employé
   const pill = document.getElementById('employeePill');
