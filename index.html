@@ -2992,7 +2992,7 @@
   // Entre dans l'app après une connexion réussie (réutilise le flux boutique existant)
   window.nvEnterApp=function(u){
     try {
-      const bq = (u && u.role==='admin') ? 'admin' : ((u && u.boutique) || 'Lille');
+      const bq = (u && (u.role==='admin' || u.role==='superadmin')) ? 'admin' : ((u && u.boutique) || 'Lille');
       if (typeof connectEmployee === 'function') connectEmployee(u.name, bq);
       else location.reload();
     } catch(_) { location.reload(); }

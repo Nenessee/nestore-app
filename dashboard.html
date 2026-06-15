@@ -1907,7 +1907,7 @@ tbody tr { transition: background .12s; }
       <div style="flex:1;min-width:140px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Prénom</label><input id="euName" class="search-input" placeholder="ex: Sophie" style="width:100%;"/></div>
       <div style="width:120px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Code (PIN)</label><input id="euPin" class="search-input" inputmode="numeric" placeholder="4+ chiffres" style="width:100%;"/></div>
       <div style="width:120px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Boutique</label><select id="euBoutique" class="search-input" style="width:100%;"><option value="">—</option><option value="Lille">Lille</option><option value="DK">Dunkerque</option></select></div>
-      <div style="width:120px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Rôle</label><select id="euRole" class="search-input" style="width:100%;"><option value="employee">Employé</option><option value="admin">Admin</option></select></div>
+      <div style="width:120px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Rôle</label><select id="euRole" class="search-input" style="width:100%;"><option value="employee">Employé</option><option value="admin">Admin (lecture)</option><option value="superadmin">Superadmin</option></select></div>
       <button class="btn btn-green" onclick="equipeAddUser()" style="min-height:42px;">＋ Ajouter</button>
     </div>
     <div id="euAddResult" style="margin-top:10px;font-size:13px;"></div>
@@ -1944,7 +1944,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v92-roles';
+const DASH_VERSION = '2025-04-25-v93-superadmin';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -3812,8 +3812,10 @@ function initDashboard(boutique, employee) {
   }
   const tabSeo = document.getElementById('tabSeo');
   if (tabSeo) tabSeo.style.display = boutique === 'admin' ? 'block' : 'none';
+  // Équipe = gestion des comptes → superadmin uniquement (pas les admins-lecture)
   const tabEquipe = document.getElementById('tabEquipe');
-  if (tabEquipe) tabEquipe.style.display = boutique === 'admin' ? 'block' : 'none';
+  let _curRole = null; try { _curRole = (JSON.parse(localStorage.getItem('nv_user')||'{}').role)||null; } catch(_){}
+  if (tabEquipe) tabEquipe.style.display = (_curRole === 'superadmin') ? 'block' : 'none';
   // Onglet Veille : strictement admin — RETIRÉ du DOM pour les non-admin (pas juste masqué)
   const tabVeille = document.getElementById('tabVeille');
   const panelVeille = document.getElementById('tab-veille');
@@ -4593,32 +4595,35 @@ window.markVintedRemoved = async function(barcode, btn) {
 
   // Guard: vérifie la clé AVANT de switcher vers l'onglet SEO.
   // Si cancel ou clé vide → l'onglet ne s'ouvre jamais, l'utilisateur reste où il est.
+  // Rôle du compte connecté (employee / admin / superadmin)
+  function nvRole(){ try { return (JSON.parse(localStorage.getItem('nv_user')||'{}').role)||null; } catch(_){ return null; } }
   window.guardSeoTab = function(el) {
-    const session = JSON.parse(localStorage.getItem('nv_session') || '{}');
-    if (session.boutique !== 'admin' && session.employee !== 'admin') {
-      if (typeof showDashToast === 'function') showDashToast('Accès admin requis', 'error');
-      return;
-    }
+    // Session admin ou superadmin → accès direct (le serveur accepte la session)
+    const role = nvRole();
+    if (role === 'admin' || role === 'superadmin') { if (typeof switchTab==='function') switchTab('seo', el); return; }
+    // Secours : clé admin maître
     let token = localStorage.getItem('nv_admin_key');
     if (!token) {
-      const entered = prompt('Entre la clé admin SEO (variable ADMIN_API_KEY du serveur Railway) :');
+      const entered = prompt('Entre la clé admin (ADMIN_API_KEY du serveur) :');
       if (!entered || !entered.trim()) {
         if (typeof showDashToast === 'function') showDashToast('Accès SEO refusé — clé requise', 'warn');
-        return; // NE PAS switcher — l'utilisateur reste sur l'onglet actuel
+        return;
       }
       localStorage.setItem('nv_admin_key', entered.trim());
     }
-    // Clé OK → on peut switcher vers le panel SEO
     if (typeof switchTab === 'function') switchTab('seo', el);
   };
 
-  // ===== Onglet Équipe (admin) =====
+  // ===== Onglet Équipe (superadmin) =====
   const _esc = (x)=>String(x==null?'':x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   window.guardEquipeTab = function(el) {
+    // Gestion des comptes & sécurité = superadmin uniquement
+    if (nvRole() === 'superadmin') { if (typeof switchTab==='function') switchTab('equipe', el); return; }
+    // Secours : clé admin maître
     let token = localStorage.getItem('nv_admin_key');
     if (!token) {
-      const entered = prompt('Entre la clé admin (ADMIN_API_KEY) :');
-      if (!entered || !entered.trim()) { if (typeof showDashToast==='function') showDashToast('Accès admin requis', 'warn'); return; }
+      const entered = prompt('Accès réservé au superadmin. Entre la clé admin (ADMIN_API_KEY) :');
+      if (!entered || !entered.trim()) { if (typeof showDashToast==='function') showDashToast('Accès superadmin requis', 'warn'); return; }
       localStorage.setItem('nv_admin_key', entered.trim());
     }
     if (typeof switchTab === 'function') switchTab('equipe', el);
@@ -4992,7 +4997,7 @@ window.markVintedRemoved = async function(barcode, btn) {
   // Entre dans le dashboard après une connexion réussie (réutilise le flux existant)
   window.nvEnterApp=function(u){
     try {
-      const bq = (u && u.role==='admin') ? 'admin' : ((u && u.boutique) || 'Lille');
+      const bq = (u && (u.role==='admin' || u.role==='superadmin')) ? 'admin' : ((u && u.boutique) || 'Lille');
       if (typeof initDashboard === 'function') initDashboard(bq, u.name);
       else location.reload();
     } catch(_) { location.reload(); }
