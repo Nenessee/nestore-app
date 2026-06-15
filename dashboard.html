@@ -1447,6 +1447,7 @@ tbody tr { transition: background .12s; }
     <div class="tab" onclick="switchTab('transferts',this)">Transferts</div>
     <div class="tab" id="tabActivite" style="display:none;" onclick="switchTab('activite',this)">Activité</div>
     <div class="tab" id="tabSeo" style="display:none;" onclick="guardSeoTab(this)">SEO</div>
+    <div class="tab" id="tabEquipe" style="display:none;" onclick="guardEquipeTab(this)">Équipe</div>
     <div class="tab" id="tabVeille" style="display:none;" onclick="switchTab('veille',this)">SPY</div>
   </div>
 </div>
@@ -1888,6 +1889,37 @@ tbody tr { transition: background .12s; }
 </div>
 </div>
 
+<!-- TAB ÉQUIPE (admin only) -->
+<div id="tab-equipe" class="tab-panel">
+<div class="content">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+    <span class="section-title">Équipe &amp; sécurité d'accès</span>
+  </div>
+
+  <div class="table-card" style="padding:18px;margin-bottom:16px;">
+    <div class="table-title" style="margin-bottom:8px;">Connexion obligatoire</div>
+    <div id="equipeConfig" style="font-size:13px;color:var(--text-muted);line-height:1.5;">Chargement…</div>
+  </div>
+
+  <div class="table-card" style="padding:18px;margin-bottom:16px;">
+    <div class="table-title" style="margin-bottom:12px;">Ajouter un employé</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+      <div style="flex:1;min-width:140px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Prénom</label><input id="euName" class="search-input" placeholder="ex: Sophie" style="width:100%;"/></div>
+      <div style="width:120px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Code (PIN)</label><input id="euPin" class="search-input" inputmode="numeric" placeholder="4+ chiffres" style="width:100%;"/></div>
+      <div style="width:120px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Boutique</label><select id="euBoutique" class="search-input" style="width:100%;"><option value="">—</option><option value="Lille">Lille</option><option value="DK">Dunkerque</option></select></div>
+      <div style="width:120px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Rôle</label><select id="euRole" class="search-input" style="width:100%;"><option value="employee">Employé</option><option value="admin">Admin</option></select></div>
+      <button class="btn btn-green" onclick="equipeAddUser()" style="min-height:42px;">＋ Ajouter</button>
+    </div>
+    <div id="euAddResult" style="margin-top:10px;font-size:13px;"></div>
+  </div>
+
+  <div class="table-card" style="padding:18px;">
+    <div class="table-title" style="margin-bottom:12px;">Comptes</div>
+    <div id="equipeList" style="overflow-x:auto;"><div class="loading">Chargement…</div></div>
+  </div>
+</div>
+</div>
+
 <!-- TAB VEILLE (admin only) -->
 <div id="tab-veille" class="tab-panel">
 <div class="content">
@@ -1912,7 +1944,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v88-security1';
+const DASH_VERSION = '2025-04-25-v89-login';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -1936,12 +1968,16 @@ function ensureAdminKey() {
     if (url.indexOf(BACKEND_URL) === 0) {
       init = init || {};
       const h = new Headers(init.headers || {});
-      if (!h.has('X-NV-Token')) h.set('X-NV-Token', NV_TOKEN);
+      if (!h.has('X-NV-Token')) { let st=null; try{ st=localStorage.getItem('nv_auth'); }catch(_){} h.set('X-NV-Token', st || NV_TOKEN); }
       const adminKey = localStorage.getItem('nv_admin_key');
       if (adminKey && !h.has('X-NV-Admin-Token')) h.set('X-NV-Admin-Token', adminKey);
       init.headers = h;
     }
-    return _fetch(input, init);
+    const p = _fetch(input, init);
+    if (url.indexOf(BACKEND_URL) === 0 && url.indexOf('/auth/') === -1) {
+      return p.then(function (resp) { if (resp && resp.status === 401 && typeof nvShowLogin === 'function') nvShowLogin(); return resp; });
+    }
+    return p;
   };
 })();
 
@@ -2065,6 +2101,7 @@ function switchTab(name, el) {
   if (name === 'transferts') loadTransferts();
   if (name === 'activite') loadActivite();
   if (name === 'seo') initSeoTab();
+  if (name === 'equipe') loadTeam();
   if (name === 'veille') loadVeille();
 }
 
@@ -3766,6 +3803,8 @@ function initDashboard(boutique, employee) {
   if (tabAct) tabAct.style.display = 'block';
   const tabSeo = document.getElementById('tabSeo');
   if (tabSeo) tabSeo.style.display = boutique === 'admin' ? 'block' : 'none';
+  const tabEquipe = document.getElementById('tabEquipe');
+  if (tabEquipe) tabEquipe.style.display = boutique === 'admin' ? 'block' : 'none';
   // Onglet Veille : strictement admin — RETIRÉ du DOM pour les non-admin (pas juste masqué)
   const tabVeille = document.getElementById('tabVeille');
   const panelVeille = document.getElementById('tab-veille');
@@ -4564,6 +4603,87 @@ window.markVintedRemoved = async function(barcode, btn) {
     if (typeof switchTab === 'function') switchTab('seo', el);
   };
 
+  // ===== Onglet Équipe (admin) =====
+  const _esc = (x)=>String(x==null?'':x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  window.guardEquipeTab = function(el) {
+    let token = localStorage.getItem('nv_admin_key');
+    if (!token) {
+      const entered = prompt('Entre la clé admin (ADMIN_API_KEY) :');
+      if (!entered || !entered.trim()) { if (typeof showDashToast==='function') showDashToast('Accès admin requis', 'warn'); return; }
+      localStorage.setItem('nv_admin_key', entered.trim());
+    }
+    if (typeof switchTab === 'function') switchTab('equipe', el);
+  };
+  window.loadTeam = async function() {
+    const token = localStorage.getItem('nv_admin_key');
+    const cfgBox = document.getElementById('equipeConfig');
+    const listBox = document.getElementById('equipeList');
+    if (!token) { if(cfgBox)cfgBox.textContent='Clé admin requise'; return; }
+    try {
+      const cfg = await fetch(`${BACKEND_URL}/auth/config`,{headers:{'X-NV-Admin-Token':token}}).then(r=>r.json());
+      if (cfgBox) { const on=!!cfg.require_login;
+        cfgBox.innerHTML = `État : <strong style="color:${on?'var(--success)':'var(--warning)'};">${on?'ACTIVÉE — seuls les comptes peuvent se connecter (jeton public coupé)':'désactivée — l\'ancien accès fonctionne encore'}</strong> · ${cfg.active_users||0} compte(s) actif(s).`+
+          `<div style="margin-top:10px;"><button class="btn ${on?'':'btn-green'}" onclick="equipeToggleRequireLogin(${on?'false':'true'})">${on?'Désactiver le login obligatoire':'Activer le login obligatoire'}</button></div>`+
+          (on?'':'<div style="font-size:11px;color:var(--text-soft);margin-top:8px;">À activer une fois que chaque employé a un compte et a testé sa connexion. Tant que c\'est désactivé, rien ne change pour les boutiques.</div>');
+      }
+    } catch(e){ if(cfgBox)cfgBox.textContent='Erreur : '+e.message; }
+    if (listBox) listBox.innerHTML='<div class="loading">Chargement…</div>';
+    try {
+      const d = await fetch(`${BACKEND_URL}/auth/users`,{headers:{'X-NV-Admin-Token':token}}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});
+      if (!d.rows || !d.rows.length) { if(listBox)listBox.innerHTML='<div style="padding:16px;color:var(--text-muted);">Aucun compte. Ajoute tes employés ci-dessus.</div>'; return; }
+      let h='<table><thead><tr><th>Prénom</th><th>Boutique</th><th>Rôle</th><th>Dernière connexion</th><th>Actif</th><th></th></tr></thead><tbody>';
+      for (const u of d.rows) {
+        h+=`<tr style="${u.active?'':'opacity:.5;'}"><td><strong>${_esc(u.name)}</strong></td><td>${u.boutique||'—'}</td><td>${u.role==='admin'?'Admin':'Employé'}</td><td style="font-size:12px;color:var(--text-muted);">${u.last_login||'jamais'}</td>`+
+          `<td style="text-align:center;"><input type="checkbox" ${u.active?'checked':''} onchange="equipeUpdateUser(${u.id},{active:this.checked})"></td>`+
+          `<td style="white-space:nowrap;"><button class="btn" style="font-size:11px;padding:4px 8px;" onclick="equipeResetPin(${u.id})">Code</button> <button class="btn" style="font-size:11px;padding:4px 8px;color:var(--accent);" onclick="equipeDeleteUser(${u.id})">Suppr</button></td></tr>`;
+      }
+      if(listBox)listBox.innerHTML=h+'</tbody></table>';
+    } catch(e){ if(listBox)listBox.innerHTML='<div style="padding:16px;color:var(--accent);">Erreur : '+e.message+'</div>'; }
+  };
+  window.equipeAddUser = async function() {
+    const token = localStorage.getItem('nv_admin_key');
+    const name=(document.getElementById('euName').value||'').trim();
+    const pin=(document.getElementById('euPin').value||'').trim();
+    const boutique=document.getElementById('euBoutique').value;
+    const role=document.getElementById('euRole').value;
+    const out=document.getElementById('euAddResult');
+    if(!name||pin.length<4){ out.innerHTML='<span style="color:var(--accent);">Prénom + code (4 chiffres min) requis.</span>'; return; }
+    try {
+      const res=await fetch(`${BACKEND_URL}/auth/users`,{method:'POST',headers:{'X-NV-Admin-Token':token,'Content-Type':'application/json'},body:JSON.stringify({name,pin,boutique,role})});
+      const dd=await res.json().catch(()=>({}));
+      if(!res.ok){ out.innerHTML='<span style="color:var(--accent);">'+(dd.error||'Erreur')+'</span>'; return; }
+      out.innerHTML='<span style="color:var(--success);">✓ '+_esc(name)+' ajouté</span>';
+      document.getElementById('euName').value=''; document.getElementById('euPin').value='';
+      loadTeam();
+    } catch(e){ out.innerHTML='<span style="color:var(--accent);">Erreur réseau</span>'; }
+  };
+  window.equipeUpdateUser = async function(id, patch) {
+    const token = localStorage.getItem('nv_admin_key');
+    try { await fetch(`${BACKEND_URL}/auth/users/${id}`,{method:'PATCH',headers:{'X-NV-Admin-Token':token,'Content-Type':'application/json'},body:JSON.stringify(patch)}); loadTeam(); }
+    catch(e){ showDashToast('Erreur','error'); }
+  };
+  window.equipeResetPin = function(id) {
+    const pin = prompt('Nouveau code (4 chiffres min) :'); if(pin===null) return;
+    if(pin.trim().length<4){ showDashToast('Code trop court','warn'); return; }
+    equipeUpdateUser(id,{pin:pin.trim()}); showDashToast('Code mis à jour ✓','success');
+  };
+  window.equipeDeleteUser = async function(id) {
+    if(!confirm('Supprimer ce compte ? Ses sessions seront fermées.')) return;
+    const token = localStorage.getItem('nv_admin_key');
+    try { await fetch(`${BACKEND_URL}/auth/users/${id}`,{method:'DELETE',headers:{'X-NV-Admin-Token':token}}); loadTeam(); }
+    catch(e){ showDashToast('Erreur','error'); }
+  };
+  window.equipeToggleRequireLogin = async function(on) {
+    if(on && !confirm('Activer le login obligatoire ?\n\nÀ partir de maintenant, l\'ancien accès sans compte ne fonctionnera plus : chaque personne devra se connecter avec son prénom + code. Assure-toi que tout le monde a un compte et a testé sa connexion.')) return;
+    const token = localStorage.getItem('nv_admin_key');
+    try {
+      const res=await fetch(`${BACKEND_URL}/auth/config`,{method:'POST',headers:{'X-NV-Admin-Token':token,'Content-Type':'application/json'},body:JSON.stringify({require_login:on})});
+      const dd=await res.json().catch(()=>({}));
+      if(!res.ok){ showDashToast(dd.error||'Erreur','error'); return; }
+      showDashToast(on?'Login obligatoire activé':'Login obligatoire désactivé','success'); loadTeam();
+    } catch(e){ showDashToast('Erreur réseau','error'); }
+  };
+
   // Au premier affichage du panel SEO (on y arrive seulement via le guard, donc token dispo)
   window.initSeoTab = function() {
     const badge = document.getElementById('seoAuthBadge');
@@ -4815,6 +4935,53 @@ window.markVintedRemoved = async function(barcode, btn) {
     } catch(e) {
       out.innerHTML = `<div style="padding:10px;background:var(--accent-dim);border-left:3px solid var(--accent);border-radius:8px;color:var(--accent);font-size:13px;">Erreur : ${e.message}</div>`;
     }
+  };
+})();
+</script>
+
+<!-- ===== Écran de connexion employé (PIN) ===== -->
+<div id="nvLoginOverlay" style="display:none;position:fixed;inset:0;z-index:2147483600;background:#15140f;color:#f5f3ec;align-items:center;justify-content:center;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;">
+  <div style="width:min(360px,90vw);background:#1f1d17;border:1px solid #34312a;border-radius:16px;padding:26px 22px;box-shadow:0 20px 60px rgba(0,0,0,.5);">
+    <div style="font-size:20px;font-weight:700;margin-bottom:4px;">Nestore — Connexion</div>
+    <div style="font-size:13px;color:#9b978c;margin-bottom:18px;">Choisis ton prénom et entre ton code.</div>
+    <label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#9b978c;">Prénom</label>
+    <select id="nvLoginName" style="width:100%;margin:6px 0 14px;padding:11px;border-radius:10px;border:1px solid #34312a;background:#15140f;color:#f5f3ec;font-size:15px;"></select>
+    <label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#9b978c;">Code</label>
+    <input id="nvLoginPin" type="password" inputmode="numeric" autocomplete="off" placeholder="••••" style="width:100%;margin:6px 0 14px;padding:11px;border-radius:10px;border:1px solid #34312a;background:#15140f;color:#f5f3ec;font-size:18px;letter-spacing:4px;text-align:center;" onkeydown="if(event.key==='Enter')nvDoLogin()">
+    <button id="nvLoginBtn" onclick="nvDoLogin()" style="width:100%;padding:12px;border:0;border-radius:10px;background:#3B6D11;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">Se connecter</button>
+    <div id="nvLoginErr" style="color:#E8504E;font-size:13px;margin-top:12px;text-align:center;min-height:18px;"></div>
+  </div>
+</div>
+<script>
+(function(){
+  window.nvShowLogin=async function(){
+    const ov=document.getElementById('nvLoginOverlay'); if(!ov) return;
+    ov.style.display='flex';
+    try{
+      const r=await fetch(`${BACKEND_URL}/auth/names`).then(x=>x.json());
+      const sel=document.getElementById('nvLoginName');
+      if(sel && r && r.rows && r.rows.length){ sel.innerHTML=r.rows.map(u=>`<option value="${(u.name||'').replace(/"/g,'&quot;')}">${u.name}${u.boutique?' ('+u.boutique+')':''}</option>`).join(''); }
+      else if(sel){ sel.innerHTML='<option value="">(aucun compte — crée-les dans Équipe)</option>'; }
+    }catch(_){}
+  };
+  window.nvDoLogin=async function(){
+    const name=(document.getElementById('nvLoginName')||{}).value||'';
+    const pin=(document.getElementById('nvLoginPin')||{}).value||'';
+    const err=document.getElementById('nvLoginErr'); const btn=document.getElementById('nvLoginBtn');
+    if(!name||!pin){ if(err)err.textContent='Choisis ton prénom et entre ton code.'; return; }
+    if(btn){btn.disabled=true;btn.textContent='Connexion…';}
+    try{
+      const res=await fetch(`${BACKEND_URL}/auth/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,pin})});
+      const d=await res.json().catch(()=>({}));
+      if(!res.ok){ if(err)err.textContent=d.error||'Échec de connexion'; if(btn){btn.disabled=false;btn.textContent='Se connecter';} return; }
+      try{ localStorage.setItem('nv_auth', d.token); localStorage.setItem('nv_user', JSON.stringify({name:d.name,role:d.role,boutique:d.boutique})); }catch(_){}
+      location.reload();
+    }catch(e){ if(err)err.textContent='Erreur réseau'; if(btn){btn.disabled=false;btn.textContent='Se connecter';} }
+  };
+  window.nvLogout=async function(){
+    try{ const t=localStorage.getItem('nv_auth'); if(t){ await fetch(`${BACKEND_URL}/auth/logout`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:t})}).catch(()=>{}); } }catch(_){}
+    try{ localStorage.removeItem('nv_auth'); localStorage.removeItem('nv_user'); }catch(_){}
+    location.reload();
   };
 })();
 </script>
