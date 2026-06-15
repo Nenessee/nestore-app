@@ -830,7 +830,7 @@
     <input type="text" id="purchaseName" class="form-input" placeholder="Ex: Sweat Stone Island"/>
     <label class="form-label">Marque</label>
     <input type="text" id="purchaseBrand" class="form-input" placeholder="Ex: Stone Island"/>
-    <div class="form-row">
+    <div class="form-row" id="rachatRow">
       <div style="flex:1;" id="rachatPriceField">
         <label class="form-label">Prix d'achat (€) *</label>
         <input type="number" id="purchasePriceIn" class="form-input" placeholder="0" min="0" step="0.50"/>
@@ -852,16 +852,9 @@
           <input type="tel" id="depositorPhone" class="form-input" placeholder="06…"/>
         </div>
       </div>
-      <div class="form-row">
-        <div style="flex:1;">
-          <label class="form-label">Montant à reverser si vendu (€) *</label>
-          <input type="number" id="depositorDue" class="form-input" placeholder="0" min="0" step="0.50"/>
-        </div>
-        <div style="flex:1;">
-          <label class="form-label">Date limite de dépôt</label>
-          <input type="date" id="depositDeadline" class="form-input"/>
-        </div>
-      </div>
+      <label class="form-label">Prix du dépôt (€) *</label>
+      <input type="number" id="depositorDue" class="form-input" placeholder="0" min="0" step="0.50"/>
+      <div style="font-size:12px;color:#888780;margin:6px 0 4px;">Date limite fixée automatiquement à 2 mois.</div>
     </div>
     <select id="purchaseEmployee" style="display:none;"></select>
     <button class="btn-purchase" id="purchaseBtn" onclick="savePurchase()">Enregistrer le rachat</button>
@@ -2442,7 +2435,7 @@
     purchaseMode = m;
     const isDepot = m === 'depot';
     document.getElementById('depotFields').style.display = isDepot ? 'block' : 'none';
-    document.getElementById('rachatPriceField').style.display = isDepot ? 'none' : 'block';
+    document.getElementById('rachatRow').style.display = isDepot ? 'none' : '';
     const btn = document.getElementById('purchaseBtn');
     if (btn && !btn.disabled) btn.textContent = isDepot ? 'Enregistrer le dépôt-vente' : 'Enregistrer le rachat';
     const rb = document.getElementById('modeRachatBtn'), db = document.getElementById('modeDepotBtn');
@@ -2458,18 +2451,21 @@
     const brand = document.getElementById('purchaseBrand').value.trim();
     const purchasePrice = document.getElementById('purchasePriceIn').value;
     const estimatedPrice = document.getElementById('purchasePriceOut').value;
-    const employee = document.getElementById('purchaseEmployee').value;
+    // L'employé = la personne connectée sur la caisse (plus de sélection manuelle).
+    let employee = (currentEmployee && currentEmployee !== 'admin') ? currentEmployee : '';
+    if (!employee) { try { const u = JSON.parse(localStorage.getItem('nv_user') || '{}'); if (u && u.name) employee = u.name; } catch(_) {} }
     const depositorName = document.getElementById('depositorName').value.trim();
     const depositorPhone = document.getElementById('depositorPhone').value.trim();
     const depositorDue = document.getElementById('depositorDue').value;
-    const depositDeadline = document.getElementById('depositDeadline').value;
+    // Date limite de dépôt : automatiquement à 2 mois.
+    let depositDeadline = '';
+    if (isDepot) { const _dl = new Date(); _dl.setMonth(_dl.getMonth() + 2); depositDeadline = _dl.toISOString().slice(0, 10); }
     const defaultLabel = isDepot ? 'Enregistrer le dépôt-vente' : 'Enregistrer le rachat';
 
     if (!productName) { showToast('Nom de l\'article requis', 'error'); return; }
-    if (!employee) { showToast('Sélectionne un employé', 'error'); return; }
     if (isDepot) {
       if (!depositorName) { showToast('Nom du déposant requis', 'error'); return; }
-      if (!depositorDue) { showToast('Montant à reverser requis', 'error'); return; }
+      if (!depositorDue) { showToast('Prix du dépôt requis', 'error'); return; }
     } else if (!purchasePrice) { showToast('Prix d\'achat requis', 'error'); return; }
 
     const btn = document.getElementById('purchaseBtn');
@@ -2852,7 +2848,8 @@
     if (subtitle) subtitle.textContent = 'Toutes boutiques';
     // Admin a besoin de choisir manuellement employé + boutique
     const allEmployees = ['Sacha', 'Mathys', 'Romane', 'Noa', 'Celeste', 'Louis'];
-    [['employeeSelect','— Choisir vendeur —'], ['purchaseEmployee','— Choisir acheteur —'], ['cleanEmployee','— Choisir nettoyeur —']].forEach(([id, ph]) => {
+    // purchaseEmployee retiré : en rachat/dépôt, l'employé = la personne connectée (pas de choix manuel).
+    [['employeeSelect','— Choisir vendeur —'], ['cleanEmployee','— Choisir nettoyeur —']].forEach(([id, ph]) => {
       const sel = document.getElementById(id);
       if (!sel) return;
       sel.innerHTML = `<option value="">${ph}</option>` + allEmployees.map(e => `<option value="${e}">${e}</option>`).join('');
