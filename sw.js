@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-15-equipe-order';
+const CACHE_VERSION = 'nestore-v2026-06-15-photos-responsive';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
