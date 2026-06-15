@@ -1944,7 +1944,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v91-login-unified';
+const DASH_VERSION = '2025-04-25-v92-roles';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -3789,18 +3789,27 @@ function initDashboard(boutique, employee) {
   document.getElementById('dashTitle').textContent = 'Nestore';
   document.getElementById('dashSubtitle').textContent = boutique === 'admin' ? 'Toutes boutiques' : 'Dashboard ' + boutique;
 
-  // Switcher boutique — visible pour tous ; on synchronise la pill active
-  // sur la boutique courante (un employé démarre sur sa boutique, peut passer
-  // sur "Tout" ou l'autre boutique en lecture).
+  // Switcher boutique : seul l'admin peut basculer entre les boutiques.
+  // Un employé est verrouillé sur sa boutique.
   const sw = document.getElementById('boutiqueSwitch');
-  sw.style.display = 'flex';
-  sw.querySelectorAll('.bsw-btn').forEach(p => {
-    p.classList.toggle('active', (p.getAttribute('onclick') || '').includes(`'${boutique}'`));
-  });
+  if (boutique === 'admin') {
+    sw.style.display = 'flex';
+    sw.querySelectorAll('.bsw-btn').forEach(p => {
+      p.classList.toggle('active', (p.getAttribute('onclick') || '').includes(`'${boutique}'`));
+    });
+  } else {
+    sw.style.display = 'none';
+  }
 
-  // Onglets : SEO reste admin seulement ; Activité visible pour tous (lecture)
+  // Onglet Activité : strictement admin — retiré du DOM pour les non-admin (pas juste masqué)
   const tabAct = document.getElementById('tabActivite');
-  if (tabAct) tabAct.style.display = 'block';
+  const panelAct = document.getElementById('tab-activite');
+  if (boutique === 'admin') {
+    if (tabAct) tabAct.style.display = 'block';
+  } else {
+    if (tabAct) tabAct.remove();
+    if (panelAct) panelAct.remove();
+  }
   const tabSeo = document.getElementById('tabSeo');
   if (tabSeo) tabSeo.style.display = boutique === 'admin' ? 'block' : 'none';
   const tabEquipe = document.getElementById('tabEquipe');
