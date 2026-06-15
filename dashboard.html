@@ -1620,7 +1620,7 @@ tbody tr { transition: background .12s; }
   <!-- Tableau des saisies du mois -->
   <div class="table-card" style="padding:18px;">
     <div class="table-title" style="margin-bottom:12px;">Saisies du mois</div>
-    <div style="overflow-x:auto;"><table><thead><tr><th>Date</th><th id="objColBoutique" style="display:none;">Boutique</th><th>CA (€)</th><th>Saisi par</th></tr></thead><tbody id="objEntriesTable"><tr><td colspan="4" style="text-align:center;padding:20px;color:#888780;">—</td></tr></tbody></table></div>
+    <div style="overflow-x:auto;"><table><thead><tr><th>Date</th><th id="objColBoutique" style="display:none;">Boutique</th><th>CA (€)</th><th>Saisi par</th><th id="objColAction" style="display:none;"></th></tr></thead><tbody id="objEntriesTable"><tr><td colspan="5" style="text-align:center;padding:20px;color:#888780;">—</td></tr></tbody></table></div>
   </div>
 </div>
 </div>
@@ -2058,7 +2058,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v105-mp4-music';
+const DASH_VERSION = '2025-04-25-v106-obj-edit';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -3460,9 +3460,21 @@ function renderObjProgress(p) {
 function renderObjEntries(d) {
   const tb = document.getElementById('objEntriesTable');
   const rows = (d && d.rows) || [];
+  const adm = objIsAdmin();
+  const colAct = document.getElementById('objColAction'); if (colAct) colAct.style.display = adm ? '' : 'none';
   _objEntries = {}; rows.forEach(r => { _objEntries[r.date] = r.amount_ttc; });
-  if (!rows.length) { tb.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:#888780;">Aucune saisie ce mois</td></tr>'; return; }
-  tb.innerHTML = rows.map(r => `<tr><td>${new Date(r.date).toLocaleDateString('fr-FR')}</td><td style="display:none;"></td><td>${fmtEur(r.amount_ttc)}</td><td style="color:var(--text-muted);font-size:12px;">${(r.updated_by || r.entered_by || '')}</td></tr>`).join('');
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#888780;">Aucune saisie ce mois</td></tr>'; return; }
+  tb.innerHTML = rows.map(r => {
+    const act = adm ? `<td><button class="btn" style="font-size:11px;padding:4px 8px;" onclick="objEditEntry('${r.date}', ${Number(r.amount_ttc)})">Modifier</button></td>` : '';
+    return `<tr><td>${new Date(r.date).toLocaleDateString('fr-FR')}</td><td style="display:none;"></td><td>${fmtEur(r.amount_ttc)}</td><td style="color:var(--text-muted);font-size:12px;">${(r.updated_by || r.entered_by || '')}</td>${act}</tr>`;
+  }).join('');
+}
+// Admin/superadmin : charge une saisie existante dans la carte de saisie pour la corriger (n'importe quelle date).
+function objEditEntry(date, amount) {
+  const d = document.getElementById('objEntryDate'), a = document.getElementById('objEntryAmount');
+  if (d) d.value = date;
+  if (a) { a.value = (amount != null ? Number(amount) : ''); a.focus(); }
+  if (a) a.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function objPrefillAmount() {

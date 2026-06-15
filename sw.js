@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-15-mp4-music';
+const CACHE_VERSION = 'nestore-v2026-06-15-obj-edit';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
