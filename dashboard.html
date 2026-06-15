@@ -1565,7 +1565,7 @@ tbody tr { transition: background .12s; }
       <select id="objBoutiqueSel" class="js-admin-only" style="display:none;padding:7px 10px;border-radius:8px;border:1px solid var(--border,#d3d1c7);background:var(--card,#fff);" onchange="loadObjectif()">
         <option value="Lille">Lille</option><option value="DK">Dunkerque</option>
       </select>
-      <input type="month" id="objMonthSel" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border,#d3d1c7);background:var(--card,#fff);" onchange="loadObjectif()"/>
+      <select id="objMonthSel" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border,#d3d1c7);background:var(--card,#fff);" onchange="loadObjectif()"></select>
       <button id="objMusicBtn" onclick="toggleObjMusic()" title="Musique" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border,#d3d1c7);background:var(--card,#fff);cursor:pointer;">🔊</button>
     </div>
   </div>
@@ -1597,7 +1597,8 @@ tbody tr { transition: background .12s; }
   <div class="table-card" style="padding:18px;margin-bottom:16px;">
     <div class="table-title" style="margin-bottom:12px;">Saisir le CA du jour (encaissé en boutique, TTC)</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
-      <div style="width:170px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Date</label><input type="date" id="objEntryDate" class="search-input" style="width:100%;" onchange="objPrefillAmount()"/></div>
+      <div class="js-admin-only" style="display:none;width:140px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Boutique</label><select id="objEntryBoutique" class="search-input" style="width:100%;" onchange="onEntryBoutiqueChange()"><option value="Lille">Lille</option><option value="DK">Dunkerque</option></select></div>
+      <div style="width:170px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Jour</label><select id="objEntryDate" class="search-input" style="width:100%;" onchange="objPrefillAmount()"></select></div>
       <div style="width:160px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">CA du jour (€)</label><input type="number" id="objEntryAmount" class="search-input" placeholder="0" min="0" step="0.01" style="width:100%;"/></div>
       <button class="btn btn-green" onclick="saveDailyRevenue()" style="min-height:42px;">Enregistrer</button>
       <span id="objEntryResult" style="font-size:13px;"></span>
@@ -1609,7 +1610,7 @@ tbody tr { transition: background .12s; }
     <div class="table-title" style="margin-bottom:12px;">Définir l'objectif mensuel (admin)</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
       <div style="width:140px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Boutique</label><select id="tgtBoutique" class="search-input" style="width:100%;"><option value="Lille">Lille</option><option value="DK">Dunkerque</option></select></div>
-      <div style="width:150px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Mois</label><input type="month" id="tgtMonth" class="search-input" style="width:100%;"/></div>
+      <div style="width:150px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Mois</label><select id="tgtMonth" class="search-input" style="width:100%;"></select></div>
       <div style="width:160px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Objectif (€ TTC)</label><input type="number" id="tgtAmount" class="search-input" placeholder="0" min="0" step="50" style="width:100%;"/></div>
       <button class="btn" onclick="saveTarget()" style="min-height:42px;">Définir</button>
       <span id="tgtResult" style="font-size:13px;"></span>
@@ -2058,7 +2059,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v106-obj-edit';
+const DASH_VERSION = '2025-04-25-v107-obj-selectors';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -3406,15 +3407,54 @@ function objMonthValue() { const el = document.getElementById('objMonthSel'); re
 function objQS() { const b = objSelectedBoutique(), m = objMonthValue(), p = []; if (b) p.push('boutique=' + encodeURIComponent(b)); if (m) p.push('month=' + encodeURIComponent(m)); return p.length ? ('?' + p.join('&')) : ''; }
 function fmtEur(n) { if (n == null) return '—'; return Number(n).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' €'; }
 
-async function loadObjectif() {
-  const mEl = document.getElementById('objMonthSel');
-  if (mEl && !mEl.value) { const d = new Date(); mEl.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
-  const dEl = document.getElementById('objEntryDate');
-  if (dEl && !dEl.value) dEl.value = new Date().toLocaleDateString('en-CA');
+// --- Sélecteurs : mois (liste) + jours d'ouverture uniquement ---
+const OBJ_OPEN_DOW = { Lille: [1, 2, 3, 4, 5, 6], DK: [2, 3, 4, 5, 6] };
+function dowMon1Local(y, m, d) { const js = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); return js === 0 ? 7 : js; }
+function openDaysOfMonth(b, ym) { const [y, m] = ym.split('-').map(Number); const n = new Date(Date.UTC(y, m, 0)).getUTCDate(); const dow = OBJ_OPEN_DOW[b] || [1, 2, 3, 4, 5, 6]; const out = []; for (let d = 1; d <= n; d++) if (dow.includes(dowMon1Local(y, m, d))) out.push(`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`); return out; }
+function prevOpenDateLocal(b, iso) { let [y, m, d] = iso.split('-').map(Number); const dow = OBJ_OPEN_DOW[b] || [1, 2, 3, 4, 5, 6]; for (let i = 0; i < 14; i++) { const dt = new Date(Date.UTC(y, m - 1, d)); dt.setUTCDate(dt.getUTCDate() - 1); y = dt.getUTCFullYear(); m = dt.getUTCMonth() + 1; d = dt.getUTCDate(); if (dow.includes(dowMon1Local(y, m, d))) return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`; } return null; }
+function entryBoutique() { if (objIsAdmin()) { const s = document.getElementById('objEntryBoutique'); return (s && s.value) || 'Lille'; } return (DASH_BOUTIQUE === 'Lille' || DASH_BOUTIQUE === 'DK') ? DASH_BOUTIQUE : 'Lille'; }
+function objMonthLabel(ym) { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }); }
+function objDayLabel(iso) { return new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit' }); }
+function populateMonthSelect(sel) {
+  if (!sel || sel.options.length) return;
+  const now = new Date(), list = [];
+  for (let i = 2; i >= -12; i--) { const dd = new Date(now.getFullYear(), now.getMonth() + i, 1); list.push(dd.getFullYear() + '-' + String(dd.getMonth() + 1).padStart(2, '0')); }
+  sel.innerHTML = list.map(ym => `<option value="${ym}">${objMonthLabel(ym)}</option>`).join('');
+  sel.value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+}
+function populateEntryDates() {
+  const sel = document.getElementById('objEntryDate'); if (!sel) return;
+  const b = entryBoutique(); const today = new Date().toLocaleDateString('en-CA');
+  let opts = [];
   if (objIsAdmin()) {
-    const tb = document.getElementById('tgtBoutique'); if (tb) tb.value = objSelectedBoutique();
-    const tm = document.getElementById('tgtMonth'); if (tm && !tm.value) tm.value = objMonthValue();
+    const ym = objMonthValue() || today.slice(0, 7);
+    opts = openDaysOfMonth(b, ym);
+    if (ym === today.slice(0, 7)) opts = opts.filter(d => d <= today); // pas de dates futures
+    opts = opts.reverse();
+  } else {
+    const tp = today.split('-').map(Number); const dow = OBJ_OPEN_DOW[b] || [];
+    if (dow.includes(dowMon1Local(tp[0], tp[1], tp[2]))) opts.push(today);
+    const v = prevOpenDateLocal(b, today); if (v) opts.push(v);
   }
+  const cur = sel.value;
+  sel.innerHTML = opts.map(d => `<option value="${d}">${objDayLabel(d)}</option>`).join('');
+  sel.value = opts.includes(cur) ? cur : (opts[0] || '');
+}
+function onEntryBoutiqueChange() {
+  const eb = document.getElementById('objEntryBoutique'), top = document.getElementById('objBoutiqueSel');
+  if (top && eb) top.value = eb.value;
+  loadObjectif();
+}
+
+async function loadObjectif() {
+  populateMonthSelect(document.getElementById('objMonthSel'));
+  if (objIsAdmin()) {
+    populateMonthSelect(document.getElementById('tgtMonth'));
+    const eb = document.getElementById('objEntryBoutique'); if (eb) eb.value = objSelectedBoutique();
+    const tb = document.getElementById('tgtBoutique'); if (tb) tb.value = objSelectedBoutique();
+    const tm = document.getElementById('tgtMonth'); if (tm && objMonthValue()) tm.value = objMonthValue();
+  }
+  populateEntryDates();
   try {
     const [prog, list] = await Promise.all([api('/revenue/progress' + objQS()), api('/revenue/daily' + objQS())]);
     renderObjProgress(prog);
@@ -3490,7 +3530,7 @@ async function saveDailyRevenue() {
   const out = document.getElementById('objEntryResult');
   if (amount === '' || isNaN(parseFloat(amount)) || parseFloat(amount) < 0) { out.style.color = 'var(--accent)'; out.textContent = 'Montant invalide'; return; }
   const body = { date, amount_ttc: parseFloat(amount) };
-  const b = objSelectedBoutique(); if (b) body.boutique = b;
+  if (objIsAdmin()) body.boutique = entryBoutique(); // admin choisit la boutique ; employé = forcé serveur
   try {
     const r = await fetch(`${BACKEND_URL}/revenue/daily`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const dd = await r.json().catch(() => ({}));
