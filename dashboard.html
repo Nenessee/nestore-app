@@ -1944,7 +1944,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v89-login';
+const DASH_VERSION = '2025-04-25-v90-login-gate';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -4983,6 +4983,10 @@ window.markVintedRemoved = async function(barcode, btn) {
     try{ localStorage.removeItem('nv_auth'); localStorage.removeItem('nv_user'); }catch(_){}
     location.reload();
   };
+  // Gate proactif : dès le chargement, si la connexion est requise et qu'on n'est pas authentifié → écran de login
+  (async function(){
+    try { const r = await fetch(`${BACKEND_URL}/auth/me`); if (r && r.status === 401) nvShowLogin(); } catch(_){}
+  })();
 })();
 </script>
 </body>
