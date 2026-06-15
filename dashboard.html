@@ -1912,7 +1912,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v87-seo-incremental';
+const DASH_VERSION = '2025-04-25-v88-security1';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -2211,17 +2211,22 @@ async function loadStock() {
   const notLocalized = allStockData.filter(p=>p.barcode&&!p.inBoutique).length;
   const onVintedCount = allStockData.filter(p=>p.barcode&&p.onVinted).length;
   const avgScore = allStockData.length ? Math.round(allStockData.reduce((a,b)=>a+(b.score||0),0)/allStockData.length) : 0;
-  const _sumPrice = (arr)=>arr.reduce((a,b)=>a+(Number(b.price)||0),0);
-  let valTotal=_sumPrice(allStockData), valLille=_sumPrice(allStockData.filter(p=>p.boutique==='Lille')), valDK=_sumPrice(allStockData.filter(p=>p.boutique==='DK'));
-  // Valeur réaliste (par variante × vraie quantité) calculée côté serveur ; repli sur la somme par produit
-  const _srvVal = await api('/stock/value').catch(()=>null);
-  if (_srvVal && _srvVal.total!=null) { valTotal=_srvVal.total; valLille=_srvVal.lille; valDK=_srvVal.dk; }
-  const eur=(n)=>Math.round(n).toLocaleString('fr-FR')+' €';
-  window._nestoreStock={ total:valTotal, lille:valLille, dk:valDK, at:Date.now() };
-  document.getElementById('stockSummary').innerHTML = `
-    <div class="kpi"><div class="kpi-label">💰 Valeur stock (total)</div><div class="kpi-value" style="color:#3B6D11;">${eur(valTotal)}</div><div class="kpi-sub">${total} articles en ligne</div></div>
-    <div class="kpi"><div class="kpi-label">Valeur stock Lille</div><div class="kpi-value">${eur(valLille)}</div></div>
-    <div class="kpi"><div class="kpi-label">Valeur stock Dunkerque</div><div class="kpi-value">${eur(valDK)}</div></div>
+  // Valeurs de stock (€) = donnée sensible → réservée à l'admin
+  const _isAdmin = !!localStorage.getItem('nv_admin_key');
+  let _valuesHtml = '';
+  if (_isAdmin) {
+    const _sumPrice = (arr)=>arr.reduce((a,b)=>a+(Number(b.price)||0),0);
+    let valTotal=_sumPrice(allStockData), valLille=_sumPrice(allStockData.filter(p=>p.boutique==='Lille')), valDK=_sumPrice(allStockData.filter(p=>p.boutique==='DK'));
+    const _srvVal = await api('/stock/value').catch(()=>null);
+    if (_srvVal && _srvVal.total!=null) { valTotal=_srvVal.total; valLille=_srvVal.lille; valDK=_srvVal.dk; }
+    const eur=(n)=>Math.round(n).toLocaleString('fr-FR')+' €';
+    window._nestoreStock={ total:valTotal, lille:valLille, dk:valDK, at:Date.now() };
+    _valuesHtml = `
+      <div class="kpi"><div class="kpi-label">💰 Valeur stock (total)</div><div class="kpi-value" style="color:#3B6D11;">${eur(valTotal)}</div><div class="kpi-sub">${total} articles en ligne</div></div>
+      <div class="kpi"><div class="kpi-label">Valeur stock Lille</div><div class="kpi-value">${eur(valLille)}</div></div>
+      <div class="kpi"><div class="kpi-label">Valeur stock Dunkerque</div><div class="kpi-value">${eur(valDK)}</div></div>`;
+  }
+  document.getElementById('stockSummary').innerHTML = `${_valuesHtml}
     <div class="kpi"><div class="kpi-label">Total en ligne</div><div class="kpi-value">${total}</div></div>
     <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('stockLocationFilter').value='present';filterStock();">
       <div class="kpi-label">Localisés ✓</div>
@@ -2978,11 +2983,20 @@ async function updateStockLocation(barcode, inBoutique, location) {
   } catch(e) { showToast('Erreur réseau : ' + e.message, 'error'); }
 }
 
-function exportCSV() {
+async function exportCSV() {
   const k = ensureAdminKey();
   if (!k) { showToast('Clé admin requise pour l\'export', 'warn'); return; }
-  // Navigation directe → le jeton passe en query (requireAdmin l'accepte).
-  window.location.href = `${BACKEND_URL}/analytics/export?admin_token=${encodeURIComponent(k)}`;
+  try {
+    // En-tête (pas de jeton admin dans l'URL) → on récupère le CSV en blob puis on télécharge.
+    const res = await fetch(`${BACKEND_URL}/analytics/export`, { headers: { 'X-NV-Admin-Token': k } });
+    if (!res.ok) { if (res.status === 403) localStorage.removeItem('nv_admin_key'); throw new Error('HTTP ' + res.status); }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'nestore-ventes.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  } catch(e) { showToast('Export échoué : ' + e.message, 'error'); }
 }
 
 async function loadCleanings() {
