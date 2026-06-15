@@ -1944,7 +1944,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v97-longcodes';
+const DASH_VERSION = '2025-04-25-v98-enctest';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -4635,7 +4635,8 @@ window.markVintedRemoved = async function(barcode, btn) {
     try {
       const cfg = await fetch(`${BACKEND_URL}/auth/config`).then(r=>r.json());
       if (cfgBox) {
-        cfgBox.innerHTML = `<strong style="color:var(--success);">Connexion par compte : toujours obligatoire.</strong> Le jeton public a été supprimé — aucun accès sans compte. · ${cfg.active_users||0} compte(s) actif(s).`;
+        cfgBox.innerHTML = `<strong style="color:var(--success);">Connexion par compte : toujours obligatoire.</strong> Le jeton public a été supprimé — aucun accès sans compte. · ${cfg.active_users||0} compte(s) actif(s).`
+          + `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border,#34312a);"><button class="btn" onclick="equipeTestEncryption()">Tester le chiffrement</button> <span id="encTestResult" style="font-size:13px;margin-left:8px;">—</span></div>`;
       }
     } catch(e){ if(cfgBox)cfgBox.textContent='Erreur : '+e.message; }
     if (listBox) listBox.innerHTML='<div class="loading">Chargement…</div>';
@@ -4653,6 +4654,19 @@ window.markVintedRemoved = async function(barcode, btn) {
       }
       if(listBox)listBox.innerHTML=h+'</tbody></table>';
     } catch(e){ if(listBox)listBox.innerHTML='<div style="padding:16px;color:var(--accent);">Erreur : '+e.message+'</div>'; }
+  };
+  window.equipeTestEncryption = async function() {
+    const out = document.getElementById('encTestResult');
+    if (out) out.textContent = '…';
+    try {
+      const r = await fetch(`${BACKEND_URL}/secure/selftest`);
+      if (r.status === 404) { if(out) out.innerHTML='<span style="color:var(--warning);">Endpoint absent — serveur pas encore redéployé</span>'; return; }
+      if (r.status === 403) { if(out) out.innerHTML='<span style="color:var(--warning);">Réservé au superadmin (reconnecte-toi en superadmin)</span>'; return; }
+      const d = await r.json().catch(()=>({}));
+      if (d.ok) out.innerHTML = '<span style="color:var(--success);">✓ Chiffrement actif et fonctionnel</span>';
+      else if (d.configured === false) out.innerHTML = '<span style="color:var(--warning);">Clé DATA_ENC_KEY absente — à ajouter dans Railway</span>';
+      else out.innerHTML = '<span style="color:var(--accent);">Problème : '+(d.error||'inconnu')+'</span>';
+    } catch(e){ if(out) out.innerHTML='<span style="color:var(--accent);">Erreur réseau</span>'; }
   };
   window.equipeAddUser = async function() {
     const token = localStorage.getItem('nv_admin_key');
