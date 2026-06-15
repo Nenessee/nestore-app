@@ -1944,10 +1944,10 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v95-equipe-bootstrap';
+const DASH_VERSION = '2025-04-25-v96-no-public-token';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
-const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
+const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
 // Demande (et mémorise) la clé admin pour les actions réservées à l'admin.
 function ensureAdminKey() {
   let k = localStorage.getItem('nv_admin_key');
@@ -1968,7 +1968,7 @@ function ensureAdminKey() {
     if (url.indexOf(BACKEND_URL) === 0) {
       init = init || {};
       const h = new Headers(init.headers || {});
-      if (!h.has('X-NV-Token')) { let st=null; try{ st=localStorage.getItem('nv_auth'); }catch(_){} h.set('X-NV-Token', st || NV_TOKEN); }
+      if (!h.has('X-NV-Token')) { let st=null; try{ st=localStorage.getItem('nv_auth'); }catch(_){} if (st) h.set('X-NV-Token', st); }
       const adminKey = localStorage.getItem('nv_admin_key');
       if (adminKey && !h.has('X-NV-Admin-Token')) h.set('X-NV-Admin-Token', adminKey);
       init.headers = h;
@@ -3365,7 +3365,7 @@ function logEvent(type, metadata) {
     if (navigator.sendBeacon) {
       const blob = new Blob([body], { type: 'application/json' });
       // sendBeacon ne porte pas d'en-tête → jeton passé en query (requireAuth l'accepte)
-      if (navigator.sendBeacon(`${BACKEND_URL}/log/event?token=${encodeURIComponent(NV_TOKEN)}`, blob)) return;
+      if (navigator.sendBeacon(`${BACKEND_URL}/log/event?token=${encodeURIComponent(localStorage.getItem('nv_auth')||'')}`, blob)) return;
     }
     fetch(`${BACKEND_URL}/log/event`, {
       method: 'POST',
@@ -4629,16 +4629,13 @@ window.markVintedRemoved = async function(barcode, btn) {
     if (typeof switchTab === 'function') switchTab('equipe', el);
   };
   window.loadTeam = async function() {
-    const token = localStorage.getItem('nv_admin_key');
+    const token = localStorage.getItem('nv_admin_key'); // facultatif : la session superadmin suffit
     const cfgBox = document.getElementById('equipeConfig');
     const listBox = document.getElementById('equipeList');
-    if (!token) { if(cfgBox)cfgBox.textContent='Clé admin requise'; return; }
     try {
-      const cfg = await fetch(`${BACKEND_URL}/auth/config`,{headers:{'X-NV-Admin-Token':token}}).then(r=>r.json());
-      if (cfgBox) { const on=!!cfg.require_login;
-        cfgBox.innerHTML = `État : <strong style="color:${on?'var(--success)':'var(--warning)'};">${on?'ACTIVÉE — seuls les comptes peuvent se connecter (jeton public coupé)':'désactivée — l\'ancien accès fonctionne encore'}</strong> · ${cfg.active_users||0} compte(s) actif(s).`+
-          `<div style="margin-top:10px;"><button class="btn ${on?'':'btn-green'}" onclick="equipeToggleRequireLogin(${on?'false':'true'})">${on?'Désactiver le login obligatoire':'Activer le login obligatoire'}</button></div>`+
-          (on?'':'<div style="font-size:11px;color:var(--text-soft);margin-top:8px;">À activer une fois que chaque employé a un compte et a testé sa connexion. Tant que c\'est désactivé, rien ne change pour les boutiques.</div>');
+      const cfg = await fetch(`${BACKEND_URL}/auth/config`).then(r=>r.json());
+      if (cfgBox) {
+        cfgBox.innerHTML = `<strong style="color:var(--success);">Connexion par compte : toujours obligatoire.</strong> Le jeton public a été supprimé — aucun accès sans compte. · ${cfg.active_users||0} compte(s) actif(s).`;
       }
     } catch(e){ if(cfgBox)cfgBox.textContent='Erreur : '+e.message; }
     if (listBox) listBox.innerHTML='<div class="loading">Chargement…</div>';
