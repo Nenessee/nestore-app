@@ -2069,7 +2069,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v116-photos-responsive';
+const DASH_VERSION = '2025-04-25-v117-avatar-refresh';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -4314,6 +4314,13 @@ async function veilleExportCSV(){
   const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='veille_ventes.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
 
+// Met la photo de profil dans le badge en-tête (si dispo dans nv_user)
+function refreshHeaderAvatar() {
+  let photo = null; try { photo = (JSON.parse(localStorage.getItem('nv_user') || '{}').photo) || null; } catch(_) {}
+  const av = document.getElementById('employeePillAvatar'); if (!av || !photo) return;
+  av.textContent = ''; av.style.background = 'transparent'; av.style.overflow = 'hidden';
+  av.innerHTML = `<img src="${photo}" style="width:100%;height:100%;border-radius:inherit;object-fit:cover;display:block;"/>`;
+}
 function initDashboard(boutique, employee) {
   DASH_BOUTIQUE = boutique;
   DASH_EMPLOYEE = employee || null;
@@ -5605,6 +5612,9 @@ window.markVintedRemoved = async function(barcode, btn) {
       const d = await r.json().catch(()=>({}));
       const u = d && d.user;
       if (u && u.name && u.name !== 'legacy' && u.id) {
+        // Rafraîchit le profil local (photo, rôle…) sans avoir à se reconnecter
+        try { const cur = JSON.parse(localStorage.getItem('nv_user') || '{}'); cur.name = u.name; cur.role = u.role; cur.boutique = u.boutique; cur.photo = u.photo || null; localStorage.setItem('nv_user', JSON.stringify(cur)); } catch(_) {}
+        if (typeof refreshHeaderAvatar === 'function') refreshHeaderAvatar();
         let s=null; try{ s=JSON.parse(localStorage.getItem('nv_session')||'null'); }catch(_){}
         if (!(s && s.auth)) nvEnterApp(u);
       }
