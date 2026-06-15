@@ -852,9 +852,18 @@
           <input type="tel" id="depositorPhone" class="form-input" placeholder="06…"/>
         </div>
       </div>
-      <label class="form-label">Prix du dépôt (€) *</label>
-      <input type="number" id="depositorDue" class="form-input" placeholder="0" min="0" step="0.50"/>
-      <div style="font-size:12px;color:#888780;margin:6px 0 4px;">Date limite fixée automatiquement à 2 mois.</div>
+      <div class="form-row">
+        <div style="flex:1;">
+          <label class="form-label">Prix du dépôt (€) *</label>
+          <input type="number" id="depositorDue" class="form-input" placeholder="0" min="0" step="0.50" oninput="updateDepotMargin()"/>
+        </div>
+        <div style="flex:1;">
+          <label class="form-label">Prix de vente (€)</label>
+          <input type="number" id="depotSalePrice" class="form-input" placeholder="0" min="0" step="0.50" oninput="updateDepotMargin()"/>
+        </div>
+      </div>
+      <div id="depotMarginInfo" style="font-size:13px;font-weight:600;margin:2px 0;min-height:18px;"></div>
+      <div style="font-size:12px;color:#888780;margin:2px 0 4px;">Date limite fixée automatiquement à 2 mois.</div>
     </div>
     <select id="purchaseEmployee" style="display:none;"></select>
     <button class="btn-purchase" id="purchaseBtn" onclick="savePurchase()">Enregistrer le rachat</button>
@@ -2430,6 +2439,18 @@
   }
 
 
+  function updateDepotMargin() {
+    const due = parseFloat(document.getElementById('depositorDue').value) || 0;
+    const sale = parseFloat(document.getElementById('depotSalePrice').value) || 0;
+    const info = document.getElementById('depotMarginInfo');
+    if (!info) return;
+    if (due > 0 && sale > 0) {
+      const marge = sale - due;
+      const pct = Math.round((marge / sale) * 100);
+      info.textContent = `Marge boutique : ${marge.toFixed(2)}€ (${pct}%)`;
+      info.style.color = marge >= 0 ? '#3B6D11' : '#A32D2D';
+    } else { info.textContent = ''; }
+  }
   let purchaseMode = 'rachat';
   function setPurchaseMode(m) {
     purchaseMode = m;
@@ -2450,7 +2471,8 @@
     const productName = document.getElementById('purchaseName').value.trim();
     const brand = document.getElementById('purchaseBrand').value.trim();
     const purchasePrice = document.getElementById('purchasePriceIn').value;
-    const estimatedPrice = document.getElementById('purchasePriceOut').value;
+    // En dépôt, le "prix de vente" sert de prix estimé (pour le calcul de marge).
+    const estimatedPrice = isDepot ? document.getElementById('depotSalePrice').value : document.getElementById('purchasePriceOut').value;
     // L'employé = la personne connectée sur la caisse (plus de sélection manuelle).
     let employee = (currentEmployee && currentEmployee !== 'admin') ? currentEmployee : '';
     if (!employee) { try { const u = JSON.parse(localStorage.getItem('nv_user') || '{}'); if (u && u.name) employee = u.name; } catch(_) {} }
@@ -2487,7 +2509,8 @@
       showToast(isDepot ? 'Dépôt-vente enregistré ✓' : 'Rachat enregistré ✓', 'success');
       if (!isDepot) addToPurchaseHistory({ barcode, productName, brand, purchasePrice, estimatedPrice, employee });
 
-      ['purchaseBarcodeInput','purchaseName','purchaseBrand','purchasePriceIn','purchasePriceOut','depositorName','depositorPhone','depositorDue','depositDeadline'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+      ['purchaseBarcodeInput','purchaseName','purchaseBrand','purchasePriceIn','purchasePriceOut','depositorName','depositorPhone','depositorDue','depotSalePrice'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+      updateDepotMargin();
       document.getElementById('purchaseBarcodeInput').focus();
 
     } catch(err) { showToast('Erreur réseau', 'error'); }

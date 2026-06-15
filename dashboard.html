@@ -1864,8 +1864,8 @@ tbody tr { transition: background .12s; }
   <div class="table-card">
     <div style="overflow-x:auto;">
       <table>
-        <thead><tr><th>Article</th><th>Déposant</th><th>À reverser</th><th>Déposé le</th><th>Limite</th><th>Statut</th><th>Action</th></tr></thead>
-        <tbody id="depotsTable"><tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Chargement…</td></tr></tbody>
+        <thead><tr><th>Article</th><th>Déposant</th><th>Prix dépôt</th><th>Vente</th><th>Marge</th><th>Déposé le</th><th>Limite</th><th>Statut</th><th>Action</th></tr></thead>
+        <tbody id="depotsTable"><tr><td colspan="9" style="text-align:center;padding:30px;color:#888780;">Chargement…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1965,7 +1965,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v101-depot-vente';
+const DASH_VERSION = '2025-04-25-v102-depot-marge';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -3257,7 +3257,7 @@ async function loadDepots() {
   const summary = document.getElementById('depotsSummary');
   try {
     const rows = await api('/deposits');
-    if (!rows || !rows.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Aucun dépôt-vente</td></tr>'; if (summary) summary.textContent = ''; return; }
+    if (!rows || !rows.length) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:#888780;">Aucun dépôt-vente</td></tr>'; if (summary) summary.textContent = ''; return; }
     const toPay = rows.filter(r => r.depot_status === 'vendu' && r.payment_status !== 'regle');
     const due = toPay.reduce((a, r) => a + (parseFloat(r.depositor_due) || 0), 0);
     if (summary) summary.textContent = `${rows.length} dépôt(s) · ${toPay.length} à payer (${due.toFixed(2)}€)`;
@@ -3274,11 +3274,19 @@ async function loadDepots() {
         statut = r.overdue ? '<span style="color:#D85A30;">En dépôt · délai dépassé</span>' : '<span>En dépôt</span>';
         action = `<button class="btn" style="font-size:11px;padding:4px 8px;" onclick="restituerDepot(${r.id})">Restituer</button>`;
       }
-      const due2 = (parseFloat(r.depositor_due) || 0).toFixed(2) + '€';
+      const dueVal = parseFloat(r.depositor_due) || 0;
+      const saleVal = parseFloat(r.estimated_price) || 0;
+      const due2 = dueVal.toFixed(2) + '€';
+      const vente = saleVal > 0 ? saleVal.toFixed(2) + '€' : '—';
+      let marge = '—';
+      if (saleVal > 0) {
+        const m = saleVal - dueVal, pct = Math.round((m / saleVal) * 100);
+        marge = `<span style="color:${m >= 0 ? '#3B6D11' : '#A32D2D'};font-weight:600;">${m.toFixed(2)}€ (${pct}%)</span>`;
+      }
       const rowBg = (r.overdue && r.depot_status === 'en_depot') ? 'background:#FFF8F8;' : '';
-      return `<tr style="${rowBg}"><td><strong>${_escD(r.product_name)}</strong>${r.brand ? '<br><span style="font-size:11px;color:#888780;">' + _escD(r.brand) + '</span>' : ''}</td><td>${dep}</td><td>${due2}</td><td>${depose}</td><td>${limite}</td><td>${statut}</td><td>${action}</td></tr>`;
+      return `<tr style="${rowBg}"><td><strong>${_escD(r.product_name)}</strong>${r.brand ? '<br><span style="font-size:11px;color:#888780;">' + _escD(r.brand) + '</span>' : ''}</td><td>${dep}</td><td>${due2}</td><td>${vente}</td><td>${marge}</td><td>${depose}</td><td>${limite}</td><td>${statut}</td><td>${action}</td></tr>`;
     }).join('');
-  } catch (e) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--accent);">Erreur : ' + e.message + '</td></tr>'; }
+  } catch (e) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--accent);">Erreur : ' + e.message + '</td></tr>'; }
 }
 async function markDepositPaid(id) {
   if (!confirm('Confirmer : le déposant a bien été payé ?')) return;
