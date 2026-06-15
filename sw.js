@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-15-merge-darkfix';
+const CACHE_VERSION = 'nestore-v2026-06-15-mobile-obj';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

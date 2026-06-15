@@ -1404,6 +1404,22 @@ tbody tr { transition: background .12s; }
 .obj-kpi .v{font-size:21px;font-weight:800;line-height:1.1;letter-spacing:-.01em;}
 .obj-kpi .l{font-size:10.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;}
 .obj-kpi .l:first-of-type{margin-top:1px;}
+/* ===== Mobile : onglet Objectif + Équipe ===== */
+@media (max-width:640px){
+  .vector-track{margin:28px 42px 10px 4px;height:40px;}
+  .vector-dog{width:46px;height:46px;margin-top:-23px;}
+  .vector-dog .vector-head{width:46px;}
+  .vector-bowl{width:38px;right:-40px;}
+  #objKpis{grid-template-columns:1fr 1fr !important;gap:8px !important;}
+  .obj-kpi{padding:11px 12px;border-radius:12px;}
+  .obj-kpi .v{font-size:17px;}
+  #objPct{font-size:24px !important;}
+  #objProgressHead{align-items:flex-start;}
+  .eq-addgrid{grid-template-columns:1fr 1fr;}
+  .eq-addgrid>button{grid-column:1 / -1;}
+  #objOverview > div{flex-direction:column;}
+  .filters-row .search-input,.filters-row .filter-select{flex:1 1 100%;min-width:0;}
+}
 </style>
 </head>
 <body>
@@ -2052,7 +2068,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v113-merge-darkfix';
+const DASH_VERSION = '2025-04-25-v114-mobile-obj';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
