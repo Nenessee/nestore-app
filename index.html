@@ -2993,6 +2993,10 @@
     try{ localStorage.removeItem('nv_auth'); localStorage.removeItem('nv_user'); }catch(_){}
     location.reload();
   };
+  // Gate proactif : dès le chargement, si la connexion est requise et qu'on n'est pas authentifié → écran de login
+  (async function(){
+    try { const r = await fetch(`${BACKEND_URL}/auth/me`); if (r && r.status === 401) nvShowLogin(); } catch(_){}
+  })();
 })();
 </script>
 </body>
