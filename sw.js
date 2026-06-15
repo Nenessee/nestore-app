@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-15-equipe-saisies-revoke';
+const CACHE_VERSION = 'nestore-v2026-06-15-nokey';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
