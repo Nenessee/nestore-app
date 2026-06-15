@@ -1970,6 +1970,32 @@ tbody tr { transition: background .12s; }
     <span class="section-title">Équipe</span>
   </div>
 
+  <!-- Comptes & accès (superadmin) -->
+  <div id="equipeManageSection">
+    <div class="table-card" style="padding:18px;margin-bottom:16px;">
+      <div class="table-title" style="margin-bottom:8px;">Connexion &amp; sécurité</div>
+      <div id="equipeConfig" style="font-size:13px;color:var(--text-muted);line-height:1.5;">Chargement…</div>
+    </div>
+
+    <div class="table-card" style="padding:18px;margin-bottom:16px;">
+      <div class="table-title" style="margin-bottom:14px;">Ajouter un employé</div>
+      <div class="eq-addgrid">
+        <div><label class="eq-lbl">Prénom</label><input id="euName" class="search-input" placeholder="ex: Sophie" style="width:100%;"/></div>
+        <div><label class="eq-lbl">Code (PIN)</label><input id="euPin" class="search-input" inputmode="numeric" placeholder="4 à 6 chiffres" style="width:100%;"/></div>
+        <div><label class="eq-lbl">Boutique</label><select id="euBoutique" class="search-input" style="width:100%;"><option value="">—</option><option value="Lille">Lille</option><option value="DK">Dunkerque</option></select></div>
+        <div><label class="eq-lbl">Rôle</label><select id="euRole" class="search-input" style="width:100%;"><option value="employee">Employé</option><option value="admin">Admin (lecture)</option><option value="superadmin">Superadmin</option></select></div>
+        <button class="btn btn-green" onclick="equipeAddUser()" style="min-height:42px;white-space:nowrap;">＋ Ajouter</button>
+      </div>
+      <div id="euAddResult" style="margin-top:10px;font-size:13px;"></div>
+    </div>
+
+    <div class="table-card" style="padding:18px;">
+      <div class="table-title" style="margin-bottom:12px;">Comptes</div>
+      <div id="equipeList"><div class="loading">Chargement…</div></div>
+    </div>
+  </div>
+  <div id="equipeManageLocked" class="table-card" style="display:none;padding:16px;color:var(--text-muted);font-size:13px;">La gestion des comptes est réservée au superadmin.</div>
+
   <!-- Activité de l'équipe -->
   <div class="table-card" style="padding:18px;margin-bottom:16px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
@@ -2016,31 +2042,6 @@ tbody tr { transition: background .12s; }
     </div>
   </div>
 
-  <!-- Comptes & accès (superadmin) -->
-  <div id="equipeManageSection">
-    <div class="table-card" style="padding:18px;margin-bottom:16px;">
-      <div class="table-title" style="margin-bottom:8px;">Connexion &amp; sécurité</div>
-      <div id="equipeConfig" style="font-size:13px;color:var(--text-muted);line-height:1.5;">Chargement…</div>
-    </div>
-
-    <div class="table-card" style="padding:18px;margin-bottom:16px;">
-      <div class="table-title" style="margin-bottom:14px;">Ajouter un employé</div>
-      <div class="eq-addgrid">
-        <div><label class="eq-lbl">Prénom</label><input id="euName" class="search-input" placeholder="ex: Sophie" style="width:100%;"/></div>
-        <div><label class="eq-lbl">Code (PIN)</label><input id="euPin" class="search-input" inputmode="numeric" placeholder="4 à 6 chiffres" style="width:100%;"/></div>
-        <div><label class="eq-lbl">Boutique</label><select id="euBoutique" class="search-input" style="width:100%;"><option value="">—</option><option value="Lille">Lille</option><option value="DK">Dunkerque</option></select></div>
-        <div><label class="eq-lbl">Rôle</label><select id="euRole" class="search-input" style="width:100%;"><option value="employee">Employé</option><option value="admin">Admin (lecture)</option><option value="superadmin">Superadmin</option></select></div>
-        <button class="btn btn-green" onclick="equipeAddUser()" style="min-height:42px;white-space:nowrap;">＋ Ajouter</button>
-      </div>
-      <div id="euAddResult" style="margin-top:10px;font-size:13px;"></div>
-    </div>
-
-    <div class="table-card" style="padding:18px;">
-      <div class="table-title" style="margin-bottom:12px;">Comptes</div>
-      <div id="equipeList"><div class="loading">Chargement…</div></div>
-    </div>
-  </div>
-  <div id="equipeManageLocked" class="table-card" style="display:none;padding:16px;color:var(--text-muted);font-size:13px;">La gestion des comptes est réservée au superadmin.</div>
 </div>
 </div>
 
@@ -2068,7 +2069,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v114-mobile-obj';
+const DASH_VERSION = '2025-04-25-v115-equipe-order';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
