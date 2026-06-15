@@ -1375,24 +1375,23 @@ tbody tr { transition: background .12s; }
 </style>
 <style>
 /* ===== Barre de progression Vector ===== */
-.vector-track{position:relative;height:74px;margin:20px 50px 6px 6px;}
-.vector-track::before{content:"";position:absolute;left:0;right:0;top:50%;height:22px;transform:translateY(-50%);background:rgba(0,0,0,.07);border-radius:11px;}
-.vector-fill{position:absolute;left:0;top:50%;height:22px;transform:translateY(-50%);width:0;border-radius:11px;overflow:hidden;transition:width 1s cubic-bezier(.22,1,.36,1);}
-.vector-rainbow{position:absolute;inset:0;background:repeating-linear-gradient(90deg,#ff1e1e 0 6px,#ff9d00 6px 12px,#fff000 12px 18px,#33d800 18px 24px,#00b3ff 24px 30px,#7a3cff 30px 36px);background-size:36px 100%;image-rendering:pixelated;animation:nyanScroll .6s steps(6) infinite;}
-@keyframes nyanScroll{to{background-position:36px 0}}
-.vector-dog{position:absolute;top:50%;left:0;transform:translate(-50%,-50%);transition:left 1s cubic-bezier(.22,1,.36,1);z-index:3;width:56px;height:56px;}
-.vector-dog .vector-head{width:56px;height:auto;display:block;}
+.vector-track{position:relative;height:48px;margin:34px 52px 6px 6px;border-radius:6px;background:#1a1c22;}
+.vector-fill{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:6px 0 0 6px;overflow:hidden;transition:width 1s cubic-bezier(.22,1,.36,1);}
+.vector-rainbow{position:absolute;inset:0;background-image:url(assets/nyan-trail-tile.png);background-repeat:repeat;background-size:32px 48px;image-rendering:pixelated;animation:nyanScroll .55s steps(8) infinite;}
+@keyframes nyanScroll{from{background-position:0 0}to{background-position:-32px 0}}
+.vector-dog{position:absolute;top:50%;left:0;transform:translateX(-50%);transition:left 1s cubic-bezier(.22,1,.36,1);z-index:3;width:58px;height:58px;margin-top:-29px;}
+.vector-dog .vector-head{width:58px;height:auto;display:block;}
 .vector-dog .vector-head,.vector-dog .vector-fallback{animation:vBounce 1.1s ease-in-out infinite;transform-origin:center bottom;}
-@keyframes vBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes vBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
 .vector-dog.sad .vector-head,.vector-dog.sad .vector-fallback{filter:grayscale(.55) brightness(.97);animation:none;}
 .vector-dog.celebrate .vector-head,.vector-dog.celebrate .vector-fallback{animation:vCelebrate .9s ease-in-out infinite;}
 @keyframes vCelebrate{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
-.vector-tear{position:absolute;width:9px;height:auto;opacity:0;pointer-events:none;}
-.vector-dog.sad .vector-tear{animation:vTear 1.5s ease-in infinite;}
+.vector-tear{position:absolute;width:11px;height:auto;opacity:0;pointer-events:none;z-index:4;}
+.vector-dog.sad .vector-tear{animation:vTear 1.4s ease-in infinite;}
 .vector-tear-l{left:43%;top:29%;}
 .vector-tear-r{left:60%;top:30%;}
-@keyframes vTear{0%{transform:translateY(0);opacity:.95}75%{opacity:.95}100%{transform:translateY(15px);opacity:0}}
-.vector-bowl{position:absolute;right:-46px;top:50%;transform:translateY(-50%);width:46px;height:auto;image-rendering:pixelated;z-index:2;}
+@keyframes vTear{0%{transform:translateY(0);opacity:0}20%{opacity:.95}80%{opacity:.95}100%{transform:translateY(16px);opacity:0}}
+.vector-bowl{position:absolute;right:-48px;top:50%;transform:translateY(-50%);width:48px;height:auto;image-rendering:pixelated;z-index:2;}
 .obj-kpi{background:rgba(0,0,0,.04);border-radius:10px;padding:10px 12px;}
 .obj-kpi .v{font-size:18px;font-weight:700;}
 .obj-kpi .l{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;}
@@ -2059,7 +2058,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v103-objectif-vector';
+const DASH_VERSION = '2025-04-25-v104-vector-assets';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -3397,7 +3396,7 @@ async function restituerDepot(id) {
 // ===================== Onglet Objectif (CA boutique + Vector) =====================
 let _objMusicAudio = null;
 let _objEntries = {};
-const OBJ_MUSIC_SOURCES = ['assets/vector-theme.mp3', 'assets/vector-theme.ogg', 'assets/vector_musique.mp4'];
+const OBJ_MUSIC_SOURCES = ['assets/vector-theme.mp3', 'assets/vector-theme.ogg', 'assets/vector-jingle.wav'];
 function objIsAdmin() { return DASH_BOUTIQUE === 'admin'; }
 function objSelectedBoutique() {
   if (objIsAdmin()) { const s = document.getElementById('objBoutiqueSel'); return (s && s.value) || 'Lille'; }
