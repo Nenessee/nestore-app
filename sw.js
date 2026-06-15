@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-15-obj-edit';
+const CACHE_VERSION = 'nestore-v2026-06-15-obj-selectors';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
