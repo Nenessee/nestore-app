@@ -1944,7 +1944,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v94-roleedit';
+const DASH_VERSION = '2025-04-25-v95-equipe-bootstrap';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -3812,10 +3812,10 @@ function initDashboard(boutique, employee) {
   }
   const tabSeo = document.getElementById('tabSeo');
   if (tabSeo) tabSeo.style.display = boutique === 'admin' ? 'block' : 'none';
-  // Équipe = gestion des comptes → superadmin uniquement (pas les admins-lecture)
+  // Équipe : visible pour admin + superadmin. L'accès réel est filtré par guardEquipeTab
+  // (superadmin → direct ; admin → clé maître). Ça permet le bootstrap du 1er superadmin.
   const tabEquipe = document.getElementById('tabEquipe');
-  let _curRole = null; try { _curRole = (JSON.parse(localStorage.getItem('nv_user')||'{}').role)||null; } catch(_){}
-  if (tabEquipe) tabEquipe.style.display = (_curRole === 'superadmin') ? 'block' : 'none';
+  if (tabEquipe) tabEquipe.style.display = boutique === 'admin' ? 'block' : 'none';
   // Onglet Veille : strictement admin — RETIRÉ du DOM pour les non-admin (pas juste masqué)
   const tabVeille = document.getElementById('tabVeille');
   const panelVeille = document.getElementById('tab-veille');
