@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-15-security1';
+const CACHE_VERSION = 'nestore-v2026-06-15-login';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

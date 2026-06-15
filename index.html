@@ -1033,10 +1033,16 @@
       if (url.indexOf(BACKEND_URL) === 0) {
         init = init || {};
         const h = new Headers(init.headers || {});
-        if (!h.has('X-NV-Token')) h.set('X-NV-Token', NV_TOKEN);
+        if (!h.has('X-NV-Token')) { let st=null; try{ st=localStorage.getItem('nv_auth'); }catch(_){} h.set('X-NV-Token', st || NV_TOKEN); }
+        const adminKey = localStorage.getItem('nv_admin_key');
+        if (adminKey && !h.has('X-NV-Admin-Token')) h.set('X-NV-Admin-Token', adminKey);
         init.headers = h;
       }
-      return _fetch(input, init);
+      const p = _fetch(input, init);
+      if (url.indexOf(BACKEND_URL) === 0 && url.indexOf('/auth/') === -1) {
+        return p.then(function (resp) { if (resp && resp.status === 401 && typeof nvShowLogin === 'function') nvShowLogin(); return resp; });
+      }
+      return p;
     };
   })();
   let currentData = null;
@@ -2941,6 +2947,53 @@
     }
   }
 
+</script>
+
+<!-- ===== Écran de connexion employé (PIN) ===== -->
+<div id="nvLoginOverlay" style="display:none;position:fixed;inset:0;z-index:2147483600;background:#15140f;color:#f5f3ec;align-items:center;justify-content:center;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;">
+  <div style="width:min(360px,90vw);background:#1f1d17;border:1px solid #34312a;border-radius:16px;padding:26px 22px;box-shadow:0 20px 60px rgba(0,0,0,.5);">
+    <div style="font-size:20px;font-weight:700;margin-bottom:4px;">Nestore — Connexion</div>
+    <div style="font-size:13px;color:#9b978c;margin-bottom:18px;">Choisis ton prénom et entre ton code.</div>
+    <label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#9b978c;">Prénom</label>
+    <select id="nvLoginName" style="width:100%;margin:6px 0 14px;padding:11px;border-radius:10px;border:1px solid #34312a;background:#15140f;color:#f5f3ec;font-size:15px;"></select>
+    <label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#9b978c;">Code</label>
+    <input id="nvLoginPin" type="password" inputmode="numeric" autocomplete="off" placeholder="••••" style="width:100%;margin:6px 0 14px;padding:11px;border-radius:10px;border:1px solid #34312a;background:#15140f;color:#f5f3ec;font-size:18px;letter-spacing:4px;text-align:center;" onkeydown="if(event.key==='Enter')nvDoLogin()">
+    <button id="nvLoginBtn" onclick="nvDoLogin()" style="width:100%;padding:12px;border:0;border-radius:10px;background:#3B6D11;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">Se connecter</button>
+    <div id="nvLoginErr" style="color:#E8504E;font-size:13px;margin-top:12px;text-align:center;min-height:18px;"></div>
+  </div>
+</div>
+<script>
+(function(){
+  window.nvShowLogin=async function(){
+    const ov=document.getElementById('nvLoginOverlay'); if(!ov) return;
+    ov.style.display='flex';
+    try{
+      const r=await fetch(`${BACKEND_URL}/auth/names`).then(x=>x.json());
+      const sel=document.getElementById('nvLoginName');
+      if(sel && r && r.rows && r.rows.length){ sel.innerHTML=r.rows.map(u=>`<option value="${(u.name||'').replace(/"/g,'&quot;')}">${u.name}${u.boutique?' ('+u.boutique+')':''}</option>`).join(''); }
+      else if(sel){ sel.innerHTML='<option value="">(aucun compte)</option>'; }
+    }catch(_){}
+  };
+  window.nvDoLogin=async function(){
+    const name=(document.getElementById('nvLoginName')||{}).value||'';
+    const pin=(document.getElementById('nvLoginPin')||{}).value||'';
+    const err=document.getElementById('nvLoginErr'); const btn=document.getElementById('nvLoginBtn');
+    if(!name||!pin){ if(err)err.textContent='Choisis ton prénom et entre ton code.'; return; }
+    if(btn){btn.disabled=true;btn.textContent='Connexion…';}
+    try{
+      const res=await fetch(`${BACKEND_URL}/auth/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,pin})});
+      const d=await res.json().catch(()=>({}));
+      if(!res.ok){ if(err)err.textContent=d.error||'Échec de connexion'; if(btn){btn.disabled=false;btn.textContent='Se connecter';} return; }
+      try{ localStorage.setItem('nv_auth', d.token); localStorage.setItem('nv_user', JSON.stringify({name:d.name,role:d.role,boutique:d.boutique})); }catch(_){}
+      location.reload();
+    }catch(e){ if(err)err.textContent='Erreur réseau'; if(btn){btn.disabled=false;btn.textContent='Se connecter';} }
+  };
+  window.nvLogout=async function(){
+    try{ const t=localStorage.getItem('nv_auth'); if(t){ await fetch(`${BACKEND_URL}/auth/logout`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:t})}).catch(()=>{}); } }catch(_){}
+    try{ localStorage.removeItem('nv_auth'); localStorage.removeItem('nv_user'); }catch(_){}
+    location.reload();
+  };
+})();
 </script>
 </body>
 </html>
