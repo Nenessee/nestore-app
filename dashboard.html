@@ -1944,7 +1944,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v93-superadmin';
+const DASH_VERSION = '2025-04-25-v94-roleedit';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = 'nv_emp_d605936158d07abcc4449f3ae2de61575ace4f2375cab1b4';
@@ -4647,7 +4647,10 @@ window.markVintedRemoved = async function(barcode, btn) {
       if (!d.rows || !d.rows.length) { if(listBox)listBox.innerHTML='<div style="padding:16px;color:var(--text-muted);">Aucun compte. Ajoute tes employés ci-dessus.</div>'; return; }
       let h='<table><thead><tr><th>Prénom</th><th>Boutique</th><th>Rôle</th><th>Dernière connexion</th><th>Actif</th><th></th></tr></thead><tbody>';
       for (const u of d.rows) {
-        h+=`<tr style="${u.active?'':'opacity:.5;'}"><td><strong>${_esc(u.name)}</strong></td><td>${u.boutique||'—'}</td><td>${u.role==='admin'?'Admin':'Employé'}</td><td style="font-size:12px;color:var(--text-muted);">${u.last_login||'jamais'}</td>`+
+        h+=`<tr style="${u.active?'':'opacity:.5;'}"><td><strong>${_esc(u.name)}</strong></td>`+
+          `<td><select onchange="equipeUpdateUser(${u.id},{boutique:this.value})" style="font-size:12px;padding:3px;"><option value="" ${!u.boutique?'selected':''}>—</option><option value="Lille" ${u.boutique==='Lille'?'selected':''}>Lille</option><option value="DK" ${u.boutique==='DK'?'selected':''}>DK</option></select></td>`+
+          `<td><select onchange="equipeUpdateUser(${u.id},{role:this.value})" style="font-size:12px;padding:3px;"><option value="employee" ${u.role==='employee'?'selected':''}>Employé</option><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option><option value="superadmin" ${u.role==='superadmin'?'selected':''}>Superadmin</option></select></td>`+
+          `<td style="font-size:12px;color:var(--text-muted);">${u.last_login||'jamais'}</td>`+
           `<td style="text-align:center;"><input type="checkbox" ${u.active?'checked':''} onchange="equipeUpdateUser(${u.id},{active:this.checked})"></td>`+
           `<td style="white-space:nowrap;"><button class="btn" style="font-size:11px;padding:4px 8px;" onclick="equipeResetPin(${u.id})">Code</button> <button class="btn" style="font-size:11px;padding:4px 8px;color:var(--accent);" onclick="equipeDeleteUser(${u.id})">Suppr</button></td></tr>`;
       }
