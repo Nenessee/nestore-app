@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-15-rachat-depot';
+const CACHE_VERSION = 'nestore-v2026-06-15-depot-simplifie';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
