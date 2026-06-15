@@ -1375,7 +1375,7 @@ tbody tr { transition: background .12s; }
 </style>
 <style>
 /* ===== Barre de progression Vector ===== */
-.vector-track{position:relative;height:48px;margin:34px 52px 6px 6px;border-radius:6px;background:#1a1c22;}
+.vector-track{position:relative;height:48px;margin:36px 54px 12px 34px;border-radius:6px;background:#1a1c22;}
 .vector-fill{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:6px 0 0 6px;overflow:hidden;transition:width 1s cubic-bezier(.22,1,.36,1);}
 .vector-rainbow{position:absolute;inset:0;background-image:url(assets/nyan-trail-tile.png);background-repeat:repeat;background-size:32px 48px;image-rendering:pixelated;animation:nyanScroll .55s steps(8) infinite;}
 @keyframes nyanScroll{from{background-position:0 0}to{background-position:-32px 0}}
@@ -2059,7 +2059,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v107-obj-selectors';
+const DASH_VERSION = '2025-04-25-v108-obj-polish';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -3418,9 +3418,16 @@ function objDayLabel(iso) { return new Date(iso + 'T00:00:00').toLocaleDateStrin
 function populateMonthSelect(sel) {
   if (!sel || sel.options.length) return;
   const now = new Date(), list = [];
-  for (let i = 2; i >= -12; i--) { const dd = new Date(now.getFullYear(), now.getMonth() + i, 1); list.push(dd.getFullYear() + '-' + String(dd.getMonth() + 1).padStart(2, '0')); }
+  const FLOOR_Y = 2026, FLOOR_M = 4; // les objectifs ont commencé en avril 2026
+  let y = now.getFullYear(), m = now.getMonth() + 2; // mois courant + 1 (1-based)
+  if (m > 12) { m -= 12; y++; }
+  while (y > FLOOR_Y || (y === FLOOR_Y && m >= FLOOR_M)) {
+    list.push(`${y}-${String(m).padStart(2, '0')}`);
+    m--; if (m < 1) { m = 12; y--; }
+  }
   sel.innerHTML = list.map(ym => `<option value="${ym}">${objMonthLabel(ym)}</option>`).join('');
-  sel.value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  const cur = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  sel.value = list.includes(cur) ? cur : list[0];
 }
 function populateEntryDates() {
   const sel = document.getElementById('objEntryDate'); if (!sel) return;
@@ -3456,7 +3463,9 @@ async function loadObjectif() {
   }
   populateEntryDates();
   try {
-    const [prog, list] = await Promise.all([api('/revenue/progress' + objQS()), api('/revenue/daily' + objQS())]);
+    // Entrées : sans paramètre boutique → l'admin voit toutes les boutiques, l'employé est forcé sur la sienne (serveur).
+    const monthQ = '?month=' + encodeURIComponent(objMonthValue());
+    const [prog, list] = await Promise.all([api('/revenue/progress' + objQS()), api('/revenue/daily' + monthQ)]);
     renderObjProgress(prog);
     renderObjEntries(list);
     objPrefillAmount();
@@ -3497,30 +3506,42 @@ function renderObjProgress(p) {
   ].map(([l, v, sub, col]) => `<div class="obj-kpi"><div class="v" style="color:${col}">${v}</div><div class="l">${l}</div>${sub ? `<div class="l" style="text-transform:none;">${sub}</div>` : ''}</div>`).join('');
 }
 
+function objBoutiqueLabel(b) { return b === 'DK' ? 'Dunkerque' : b; }
 function renderObjEntries(d) {
   const tb = document.getElementById('objEntriesTable');
   const rows = (d && d.rows) || [];
   const adm = objIsAdmin();
   const colAct = document.getElementById('objColAction'); if (colAct) colAct.style.display = adm ? '' : 'none';
-  _objEntries = {}; rows.forEach(r => { _objEntries[r.date] = r.amount_ttc; });
+  const colB = document.getElementById('objColBoutique'); if (colB) colB.style.display = ''; // toujours montrer la boutique
+  // Clé par boutique+date (deux boutiques peuvent avoir une saisie le même jour)
+  _objEntries = {}; rows.forEach(r => { _objEntries[r.boutique + '|' + r.date] = r.amount_ttc; });
   if (!rows.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#888780;">Aucune saisie ce mois</td></tr>'; return; }
   tb.innerHTML = rows.map(r => {
-    const act = adm ? `<td><button class="btn" style="font-size:11px;padding:4px 8px;" onclick="objEditEntry('${r.date}', ${Number(r.amount_ttc)})">Modifier</button></td>` : '';
-    return `<tr><td>${new Date(r.date).toLocaleDateString('fr-FR')}</td><td style="display:none;"></td><td>${fmtEur(r.amount_ttc)}</td><td style="color:var(--text-muted);font-size:12px;">${(r.updated_by || r.entered_by || '')}</td>${act}</tr>`;
+    const act = adm ? `<td><button class="btn" style="font-size:11px;padding:4px 8px;" onclick="objEditEntry('${r.boutique}','${r.date}', ${Number(r.amount_ttc)})">Modifier</button></td>` : '';
+    const day = new Date(r.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit' });
+    return `<tr><td>${day}</td><td>${objBoutiqueLabel(r.boutique)}</td><td>${fmtEur(r.amount_ttc)}</td><td style="color:var(--text-muted);font-size:12px;">${(r.updated_by || r.entered_by || '')}</td>${act}</tr>`;
   }).join('');
 }
-// Admin/superadmin : charge une saisie existante dans la carte de saisie pour la corriger (n'importe quelle date).
-function objEditEntry(date, amount) {
-  const d = document.getElementById('objEntryDate'), a = document.getElementById('objEntryAmount');
-  if (d) d.value = date;
-  if (a) { a.value = (amount != null ? Number(amount) : ''); a.focus(); }
-  if (a) a.scrollIntoView({ behavior: 'smooth', block: 'center' });
+// Admin/superadmin : charge une saisie existante (n'importe quelle boutique/date) dans la carte de saisie.
+async function objEditEntry(boutique, date, amount) {
+  if (objIsAdmin()) {
+    const eb = document.getElementById('objEntryBoutique'); if (eb) eb.value = boutique;
+    const top = document.getElementById('objBoutiqueSel'); if (top) top.value = boutique;
+    await loadObjectif();
+  }
+  const d = document.getElementById('objEntryDate');
+  if (d) {
+    if (![...d.options].some(o => o.value === date)) { const o = document.createElement('option'); o.value = date; o.textContent = new Date(date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit' }); d.appendChild(o); }
+    d.value = date;
+  }
+  const a = document.getElementById('objEntryAmount');
+  if (a) { a.value = (amount != null ? Number(amount) : ''); a.focus(); a.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
 }
 
 function objPrefillAmount() {
   const dEl = document.getElementById('objEntryDate'), aEl = document.getElementById('objEntryAmount');
   if (!dEl || !aEl) return;
-  const v = _objEntries[dEl.value];
+  const v = _objEntries[entryBoutique() + '|' + dEl.value];
   aEl.value = (v != null && v !== '') ? Number(v) : '';
 }
 
@@ -3564,10 +3585,23 @@ async function loadObjOverview() {
   try {
     const m = objMonthValue();
     const d = await api('/revenue/overview' + (m ? ('?month=' + encodeURIComponent(m)) : ''));
-    const rows = (d.boutiques || []).concat(d.total ? [d.total] : []);
-    box.innerHTML = '<div class="table-title" style="margin:6px 0;">Consolidé du mois</div><table><thead><tr><th>Boutique</th><th>Objectif</th><th>CA</th><th>%</th><th>Reste</th><th>Projection</th></tr></thead><tbody>' +
-      rows.map(p => `<tr${p.boutique === 'Total' ? ' style="font-weight:700;border-top:2px solid var(--border,#d3d1c7);"' : ''}><td>${p.boutique}</td><td>${p.target_ttc == null ? '—' : fmtEur(p.target_ttc)}</td><td>${fmtEur(p.mtd_ttc)}</td><td>${p.pct_attainment == null ? '—' : p.pct_attainment + '%'}</td><td>${p.remaining_ttc == null ? '—' : fmtEur(p.remaining_ttc)}</td><td>${fmtEur(p.projection_eom_ttc)}</td></tr>`).join('') +
-      '</tbody></table>';
+    const per = d.boutiques || [];
+    const card = (p, isTotal) => {
+      const pct = (p.pct_attainment == null) ? 0 : p.pct_attainment;
+      const w = Math.max(0, Math.min(100, pct));
+      const pctTxt = (p.pct_attainment == null) ? '—' : (p.pct_attainment + '%');
+      const bg = isTotal ? 'background:linear-gradient(135deg,#2C2C2A,#3a3a36);color:#fff;' : 'background:rgba(0,0,0,.04);';
+      const muted = isTotal ? 'rgba(255,255,255,.7)' : 'var(--text-muted)';
+      const barBg = isTotal ? 'rgba(255,255,255,.18)' : 'rgba(0,0,0,.09)';
+      return `<div style="${bg}border-radius:14px;padding:16px 18px;flex:1;min-width:190px;">
+        <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">${isTotal ? 'Total' : objBoutiqueLabel(p.boutique)}</div>
+        <div style="font-size:26px;font-weight:800;line-height:1;">${fmtEur(p.mtd_ttc)}</div>
+        <div style="font-size:12px;color:${muted};margin:4px 0 10px;">sur ${p.target_ttc == null ? '—' : fmtEur(p.target_ttc)} · <strong>${pctTxt}</strong></div>
+        <div style="height:9px;border-radius:5px;background:${barBg};overflow:hidden;"><div style="height:100%;width:${w}%;background:${w >= 100 ? '#3B6D11' : (isTotal ? '#9FE1CB' : '#3B6D11')};border-radius:5px;transition:width .8s;"></div></div>
+        <div style="font-size:11px;color:${muted};margin-top:8px;">Reste ${p.remaining_ttc == null ? '—' : fmtEur(p.remaining_ttc)} · proj. ${fmtEur(p.projection_eom_ttc)}</div>
+      </div>`;
+    };
+    box.innerHTML = '<div style="display:flex;gap:12px;flex-wrap:wrap;">' + per.map(p => card(p, false)).join('') + (d.total ? card(d.total, true) : '') + '</div>';
   } catch (e) { box.innerHTML = ''; }
 }
 
