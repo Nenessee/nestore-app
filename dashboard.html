@@ -1556,6 +1556,7 @@ tbody tr { transition: background .12s; }
       <div style="display:flex;gap:8px;">
         <button class="btn btn-red js-admin-only" onclick="openSoldeModalBulk()" style="font-size:13px;">Appliquer soldes sélection</button>
         <button class="btn js-admin-only" onclick="openSoldeModalAll60()" style="font-size:13px;background:rgba(163,45,45,0.15);border-color:#A32D2D;color:#A32D2D;">Solder tous les +60j</button>
+        <button class="btn js-admin-only" onclick="resetInventaireBoutique()" style="font-size:13px;" title="Décoche toutes les cases « en boutique » pour refaire l'inventaire">↺ Reset inventaire</button>
       </div>
     </div>
     <div class="filters-row">
@@ -1944,7 +1945,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v99-ventes-employe';
+const DASH_VERSION = '2025-04-25-v100-reset-inventaire';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2313,6 +2314,22 @@ async function loadStock() {
   }).catch(()=>{});
 }
 
+async function resetInventaireBoutique() {
+  // Respecte le filtre boutique de l'onglet stock (sinon toutes les boutiques visibles)
+  const bq = document.getElementById('stockBoutiqueFilter')?.value || '';
+  const scope = bq ? allStockData.filter(p => p.boutique === bq) : allStockData;
+  const barcodes = scope.filter(p => p.barcode).map(p => p.barcode);
+  const label = bq ? ('la boutique ' + bq) : 'toutes les boutiques';
+  if (!barcodes.length) { showDashToast('Aucun article à réinitialiser', 'warn'); return; }
+  if (!confirm(`Décocher toutes les cases « en boutique » pour ${label} (${barcodes.length} articles) ?\n\nLes articles repasseront en « non localisés » — utile pour refaire l'inventaire de zéro.`)) return;
+  try {
+    const r = await fetch(`${BACKEND_URL}/stock/locations/reset-boutique`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ barcodes }) });
+    const d = await r.json().catch(()=>({}));
+    if (!r.ok) { showDashToast(d.error || 'Erreur', 'error'); return; }
+    showDashToast(`Inventaire réinitialisé — ${d.reset||0} case(s) décochée(s)`, 'success');
+    allStockData = []; loadStock();
+  } catch(e) { showDashToast('Erreur réseau', 'error'); }
+}
 function renderStockTable(data) {
   document.getElementById('stockCount').textContent = `${data.length} article${data.length>1?'s':''}`;
   if(!data.length){document.getElementById('stockTable').innerHTML='<tr><td colspan="11" style="text-align:center;padding:30px;color:#888780;">Aucun article</td></tr>';return;}
