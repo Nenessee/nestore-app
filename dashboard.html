@@ -1373,6 +1373,30 @@ tbody tr { transition: background .12s; }
 }
 #dashApp td { vertical-align: middle; }
 </style>
+<style>
+/* ===== Barre de progression Vector ===== */
+.vector-track{position:relative;height:74px;margin:20px 50px 6px 6px;}
+.vector-track::before{content:"";position:absolute;left:0;right:0;top:50%;height:22px;transform:translateY(-50%);background:rgba(0,0,0,.07);border-radius:11px;}
+.vector-fill{position:absolute;left:0;top:50%;height:22px;transform:translateY(-50%);width:0;border-radius:11px;overflow:hidden;transition:width 1s cubic-bezier(.22,1,.36,1);}
+.vector-rainbow{position:absolute;inset:0;background:repeating-linear-gradient(90deg,#ff1e1e 0 6px,#ff9d00 6px 12px,#fff000 12px 18px,#33d800 18px 24px,#00b3ff 24px 30px,#7a3cff 30px 36px);background-size:36px 100%;image-rendering:pixelated;animation:nyanScroll .6s steps(6) infinite;}
+@keyframes nyanScroll{to{background-position:36px 0}}
+.vector-dog{position:absolute;top:50%;left:0;transform:translate(-50%,-50%);transition:left 1s cubic-bezier(.22,1,.36,1);z-index:3;width:56px;height:56px;}
+.vector-dog .vector-head{width:56px;height:auto;display:block;}
+.vector-dog .vector-head,.vector-dog .vector-fallback{animation:vBounce 1.1s ease-in-out infinite;transform-origin:center bottom;}
+@keyframes vBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.vector-dog.sad .vector-head,.vector-dog.sad .vector-fallback{filter:grayscale(.55) brightness(.97);animation:none;}
+.vector-dog.celebrate .vector-head,.vector-dog.celebrate .vector-fallback{animation:vCelebrate .9s ease-in-out infinite;}
+@keyframes vCelebrate{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+.vector-tear{position:absolute;width:9px;height:auto;opacity:0;pointer-events:none;}
+.vector-dog.sad .vector-tear{animation:vTear 1.5s ease-in infinite;}
+.vector-tear-l{left:43%;top:29%;}
+.vector-tear-r{left:60%;top:30%;}
+@keyframes vTear{0%{transform:translateY(0);opacity:.95}75%{opacity:.95}100%{transform:translateY(15px);opacity:0}}
+.vector-bowl{position:absolute;right:-46px;top:50%;transform:translateY(-50%);width:46px;height:auto;image-rendering:pixelated;z-index:2;}
+.obj-kpi{background:rgba(0,0,0,.04);border-radius:10px;padding:10px 12px;}
+.obj-kpi .v{font-size:18px;font-weight:700;}
+.obj-kpi .l{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;}
+</style>
 </head>
 <body>
 
@@ -1440,6 +1464,7 @@ tbody tr { transition: background .12s; }
 <div class="tabs">
   <div class="tabs-inner">
     <div class="tab active" onclick="switchTab('ventes',this)">Scan &amp; Ventes</div>
+    <div class="tab" id="tabObjectif" onclick="switchTab('objectif',this)">Objectif <span id="objectifBadge" style="display:none;width:8px;height:8px;border-radius:50%;background:#E8504E;margin-left:2px;vertical-align:middle;"></span></div>
     <div class="tab" onclick="switchTab('stock',this)">Stock en ligne</div>
     <div class="tab" onclick="switchTab('rachats',this)">Rachats</div>
     <div class="tab" onclick="switchTab('depots',this)">Dépôts</div>
@@ -1528,6 +1553,75 @@ tbody tr { transition: background .12s; }
         <tbody id="salesTable"><tr><td colspan="6" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
       </table>
     </div>
+  </div>
+</div>
+</div>
+
+<!-- TAB OBJECTIF -->
+<div id="tab-objectif" class="tab-panel">
+<div class="content">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+    <span class="section-title" style="margin:0;">Objectif CA boutique</span>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <select id="objBoutiqueSel" class="js-admin-only" style="display:none;padding:7px 10px;border-radius:8px;border:1px solid var(--border,#d3d1c7);background:var(--card,#fff);" onchange="loadObjectif()">
+        <option value="Lille">Lille</option><option value="DK">Dunkerque</option>
+      </select>
+      <input type="month" id="objMonthSel" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border,#d3d1c7);background:var(--card,#fff);" onchange="loadObjectif()"/>
+      <button id="objMusicBtn" onclick="toggleObjMusic()" title="Musique" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border,#d3d1c7);background:var(--card,#fff);cursor:pointer;">🔊</button>
+    </div>
+  </div>
+
+  <!-- Carte progression Vector -->
+  <div class="table-card" style="padding:18px;margin-bottom:16px;overflow:hidden;">
+    <div id="objProgressHead" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+      <div><div id="objPct" style="font-size:30px;font-weight:800;line-height:1;">—</div><div id="objPctSub" style="font-size:12px;color:var(--text-muted);">d'atteinte</div></div>
+      <div style="text-align:right;font-size:13px;color:var(--text-muted);"><div id="objMtd">—</div><div id="objTarget">—</div></div>
+    </div>
+    <!-- Barre Vector -->
+    <div id="vectorTrack" class="vector-track">
+      <div id="vectorFill" class="vector-fill"><div class="vector-rainbow"></div></div>
+      <div id="vectorDog" class="vector-dog">
+        <img class="vector-head" src="assets/vector-head.png" alt="Vector" onerror="this.style.display='none';this.parentNode.querySelector('.vector-fallback').style.display='block';"/>
+        <span class="vector-fallback" style="display:none;font-size:34px;line-height:1;">🐶</span>
+        <img class="vector-tear vector-tear-l" src="assets/tear.svg" alt=""/>
+        <img class="vector-tear vector-tear-r" src="assets/tear.svg" alt=""/>
+      </div>
+      <img id="vectorBowl" class="vector-bowl" src="assets/bowl_0.svg" alt="gamelle"/>
+    </div>
+    <div id="objCelebrate" style="display:none;text-align:center;font-weight:700;color:var(--success,#3B6D11);margin-top:10px;">🎉 Objectif du mois atteint, bravo l'équipe ! 🎉</div>
+    <!-- KPIs -->
+    <div id="objKpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:16px;"></div>
+    <div id="objNoTarget" style="display:none;margin-top:14px;padding:12px;border-radius:10px;background:rgba(186,117,23,.1);color:#8a5e1f;font-size:13px;">Objectif non défini par l'admin pour ce mois.</div>
+  </div>
+
+  <!-- Carte saisie -->
+  <div class="table-card" style="padding:18px;margin-bottom:16px;">
+    <div class="table-title" style="margin-bottom:12px;">Saisir le CA du jour (encaissé en boutique, TTC)</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+      <div style="width:170px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Date</label><input type="date" id="objEntryDate" class="search-input" style="width:100%;" onchange="objPrefillAmount()"/></div>
+      <div style="width:160px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">CA du jour (€)</label><input type="number" id="objEntryAmount" class="search-input" placeholder="0" min="0" step="0.01" style="width:100%;"/></div>
+      <button class="btn btn-green" onclick="saveDailyRevenue()" style="min-height:42px;">Enregistrer</button>
+      <span id="objEntryResult" style="font-size:13px;"></span>
+    </div>
+  </div>
+
+  <!-- Admin : objectif mensuel -->
+  <div class="table-card js-admin-only" style="display:none;padding:18px;margin-bottom:16px;">
+    <div class="table-title" style="margin-bottom:12px;">Définir l'objectif mensuel (admin)</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+      <div style="width:140px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Boutique</label><select id="tgtBoutique" class="search-input" style="width:100%;"><option value="Lille">Lille</option><option value="DK">Dunkerque</option></select></div>
+      <div style="width:150px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Mois</label><input type="month" id="tgtMonth" class="search-input" style="width:100%;"/></div>
+      <div style="width:160px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Objectif (€ TTC)</label><input type="number" id="tgtAmount" class="search-input" placeholder="0" min="0" step="50" style="width:100%;"/></div>
+      <button class="btn" onclick="saveTarget()" style="min-height:42px;">Définir</button>
+      <span id="tgtResult" style="font-size:13px;"></span>
+    </div>
+    <div id="objOverview" style="margin-top:16px;overflow-x:auto;"></div>
+  </div>
+
+  <!-- Tableau des saisies du mois -->
+  <div class="table-card" style="padding:18px;">
+    <div class="table-title" style="margin-bottom:12px;">Saisies du mois</div>
+    <div style="overflow-x:auto;"><table><thead><tr><th>Date</th><th id="objColBoutique" style="display:none;">Boutique</th><th>CA (€)</th><th>Saisi par</th></tr></thead><tbody id="objEntriesTable"><tr><td colspan="4" style="text-align:center;padding:20px;color:#888780;">—</td></tr></tbody></table></div>
   </div>
 </div>
 </div>
@@ -1965,7 +2059,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v102-depot-marge';
+const DASH_VERSION = '2025-04-25-v103-objectif-vector';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2111,6 +2205,8 @@ function switchTab(name, el) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   el.classList.add('active');
   document.getElementById(`tab-${name}`).classList.add('active');
+  if (name !== 'objectif') stopObjMusic();          // couper la musique en quittant l'onglet Objectif
+  if (name === 'objectif') { loadObjectif(); startObjMusic(); }
   if (name === 'ventes') loadVentes();
   if (name === 'stock') {
     if (allStockData.length === 0) loadStock();
@@ -3298,6 +3394,197 @@ async function restituerDepot(id) {
   try { const r = await fetch(`${BACKEND_URL}/deposit/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ depotStatus:'restitue' }) }); if (!r.ok) throw new Error('HTTP '+r.status); showDashToast('Article restitué','success'); loadDepots(); }
   catch(e){ showDashToast('Erreur','error'); }
 }
+// ===================== Onglet Objectif (CA boutique + Vector) =====================
+let _objMusicAudio = null;
+let _objEntries = {};
+const OBJ_MUSIC_SOURCES = ['assets/vector-theme.mp3', 'assets/vector-theme.ogg', 'assets/vector_musique.mp4'];
+function objIsAdmin() { return DASH_BOUTIQUE === 'admin'; }
+function objSelectedBoutique() {
+  if (objIsAdmin()) { const s = document.getElementById('objBoutiqueSel'); return (s && s.value) || 'Lille'; }
+  return null;
+}
+function objMonthValue() { const el = document.getElementById('objMonthSel'); return (el && el.value) || ''; }
+function objQS() { const b = objSelectedBoutique(), m = objMonthValue(), p = []; if (b) p.push('boutique=' + encodeURIComponent(b)); if (m) p.push('month=' + encodeURIComponent(m)); return p.length ? ('?' + p.join('&')) : ''; }
+function fmtEur(n) { if (n == null) return '—'; return Number(n).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' €'; }
+
+async function loadObjectif() {
+  const mEl = document.getElementById('objMonthSel');
+  if (mEl && !mEl.value) { const d = new Date(); mEl.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+  const dEl = document.getElementById('objEntryDate');
+  if (dEl && !dEl.value) dEl.value = new Date().toLocaleDateString('en-CA');
+  if (objIsAdmin()) {
+    const tb = document.getElementById('tgtBoutique'); if (tb) tb.value = objSelectedBoutique();
+    const tm = document.getElementById('tgtMonth'); if (tm && !tm.value) tm.value = objMonthValue();
+  }
+  try {
+    const [prog, list] = await Promise.all([api('/revenue/progress' + objQS()), api('/revenue/daily' + objQS())]);
+    renderObjProgress(prog);
+    renderObjEntries(list);
+    objPrefillAmount();
+  } catch (e) {}
+  if (objIsAdmin()) loadObjOverview();
+}
+
+function renderObjProgress(p) {
+  const pct = (p.pct_attainment == null) ? null : p.pct_attainment;
+  const shown = Math.max(0, Math.min(100, pct == null ? 0 : pct));
+  document.getElementById('objPct').textContent = pct == null ? '—' : (pct + '%');
+  document.getElementById('objMtd').textContent = 'CA : ' + fmtEur(p.mtd_ttc);
+  document.getElementById('objTarget').textContent = 'Objectif : ' + (p.target_ttc == null ? '—' : fmtEur(p.target_ttc));
+  document.getElementById('vectorFill').style.width = shown + '%';
+  document.getElementById('vectorDog').style.left = shown + '%';
+  let lvl = 0; const a = pct == null ? 0 : pct;
+  if (a >= 82) lvl = 4; else if (a >= 55) lvl = 3; else if (a >= 28) lvl = 2; else if (a >= 3) lvl = 1;
+  document.getElementById('vectorBowl').src = 'assets/bowl_' + lvl + '.svg';
+  const celebrate = (pct != null && pct >= 100);
+  const dog = document.getElementById('vectorDog');
+  dog.classList.toggle('sad', p.today_met === false && !celebrate);
+  dog.classList.toggle('celebrate', celebrate);
+  document.getElementById('objCelebrate').style.display = celebrate ? 'block' : 'none';
+  const noTarget = (p.target_ttc == null);
+  document.getElementById('objNoTarget').style.display = noTarget ? 'block' : 'none';
+  const k = document.getElementById('objKpis');
+  if (noTarget) { k.innerHTML = ''; return; }
+  const delta = p.delta_vs_pace_ttc;
+  const deltaTxt = delta == null ? '—' : ((delta >= 0 ? '+' : '') + fmtEur(delta));
+  const deltaColor = (delta == null) ? 'inherit' : (delta >= 0 ? '#3B6D11' : '#A32D2D');
+  const todaySub = p.today_is_open ? ('aujourd\'hui : ' + fmtEur(p.today_ttc)) : 'fermé aujourd\'hui';
+  k.innerHTML = [
+    ['Reste à faire', fmtEur(p.remaining_ttc), '', 'inherit'],
+    ['Par jour ouvré restant', p.required_per_open_day == null ? '—' : (fmtEur(p.required_per_open_day) + '/j'), p.open_days_remaining + ' j restants', 'inherit'],
+    ['Objectif du jour', p.daily_objective_ttc == null ? '—' : fmtEur(p.daily_objective_ttc), todaySub, p.today_met === false ? '#A32D2D' : 'inherit'],
+    ['Avance / retard', deltaTxt, 'vs rythme', deltaColor],
+    ['Projection fin de mois', fmtEur(p.projection_eom_ttc), '', 'inherit']
+  ].map(([l, v, sub, col]) => `<div class="obj-kpi"><div class="v" style="color:${col}">${v}</div><div class="l">${l}</div>${sub ? `<div class="l" style="text-transform:none;">${sub}</div>` : ''}</div>`).join('');
+}
+
+function renderObjEntries(d) {
+  const tb = document.getElementById('objEntriesTable');
+  const rows = (d && d.rows) || [];
+  _objEntries = {}; rows.forEach(r => { _objEntries[r.date] = r.amount_ttc; });
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:#888780;">Aucune saisie ce mois</td></tr>'; return; }
+  tb.innerHTML = rows.map(r => `<tr><td>${new Date(r.date).toLocaleDateString('fr-FR')}</td><td style="display:none;"></td><td>${fmtEur(r.amount_ttc)}</td><td style="color:var(--text-muted);font-size:12px;">${(r.updated_by || r.entered_by || '')}</td></tr>`).join('');
+}
+
+function objPrefillAmount() {
+  const dEl = document.getElementById('objEntryDate'), aEl = document.getElementById('objEntryAmount');
+  if (!dEl || !aEl) return;
+  const v = _objEntries[dEl.value];
+  aEl.value = (v != null && v !== '') ? Number(v) : '';
+}
+
+async function saveDailyRevenue() {
+  const date = document.getElementById('objEntryDate').value;
+  const amount = document.getElementById('objEntryAmount').value;
+  const out = document.getElementById('objEntryResult');
+  if (amount === '' || isNaN(parseFloat(amount)) || parseFloat(amount) < 0) { out.style.color = 'var(--accent)'; out.textContent = 'Montant invalide'; return; }
+  const body = { date, amount_ttc: parseFloat(amount) };
+  const b = objSelectedBoutique(); if (b) body.boutique = b;
+  try {
+    const r = await fetch(`${BACKEND_URL}/revenue/daily`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const dd = await r.json().catch(() => ({}));
+    if (!r.ok) { out.style.color = 'var(--accent)'; out.textContent = dd.error || 'Erreur'; return; }
+    out.style.color = 'var(--success)'; out.textContent = '✓ Enregistré';
+    setTimeout(() => { out.textContent = ''; }, 2500);
+    loadObjectif(); checkRevenueMissing();
+  } catch (e) { out.style.color = 'var(--accent)'; out.textContent = 'Erreur réseau'; }
+}
+
+async function saveTarget() {
+  const boutique = document.getElementById('tgtBoutique').value;
+  const month = document.getElementById('tgtMonth').value;
+  const amount = document.getElementById('tgtAmount').value;
+  const out = document.getElementById('tgtResult');
+  if (!/^\d{4}-\d{2}$/.test(month)) { out.style.color = 'var(--accent)'; out.textContent = 'Mois invalide'; return; }
+  if (amount === '' || parseFloat(amount) < 0) { out.style.color = 'var(--accent)'; out.textContent = 'Objectif invalide'; return; }
+  const [year, m] = month.split('-').map(Number);
+  try {
+    const r = await fetch(`${BACKEND_URL}/targets`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ boutique, year, month: m, target_ttc: parseFloat(amount) }) });
+    const dd = await r.json().catch(() => ({}));
+    if (!r.ok) { out.style.color = 'var(--accent)'; out.textContent = dd.error || 'Erreur'; return; }
+    out.style.color = 'var(--success)'; out.textContent = '✓ Objectif défini';
+    setTimeout(() => { out.textContent = ''; }, 2500);
+    loadObjectif();
+  } catch (e) { out.style.color = 'var(--accent)'; out.textContent = 'Erreur réseau'; }
+}
+
+async function loadObjOverview() {
+  const box = document.getElementById('objOverview'); if (!box) return;
+  try {
+    const m = objMonthValue();
+    const d = await api('/revenue/overview' + (m ? ('?month=' + encodeURIComponent(m)) : ''));
+    const rows = (d.boutiques || []).concat(d.total ? [d.total] : []);
+    box.innerHTML = '<div class="table-title" style="margin:6px 0;">Consolidé du mois</div><table><thead><tr><th>Boutique</th><th>Objectif</th><th>CA</th><th>%</th><th>Reste</th><th>Projection</th></tr></thead><tbody>' +
+      rows.map(p => `<tr${p.boutique === 'Total' ? ' style="font-weight:700;border-top:2px solid var(--border,#d3d1c7);"' : ''}><td>${p.boutique}</td><td>${p.target_ttc == null ? '—' : fmtEur(p.target_ttc)}</td><td>${fmtEur(p.mtd_ttc)}</td><td>${p.pct_attainment == null ? '—' : p.pct_attainment + '%'}</td><td>${p.remaining_ttc == null ? '—' : fmtEur(p.remaining_ttc)}</td><td>${fmtEur(p.projection_eom_ttc)}</td></tr>`).join('') +
+      '</tbody></table>';
+  } catch (e) { box.innerHTML = ''; }
+}
+
+// --- Musique (asset remplaçable : déposer assets/vector-theme.mp3 pour remplacer) ---
+function objMusicOn() { try { return localStorage.getItem('nv_obj_music') !== 'off'; } catch (_) { return true; } }
+function ensureObjAudio() {
+  if (_objMusicAudio) return _objMusicAudio;
+  const a = document.createElement('audio'); a.loop = true; a.preload = 'none'; a.volume = 0.55;
+  OBJ_MUSIC_SOURCES.forEach(src => { const s = document.createElement('source'); s.src = src; a.appendChild(s); });
+  _objMusicAudio = a; document.body.appendChild(a); return a;
+}
+function startObjMusic() {
+  const btn = document.getElementById('objMusicBtn');
+  if (!objMusicOn()) { if (btn) btn.textContent = '🔇'; return; }
+  if (btn) btn.textContent = '🔊';
+  ensureObjAudio().play().catch(() => {});
+}
+function stopObjMusic() { if (_objMusicAudio) { try { _objMusicAudio.pause(); } catch (_) {} } }
+function toggleObjMusic() {
+  const on = !objMusicOn();
+  try { localStorage.setItem('nv_obj_music', on ? 'on' : 'off'); } catch (_) {}
+  if (on) startObjMusic(); else { stopObjMusic(); const btn = document.getElementById('objMusicBtn'); if (btn) btn.textContent = '🔇'; }
+}
+
+// --- Rappel de saisie manquante (veille ouvrée) ---
+async function checkRevenueMissing() {
+  try {
+    const d = await api('/revenue/missing');
+    const badge = document.getElementById('objectifBadge');
+    if (d && d.missing) { if (badge) badge.style.display = 'inline-block'; showRevenueMissingPopup(d); }
+    else if (badge) badge.style.display = 'none';
+  } catch (_) {}
+}
+function showRevenueMissingPopup(d) {
+  if (document.getElementById('revMissOverlay')) return;
+  const dateFr = new Date(d.date).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long' });
+  const ov = document.createElement('div');
+  ov.id = 'revMissOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px;';
+  ov.innerHTML = `<div style="background:var(--card,#fff);color:var(--text,#222);max-width:360px;width:100%;border-radius:16px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.4);">
+    <div style="font-size:17px;font-weight:700;margin-bottom:6px;">CA non saisi</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">Le CA de <strong>${dateFr}</strong> (${d.boutique}) n'a pas été saisi. Tu peux l'entrer maintenant :</div>
+    <input type="number" id="revMissAmount" placeholder="CA du jour (€)" min="0" step="0.01" style="width:100%;padding:11px;border-radius:10px;border:1px solid var(--border,#d3d1c7);font-size:16px;margin-bottom:10px;box-sizing:border-box;"/>
+    <div id="revMissErr" style="color:#E8504E;font-size:12px;min-height:14px;margin-bottom:8px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="revMissSave('${d.boutique}','${d.date}')" class="btn btn-green" style="flex:1;">Enregistrer</button>
+      <button onclick="document.getElementById('revMissOverlay').remove()" class="btn" style="flex:1;">Plus tard</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  setTimeout(() => { const i = document.getElementById('revMissAmount'); if (i) i.focus(); }, 50);
+}
+async function revMissSave(boutique, date) {
+  const amt = document.getElementById('revMissAmount').value;
+  const err = document.getElementById('revMissErr');
+  if (amt === '' || parseFloat(amt) < 0) { err.textContent = 'Montant invalide'; return; }
+  const body = { date, amount_ttc: parseFloat(amt) };
+  if (objIsAdmin()) body.boutique = boutique;
+  try {
+    const r = await fetch(`${BACKEND_URL}/revenue/daily`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const dd = await r.json().catch(() => ({}));
+    if (!r.ok) { err.textContent = dd.error || 'Erreur'; return; }
+    const ov = document.getElementById('revMissOverlay'); if (ov) ov.remove();
+    const badge = document.getElementById('objectifBadge'); if (badge) badge.style.display = 'none';
+    if (typeof showDashToast === 'function') showDashToast('CA enregistré ✓', 'success');
+    if (document.getElementById('tab-objectif') && document.getElementById('tab-objectif').classList.contains('active')) loadObjectif();
+  } catch (e) { err.textContent = 'Erreur réseau'; }
+}
+
 async function loadRachats() {
   const [stats, data, stockData] = await Promise.all([
     api('/purchases/stats'),
@@ -3950,6 +4237,8 @@ function initDashboard(boutique, employee) {
   });
 
   loadVentes();
+  // Rappel de saisie CA manquante (veille ouvrée) + badge sur l'onglet Objectif
+  setTimeout(() => { try { checkRevenueMissing(); } catch (_) {} }, 900);
 }
 
 function checkDashPwd() {
