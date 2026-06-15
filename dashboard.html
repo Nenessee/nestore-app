@@ -1400,7 +1400,7 @@ tbody tr { transition: background .12s; }
 .vector-tear-r{left:60%;top:30%;}
 @keyframes vTear{0%{transform:translateY(0);opacity:0}20%{opacity:.95}80%{opacity:.95}100%{transform:translateY(16px);opacity:0}}
 .vector-bowl{position:absolute;right:-48px;top:50%;transform:translateY(-50%);width:48px;height:auto;image-rendering:pixelated;z-index:2;}
-.obj-kpi{background:var(--card,#fff);border:1px solid var(--border,#ececec);border-radius:14px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.05);display:flex;flex-direction:column;gap:3px;}
+.obj-kpi{background:var(--surface);border:1px solid var(--border,#ececec);border-radius:14px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.05);display:flex;flex-direction:column;gap:3px;}
 .obj-kpi .v{font-size:21px;font-weight:800;line-height:1.1;letter-spacing:-.01em;}
 .obj-kpi .l{font-size:10.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;}
 .obj-kpi .l:first-of-type{margin-top:1px;}
@@ -1479,9 +1479,8 @@ tbody tr { transition: background .12s; }
     <div class="tab" onclick="switchTab('nettoyage',this)">Nettoyage</div>
     <div class="tab" onclick="switchTab('commandes',this)">Commandes web</div>
     <div class="tab" onclick="switchTab('transferts',this)">Transferts</div>
-    <div class="tab" id="tabActivite" style="display:none;" onclick="switchTab('activite',this)">Activité</div>
     <div class="tab" id="tabSeo" style="display:none;" onclick="guardSeoTab(this)">SEO</div>
-    <div class="tab" id="tabEquipe" style="display:none;" onclick="guardEquipeTab(this)">Équipe</div>
+    <div class="tab" id="tabEquipe" style="display:none;" onclick="switchTab('equipe',this)">Équipe</div>
     <div class="tab" id="tabVeille" style="display:none;" onclick="switchTab('veille',this)">SPY</div>
   </div>
 </div>
@@ -1571,11 +1570,11 @@ tbody tr { transition: background .12s; }
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
     <span class="section-title" style="margin:0;">Objectif CA boutique</span>
     <div style="display:flex;align-items:center;gap:8px;">
-      <select id="objBoutiqueSel" class="js-admin-only" style="display:none;padding:7px 10px;border-radius:8px;border:1px solid var(--border,#d3d1c7);background:var(--card,#fff);" onchange="loadObjectif()">
+      <select id="objBoutiqueSel" class="js-admin-only" style="display:none;padding:7px 10px;border-radius:8px;border:1px solid var(--border,#d3d1c7);background:var(--surface);" onchange="loadObjectif()">
         <option value="Lille">Lille</option><option value="DK">Dunkerque</option>
       </select>
-      <select id="objMonthSel" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border,#d3d1c7);background:var(--card,#fff);" onchange="loadObjectif()"></select>
-      <button id="objMusicBtn" onclick="toggleObjMusic()" title="Musique" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border,#d3d1c7);background:var(--card,#fff);cursor:pointer;">🔊</button>
+      <select id="objMonthSel" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border,#d3d1c7);background:var(--surface);" onchange="loadObjectif()"></select>
+      <button id="objMusicBtn" onclick="toggleObjMusic()" title="Musique" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border,#d3d1c7);background:var(--surface);cursor:pointer;">🔊</button>
     </div>
   </div>
 
@@ -1810,72 +1809,6 @@ tbody tr { transition: background .12s; }
 </div>
 </div>
 
-<!-- TAB ACTIVITE -->
-<div id="tab-activite" class="tab-panel">
-<div class="content">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
-    <span class="section-title">Journal d'activité</span>
-    <button onclick="exportActivity()" class="btn btn-green">📊 Exporter CSV</button>
-  </div>
-
-  <!-- Summary banner -->
-  <div id="actSummary" class="kpi-grid" style="margin-bottom:16px;"></div>
-
-  <!-- Filtres -->
-  <div class="filters-row" style="margin-bottom:16px;">
-    <input class="search-input" id="actSearch" placeholder="Rechercher article, client, paire, marque..." oninput="filterActivite()"/>
-    <select class="filter-select" id="actEmployeeFilter" onchange="filterActivite()">
-      <option value="">Tous les employés</option>
-      <option>Sacha</option><option>Mathys</option><option>Noa</option>
-      <option>Celeste</option><option>Louis</option><option>Romane</option>
-    </select>
-    <select class="filter-select" id="actTypeFilter" onchange="filterActivite()">
-      <option value="">Tous types</option>
-      <option value="vente">💰 Ventes</option>
-      <option value="rachat">🛍 Rachats</option>
-      <option value="nettoyage">👟 Nettoyage</option>
-      <option value="inventaire">📦 Inventaire</option>
-      <option value="transfert">🔄 Transferts</option>
-      <option value="login">🔑 Connexions</option>
-      <option value="logout">👋 Déconnexions</option>
-      <option value="session_pause">💤 Quitte l'app</option>
-      <option value="session_resume">☀️ Revient sur l'app</option>
-      <option value="session_end">✕ Ferme l'app</option>
-      <option value="lookup">🔎 Scans produits</option>
-    </select>
-    <select class="filter-select" id="actBoutiqueFilter" onchange="filterActivite()">
-      <option value="">Toutes boutiques</option>
-      <option>Lille</option>
-      <option>DK</option>
-    </select>
-    <select class="filter-select" id="actPeriodFilter" onchange="loadActivite()">
-      <option value="1">Aujourd'hui</option>
-      <option value="7">7 jours</option>
-      <option value="30" selected>30 jours</option>
-      <option value="90">3 mois</option>
-      <option value="365">1 an</option>
-    </select>
-  </div>
-
-  <!-- KPIs par employé enrichis -->
-  <div id="actKpis" class="kpi-grid" style="margin-bottom:20px;"></div>
-
-  <!-- Tableau détaillé -->
-  <div class="table-card">
-    <div class="table-header">
-      <span class="table-title">Journal détaillé</span>
-      <span id="actCount" style="font-size:12px;color:#888780;"></span>
-    </div>
-    <div style="overflow-x:auto;">
-      <table>
-        <thead><tr><th>Date</th><th>Heure</th><th>Employé</th><th>Action</th><th>Détails</th><th>Boutique</th><th>Montant</th></tr></thead>
-        <tbody id="actTable"><tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-</div>
-
 <!-- TAB SEO (admin seulement) -->
 <div id="tab-seo" class="tab-panel">
 <div class="content">
@@ -2014,34 +1947,84 @@ tbody tr { transition: background .12s; }
 </div>
 </div>
 
-<!-- TAB ÉQUIPE (admin only) -->
+<!-- TAB ÉQUIPE (Activité + gestion des comptes) -->
 <div id="tab-equipe" class="tab-panel">
 <div class="content">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
-    <span class="section-title">Équipe &amp; sécurité d'accès</span>
+    <span class="section-title">Équipe</span>
   </div>
 
+  <!-- Activité de l'équipe -->
   <div class="table-card" style="padding:18px;margin-bottom:16px;">
-    <div class="table-title" style="margin-bottom:8px;">Connexion obligatoire</div>
-    <div id="equipeConfig" style="font-size:13px;color:var(--text-muted);line-height:1.5;">Chargement…</div>
-  </div>
-
-  <div class="table-card" style="padding:18px;margin-bottom:16px;">
-    <div class="table-title" style="margin-bottom:14px;">Ajouter un employé</div>
-    <div class="eq-addgrid">
-      <div><label class="eq-lbl">Prénom</label><input id="euName" class="search-input" placeholder="ex: Sophie" style="width:100%;"/></div>
-      <div><label class="eq-lbl">Code (PIN)</label><input id="euPin" class="search-input" inputmode="numeric" placeholder="4 à 6 chiffres" style="width:100%;"/></div>
-      <div><label class="eq-lbl">Boutique</label><select id="euBoutique" class="search-input" style="width:100%;"><option value="">—</option><option value="Lille">Lille</option><option value="DK">Dunkerque</option></select></div>
-      <div><label class="eq-lbl">Rôle</label><select id="euRole" class="search-input" style="width:100%;"><option value="employee">Employé</option><option value="admin">Admin (lecture)</option><option value="superadmin">Superadmin</option></select></div>
-      <button class="btn btn-green" onclick="equipeAddUser()" style="min-height:42px;white-space:nowrap;">＋ Ajouter</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+      <div class="table-title" style="margin:0;">Activité de l'équipe</div>
+      <button onclick="exportActivity()" class="btn btn-green" style="font-size:13px;">📊 Exporter CSV</button>
     </div>
-    <div id="euAddResult" style="margin-top:10px;font-size:13px;"></div>
+    <div id="actSummary" class="kpi-grid" style="margin-bottom:16px;"></div>
+    <div class="filters-row" style="margin-bottom:16px;">
+      <input class="search-input" id="actSearch" placeholder="Rechercher article, client, paire, marque..." oninput="filterActivite()"/>
+      <select class="filter-select" id="actEmployeeFilter" onchange="filterActivite()">
+        <option value="">Tous les employés</option>
+        <option>Sacha</option><option>Mathys</option><option>Noa</option>
+        <option>Celeste</option><option>Louis</option><option>Romane</option>
+      </select>
+      <select class="filter-select" id="actTypeFilter" onchange="filterActivite()">
+        <option value="">Tous types</option>
+        <option value="vente">💰 Ventes</option>
+        <option value="rachat">🛍 Rachats</option>
+        <option value="nettoyage">👟 Nettoyage</option>
+        <option value="inventaire">📦 Inventaire</option>
+        <option value="transfert">🔄 Transferts</option>
+        <option value="login">🔑 Connexions</option>
+        <option value="logout">👋 Déconnexions</option>
+        <option value="session_pause">💤 Quitte l'app</option>
+        <option value="session_resume">☀️ Revient sur l'app</option>
+        <option value="session_end">✕ Ferme l'app</option>
+        <option value="lookup">🔎 Scans produits</option>
+      </select>
+      <select class="filter-select" id="actBoutiqueFilter" onchange="filterActivite()">
+        <option value="">Toutes boutiques</option><option>Lille</option><option>DK</option>
+      </select>
+      <select class="filter-select" id="actPeriodFilter" onchange="loadActivite()">
+        <option value="1">Aujourd'hui</option><option value="7">7 jours</option>
+        <option value="30" selected>30 jours</option><option value="90">3 mois</option><option value="365">1 an</option>
+      </select>
+    </div>
+    <div id="actKpis" class="kpi-grid" style="margin-bottom:20px;"></div>
+    <div class="table-header" style="margin-bottom:8px;"><span class="table-title">Journal détaillé</span><span id="actCount" style="font-size:12px;color:#888780;"></span></div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>Date</th><th>Heure</th><th>Employé</th><th>Action</th><th>Détails</th><th>Boutique</th><th>Montant</th></tr></thead>
+        <tbody id="actTable"><tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
+      </table>
+    </div>
   </div>
 
-  <div class="table-card" style="padding:18px;">
-    <div class="table-title" style="margin-bottom:12px;">Comptes</div>
-    <div id="equipeList" style="overflow-x:auto;"><div class="loading">Chargement…</div></div>
+  <!-- Comptes & accès (superadmin) -->
+  <div id="equipeManageSection">
+    <div class="table-card" style="padding:18px;margin-bottom:16px;">
+      <div class="table-title" style="margin-bottom:8px;">Connexion &amp; sécurité</div>
+      <div id="equipeConfig" style="font-size:13px;color:var(--text-muted);line-height:1.5;">Chargement…</div>
+    </div>
+
+    <div class="table-card" style="padding:18px;margin-bottom:16px;">
+      <div class="table-title" style="margin-bottom:14px;">Ajouter un employé</div>
+      <div class="eq-addgrid">
+        <div><label class="eq-lbl">Prénom</label><input id="euName" class="search-input" placeholder="ex: Sophie" style="width:100%;"/></div>
+        <div><label class="eq-lbl">Code (PIN)</label><input id="euPin" class="search-input" inputmode="numeric" placeholder="4 à 6 chiffres" style="width:100%;"/></div>
+        <div><label class="eq-lbl">Boutique</label><select id="euBoutique" class="search-input" style="width:100%;"><option value="">—</option><option value="Lille">Lille</option><option value="DK">Dunkerque</option></select></div>
+        <div><label class="eq-lbl">Rôle</label><select id="euRole" class="search-input" style="width:100%;"><option value="employee">Employé</option><option value="admin">Admin (lecture)</option><option value="superadmin">Superadmin</option></select></div>
+        <button class="btn btn-green" onclick="equipeAddUser()" style="min-height:42px;white-space:nowrap;">＋ Ajouter</button>
+      </div>
+      <div id="euAddResult" style="margin-top:10px;font-size:13px;"></div>
+    </div>
+
+    <div class="table-card" style="padding:18px;">
+      <div class="table-title" style="margin-bottom:12px;">Comptes</div>
+      <div id="equipeList"><div class="loading">Chargement…</div></div>
+    </div>
   </div>
+  <div id="equipeManageLocked" class="table-card" style="display:none;padding:16px;color:var(--text-muted);font-size:13px;">La gestion des comptes est réservée au superadmin.</div>
 </div>
 </div>
 
@@ -2069,7 +2052,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v112-nokey';
+const DASH_VERSION = '2025-04-25-v113-merge-darkfix';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2163,7 +2146,7 @@ function switchDashBoutique(boutique, btn) {
   if (name === 'stock') loadStock();
   else if (name === 'commandes') loadDashCommandes();
   else if (name === 'transferts') loadTransferts();
-  else if (name === 'activite') loadActivite();
+  else if (name === 'equipe') loadEquipeTab();
 }
 // Afficher le switcher si admin, sinon juste label boutique
 let currentPeriod = 7;
@@ -2233,10 +2216,20 @@ function switchTab(name, el) {
   if (name === 'nettoyage') loadCleanings();
   if (name === 'commandes') loadDashCommandes();
   if (name === 'transferts') loadTransferts();
-  if (name === 'activite') loadActivite();
   if (name === 'seo') initSeoTab();
-  if (name === 'equipe') loadTeam();
+  if (name === 'equipe') loadEquipeTab();
   if (name === 'veille') loadVeille();
+}
+// Onglet Équipe fusionné : Activité (admin+superadmin) + gestion des comptes (superadmin)
+function loadEquipeTab() {
+  loadActivite();
+  let role = null; try { role = (JSON.parse(localStorage.getItem('nv_user') || '{}').role) || null; } catch(_) {}
+  const isSuper = (role === 'superadmin') || !!localStorage.getItem('nv_admin_key');
+  const mng = document.getElementById('equipeManageSection');
+  const locked = document.getElementById('equipeManageLocked');
+  if (mng) mng.style.display = isSuper ? '' : 'none';
+  if (locked) locked.style.display = isSuper ? 'none' : 'block';
+  if (isSuper) loadTeam();
 }
 
 async function api(path) {
@@ -3569,7 +3562,7 @@ function renderObjEntries(d) {
       const chips = missing.map(m => {
         const lbl = `${objBoutiqueLabel(m.boutique)} · ${objDayShort(m.date)}`;
         const click = adm ? ` onclick="objEditEntry('${m.boutique}','${m.date}',null)"` : '';
-        return `<span${click} style="display:inline-block;background:var(--card,#fff);border:1px solid rgba(232,80,78,.4);color:#c0392b;border-radius:999px;padding:4px 11px;font-size:12px;${adm ? 'cursor:pointer;' : ''}">${lbl}</span>`;
+        return `<span${click} style="display:inline-block;background:var(--surface);border:1px solid var(--accent);color:var(--accent);border-radius:999px;padding:4px 11px;font-size:12px;${adm ? 'cursor:pointer;' : ''}">${lbl}</span>`;
       }).join('');
       alertBox.innerHTML = `<div style="background:rgba(232,80,78,.07);border:1px solid rgba(232,80,78,.25);border-radius:12px;padding:12px 14px;margin-bottom:14px;">
         <div style="font-weight:700;color:#E8504E;font-size:13px;margin-bottom:8px;">⚠️ ${missing.length} jour${missing.length > 1 ? 's' : ''} sans saisie${adm ? ' — clique un jour pour le saisir' : ''}</div>
@@ -3703,7 +3696,7 @@ function showRevenueMissingPopup(d) {
   const ov = document.createElement('div');
   ov.id = 'revMissOverlay';
   ov.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px;';
-  ov.innerHTML = `<div style="background:var(--card,#fff);color:var(--text,#222);max-width:360px;width:100%;border-radius:16px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.4);">
+  ov.innerHTML = `<div style="background:var(--surface);color:var(--text,#222);max-width:360px;width:100%;border-radius:16px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.4);">
     <div style="font-size:17px;font-weight:700;margin-bottom:6px;">CA non saisi</div>
     <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">Le CA de <strong>${dateFr}</strong> (${d.boutique}) n'a pas été saisi. Tu peux l'entrer maintenant :</div>
     <input type="number" id="revMissAmount" placeholder="CA du jour (€)" min="0" step="0.01" style="width:100%;padding:11px;border-radius:10px;border:1px solid var(--border,#d3d1c7);font-size:16px;margin-bottom:10px;box-sizing:border-box;"/>
@@ -4327,15 +4320,7 @@ function initDashboard(boutique, employee) {
     sw.style.display = 'none';
   }
 
-  // Onglet Activité : strictement admin — retiré du DOM pour les non-admin (pas juste masqué)
-  const tabAct = document.getElementById('tabActivite');
-  const panelAct = document.getElementById('tab-activite');
-  if (boutique === 'admin') {
-    if (tabAct) tabAct.style.display = 'block';
-  } else {
-    if (tabAct) tabAct.remove();
-    if (panelAct) panelAct.remove();
-  }
+  // (L'onglet Activité est fusionné dans l'onglet Équipe.)
   const tabSeo = document.getElementById('tabSeo');
   if (tabSeo) tabSeo.style.display = boutique === 'admin' ? 'block' : 'none';
   // Équipe : visible pour admin + superadmin. L'accès réel est filtré par guardEquipeTab
