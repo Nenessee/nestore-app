@@ -1905,7 +1905,7 @@ tbody tr { transition: background .12s; }
     <div class="table-title" style="margin-bottom:12px;">Ajouter un employé</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
       <div style="flex:1;min-width:140px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Prénom</label><input id="euName" class="search-input" placeholder="ex: Sophie" style="width:100%;"/></div>
-      <div style="width:120px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Code (PIN)</label><input id="euPin" class="search-input" inputmode="numeric" placeholder="4+ chiffres" style="width:100%;"/></div>
+      <div style="width:120px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Code (PIN)</label><input id="euPin" class="search-input" inputmode="numeric" placeholder="4 (employé) / 6 (admin)" style="width:100%;"/></div>
       <div style="width:120px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Boutique</label><select id="euBoutique" class="search-input" style="width:100%;"><option value="">—</option><option value="Lille">Lille</option><option value="DK">Dunkerque</option></select></div>
       <div style="width:120px;"><label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Rôle</label><select id="euRole" class="search-input" style="width:100%;"><option value="employee">Employé</option><option value="admin">Admin (lecture)</option><option value="superadmin">Superadmin</option></select></div>
       <button class="btn btn-green" onclick="equipeAddUser()" style="min-height:42px;">＋ Ajouter</button>
@@ -1944,7 +1944,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v96-no-public-token';
+const DASH_VERSION = '2025-04-25-v97-longcodes';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -4661,7 +4661,8 @@ window.markVintedRemoved = async function(barcode, btn) {
     const boutique=document.getElementById('euBoutique').value;
     const role=document.getElementById('euRole').value;
     const out=document.getElementById('euAddResult');
-    if(!name||pin.length<4){ out.innerHTML='<span style="color:var(--accent);">Prénom + code (4 chiffres min) requis.</span>'; return; }
+    const _minLen = (role==='admin'||role==='superadmin')?6:4;
+    if(!name||pin.length<_minLen){ out.innerHTML=`<span style="color:var(--accent);">Prénom + code (${_minLen} chiffres min pour ce rôle) requis.</span>`; return; }
     try {
       const res=await fetch(`${BACKEND_URL}/auth/users`,{method:'POST',headers:{'X-NV-Admin-Token':token,'Content-Type':'application/json'},body:JSON.stringify({name,pin,boutique,role})});
       const dd=await res.json().catch(()=>({}));
