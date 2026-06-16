@@ -678,14 +678,15 @@ tr:hover td { background: var(--surface-alt); }
     height: auto;
     min-height: 60px;
     padding: 10px 14px;
-    align-items: center;
-  }
-  .topbar-left {
     flex-wrap: wrap;
-    row-gap: 10px;
     align-items: center;
+    row-gap: 8px;
   }
+  /* topbar-left "transparent" : ses enfants (logo, titre, switch) deviennent enfants de topbar-inner */
+  .topbar-left { display: contents; }
+  .topbar-right { flex-wrap: wrap; justify-content: flex-end; row-gap: 6px; }
   .boutique-switch-pill {
+    order: 5;
     flex-basis: 100%;
     justify-content: stretch;
     margin-top: 2px;
@@ -2069,7 +2070,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v117-avatar-refresh';
+const DASH_VERSION = '2025-04-25-v118-topbar-mobile';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)

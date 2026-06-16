@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-15-avatar-refresh';
+const CACHE_VERSION = 'nestore-v2026-06-15-topbar-mobile';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
