@@ -151,6 +151,8 @@ a { color: inherit; text-decoration: none; }
 }
 .topbar-left { display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1; }
 .topbar-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.topbar-switch { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.topbar-switch:hover { background: var(--surface); }
 .logo {
   width: 36px; height: 36px;
   background: #000 url('logo.jpg') center/cover no-repeat;
@@ -685,6 +687,8 @@ tr:hover td { background: var(--surface-alt); }
   /* topbar-left "transparent" : ses enfants (logo, titre, switch) deviennent enfants de topbar-inner */
   .topbar-left { display: contents; }
   .topbar-right { flex-wrap: wrap; justify-content: flex-end; row-gap: 6px; }
+  /* Mobile : recherche + export CSV inutiles → masqués */
+  .cmdk-btn, .cmdk-btn-icon, #csvBtn { display: none !important; }
   .boutique-switch-pill {
     order: 5;
     flex-basis: 100%;
@@ -1475,9 +1479,10 @@ tbody tr { transition: background .12s; }
         <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
         <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       </button>
-      <a class="btn btn-green js-admin-only" href="#" onclick="exportCSV();return false;">CSV</a>
-      <button class="icon-btn" onclick="location.href='index.html'" aria-label="Retour caisse">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      <a id="csvBtn" class="btn btn-green js-admin-only" href="#" onclick="exportCSV();return false;">CSV</a>
+      <button class="topbar-switch" onclick="location.href='index.html'" aria-label="Aller à la caisse" title="Aller à la caisse">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1.5-5h15L21 9"/><path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M9 13h6"/></svg>
+        <span>Caisse</span>
       </button>
       <button class="icon-btn" onclick="logout()" aria-label="Déconnexion" style="color:var(--accent);">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -2070,7 +2075,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v118-topbar-mobile';
+const DASH_VERSION = '2025-04-25-v119-topbar-clean';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
