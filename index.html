@@ -1046,7 +1046,7 @@ async function nvHardReload(){
 </script>
 
 <script>
-  const APP_VERSION = '2025-06-15-v106-dashbtn';
+  const APP_VERSION = '2025-06-15-v107-photo-caisse';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   // Jeton employé envoyé au backend sur chaque appel (doit correspondre à
   // EMPLOYEE_API_KEY sur Railway). Bloque les accès directs à l'API par URL.
@@ -2825,6 +2825,19 @@ async function nvHardReload(){
     })();
   }
 
+  // Avatar du badge employé : photo de profil si dispo, sinon initiales/étoile
+  function setCaisseAvatar(fallbackText, bg) {
+    const avatar = document.getElementById('sessionAvatar'); if (!avatar) return;
+    let photo = null; try { photo = (JSON.parse(localStorage.getItem('nv_user') || '{}').photo) || null; } catch(_) {}
+    if (photo) { avatar.textContent = ''; avatar.style.background = 'transparent'; avatar.style.overflow = 'hidden'; avatar.innerHTML = `<img src="${photo}" style="width:100%;height:100%;border-radius:inherit;object-fit:cover;display:block;"/>`; }
+    else { avatar.innerHTML = ''; avatar.textContent = fallbackText; if (bg) avatar.style.background = bg; }
+  }
+  function refreshCaisseAvatar() {
+    let photo = null; try { photo = (JSON.parse(localStorage.getItem('nv_user') || '{}').photo) || null; } catch(_) {}
+    const avatar = document.getElementById('sessionAvatar'); if (!avatar || !photo) return;
+    avatar.textContent = ''; avatar.style.background = 'transparent'; avatar.style.overflow = 'hidden';
+    avatar.innerHTML = `<img src="${photo}" style="width:100%;height:100%;border-radius:inherit;object-fit:cover;display:block;"/>`;
+  }
   function applyEmployee(employee) {
     currentEmployee = employee;
     if (!employee || employee === 'admin') return;
@@ -2850,7 +2863,7 @@ async function nvHardReload(){
     const nameEl = document.getElementById('sessionName');
     const subtitle = document.getElementById('appSubtitle');
     if (badge) badge.style.display = 'flex';
-    if (avatar) avatar.textContent = employee.substring(0, 2).toUpperCase();
+    setCaisseAvatar(employee.substring(0, 2).toUpperCase());
     if (nameEl) nameEl.textContent = employee;
     if (subtitle && currentBoutique) {
       subtitle.textContent = currentBoutique === 'admin' ? 'Toutes boutiques' : 'Boutique ' + currentBoutique;
@@ -2863,7 +2876,7 @@ async function nvHardReload(){
     const nameEl = document.getElementById('sessionName');
     const subtitle = document.getElementById('appSubtitle');
     if (badge) { badge.style.display = 'flex'; badge.style.background = '#2C2C2A'; badge.style.borderColor = '#2C2C2A'; }
-    if (avatar) { avatar.textContent = '★'; avatar.style.background = '#BA7517'; }
+    setCaisseAvatar('★', '#BA7517');
     if (nameEl) { nameEl.textContent = 'Admin'; nameEl.style.color = '#fff'; }
     if (subtitle) subtitle.textContent = 'Toutes boutiques';
     // Admin a besoin de choisir manuellement employé + boutique
@@ -3075,6 +3088,8 @@ async function nvHardReload(){
       const d = await r.json().catch(()=>({}));
       const u = d && d.user;
       if (u && u.name && u.name !== 'legacy' && u.id) {                   // déjà connecté par compte
+        try { const cur = JSON.parse(localStorage.getItem('nv_user') || '{}'); cur.name = u.name; cur.role = u.role; cur.boutique = u.boutique; cur.photo = u.photo || null; localStorage.setItem('nv_user', JSON.stringify(cur)); } catch(_) {}
+        if (typeof refreshCaisseAvatar === 'function') refreshCaisseAvatar();
         let s=null; try{ s=JSON.parse(localStorage.getItem('nv_session')||'null'); }catch(_){}
         if (!(s && s.auth)) nvEnterApp(u);                               // entre dans l'app si pas déjà repris via session locale
       }
