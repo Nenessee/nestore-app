@@ -2019,6 +2019,7 @@ tbody tr { transition: background .12s; }
       <select class="filter-select" id="actTypeFilter" onchange="filterActivite()">
         <option value="">Tous types</option>
         <option value="vente">💰 Ventes</option>
+        <option value="retour">↩️ Retours</option>
         <option value="rachat">🛍 Rachats</option>
         <option value="nettoyage">👟 Nettoyage</option>
         <option value="inventaire">📦 Inventaire</option>
@@ -2075,7 +2076,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v121-spy-daily-pick';
+const DASH_VERSION = '2025-04-25-v122-retour-filtre';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2977,8 +2978,8 @@ function filterActivite() {
 
   // ====== Journal détaillé ======
   document.getElementById('actCount').textContent = `${filtered.length} action${filtered.length>1?'s':''}`;
-  const typeColors = { vente:'badge-ok', rachat:'badge-warning', nettoyage:'badge-lille', inventaire:'', transfert:'', login:'', logout:'', lookup:'', session_pause:'', session_resume:'', session_end:'' };
-  const typeLabels = { vente:'💰 Vente', rachat:'🛍 Rachat', nettoyage:'👟 Nettoyage', inventaire:'📦 Inventaire', transfert:'🔄 Transfert', login:'🔑 Connexion', logout:'👋 Déconnexion', lookup:'🔎 Scan', session_pause:'💤 Quitte l\'app', session_resume:'☀️ Revient', session_end:'✕ Ferme l\'app' };
+  const typeColors = { vente:'badge-ok', retour:'badge-danger', rachat:'badge-warning', nettoyage:'badge-lille', inventaire:'', transfert:'', login:'', logout:'', lookup:'', session_pause:'', session_resume:'', session_end:'' };
+  const typeLabels = { vente:'💰 Vente', retour:'↩️ Retour', rachat:'🛍 Rachat', nettoyage:'👟 Nettoyage', inventaire:'📦 Inventaire', transfert:'🔄 Transfert', login:'🔑 Connexion', logout:'👋 Déconnexion', lookup:'🔎 Scan', session_pause:'💤 Quitte l\'app', session_resume:'☀️ Revient', session_end:'✕ Ferme l\'app' };
   document.getElementById('actTable').innerHTML = filtered.length ? filtered.slice(0, 500).map(a => {
     const parts = (a.at||'').match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
     const dateStr = parts ? `${parts[3]}/${parts[2]}/${parts[1].slice(2)}` : a.at;
