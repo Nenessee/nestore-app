@@ -1046,7 +1046,7 @@ async function nvHardReload(){
 </script>
 
 <script>
-  const APP_VERSION = '2025-06-15-v107-photo-caisse';
+  const APP_VERSION = '2025-06-15-v108-retour';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   // Jeton employé envoyé au backend sur chaque appel (doit correspondre à
   // EMPLOYEE_API_KEY sur Railway). Bloque les accès directs à l'API par URL.
@@ -1278,7 +1278,8 @@ async function nvHardReload(){
           ? `<button class="btn-sell" id="sellBtn" onclick="markAsSold()">
               Marquer vendu — stock à 0 sur Shopify
             </button>`
-          : `<div class="already-sold">Cet article est déjà en stock 0 sur Shopify</div>`
+          : `<div class="already-sold">Cet article est en stock 0 sur Shopify (vendu)</div>
+             <button class="btn-sell" id="returnBtn" onclick="markAsReturned()" style="background:#185FA5;margin-top:8px;">↩️ Retour — remettre en stock</button>`
         }
         ${currentEmployee && !isSold ? (() => {
           const target = data.boutique === 'DK' ? 'Lille' : 'DK';
@@ -1350,6 +1351,29 @@ async function nvHardReload(){
       showToast('Erreur réseau : ' + err.message, 'error');
       if (btn) { btn.disabled = false; btn.textContent = 'Marquer vendu — stock à 0 sur Shopify'; }
     }
+  }
+
+  // Retour client : remet l'article en stock (1) + annule la vente. Le serveur vérifie que le stock est bien 0.
+  async function markAsReturned() {
+    if (!currentData) { showToast('Aucun produit chargé', 'error'); return; }
+    if (!currentData.selectedLocationId) { showToast('Emplacement Shopify introuvable', 'error'); return; }
+    if (!confirm(`Retour de « ${currentData.name} » ?\n\nL'article sera remis en stock (1) et la vente correspondante sera annulée.`)) return;
+    const btn = document.getElementById('returnBtn');
+    const reset = () => { if (btn) { btn.disabled = false; btn.textContent = '↩️ Retour — remettre en stock'; } };
+    if (btn) { btn.disabled = true; btn.textContent = 'Traitement…'; }
+    try {
+      const res = await fetch(`${BACKEND_URL}/return`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inventoryItemId: currentData.inventoryItemId, locationId: currentData.selectedLocationId, barcode: currentData.barcode })
+      });
+      const result = await res.json().catch(() => ({}));
+      if (res.status === 409) { showToast(result.error || 'Déjà en stock — ce n\'est pas un retour', 'warn'); reset(); return; }
+      if (!res.ok || !result.ok) { showToast(result.error || 'Erreur lors du retour', 'error'); reset(); return; }
+      showToast(result.saleReversed ? 'Retour ✓ — remis en stock, vente annulée' : 'Remis en stock ✓', 'success');
+      try { if (typeof window.__nvLog === 'function') window.__nvLog('retour', { barcode: currentData.barcode, productName: currentData.name, boutique: currentData.boutique }); } catch(_) {}
+      const bc = currentData.barcode, inp = document.getElementById('barcodeInput');
+      if (inp && bc) { inp.value = bc; setTimeout(() => lookupProduct(), 500); } // recharge le produit (stock à jour)
+    } catch (e) { showToast('Erreur réseau', 'error'); reset(); }
   }
 
   async function transferProduct(toBoutique) {
