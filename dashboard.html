@@ -2075,7 +2075,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v120-spy-daily';
+const DASH_VERSION = '2025-04-25-v121-spy-daily-pick';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -4045,20 +4045,29 @@ async function veilleRenderOverview(){
     html+='</tbody></table></div></div>';
     html+='<div id="veilleDailyCompare" style="margin-top:18px;"></div>';
     body.innerHTML=html;
-    veilleRenderDailyCompare(null);
+    veilleRenderDailyCompare();
   } catch(e){ body.innerHTML=veilleErr(e); }
 }
 
-// Comparatif quotidien : notre CA (exact) vs CA estimé concurrents, une ligne par jour
-async function veilleRenderDailyCompare(competitorId){
+// Comparatif quotidien : notre CA (exact) vs CA estimé d'UN concurrent choisi, une ligne par jour
+let _veilleDailyCompId = null;
+async function veilleRenderDailyCompare(forceId){
+  if (forceId !== undefined) _veilleDailyCompId = (forceId === null || forceId === '') ? null : String(forceId);
+  const competitorId = _veilleDailyCompId;
   const box=document.getElementById('veilleDailyCompare'); if(!box) return;
-  box.innerHTML='<div class="loading" style="padding:12px;">Comparatif quotidien…</div>';
+  // Sélecteur de concurrent (toujours présent)
+  const comps=(veilleState.competitors||[]).filter(c=>c.platform!=='self');
+  const selHtml=`<select id="dailyCompSel" onchange="veilleRenderDailyCompare(this.value)" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text);font-size:13px;font-weight:600;">
+    <option value="">Tous les concurrents</option>
+    ${comps.map(c=>`<option value="${c.id}" ${String(c.id)===String(competitorId)?'selected':''}>${veilleEsc(c.name)}</option>`).join('')}
+  </select>`;
+  const header=`<div class="table-header" style="margin-bottom:10px;flex-wrap:wrap;gap:8px;"><span class="table-title">Comparatif quotidien — notre CA vs</span>${selHtml}<span style="font-size:11px;color:var(--text-soft);margin-left:auto;">notre CA exact · concurrent estimé</span></div>`;
+  box.innerHTML=`<div class="table-card">${header}<div class="loading" style="padding:12px;">Chargement…</div></div>`;
   const q=veilleRangeParams().filter(x=>!x.startsWith('brand'));
   if(competitorId) q.push('competitorId='+competitorId);
   try {
     const d=await fetch(`${BACKEND_URL}/api/competitors/daily-compare${q.length?'?'+q.join('&'):''}`).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});
     const rows=(d.rows)||[];
-    const compTitle = competitorId ? 'ce concurrent' : 'concurrents';
     let body='', anyData=false;
     for(const r of rows){
       const self=Number(r.self_ca||0), comp=Number(r.comp_ca||0);
@@ -4068,9 +4077,12 @@ async function veilleRenderDailyCompare(competitorId){
       const dd=new Date(r.date+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'2-digit'});
       body+=`<tr><td>${dd}</td><td style="font-weight:600;">${self>0?fmt(self):'—'}</td><td style="color:var(--text-muted);">${r.self_vol||0}</td><td>${comp>0?fmt(comp)+' <span style="font-size:10px;color:var(--text-soft);">est.</span>':'—'}</td><td style="color:var(--text-muted);">${r.comp_vol||0}</td><td>${ecartCell}</td></tr>`;
     }
-    if(!anyData){ box.innerHTML='<div class="table-card"><div style="padding:14px;color:var(--text-muted);font-size:13px;">Comparatif quotidien : pas encore assez de données sur la période.</div></div>'; return; }
-    box.innerHTML=`<div class="table-card"><div class="table-header" style="margin-bottom:8px;"><span class="table-title">Comparatif quotidien — notre CA vs ${compTitle}</span><span style="font-size:11px;color:var(--text-soft);">notre CA exact · concurrents estimés</span></div><div style="overflow-x:auto;"><table><thead><tr><th>Date</th><th>Notre CA</th><th>Ventes</th><th>${competitorId?'Concurrent (est.)':'Concurrents (est.)'}</th><th>Ventes est.</th><th>Écart</th></tr></thead><tbody>${body}</tbody></table></div></div>`;
-  } catch(e){ box.innerHTML=''; }
+    const colLabel = competitorId ? 'Concurrent (est.)' : 'Concurrents (est.)';
+    const inner = !anyData
+      ? '<div style="padding:14px;color:var(--text-muted);font-size:13px;">Pas encore assez de données sur la période pour cette sélection.</div>'
+      : `<div style="overflow-x:auto;"><table><thead><tr><th>Date</th><th>Notre CA</th><th>Ventes</th><th>${colLabel}</th><th>Ventes est.</th><th>Écart</th></tr></thead><tbody>${body}</tbody></table></div>`;
+    box.innerHTML=`<div class="table-card">${header}${inner}</div>`;
+  } catch(e){ box.innerHTML=`<div class="table-card">${header}<div style="padding:12px;color:var(--accent);">Erreur de chargement</div></div>`; }
 }
 
 async function veilleRenderDetail(id){

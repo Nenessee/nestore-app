@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-15-spy-daily';
+const CACHE_VERSION = 'nestore-v2026-06-15-spy-daily-pick';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
