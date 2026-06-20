@@ -1684,7 +1684,7 @@ tbody tr { transition: background .12s; }
 
 <style>
 /* ===== Onglet « Stock en ligne » — tableau optimisé + responsive ===== */
-#stockTableWrap thead th { position:sticky; top:0; z-index:3; background:#faf9f5; }
+#stockTableWrap thead th { position:sticky; top:0; z-index:3; background:var(--surface-2); }
 #stockTable tr.stock-row { transition:background .12s; }
 #stockTable tr.row-unlocated { background:#FFF8F8; }
 [data-theme="dark"] #stockTable tr.row-unlocated { background:rgba(255,107,104,0.06); }
@@ -1696,9 +1696,9 @@ tbody tr { transition: background .12s; }
 .stock-art .v { font-size:11px; color:#888780; margin-top:1px; }
 .stock-age { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 #stockPager { display:flex; align-items:center; justify-content:center; gap:12px; padding:16px; flex-wrap:wrap; }
-#stockPager button { padding:8px 16px; border:0.5px solid #d3d1c7; border-radius:8px; background:#fff; font-size:13px; cursor:pointer; }
-#stockPager button:hover { background:#f5f5f3; }
-#stockPager .pg-info { font-size:12px; color:#888780; }
+#stockPager button { padding:8px 16px; border:0.5px solid var(--border-strong); border-radius:8px; background:var(--surface); color:var(--text); font-size:13px; cursor:pointer; }
+#stockPager button:hover { background:var(--surface-2); }
+#stockPager .pg-info { font-size:12px; color:var(--text-muted); }
 
 /* Bloc résumé : stats (info) + filtres rapides (cartes cliquables) */
 #stockSummary { margin-bottom:20px; }
@@ -2179,7 +2179,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v126-stock-summary';
+const DASH_VERSION = '2025-04-25-v127-darkmode';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)

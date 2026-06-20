@@ -716,6 +716,27 @@
     @media (min-width: 768px) {
       .app { padding: 8px 0 0; }
     }
+
+    /* ===== Dark mode : neutralise les couleurs codées en dur dans les styles inline =====
+       (la caisse n'avait aucune couche de protection → textes/blocs invisibles en sombre) */
+    [data-theme="dark"] #mainApp [style*="background:#f5f5f3"],
+    [data-theme="dark"] #mainApp [style*="background: #f5f5f3"],
+    [data-theme="dark"] #mainApp [style*="background:#f5faf0"],
+    [data-theme="dark"] #mainApp [style*="background:#f5fbf0"],
+    [data-theme="dark"] #mainApp [style*="background:#fff;"],
+    [data-theme="dark"] #mainApp [style*="background:#ffffff"],
+    [data-theme="dark"] #mainApp [style*="background: #fff"] {
+      background: var(--surface-2) !important;
+      color: var(--text) !important;
+      border-color: var(--border-strong) !important;
+    }
+    [data-theme="dark"] #mainApp [style*="background:#f1efe8"] { background: var(--surface-2) !important; }
+    [data-theme="dark"] #mainApp [style*="color:#1a1a18"],
+    [data-theme="dark"] #mainApp [style*="color: #1a1a18"],
+    [data-theme="dark"] #mainApp [style*="color:#2C2C2A"],
+    [data-theme="dark"] #mainApp [style*="color:#2c2c2a"] {
+      color: var(--text) !important;
+    }
   </style>
 </head>
 <body>
@@ -1046,7 +1067,7 @@ async function nvHardReload(){
 </script>
 
 <script>
-  const APP_VERSION = '2025-06-15-v108-retour';
+  const APP_VERSION = '2025-06-15-v109-darkmode';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   // Jeton employé envoyé au backend sur chaque appel (doit correspondre à
   // EMPLOYEE_API_KEY sur Railway). Bloque les accès directs à l'API par URL.
