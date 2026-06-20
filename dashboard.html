@@ -1682,6 +1682,52 @@ tbody tr { transition: background .12s; }
 </div>
 </div>
 
+<style>
+/* ===== Onglet « Stock en ligne » — tableau optimisé + responsive ===== */
+#stockTableWrap thead th { position:sticky; top:0; z-index:3; background:#faf9f5; }
+#stockTable tr.stock-row { transition:background .12s; }
+#stockTable tr.row-unlocated { background:#FFF8F8; }
+[data-theme="dark"] #stockTable tr.row-unlocated { background:rgba(255,107,104,0.06); }
+[data-theme="dark"] #stockTable tr.row-unlocated td { background:transparent; }
+#stockTable td { vertical-align:middle; }
+.stock-art { display:flex; align-items:center; gap:8px; min-width:0; }
+.stock-art .meta { min-width:0; }
+.stock-art .t { font-size:13px; font-weight:500; line-height:1.25; overflow:hidden; text-overflow:ellipsis; }
+.stock-art .v { font-size:11px; color:#888780; margin-top:1px; }
+.stock-age { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+#stockPager { display:flex; align-items:center; justify-content:center; gap:12px; padding:16px; flex-wrap:wrap; }
+#stockPager button { padding:8px 16px; border:0.5px solid #d3d1c7; border-radius:8px; background:#fff; font-size:13px; cursor:pointer; }
+#stockPager button:hover { background:#f5f5f3; }
+#stockPager .pg-info { font-size:12px; color:#888780; }
+
+@media (max-width: 900px) {
+  #stockTableWrap { overflow-x:visible; }
+  #stockTableWrap table, #stockTableWrap thead, #stockTableWrap tbody,
+  #stockTableWrap th, #stockTableWrap td, #stockTableWrap tr { display:block; }
+  #stockTableWrap thead { position:absolute; left:-9999px; top:-9999px; }
+  #stockTable tr.stock-row {
+    position:relative; border:0.5px solid #e4e2da; border-radius:14px;
+    margin-bottom:12px; padding:34px 14px 8px; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.03);
+  }
+  #stockTable tr.row-unlocated { background:#FFF8F8; border-color:#f3c9c9; }
+  #stockTable td {
+    display:flex; justify-content:space-between; align-items:center; gap:12px;
+    padding:7px 0; border-bottom:1px dashed #efede6; text-align:right; min-height:30px;
+  }
+  #stockTable td:last-child { border-bottom:none; }
+  #stockTable td::before {
+    content: attr(data-label); font-weight:600; font-size:11px; text-transform:uppercase;
+    letter-spacing:.02em; color:#888780; text-align:left; flex-shrink:0;
+  }
+  #stockTable td.cell-article { border-bottom:1px solid #eceae2; padding:0 0 10px; text-align:left; }
+  #stockTable td.cell-article::before { content:none; }
+  #stockTable td.cell-select { position:absolute; top:10px; right:12px; padding:0; border:none; min-height:0; }
+  #stockTable td.cell-select::before { content:none; }
+  .stock-art .t { font-size:14px; white-space:normal; }
+  #stockTable td select, #stockTable td .etat-btn { max-width:60%; }
+}
+</style>
+
 <!-- TAB STOCK -->
 <div id="tab-stock" class="tab-panel">
 <div class="content">
@@ -1711,7 +1757,7 @@ tbody tr { transition: background .12s; }
       </div>
     </div>
     <div class="filters-row">
-      <input class="search-input" id="stockSearch" placeholder="Rechercher..." oninput="filterStock()"/>
+      <input class="search-input" id="stockSearch" placeholder="Rechercher..." oninput="onStockSearchInput()"/>
       <select class="filter-select" id="stockBoutiqueFilter" onchange="filterStock()">
         <option value="">Toutes boutiques</option>
         <option value="Lille">Lille</option>
@@ -1771,18 +1817,19 @@ tbody tr { transition: background .12s; }
       <span class="table-title" id="stockTitle">Articles en ligne</span>
       <span id="stockCount" style="font-size:12px;color:#888780;"></span>
     </div>
-    <div style="overflow-x:auto;">
+    <div id="stockTableWrap" style="overflow-x:auto;">
       <table>
         <thead><tr>
-          <th><input type="checkbox" class="cb" onclick="toggleSelectAll(this)"/></th>
-          <th>Article</th><th>Marque</th><th>Code-barres</th><th>Prix</th>
-          <th>Boutique</th><th>Score</th><th>En ligne depuis</th><th>Statut</th>
-          <th>En boutique ✓</th><th>Vinted</th><th>Localisation</th>
+          <th><input type="checkbox" class="cb" id="stockSelectAll" onclick="toggleSelectAll(this)"/></th>
+          <th>Article</th><th>Code-barres</th><th>Prix</th>
+          <th>Boutique</th><th>Ancienneté</th>
+          <th>En boutique ✓</th><th>Localisation</th><th>Vinted</th>
           <th>État</th>
           <th></th>
         </tr></thead>
-        <tbody id="stockTable"><tr><td colspan="14" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
+        <tbody id="stockTable"><tr><td colspan="11" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
       </table>
+      <div id="stockPager"></div>
     </div>
   </div>
 </div>
@@ -2102,7 +2149,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v124-etat-article';
+const DASH_VERSION = '2025-04-25-v125-stock-table';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2416,7 +2463,7 @@ function filterSales(q) {
 }
 
 async function loadStock() {
-  document.getElementById('stockTable').innerHTML = '<tr><td colspan="13" style="text-align:center;padding:40px;color:#888780;">Chargement du stock Shopify (peut prendre 30s)...</td></tr>';
+  document.getElementById('stockTable').innerHTML = '<tr><td colspan="11" style="text-align:center;padding:40px;color:#888780;">Chargement du stock Shopify (peut prendre 30s)...</td></tr>';
   const [data, locMap] = await Promise.all([api('/analytics/stock'), api('/stock/locations')]);
   allStockData = data.map(p => ({
     ...p,
@@ -2506,71 +2553,101 @@ async function resetInventaireBoutique() {
     allStockData = []; loadStock();
   } catch(e) { showDashToast('Erreur réseau', 'error'); }
 }
-function renderStockTable(data) {
-  document.getElementById('stockCount').textContent = `${data.length} article${data.length>1?'s':''}`;
-  if(!data.length){document.getElementById('stockTable').innerHTML='<tr><td colspan="14" style="text-align:center;padding:30px;color:#888780;">Aucun article</td></tr>';return;}
-  document.getElementById('stockTable').innerHTML = data.map(p => {
-    const badge = p.boutique==='DK'?'badge-dk':'badge-lille';
-    const img = p.image?`<img src="${p.image}" class="product-img"/>`:`<span class="no-img">👕</span>`;
-    const fillPct = Math.min((p.daysOnline/90)*100,100);
-    const fillColor = p.daysOnline>=60?'#E24B4A':p.daysOnline>=30?'#EF9F27':'#5DCAA5';
-    const statusBadge = p.daysOnline>=60?'<span class="badge badge-danger">À brader</span>':p.daysOnline>=30?'<span class="badge badge-warning">À surveiller</span>':'<span class="badge badge-ok">OK</span>';
-    const score = p.score||0;
-    const scoreFill = score>=70?'#5DCAA5':score>=40?'#EF9F27':'#E24B4A';
-    const barcodeHtml = p.barcode
-      ? `<span style="font-family:monospace;font-size:11px;background:#f1efe8;padding:2px 6px;border-radius:4px;">${p.barcode}</span>`
-      : `<span onclick="openBarcodeInput(${p.variantId}, this)" style="cursor:pointer;" title="Cliquer pour ajouter un code-barres"><span class="badge badge-danger">Manquant — cliquer pour scanner</span></span>`;
-    const isSelected = selectedProducts.has(p.id);
-    const comparePrice = p.compareAtPrice ? `<span style="text-decoration:line-through;color:#888780;font-size:11px;margin-right:4px;">${parseFloat(p.compareAtPrice).toFixed(0)}€</span>` : '';
-    const inBoutique = p.inBoutique === true;
-    const rawLoc = p.location || '';
-    // Compatibilité ancienne valeur 'en_boutique' → 'en_magasin'
-    const loc = rawLoc === 'en_boutique' ? 'en_magasin' : rawLoc;
-    const locColors = { en_magasin: '#3B6D11', reserve: '#185FA5', local: '#7B4FBA', pressing: '#BA7517' };
-    const checkCell = p.barcode
-      ? `<input type="checkbox" ${inBoutique?'checked':''} onchange="onCheckLocation('${p.barcode}', this.checked, '${loc}')"
-          style="width:16px;height:16px;cursor:pointer;accent-color:#3B6D11;"/>`
-      : `<span style="color:#b4b2a9;font-size:11px;">—</span>`;
-    const vintedCell = p.barcode
-      ? `<input type="checkbox" ${p.onVinted?'checked':''} onchange="onCheckVinted('${p.barcode}', this.checked)"
-          style="width:16px;height:16px;cursor:pointer;accent-color:#09B1BA;"/>`
-      : `<span style="color:#b4b2a9;font-size:11px;">—</span>`;
-    const locCell = p.barcode
-      ? `<select onchange="updateStockLocation('${p.barcode}', ${inBoutique}, this.value)"
-          style="font-size:11px;padding:3px 6px;border:0.5px solid #d3d1c7;border-radius:6px;color:${locColors[loc]||'#888780'};max-width:120px;">
-          <option value="" ${!loc?'selected':''}>— Choisir —</option>
-          <option value="en_magasin" ${loc==='en_magasin'?'selected':''}>🏪 En magasin</option>
-          <option value="reserve" ${loc==='reserve'?'selected':''}>📦 Réserve</option>
-          <option value="local" ${loc==='local'?'selected':''}>🏠 Local</option>
-          <option value="pressing" ${loc==='pressing'?'selected':''}>👟 Pressing</option>
-        </select>`
-      : `<span style="color:#b4b2a9;font-size:11px;">—</span>`;
-    const etatColors = { 'Neuf':'#3B6D11', 'Excellent état':'#5DCAA5', 'Très bon état':'#185FA5', 'Bon état':'#EF9F27', 'État correct':'#BA7517' };
-    const etatVal = p.etat || '';
-    const hasDisc = !!(p.disclosures && p.disclosures.trim());
-    const etatCell = etatVal
-      ? `<button onclick="openEtatModal(${p.id})" title="Modifier l'état${hasDisc?' — détails renseignés':''}"
-          style="border:0.5px solid ${etatColors[etatVal]||'#d3d1c7'};color:${etatColors[etatVal]||'#555'};background:#fff;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;">✓ ${etatVal}${hasDisc?' 📝':''} <span style="opacity:.6;">✏️</span></button>`
-      : `<button onclick="openEtatModal(${p.id})" title="Définir l'état"
-          style="border:0.5px dashed #d3d1c7;color:#888780;background:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;white-space:nowrap;">+ État</button>`;
-    const rowBg = !inBoutique && p.barcode ? 'background:#FFF8F8;' : '';
-    return `<tr style="${rowBg}">
-      <td><input type="checkbox" class="cb product-cb" data-id="${p.id}" data-varid="${p.variantId}" ${isSelected?'checked':''} onchange="toggleProduct(this)"/></td>
-      <td style="display:flex;align-items:center;gap:8px;">${img}<span style="font-size:13px;">${p.title}</span></td>
-      <td style="color:#888780;font-size:12px;">${p.vendor||'—'}</td>
-      <td>${barcodeHtml}</td>
-      <td>${comparePrice}<span style="font-weight:600;">${parseFloat(p.price).toFixed(2)}€</span></td>
-      <td><span class="badge ${badge}">${p.boutique}</span></td>
-      <td><span style="font-size:13px;font-weight:600;color:${scoreFill}">${score}</span> <div class="score-bar"><div class="score-fill" style="width:${score}%;background:${scoreFill};height:100%;border-radius:3px;"></div></div></td>
-      <td><div style="font-size:13px;font-weight:500;">${p.daysOnline}j</div><div class="days-bar"><div class="days-bar-fill" style="width:${fillPct}%;background:${fillColor};"></div></div></td>
-      <td>${statusBadge}</td>
-      <td style="text-align:center;">${checkCell}</td>
-      <td style="text-align:center;">${vintedCell}</td>
-      <td>${locCell}</td>
-      <td>${etatCell}</td>
-      <td><a href="${p.shopifyAdminUrl}" target="_blank" class="link-btn">Shopify ↗</a></td>
-    </tr>`;
-  }).join('');
+// ===== Rendu paginé du tableau Stock en ligne =====
+let stockFiltered = [];
+const STOCK_PAGE_SIZE = 80;
+let stockShown = STOCK_PAGE_SIZE;
+const ETAT_COLORS = { 'Neuf':'#3B6D11', 'Excellent état':'#5DCAA5', 'Très bon état':'#185FA5', 'Bon état':'#EF9F27', 'État correct':'#BA7517' };
+const LOC_COLORS = { en_magasin:'#3B6D11', reserve:'#185FA5', local:'#7B4FBA', pressing:'#BA7517' };
+
+function stockRowHtml(p) {
+  const badge = p.boutique==='DK'?'badge-dk':'badge-lille';
+  const img = p.image?`<img src="${p.image}" class="product-img" loading="lazy" decoding="async"/>`:`<span class="no-img">👕</span>`;
+  const fillPct = Math.min((p.daysOnline/90)*100,100);
+  const fillColor = p.daysOnline>=60?'#E24B4A':p.daysOnline>=30?'#EF9F27':'#5DCAA5';
+  const statusBadge = p.daysOnline>=60?'<span class="badge badge-danger">À brader</span>':p.daysOnline>=30?'<span class="badge badge-warning">À surveiller</span>':'<span class="badge badge-ok">OK</span>';
+  const score = p.score||0;
+  const scoreFill = score>=70?'#5DCAA5':score>=40?'#EF9F27':'#E24B4A';
+  const barcodeHtml = p.barcode
+    ? `<span style="font-family:monospace;font-size:11px;background:#f1efe8;padding:2px 6px;border-radius:4px;">${p.barcode}</span>`
+    : `<span onclick="openBarcodeInput(${p.variantId}, this)" style="cursor:pointer;" title="Cliquer pour ajouter un code-barres"><span class="badge badge-danger">Manquant — scanner</span></span>`;
+  const isSelected = selectedProducts.has(p.id);
+  const comparePrice = p.compareAtPrice ? `<span style="text-decoration:line-through;color:#888780;font-size:11px;margin-right:4px;">${parseFloat(p.compareAtPrice).toFixed(0)}€</span>` : '';
+  const inBoutique = p.inBoutique === true;
+  const rawLoc = p.location || '';
+  const loc = rawLoc === 'en_boutique' ? 'en_magasin' : rawLoc; // compat ancienne valeur
+  const checkCell = p.barcode
+    ? `<input type="checkbox" class="cb-loc" ${inBoutique?'checked':''} onchange="onCheckLocation('${p.barcode}', this.checked, '${loc}')" style="width:18px;height:18px;cursor:pointer;accent-color:#3B6D11;"/>`
+    : `<span style="color:#b4b2a9;font-size:11px;">—</span>`;
+  const vintedCell = p.barcode
+    ? `<input type="checkbox" class="cb-vinted" ${p.onVinted?'checked':''} onchange="onCheckVinted('${p.barcode}', this.checked)" style="width:18px;height:18px;cursor:pointer;accent-color:#09B1BA;"/>`
+    : `<span style="color:#b4b2a9;font-size:11px;">—</span>`;
+  const locCell = p.barcode
+    ? `<select onchange="updateStockLocation('${p.barcode}', ${inBoutique}, this.value)" style="font-size:11px;padding:4px 6px;border:0.5px solid #d3d1c7;border-radius:6px;color:${LOC_COLORS[loc]||'#888780'};max-width:130px;">
+        <option value="" ${!loc?'selected':''}>— Choisir —</option>
+        <option value="en_magasin" ${loc==='en_magasin'?'selected':''}>🏪 En magasin</option>
+        <option value="reserve" ${loc==='reserve'?'selected':''}>📦 Réserve</option>
+        <option value="local" ${loc==='local'?'selected':''}>🏠 Local</option>
+        <option value="pressing" ${loc==='pressing'?'selected':''}>👟 Pressing</option>
+      </select>`
+    : `<span style="color:#b4b2a9;font-size:11px;">—</span>`;
+  const etatVal = p.etat || '';
+  const hasDisc = !!(p.disclosures && p.disclosures.trim());
+  const etatCell = etatVal
+    ? `<button class="etat-btn" onclick="openEtatModal(${p.id})" title="Modifier l'état${hasDisc?' — détails renseignés':''}" style="border:0.5px solid ${ETAT_COLORS[etatVal]||'#d3d1c7'};color:${ETAT_COLORS[etatVal]||'#555'};background:#fff;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;">✓ ${etatVal}${hasDisc?' 📝':''} <span style="opacity:.6;">✏️</span></button>`
+    : `<button class="etat-btn" onclick="openEtatModal(${p.id})" title="Définir l'état" style="border:0.5px dashed #d3d1c7;color:#888780;background:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;white-space:nowrap;">+ État</button>`;
+  const rowCls = (!inBoutique && p.barcode) ? 'stock-row row-unlocated' : 'stock-row';
+  return `<tr class="${rowCls}" data-pid="${p.id}" data-barcode="${p.barcode||''}">
+    <td class="cell-select"><input type="checkbox" class="cb product-cb" data-id="${p.id}" data-varid="${p.variantId}" ${isSelected?'checked':''} onchange="toggleProduct(this)"/></td>
+    <td class="cell-article"><div class="stock-art">${img}<div class="meta"><div class="t">${p.title}</div><div class="v">${p.vendor||'—'}</div></div></div></td>
+    <td data-label="Code-barres">${barcodeHtml}</td>
+    <td data-label="Prix">${comparePrice}<span style="font-weight:600;">${parseFloat(p.price).toFixed(2)}€</span></td>
+    <td data-label="Boutique"><span class="badge ${badge}">${p.boutique}</span></td>
+    <td data-label="Ancienneté"><div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;"><div class="stock-age"><span style="font-size:13px;font-weight:600;">${p.daysOnline}j</span>${statusBadge}<span style="font-size:11px;color:${scoreFill};font-weight:600;" title="Score performance">${score}</span></div><div class="days-bar" style="width:90px;"><div class="days-bar-fill" style="width:${fillPct}%;background:${fillColor};"></div></div></div></td>
+    <td class="cell-loc" data-label="En boutique">${checkCell}</td>
+    <td data-label="Localisation">${locCell}</td>
+    <td class="cell-vinted" data-label="Vinted">${vintedCell}</td>
+    <td data-label="État">${etatCell}</td>
+    <td data-label=""><a href="${p.shopifyAdminUrl}" target="_blank" class="link-btn">Shopify ↗</a></td>
+  </tr>`;
+}
+
+function renderStockPage() {
+  const tbody = document.getElementById('stockTable');
+  const pager = document.getElementById('stockPager');
+  const total = stockFiltered.length;
+  if (!total) {
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:30px;color:#888780;">Aucun article</td></tr>';
+    if (pager) pager.innerHTML = '';
+    document.getElementById('stockCount').textContent = '0 article';
+    syncSelectAllCheckbox();
+    return;
+  }
+  const shown = Math.min(stockShown, total);
+  tbody.innerHTML = stockFiltered.slice(0, shown).map(stockRowHtml).join('');
+  document.getElementById('stockCount').textContent = shown < total ? `${shown} / ${total} articles` : `${total} article${total>1?'s':''}`;
+  if (pager) {
+    pager.innerHTML = shown < total
+      ? `<button onclick="showMoreStock()">Afficher plus (${Math.min(STOCK_PAGE_SIZE, total-shown)})</button>
+         <button onclick="showAllStock()">Tout afficher (${total})</button>
+         <span class="pg-info">${shown} sur ${total} affichés</span>`
+      : (total > STOCK_PAGE_SIZE ? `<span class="pg-info">${total} articles affichés</span>` : '');
+  }
+  syncSelectAllCheckbox();
+}
+function showMoreStock() { stockShown += STOCK_PAGE_SIZE; renderStockPage(); }
+function showAllStock() { stockShown = stockFiltered.length; renderStockPage(); }
+
+// Compat : rend une liste déjà filtrée (réinitialise la pagination)
+function renderStockTable(data) { stockFiltered = data || []; stockShown = STOCK_PAGE_SIZE; renderStockPage(); }
+
+function syncSelectAllCheckbox() {
+  const master = document.getElementById('stockSelectAll');
+  if (!master) return;
+  const ids = stockFiltered.map(p=>p.id);
+  const sel = ids.filter(id=>selectedProducts.has(id)).length;
+  master.checked = ids.length>0 && sel===ids.length;
+  master.indeterminate = sel>0 && sel<ids.length;
 }
 
 function filterStock() {
@@ -2606,27 +2683,39 @@ function filterStock() {
   else if(sort==='price_asc') filtered.sort((a,b)=>parseFloat(a.price)-parseFloat(b.price));
   else if(sort==='score_asc') filtered.sort((a,b)=>(a.score||0)-(b.score||0));
   else if(sort==='score_desc') filtered.sort((a,b)=>(b.score||0)-(a.score||0));
-  renderStockTable(filtered);
+  stockFiltered = filtered;
+  stockShown = STOCK_PAGE_SIZE; // un changement de filtre/tri repart de la 1re page
+  renderStockPage();
+}
+
+// Recherche : anti-rebond pour ne pas redessiner à chaque frappe
+let _stockSearchTimer = null;
+function onStockSearchInput() {
+  clearTimeout(_stockSearchTimer);
+  _stockSearchTimer = setTimeout(filterStock, 180);
 }
 
 function toggleProduct(cb) {
   const id = parseInt(cb.dataset.id);
   if(cb.checked) selectedProducts.add(id); else selectedProducts.delete(id);
   updateBulkToolbar();
+  syncSelectAllCheckbox();
 }
 
+// « Tout sélectionner » agit sur TOUTE la liste filtrée (pas seulement la page visible)
 function toggleSelectAll(masterCb) {
-  document.querySelectorAll('.product-cb').forEach(cb => {
-    cb.checked = masterCb.checked;
-    const id = parseInt(cb.dataset.id);
-    if(masterCb.checked) selectedProducts.add(id); else selectedProducts.delete(id);
-  });
+  const check = masterCb.checked;
+  stockFiltered.forEach(p => { if(check) selectedProducts.add(p.id); else selectedProducts.delete(p.id); });
+  document.querySelectorAll('#stockTable .product-cb').forEach(cb => { cb.checked = check; });
+  masterCb.indeterminate = false;
   updateBulkToolbar();
 }
 
 function deselectAll() {
   selectedProducts.clear();
   document.querySelectorAll('.product-cb,.cb').forEach(cb=>cb.checked=false);
+  const master = document.getElementById('stockSelectAll');
+  if (master) master.indeterminate = false;
   updateBulkToolbar();
 }
 
@@ -2699,7 +2788,7 @@ async function saveEtat() {
     const p = allStockData.find(x => x.id === etatTargetId);
     if (p) { p.etat = etat; p.disclosures = disclosures; }
     msg.style.color = '#3B6D11'; msg.textContent = 'Enregistré ✓';
-    if (typeof filterStock === 'function') filterStock();
+    if (typeof renderStockPage === 'function') renderStockPage(); // maj ciblée, garde la pagination/scroll
     setTimeout(closeEtatModal, 700);
   } catch (e) {
     msg.style.color = '#E24B4A'; msg.textContent = 'Erreur réseau : ' + e.message;
@@ -3132,7 +3221,7 @@ function openBarcodeInput(variantId, el) {
         style="padding:4px 8px;background:#185FA5;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;" title="Scanner avec la caméra">📷</button>
       <button onclick="saveBarcode(${variantId}, document.getElementById('bc_${variantId}'))"
         style="padding:4px 8px;background:#3B6D11;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;">✓</button>
-      <button onclick="allStockData=[];loadStock();"
+      <button onclick="renderStockPage()"
         style="padding:4px 8px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:6px;font-size:12px;cursor:pointer;">✕</button>
     </div>
     <div id="camContainer_${variantId}" style="display:none;margin-top:8px;"></div>`;
@@ -3203,8 +3292,7 @@ async function saveBarcode(variantId, input) {
     if (!res.ok || !data.success) { showToast('Erreur Shopify : ' + (data.error || 'Réponse inattendue'), 'error'); input.disabled=false; return; }
     const p = allStockData.find(p => p.variantId === variantId);
     if (p) p.barcode = barcode;
-    const cell = input.closest('td');
-    if (cell) cell.innerHTML = `<span style="font-family:monospace;font-size:11px;background:#f1efe8;padding:2px 6px;border-radius:4px;">${barcode}</span>`;
+    if (typeof renderStockPage === 'function') renderStockPage(); // refresh ligne (active les contrôles localisation/Vinted)
     showToast('Code-barres enregistré sur Shopify ✓');
   } catch(e) { showToast('Erreur réseau : ' + e.message, 'error'); input.disabled=false; }
 }
@@ -3225,12 +3313,12 @@ function onCheckLocation(barcode, checked, currentLoc) {
     if (window._locFilterRaf) cancelAnimationFrame(window._locFilterRaf);
     window._locFilterRaf = requestAnimationFrame(() => filterStock());
   } else {
-    // Sinon, on met juste à jour la bg de la ligne via setAttribute (garde le format
-    // exact qui matche le sélecteur CSS [style*="background:#FFF8F8"])
-    const row = document.querySelector(`#stockTable tr input[onchange*="onCheckLocation('${barcode}'"]`)?.closest('tr');
+    // Mise à jour ciblée de la ligne (via data-barcode), sans tout redessiner
+    const row = document.querySelector(`#stockTable tr[data-barcode="${String(barcode).replace(/"/g,'\\"')}"]`);
     if (row) {
-      if (checked) row.removeAttribute('style');
-      else row.setAttribute('style', 'background:#FFF8F8;');
+      row.classList.toggle('row-unlocated', !checked);
+      const sel = row.querySelector('select');
+      if (sel) sel.value = newLoc; // garde le menu localisation cohérent
     }
   }
 }
@@ -3257,7 +3345,8 @@ async function onCheckVinted(barcode, checked) {
   } catch(e) {
     if (p) p.onVinted = !checked;
     if (typeof showDashToast === 'function') showDashToast('Erreur réseau : ' + e.message, 'error');
-    const cb = document.querySelector(`input[onchange*="onCheckVinted('${barcode}'"]`);
+    const row = document.querySelector(`#stockTable tr[data-barcode="${String(barcode).replace(/"/g,'\\"')}"]`);
+    const cb = row?.querySelector('.cb-vinted');
     if (cb) cb.checked = !checked;
   }
 }
