@@ -1819,6 +1819,8 @@ tbody tr { transition: background .12s; }
 <div class="content">
   <!-- Banner rappels Vinted vendus à retirer -->
   <div id="vintedPendingBanner" style="display:none;margin-bottom:16px;"></div>
+  <!-- Banner alerte ventes potentiellement oubliées (admin) -->
+  <div id="forgottenSalesBanner" style="display:none;margin-bottom:16px;"></div>
 
   <!-- Quick actions pills -->
   <div class="quick-actions" id="stockQuickActions" style="display:none;">
@@ -2232,7 +2234,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v135-stock-cache';
+const DASH_VERSION = '2025-04-25-v136-forgotten-sales';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2397,6 +2399,7 @@ function switchTab(name, el) {
     if (stale) { allStockData = []; loadStock(); }
     else if (typeof filterStock === 'function') { filterStock(); } // applique le reset des filtres, instantané
     loadVintedPending();
+    if (typeof loadForgottenSales === 'function') loadForgottenSales();
   }
   if (name === 'rachats') loadRachats();
   if (name === 'depots') loadDepots();
@@ -2612,6 +2615,7 @@ async function loadStock(force) {
       ${qf('vinted','Sur Vinted', onVintedCount, 'annonces en ligne', '#09B1BA', false)}
     </div>`;
   filterStock();
+  if (typeof loadForgottenSales === 'function') loadForgottenSales(); // cache serveur chaud → alerte ventes oubliées
   // Stats synchro du jour
   fetch(`${BACKEND_URL}/stock/sync-stats`).then(r=>r.json()).then(stats => {
     const existing = document.getElementById('syncStatsBanner');
@@ -5416,6 +5420,40 @@ if (_s?.auth) {
     };
   }
 })();
+
+/* ========== ALERTE VENTES OUBLIÉES (épuisé sur Shopify sans vente enregistrée) ========== */
+window.loadForgottenSales = async function() {
+  const banner = document.getElementById('forgottenSalesBanner');
+  if (!banner) return;
+  if (!localStorage.getItem('nv_admin_key')) { banner.style.display = 'none'; return; } // admin only
+  try {
+    const list = await api('/stock/forgotten-sales');
+    if (!Array.isArray(list) || !list.length) { banner.style.display = 'none'; return; }
+    const rows = list.slice(0, 100).map(s => `
+      <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--border);font-size:13px;">
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.title || '(sans titre)'}</span>
+        <span style="font-family:monospace;font-size:11px;color:var(--text-muted);">${s.barcode || ''}</span>
+        <span style="color:var(--text-muted);white-space:nowrap;">${s.daysOnline}j</span>
+        <a href="${s.shopifyAdminUrl}" target="_blank" class="link-btn">Shopify ↗</a>
+      </div>`).join('');
+    banner.style.display = 'block';
+    banner.innerHTML = `
+      <div style="background:var(--warning-dim);border:1px solid var(--warning);border-radius:12px;padding:14px 16px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+          <span style="font-size:18px;">⚠️</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:14px;color:var(--warning);">${list.length} article${list.length>1?'s':''} épuisé${list.length>1?'s':''} sans vente enregistrée</div>
+            <div style="font-size:12px;color:var(--text-muted);">Stock 0 sur Shopify mais aucune vente scannée — peut-être une vente à ressaisir.</div>
+          </div>
+          <button onclick="document.getElementById('forgottenSalesBanner').style.display='none'" style="background:transparent;border:0;color:var(--text-muted);font-size:18px;cursor:pointer;padding:4px 8px;line-height:1;">✕</button>
+        </div>
+        <details>
+          <summary style="cursor:pointer;font-size:12px;color:var(--text-muted);font-weight:600;">Voir la liste</summary>
+          <div style="margin-top:6px;max-height:280px;overflow:auto;">${rows}</div>
+        </details>
+      </div>`;
+  } catch (e) { banner.style.display = 'none'; }
+};
 
 /* ================= VINTED PENDING (vendus mais encore sur Vinted) ================= */
 window.loadVintedPending = async function() {
