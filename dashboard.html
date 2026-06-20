@@ -73,6 +73,7 @@
   --bar-blur: saturate(180%) blur(24px);
   --bar-bg: rgba(255, 255, 255, 0.75);
   --bar-border: rgba(26, 26, 24, 0.06);
+  --row-stripe: rgba(26, 26, 24, 0.022);
 }
 [data-theme="dark"] {
   --bg: #0a0a09;
@@ -113,6 +114,7 @@
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.55), 0 32px 64px rgba(0, 0, 0, 0.35);
   --bar-bg: rgba(20, 20, 18, 0.72);
   --bar-border: rgba(245, 244, 239, 0.07);
+  --row-stripe: rgba(245, 244, 239, 0.028);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 *, *::before, *::after { -webkit-tap-highlight-color: transparent; }
@@ -462,6 +464,14 @@ td {
   vertical-align: middle;
 }
 tr:hover td { background: var(--surface-alt); }
+
+/* ===== Harmonisation de tous les tableaux de l'app ===== */
+/* Zébrage subtil et uniforme sur toutes les tables de données (lisibilité).
+   Posé sur la LIGNE pour que les 1res colonnes "sticky" (fond plein) restent nettes.
+   Exclut le tableau Stock (#stockTable) qui a son propre code couleur de lignes. */
+.table-card tbody:not(#stockTable) tr:nth-child(even) { background: var(--row-stripe); }
+/* Première colonne (souvent l'intitulé) légèrement plus présente */
+.table-card tbody td:first-child { font-weight: 500; }
 
 /* Badges */
 .badge {
@@ -2185,7 +2195,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v130-stock-fixes';
+const DASH_VERSION = '2025-04-25-v131-tables-harmo';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
