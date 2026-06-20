@@ -815,6 +815,14 @@ tr:hover td { background: var(--surface-alt); }
 [data-theme="dark"] #dashApp [style*="color:#1a1a18"],
 [data-theme="dark"] #dashApp [style*="color:#2C2C2A"],
 [data-theme="dark"] #dashApp [style*="color:#2c2c2a"] { color: var(--text) !important; }
+/* Selects de tableau sans style explicite (ex. Équipe : Boutique/Rôle) → rendus natifs blancs en dark.
+   On les force aux couleurs du thème (les selects déjà stylés .filter-select/.search-input sont exclus). */
+[data-theme="dark"] #dashApp select:not(.filter-select):not(.search-input) {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: 6px;
+}
 /* Lignes de tableau colorées par le JS — tint subtil */
 #dashApp tr[style*="background:#FFF8F8"],
 #dashApp tr[style*="background:#fff8f8"] {
@@ -2249,7 +2257,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v138-dark-harden';
+const DASH_VERSION = '2025-04-25-v139-equipe-selects';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
