@@ -1887,7 +1887,7 @@ tbody tr { transition: background .12s; }
         <option value="price_asc">Prix croissant</option>
       </select>
       <button onclick="exportMissingStock()" style="padding:8px 14px;background:#2C2C2A;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">📋 Exporter non cochés</button>
-      <button onclick="allStockData=[];loadStock();" style="padding:8px 14px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:8px;font-size:12px;cursor:pointer;white-space:nowrap;">↻ Actualiser</button>
+      <button onclick="allStockData=[];loadStock(true);" style="padding:8px 14px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:8px;font-size:12px;cursor:pointer;white-space:nowrap;" title="Force un rechargement frais depuis Shopify">↻ Actualiser</button>
     </div>
   </div>
   <div id="stockSummary"></div>
@@ -2232,7 +2232,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v134-bulkbar-dark';
+const DASH_VERSION = '2025-04-25-v135-stock-cache';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2554,10 +2554,10 @@ function filterSales(q) {
 
 let stockLoadedAt = 0;
 let _stockLoadSeq = 0;
-async function loadStock() {
+async function loadStock(force) {
   const _seq = ++_stockLoadSeq;
-  document.getElementById('stockTable').innerHTML = '<tr><td colspan="11" style="text-align:center;padding:40px;color:#888780;">Chargement du stock Shopify (peut prendre 30s)...</td></tr>';
-  const [data, locMap] = await Promise.all([api('/analytics/stock'), api('/stock/locations')]);
+  document.getElementById('stockTable').innerHTML = '<tr><td colspan="11" style="text-align:center;padding:40px;color:#888780;">Chargement du stock…</td></tr>';
+  const [data, locMap] = await Promise.all([api('/analytics/stock' + (force ? '?fresh=1' : '')), api('/stock/locations')]);
   if (_seq !== _stockLoadSeq) return; // un chargement plus récent (ex: changement de boutique) a démarré → on abandonne celui-ci
   stockLoadedAt = Date.now();
   allStockData = data.map(p => ({
