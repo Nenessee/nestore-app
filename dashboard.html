@@ -1689,11 +1689,12 @@ tbody tr { transition: background .12s; }
 #stockTable tr.row-unlocated { background:#FFF8F8; }
 [data-theme="dark"] #stockTable tr.row-unlocated { background:rgba(255,107,104,0.06); }
 [data-theme="dark"] #stockTable tr.row-unlocated td { background:transparent; }
+[data-theme="dark"] #stockTable select { background:var(--surface-2); border-color:var(--border-strong); }
 #stockTable td { vertical-align:middle; }
 .stock-art { display:flex; align-items:center; gap:8px; min-width:0; }
 .stock-art .meta { min-width:0; }
 .stock-art .t { font-size:13px; font-weight:500; line-height:1.25; overflow:hidden; text-overflow:ellipsis; }
-.stock-art .v { font-size:11px; color:#888780; margin-top:1px; }
+.stock-art .v { font-size:11px; color:var(--text-muted); margin-top:1px; }
 .stock-age { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 #stockPager { display:flex; align-items:center; justify-content:center; gap:12px; padding:16px; flex-wrap:wrap; }
 #stockPager button { padding:8px 16px; border:0.5px solid var(--border-strong); border-radius:8px; background:var(--surface); color:var(--text); font-size:13px; cursor:pointer; }
@@ -1705,16 +1706,13 @@ tbody tr { transition: background .12s; }
 .stock-stats { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
 .stock-section-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#a8a69d; margin:2px 2px 8px; }
 .stock-quick { display:flex; gap:8px; flex-wrap:wrap; }
-.qf-card { flex:1 1 130px; min-width:118px; cursor:pointer; border:0.5px solid #e4e2da; border-radius:12px; padding:10px 14px; background:#fff; transition:border-color .12s, box-shadow .12s, background .12s; }
-.qf-card:hover { border-color:#c9c7bd; box-shadow:0 1px 3px rgba(0,0,0,.05); }
-.qf-card.qf-alert { border-color:#f3c9c9; }
+.qf-card { flex:1 1 130px; min-width:118px; cursor:pointer; border:0.5px solid var(--border-strong); border-radius:12px; padding:10px 14px; background:var(--surface); transition:border-color .12s, box-shadow .12s, background .12s; }
+.qf-card:hover { border-color:var(--text-muted); box-shadow:var(--shadow-sm); }
+.qf-card.qf-alert { border-color:var(--accent); }
 .qf-card .qf-val { font-size:22px; font-weight:700; line-height:1.1; }
-.qf-card .qf-lbl { font-size:12px; color:#5f5e5a; font-weight:600; margin-top:2px; }
-.qf-card .qf-sub { font-size:10px; color:#a8a69d; margin-top:1px; }
-.qf-card.qf-active { border-color:#2C2C2A; box-shadow:0 0 0 1.5px #2C2C2A; background:#faf9f5; }
-[data-theme="dark"] .qf-card { background:var(--card-bg, #232320); border-color:var(--border, #38382f); }
-[data-theme="dark"] .qf-card .qf-lbl { color:var(--text, #e9e7df); }
-[data-theme="dark"] .qf-card.qf-active { background:rgba(255,255,255,0.05); border-color:#fff; box-shadow:0 0 0 1.5px #fff; }
+.qf-card .qf-lbl { font-size:12px; color:var(--text); font-weight:600; margin-top:2px; }
+.qf-card .qf-sub { font-size:10px; color:var(--text-muted); margin-top:1px; }
+.qf-card.qf-active { border-color:var(--text); box-shadow:0 0 0 1.5px var(--text); background:var(--surface-2); }
 @media (max-width: 640px) {
   .stock-stats { gap:8px; }
   .stock-stats .kpi { flex:1 1 46%; min-width:0; }
@@ -1735,26 +1733,35 @@ tbody tr { transition: background .12s; }
   #stockTableWrap table, #stockTableWrap thead, #stockTableWrap tbody,
   #stockTableWrap th, #stockTableWrap td, #stockTableWrap tr { display:block; }
   #stockTableWrap thead { position:absolute; left:-9999px; top:-9999px; }
+  /* Une ligne = une carte, aux couleurs du thème (clair ET sombre) */
   #stockTable tr.stock-row {
-    position:relative; border:0.5px solid #e4e2da; border-radius:14px;
-    margin-bottom:12px; padding:34px 14px 8px; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.03);
+    position:relative; border:1px solid var(--border-strong); border-radius:16px;
+    margin-bottom:12px; padding:14px; background:var(--surface); color:var(--text);
+    box-shadow:var(--shadow-sm);
   }
-  #stockTable tr.row-unlocated { background:#FFF8F8; border-color:#f3c9c9; }
+  #stockTable tr.row-unlocated { border-color:var(--accent); border-width:1.5px; }
   #stockTable td {
-    display:flex; justify-content:space-between; align-items:center; gap:12px;
-    padding:7px 0; border-bottom:1px dashed #efede6; text-align:right; min-height:30px;
+    display:flex; justify-content:space-between; align-items:center; gap:14px;
+    padding:9px 0; border:none; border-top:1px solid var(--border); text-align:right; min-height:0;
   }
-  #stockTable td:last-child { border-bottom:none; }
   #stockTable td::before {
     content: attr(data-label); font-weight:600; font-size:11px; text-transform:uppercase;
-    letter-spacing:.02em; color:#888780; text-align:left; flex-shrink:0;
+    letter-spacing:.03em; color:var(--text-muted); text-align:left; flex-shrink:0;
   }
-  #stockTable td.cell-article { border-bottom:1px solid #eceae2; padding:0 0 10px; text-align:left; }
+  /* En-tête de carte : image + titre, pleine largeur, sans bordure ni label */
+  #stockTable td.cell-article { border:none; padding:0 42px 12px 0; margin-bottom:2px; text-align:left; }
   #stockTable td.cell-article::before { content:none; }
-  #stockTable td.cell-select { position:absolute; top:10px; right:12px; padding:0; border:none; min-height:0; }
+  #stockTable td.cell-article .product-img,
+  #stockTable td.cell-article .no-img { width:56px; height:56px; flex-shrink:0; }
+  #stockTable td.cell-article .stock-art { gap:12px; }
+  #stockTable td.cell-article .stock-art .t { font-size:15px; font-weight:600; white-space:normal; }
+  #stockTable td.cell-article .stock-art .v { font-size:12px; }
+  /* Case de sélection en haut à droite de la carte */
+  #stockTable td.cell-select { position:absolute; top:14px; right:14px; padding:0; border:none; min-height:0; }
   #stockTable td.cell-select::before { content:none; }
-  .stock-art .t { font-size:14px; white-space:normal; }
-  #stockTable td select, #stockTable td .etat-btn { max-width:60%; }
+  #stockTable td.cell-select input { width:20px; height:20px; }
+  #stockTable td select { max-width:62%; }
+  #stockTable td[data-label="État"] .etat-btn { max-width:100%; }
 }
 </style>
 
@@ -2177,7 +2184,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v128-stock-cleanup';
+const DASH_VERSION = '2025-04-25-v129-mobile-cards';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2630,7 +2637,7 @@ function stockRowHtml(p) {
     <td data-label="Localisation">${locCell}</td>
     <td class="cell-vinted" data-label="Vinted">${vintedCell}</td>
     <td data-label="État">${etatCell}</td>
-    <td data-label=""><a href="${p.shopifyAdminUrl}" target="_blank" class="link-btn">Shopify ↗</a></td>
+    <td data-label="Fiche"><a href="${p.shopifyAdminUrl}" target="_blank" class="link-btn">Shopify ↗</a></td>
   </tr>`;
 }
 

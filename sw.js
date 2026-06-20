@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-15-stock-cleanup';
+const CACHE_VERSION = 'nestore-v2026-06-15-mobile-cards';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
