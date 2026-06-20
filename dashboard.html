@@ -1781,8 +1781,6 @@ tbody tr { transition: background .12s; }
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
       <div class="section-title" style="margin:0;">Stock en ligne actuellement</div>
       <div class="stock-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn btn-red js-admin-only" onclick="openSoldeModalBulk()" style="font-size:13px;">Appliquer soldes sélection</button>
-        <button class="btn js-admin-only" onclick="openSoldeModalAll60()" style="font-size:13px;background:rgba(163,45,45,0.15);border-color:#A32D2D;color:#A32D2D;">Solder tous les +60j</button>
         <button class="btn js-admin-only" onclick="resetInventaireBoutique()" style="font-size:13px;" title="Décoche toutes les cases « en boutique » pour refaire l'inventaire">↺ Reset inventaire</button>
       </div>
     </div>
@@ -2179,7 +2177,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v127-darkmode';
+const DASH_VERSION = '2025-04-25-v128-stock-cleanup';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2530,17 +2528,18 @@ async function loadStock() {
        <div class="qf-lbl">${label}</div>
        <div class="qf-sub">${sub}</div>
      </div>`;
-  document.getElementById('stockSummary').innerHTML = `
+  // Bande de stats (valeur stock + total) = donnée sensible → admin uniquement
+  const statsHtml = _isAdmin ? `
     <div class="stock-stats">
       ${_valuesHtml}
       <div class="kpi"><div class="kpi-label">Total en ligne</div><div class="kpi-value">${total}</div></div>
-      <div class="kpi"><div class="kpi-label">Score moyen</div><div class="kpi-value" style="color:${avgScore>=70?'#3B6D11':avgScore>=40?'#BA7517':'#A32D2D'}">${avgScore}</div><div class="kpi-sub">sur 100</div></div>
-    </div>
+    </div>` : '';
+  document.getElementById('stockSummary').innerHTML = `
+    ${statsHtml}
     <div class="stock-section-label">Filtres rapides — un clic applique ce filtre seul (remet les autres à zéro)</div>
     <div class="stock-quick">
       ${qf('localises','Localisés ✓', localized, `sur ${total}`, '#3B6D11', false)}
       ${qf('nonlocalises','Non localisés', notLocalized, notLocalized>0?'à vérifier':'tout localisé ✓', notLocalized>0?'#A32D2D':'#3B6D11', notLocalized>0)}
-      ${qf('j30','+30 jours', alert30, 'à surveiller', '#BA7517', false)}
       ${qf('j60','+60 jours', alert60, 'à brader', '#A32D2D', false)}
       ${qf('nocb','Sans code-barres', missingBarcode, missingBarcode>0?'à scanner':'tout OK', missingBarcode>0?'#A32D2D':'#3B6D11', missingBarcode>0)}
       ${qf('vinted','Sur Vinted', onVintedCount, 'annonces en ligne', '#09B1BA', false)}
@@ -2724,7 +2723,6 @@ function onStockSearchInput() {
 const STOCK_QUICK_DEFS = {
   localises:    { loc:'present',  barcode:'present' },
   nonlocalises: { loc:'absent',   barcode:'present' },
-  j30:          { days:'warn' },
   j60:          { days:'danger' },
   nocb:         { barcode:'missing' },
   vinted:       { vinted:'yes' },
