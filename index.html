@@ -734,9 +734,20 @@
     [data-theme="dark"] #mainApp [style*="color:#1a1a18"],
     [data-theme="dark"] #mainApp [style*="color: #1a1a18"],
     [data-theme="dark"] #mainApp [style*="color:#2C2C2A"],
-    [data-theme="dark"] #mainApp [style*="color:#2c2c2a"] {
+    [data-theme="dark"] #mainApp [style*="color:#2c2c2a"],
+    [data-theme="dark"] #mainApp [style*="color:#34312a"],
+    [data-theme="dark"] #mainApp [style*="color:#5f5e5a"] {
       color: var(--text) !important;
     }
+    /* couleurs sémantiques de texte → versions lisibles en sombre */
+    [data-theme="dark"] #mainApp [style*="color:#3B6D11"],
+    [data-theme="dark"] #mainApp [style*="color:#3b6d11"] { color: var(--success) !important; }
+    [data-theme="dark"] #mainApp [style*="color:#185FA5"],
+    [data-theme="dark"] #mainApp [style*="color:#185fa5"] { color: var(--info) !important; }
+    [data-theme="dark"] #mainApp [style*="color:#A32D2D"],
+    [data-theme="dark"] #mainApp [style*="color:#a32d2d"] { color: var(--accent) !important; }
+    [data-theme="dark"] #mainApp [style*="color:#BA7517"],
+    [data-theme="dark"] #mainApp [style*="color:#ba7517"] { color: var(--warning) !important; }
   </style>
 </head>
 <body>
@@ -1067,7 +1078,7 @@ async function nvHardReload(){
 </script>
 
 <script>
-  const APP_VERSION = '2025-06-15-v110-offline-sales';
+  const APP_VERSION = '2025-06-15-v111-dark-harden';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   // Jeton employé envoyé au backend sur chaque appel (doit correspondre à
   // EMPLOYEE_API_KEY sur Railway). Bloque les accès directs à l'API par URL.
