@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-15-forgotten-sales';
+const CACHE_VERSION = 'nestore-v2026-06-15-sales-pager';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
