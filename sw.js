@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-15-equipe-selects';
+const CACHE_VERSION = 'nestore-v2026-06-15-offline-scan';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

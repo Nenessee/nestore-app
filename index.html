@@ -1078,7 +1078,7 @@ async function nvHardReload(){
 </script>
 
 <script>
-  const APP_VERSION = '2025-06-15-v111-dark-harden';
+  const APP_VERSION = '2025-06-15-v112-offline-scan';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   // Jeton employé envoyé au backend sur chaque appel (doit correspondre à
   // EMPLOYEE_API_KEY sur Railway). Bloque les accès directs à l'API par URL.
@@ -1211,8 +1211,25 @@ async function nvHardReload(){
     currentData = null;
 
     try {
-      const res = await fetch(`${BACKEND_URL}/product/${encodeURIComponent(barcode)}`);
-      const data = await res.json();
+      let res, data, _offline = false;
+      try {
+        res = await fetch(`${BACKEND_URL}/product/${encodeURIComponent(barcode)}`);
+        data = await res.json();
+        if (res.status === 503 && data && data.offline) _offline = true;
+      } catch (_) { _offline = true; }
+
+      // Hors-ligne → on tente la fiche produit mise en cache lors d'un scan précédent
+      if (_offline) {
+        const cached = nvGetProductCache()[barcode];
+        if (cached) {
+          data = cached; res = { ok: true };
+          showToast('Hors-ligne : fiche produit en cache ✓', 'warn');
+        } else {
+          area.innerHTML = `<div class="product-card error"><div class="pname">Hors-ligne</div><div class="pcode">${barcode}</div><div class="error-msg">Article pas encore en cache local — connecte-toi une fois à cet article pour pouvoir le vendre hors-ligne.</div></div>`;
+          showToast('Hors-ligne : article non disponible en cache', 'warn');
+          return;
+        }
+      }
 
       // Log du scan (trouvé ou non) dans l'audit journal
       if (typeof window.__nvLog === 'function') {
@@ -1261,6 +1278,7 @@ async function nvHardReload(){
         return;
       }
 
+      if (!_offline && data && !data.error) nvCacheProduct(barcode, data); // garde la fiche pour le mode hors-ligne
       currentData = data;
       // Fallback: si backend ne retourne pas onVinted, utilise la map locale
       if (data.onVinted === undefined && window._vintedMap && data.barcode) {
@@ -1327,6 +1345,21 @@ async function nvHardReload(){
         <div class="error-msg">${err.message}</div>
       </div>`;
     }
+  }
+
+  // ===== Cache local des fiches produit (permet de scanner/vendre hors-ligne un article déjà vu) =====
+  const NV_PRODUCT_CACHE = 'nv_product_cache';
+  function nvGetProductCache() { try { return JSON.parse(localStorage.getItem(NV_PRODUCT_CACHE) || '{}'); } catch (_) { return {}; } }
+  function nvCacheProduct(barcode, data) {
+    try {
+      const c = nvGetProductCache();
+      c[barcode] = Object.assign({}, data, { _cachedAt: Date.now() });
+      const keys = Object.keys(c);
+      if (keys.length > 1000) { // plafond : on supprime les plus anciennes
+        keys.sort((a, b) => (c[a]._cachedAt || 0) - (c[b]._cachedAt || 0)).slice(0, keys.length - 1000).forEach(k => delete c[k]);
+      }
+      localStorage.setItem(NV_PRODUCT_CACHE, JSON.stringify(c));
+    } catch (_) {}
   }
 
   // ===== File d'attente des ventes hors-ligne (ne jamais perdre une vente si le réseau coupe) =====
