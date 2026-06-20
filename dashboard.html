@@ -1775,8 +1775,9 @@ tbody tr { transition: background .12s; }
   #stockTableWrap thead { position:absolute; left:-9999px; top:-9999px; }
   /* Une ligne = une carte, aux couleurs du thème (clair ET sombre) */
   #stockTable tr.stock-row {
-    position:relative; border:1px solid var(--border-strong); border-radius:16px;
-    margin-bottom:12px; padding:14px; background:var(--surface); color:var(--text);
+    position:relative; display:flex; flex-direction:column;
+    border:1px solid var(--border-strong); border-radius:16px;
+    margin-bottom:12px; padding:14px; background:var(--surface) !important; color:var(--text);
     box-shadow:var(--shadow-sm);
   }
   #stockTable tr.row-unlocated { border-color:var(--accent); border-width:1.5px; }
@@ -1796,8 +1797,16 @@ tbody tr { transition: background .12s; }
   #stockTable td.cell-article .stock-art { gap:12px; }
   #stockTable td.cell-article .stock-art .t { font-size:15px; font-weight:600; white-space:normal; }
   #stockTable td.cell-article .stock-art .v { font-size:12px; }
-  /* Sélection multiple = action desktop (soldes) → masquée sur mobile (évitait le chevauchement sur la photo) */
-  #stockTable td.cell-select { display:none; }
+  /* Sélection : rangée dédiée en bas de carte (plus de chevauchement sur la photo) */
+  #stockTable td.cell-select {
+    order:10; display:flex; justify-content:space-between; align-items:center;
+    padding:9px 0 0; border:none; border-top:1px solid var(--border); min-height:0;
+  }
+  #stockTable td.cell-select::before {
+    content:"Sélectionner"; font-weight:600; font-size:11px; text-transform:uppercase;
+    letter-spacing:.03em; color:var(--text-muted);
+  }
+  #stockTable td.cell-select input { width:22px; height:22px; }
   #stockTable td select { max-width:62%; }
   #stockTable td[data-label="État"] .etat-btn { max-width:100%; }
 }
@@ -1826,7 +1835,7 @@ tbody tr { transition: background .12s; }
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
       <div class="section-title" style="margin:0;">Stock en ligne actuellement</div>
       <div class="stock-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn js-admin-only" onclick="resetInventaireBoutique()" style="font-size:13px;" title="Décoche toutes les cases « en boutique » pour refaire l'inventaire">↺ Reset inventaire</button>
+        <button class="btn js-admin-only" onclick="resetInventaireBoutique()" style="font-size:13px;background:rgba(186,117,23,0.12);border-color:#BA7517;color:#BA7517;" title="Décoche toutes les cases « en boutique » pour refaire l'inventaire (confirmation demandée)">⚠️ Reset inventaire</button>
       </div>
     </div>
     <div class="filters-row">
@@ -2032,7 +2041,6 @@ tbody tr { transition: background .12s; }
       <option value="">Tous statuts</option>
       <option value="pending">En attente</option>
       <option value="aside">Mis de côté</option>
-      <option value="fulfilled">Expédié</option>
     </select>
     <select class="filter-select" id="cmdBoutiqueFilter" onchange="filterCommandes()">
       <option value="">Toutes boutiques</option>
@@ -2222,7 +2230,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v132-tables-mobile';
+const DASH_VERSION = '2025-04-25-v133-ux-fixes';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -3023,27 +3031,25 @@ async function loadDashCommandes() {
       fetch(`${BACKEND_URL}/orders/states`).then(r => r.ok ? r.json() : {}).catch(() => ({}))
     ]);
     // Statut "mis de côté" / "introuvable" partagé via le backend (visible par tous)
+    // On ne garde que les commandes à traiter : en attente + mises de côté (les expédiées ne nous intéressent pas)
     allCommandesData = data.map(o => {
       const st = states[`${o.order_id}_${o.line_item_id}`]?.status;
       return { ...o, isAside: st === 'aside', isNotFound: st === 'notfound' };
-    });
+    }).filter(o => o.fulfillment_status !== 'fulfilled');
 
     const total = allCommandesData.length;
-    const pending = allCommandesData.filter(o => o.fulfillment_status === 'unfulfilled' && !o.isAside).length;
-    const aside = allCommandesData.filter(o => o.isAside && o.fulfillment_status === 'unfulfilled').length;
-    const fulfilled = allCommandesData.filter(o => o.fulfillment_status === 'fulfilled').length;
+    const pending = allCommandesData.filter(o => !o.isAside).length;
+    const aside = allCommandesData.filter(o => o.isAside).length;
     const notFound = allCommandesData.filter(o => o.isNotFound).length;
 
     document.getElementById('commandesKpis').innerHTML = `
-      <div class="kpi"><div class="kpi-label">Total commandes</div><div class="kpi-value">${total}</div></div>
+      <div class="kpi"><div class="kpi-label">À traiter</div><div class="kpi-value">${total}</div><div class="kpi-sub">hors expédiées</div></div>
       <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('cmdStatusFilter').value='pending';filterCommandes();">
         <div class="kpi-label">En attente</div><div class="kpi-value" style="color:${pending>0?'#BA7517':'#3B6D11'}">${pending}</div><div class="kpi-sub">à préparer</div>
       </div>
       <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('cmdStatusFilter').value='aside';filterCommandes();">
         <div class="kpi-label">Mis de côté</div><div class="kpi-value" style="color:#185FA5;">${aside}</div><div class="kpi-sub">prêts à expédier</div>
       </div>
-      <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('cmdStatusFilter').value='fulfilled';filterCommandes();">
-        <div class="kpi-label">Expédiés</div><div class="kpi-value" style="color:#3B6D11;">${fulfilled}</div></div>
       ${notFound>0?`<div class="kpi" style="border-color:#f7c1c1;"><div class="kpi-label">⚠️ Introuvables</div><div class="kpi-value" style="color:#A32D2D;">${notFound}</div></div>`:''}
     `;
     filterCommandes();
@@ -4117,10 +4123,10 @@ function renderRachatsTable(data) {
 
     // Authentification
     const auth = r.authenticated || 'pending';
-    const authColors = { pending: '#888780', ok: '#3B6D11', nok: '#A32D2D' };
+    const authColors = { pending: 'var(--text-muted)', ok: 'var(--success)', nok: 'var(--accent)' };
     const authLabels = { pending: '— À vérifier', ok: '✓ Authentifié', nok: '✗ Douteux' };
     const authCell = `<select onchange="updatePurchase(${r.id}, 'authenticated', this.value)"
-      style="font-size:11px;padding:3px 6px;border:0.5px solid #d3d1c7;border-radius:6px;color:${authColors[auth]};">
+      style="font-size:11px;padding:3px 6px;border:0.5px solid var(--border-strong);border-radius:6px;background:var(--surface);color:${authColors[auth]};">
       <option value="pending" ${auth==='pending'?'selected':''}>— À vérifier</option>
       <option value="ok" ${auth==='ok'?'selected':''}>✓ Authentifié</option>
       <option value="nok" ${auth==='nok'?'selected':''}>✗ Douteux</option>
@@ -4129,15 +4135,15 @@ function renderRachatsTable(data) {
     // Règlement
     const pay = r.payment_status || 'non_regle';
     const method = r.payment_method || '';
-    const payColors = { non_regle: '#A32D2D', regle: '#3B6D11' };
+    const payColors = { non_regle: 'var(--accent)', regle: 'var(--success)' };
     const payCell = `<div style="display:flex;flex-direction:column;gap:3px;">
       <select onchange="updatePurchasePayment(${r.id}, this.value)"
-        style="font-size:11px;padding:3px 6px;border:0.5px solid #d3d1c7;border-radius:6px;color:${payColors[pay]};">
+        style="font-size:11px;padding:3px 6px;border:0.5px solid var(--border-strong);border-radius:6px;background:var(--surface);color:${payColors[pay]};">
         <option value="non_regle" ${pay==='non_regle'?'selected':''}>✗ Non réglé</option>
         <option value="regle" ${pay==='regle'?'selected':''}>✓ Réglé</option>
       </select>
       ${pay==='regle'?`<select onchange="updatePurchase(${r.id}, 'paymentMethod', this.value)"
-        style="font-size:11px;padding:3px 6px;border:0.5px solid #d3d1c7;border-radius:6px;">
+        style="font-size:11px;padding:3px 6px;border:0.5px solid var(--border-strong);border-radius:6px;background:var(--surface);color:var(--text);">
         <option value="" ${!method?'selected':''}>— Moyen —</option>
         <option value="especes" ${method==='especes'?'selected':''}>💵 Espèces</option>
         <option value="virement" ${method==='virement'?'selected':''}>🏦 Virement</option>
@@ -4434,7 +4440,11 @@ async function veilleRenderDetail(id){
 async function veilleRenderProducts(id){
   const card=document.getElementById('veilleProductsCard');
   if(!card) return;
-  card.innerHTML='<div class="loading" style="padding:20px;">Chargement des articles…</div>';
+  // Au rafraîchissement (coche, tri, page…) on garde le contenu + la position de scroll
+  // au lieu de remettre un spinner qui fait sauter la page tout en haut.
+  const _sy = window.scrollY;
+  const _hadContent = card.dataset.loaded === '1';
+  if(!_hadContent) card.innerHTML='<div class="loading" style="padding:20px;">Chargement des articles…</div>';
   const qs=[`sort=${veilleState.prodSort}`,`dir=${veilleState.prodDir}`,`page=${veilleState.prodPage}`];
   if(veilleState.prodQ) qs.push('q='+encodeURIComponent(veilleState.prodQ));
   if(veilleState.prodCategory) qs.push('category='+encodeURIComponent(veilleState.prodCategory));
@@ -4469,6 +4479,8 @@ async function veilleRenderProducts(id){
     }
     h+='</div>';
     card.innerHTML=h;
+    card.dataset.loaded='1';
+    if(_hadContent) requestAnimationFrame(()=>window.scrollTo(0,_sy)); // restaure la position
   }catch(e){ card.innerHTML=veilleErr(e); }
 }
 function veilleSetProdSort(key){ if(veilleState.prodSort===key) veilleState.prodDir=veilleState.prodDir==='desc'?'asc':'desc'; else { veilleState.prodSort=key; veilleState.prodDir='desc'; } veilleState.prodPage=1; veilleRenderProducts(parseInt(veilleState.competitorId,10)); }
