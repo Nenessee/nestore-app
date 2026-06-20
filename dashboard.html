@@ -565,7 +565,9 @@ tr:hover td { background: var(--surface-alt); }
 
 /* Bulk toolbar */
 .bulk-toolbar {
-  background: var(--brand); color: var(--brand-ink);
+  /* Barre d'action sombre, identique en clair ET en sombre (évite le bloc blanc en dark) */
+  background: #222220; color: #f5f4ef;
+  border: 1px solid rgba(255,255,255,0.10);
   padding: 14px 18px;
   border-radius: 14px;
   display: none; align-items: center; gap: 12px;
@@ -577,9 +579,9 @@ tr:hover td { background: var(--surface-alt); }
 .bulk-toolbar .btn {
   background: rgba(255,255,255,0.12);
   border: 1px solid rgba(255,255,255,0.2);
-  color: var(--brand-ink);
+  color: #f5f4ef;
 }
-.bulk-toolbar .btn-red { background: var(--accent); border-color: var(--accent); }
+.bulk-toolbar .btn-red { background: var(--accent); border-color: var(--accent); color: #fff; }
 
 .cb { width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent); }
 .link-btn {
@@ -2230,7 +2232,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v133-ux-fixes';
+const DASH_VERSION = '2025-04-25-v134-bulkbar-dark';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
