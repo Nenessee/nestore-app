@@ -1527,6 +1527,31 @@ tbody tr { transition: background .12s; }
   </div>
 </div>
 
+<!-- MODALE ÉTAT ARTICLE -->
+<div class="modal" id="etatModal">
+  <div class="modal-box">
+    <div class="modal-title">État de l'article</div>
+    <div style="font-size:13px;color:#888780;margin-bottom:16px;" id="etatModalSub"></div>
+    <label style="font-size:13px;font-weight:500;display:block;margin-bottom:8px;">État (poussé vers Shopify · custom.etat)</label>
+    <select id="etatSelect" style="width:100%;padding:8px 12px;border:0.5px solid #d3d1c7;border-radius:8px;font-size:15px;margin-bottom:12px;">
+      <option value="">— Choisir un état —</option>
+      <option value="Neuf">Neuf</option>
+      <option value="Excellent état">Excellent état</option>
+      <option value="Très bon état">Très bon état</option>
+      <option value="Bon état">Bon état</option>
+      <option value="État correct">État correct</option>
+    </select>
+    <label style="font-size:13px;font-weight:500;display:block;margin-bottom:8px;">Détails / défauts <span style="color:#b4b2a9;font-weight:400;">(optionnel · custom.disclosures)</span></label>
+    <textarea id="etatDisclosures" rows="3" placeholder="Ex : légères marques d'usure sur la semelle, boîte d'origine incluse…"
+      style="width:100%;padding:8px 12px;border:0.5px solid #d3d1c7;border-radius:8px;font-size:13px;margin-bottom:6px;resize:vertical;font-family:inherit;"></textarea>
+    <div id="etatMsg" style="font-size:13px;min-height:18px;margin-bottom:6px;"></div>
+    <div class="modal-actions">
+      <button class="btn" style="background:#fff;color:#1a1a18;border-color:#d3d1c7;" onclick="closeEtatModal()">Annuler</button>
+      <button class="btn" id="etatSaveBtn" style="background:#185FA5;color:#fff;border-color:#185FA5;" onclick="saveEtat()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
 <!-- TAB VENTES -->
 <div id="tab-ventes" class="tab-panel active">
 <div class="content">
@@ -1753,9 +1778,10 @@ tbody tr { transition: background .12s; }
           <th>Article</th><th>Marque</th><th>Code-barres</th><th>Prix</th>
           <th>Boutique</th><th>Score</th><th>En ligne depuis</th><th>Statut</th>
           <th>En boutique ✓</th><th>Vinted</th><th>Localisation</th>
+          <th>État</th>
           <th></th>
         </tr></thead>
-        <tbody id="stockTable"><tr><td colspan="12" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
+        <tbody id="stockTable"><tr><td colspan="14" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -2076,7 +2102,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v123-spy-unites';
+const DASH_VERSION = '2025-04-25-v124-etat-article';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2482,7 +2508,7 @@ async function resetInventaireBoutique() {
 }
 function renderStockTable(data) {
   document.getElementById('stockCount').textContent = `${data.length} article${data.length>1?'s':''}`;
-  if(!data.length){document.getElementById('stockTable').innerHTML='<tr><td colspan="11" style="text-align:center;padding:30px;color:#888780;">Aucun article</td></tr>';return;}
+  if(!data.length){document.getElementById('stockTable').innerHTML='<tr><td colspan="14" style="text-align:center;padding:30px;color:#888780;">Aucun article</td></tr>';return;}
   document.getElementById('stockTable').innerHTML = data.map(p => {
     const badge = p.boutique==='DK'?'badge-dk':'badge-lille';
     const img = p.image?`<img src="${p.image}" class="product-img"/>`:`<span class="no-img">👕</span>`;
@@ -2519,6 +2545,14 @@ function renderStockTable(data) {
           <option value="pressing" ${loc==='pressing'?'selected':''}>👟 Pressing</option>
         </select>`
       : `<span style="color:#b4b2a9;font-size:11px;">—</span>`;
+    const etatColors = { 'Neuf':'#3B6D11', 'Excellent état':'#5DCAA5', 'Très bon état':'#185FA5', 'Bon état':'#EF9F27', 'État correct':'#BA7517' };
+    const etatVal = p.etat || '';
+    const hasDisc = !!(p.disclosures && p.disclosures.trim());
+    const etatCell = etatVal
+      ? `<button onclick="openEtatModal(${p.id})" title="Modifier l'état${hasDisc?' — détails renseignés':''}"
+          style="border:0.5px solid ${etatColors[etatVal]||'#d3d1c7'};color:${etatColors[etatVal]||'#555'};background:#fff;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;">✓ ${etatVal}${hasDisc?' 📝':''} <span style="opacity:.6;">✏️</span></button>`
+      : `<button onclick="openEtatModal(${p.id})" title="Définir l'état"
+          style="border:0.5px dashed #d3d1c7;color:#888780;background:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;white-space:nowrap;">+ État</button>`;
     const rowBg = !inBoutique && p.barcode ? 'background:#FFF8F8;' : '';
     return `<tr style="${rowBg}">
       <td><input type="checkbox" class="cb product-cb" data-id="${p.id}" data-varid="${p.variantId}" ${isSelected?'checked':''} onchange="toggleProduct(this)"/></td>
@@ -2533,6 +2567,7 @@ function renderStockTable(data) {
       <td style="text-align:center;">${checkCell}</td>
       <td style="text-align:center;">${vintedCell}</td>
       <td>${locCell}</td>
+      <td>${etatCell}</td>
       <td><a href="${p.shopifyAdminUrl}" target="_blank" class="link-btn">Shopify ↗</a></td>
     </tr>`;
   }).join('');
@@ -2625,6 +2660,51 @@ function closeSoldeModal() {
   document.getElementById('soldeModal').classList.remove('active');
   document.getElementById('progressArea').style.display='none';
   document.getElementById('applyBtn').disabled=false;
+}
+
+let etatTargetId = null;
+function openEtatModal(id) {
+  const p = allStockData.find(x => x.id === id);
+  if (!p) { showToast('Article introuvable', 'error'); return; }
+  etatTargetId = id;
+  document.getElementById('etatModalSub').textContent = p.title || '';
+  document.getElementById('etatSelect').value = p.etat || '';
+  document.getElementById('etatDisclosures').value = p.disclosures || '';
+  document.getElementById('etatMsg').textContent = '';
+  const btn = document.getElementById('etatSaveBtn');
+  btn.disabled = false; btn.textContent = 'Enregistrer';
+  document.getElementById('etatModal').classList.add('active');
+}
+function closeEtatModal() {
+  document.getElementById('etatModal').classList.remove('active');
+  etatTargetId = null;
+}
+async function saveEtat() {
+  if (etatTargetId == null) return;
+  const etat = document.getElementById('etatSelect').value;
+  const disclosures = document.getElementById('etatDisclosures').value.trim();
+  const msg = document.getElementById('etatMsg');
+  if (!etat) { msg.style.color = '#E24B4A'; msg.textContent = 'Choisis un état dans la liste.'; return; }
+  const btn = document.getElementById('etatSaveBtn');
+  btn.disabled = true; btn.textContent = 'Enregistrement…';
+  msg.style.color = '#888780'; msg.textContent = 'Envoi vers Shopify…';
+  try {
+    const res = await fetch(`${BACKEND_URL}/stock/etat`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productId: etatTargetId, etat, disclosures })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) { msg.style.color = '#E24B4A'; msg.textContent = 'Erreur : ' + (data.error || res.status); btn.disabled = false; btn.textContent = 'Enregistrer'; return; }
+    // Met à jour la donnée locale + le tableau, sans recharger tout Shopify
+    const p = allStockData.find(x => x.id === etatTargetId);
+    if (p) { p.etat = etat; p.disclosures = disclosures; }
+    msg.style.color = '#3B6D11'; msg.textContent = 'Enregistré ✓';
+    if (typeof filterStock === 'function') filterStock();
+    setTimeout(closeEtatModal, 700);
+  } catch (e) {
+    msg.style.color = '#E24B4A'; msg.textContent = 'Erreur réseau : ' + e.message;
+    btn.disabled = false; btn.textContent = 'Enregistrer';
+  }
 }
 
 async function applySolde() {
