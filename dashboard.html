@@ -800,6 +800,21 @@ tr:hover td { background: var(--surface-alt); }
   background: var(--info-dim) !important;
   color: var(--info) !important;
 }
+/* Dark mode : remappe les couleurs de TEXTE codées en dur vers les couleurs du thème
+   (vert/bleu/rouge/orange/gris foncés sinon peu lisibles sur fond sombre). N'affecte QUE le dark. */
+[data-theme="dark"] #dashApp [style*="color:#3B6D11"],
+[data-theme="dark"] #dashApp [style*="color:#3b6d11"] { color: var(--success) !important; }
+[data-theme="dark"] #dashApp [style*="color:#185FA5"],
+[data-theme="dark"] #dashApp [style*="color:#185fa5"] { color: var(--info) !important; }
+[data-theme="dark"] #dashApp [style*="color:#A32D2D"],
+[data-theme="dark"] #dashApp [style*="color:#a32d2d"] { color: var(--accent) !important; }
+[data-theme="dark"] #dashApp [style*="color:#BA7517"],
+[data-theme="dark"] #dashApp [style*="color:#ba7517"] { color: var(--warning) !important; }
+[data-theme="dark"] #dashApp [style*="color:#5f5e5a"],
+[data-theme="dark"] #dashApp [style*="color:#34312a"],
+[data-theme="dark"] #dashApp [style*="color:#1a1a18"],
+[data-theme="dark"] #dashApp [style*="color:#2C2C2A"],
+[data-theme="dark"] #dashApp [style*="color:#2c2c2a"] { color: var(--text) !important; }
 /* Lignes de tableau colorées par le JS — tint subtil */
 #dashApp tr[style*="background:#FFF8F8"],
 #dashApp tr[style*="background:#fff8f8"] {
@@ -2234,7 +2249,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v137-sales-pager';
+const DASH_VERSION = '2025-04-25-v138-dark-harden';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)

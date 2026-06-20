@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-15-offline-sales';
+const CACHE_VERSION = 'nestore-v2026-06-15-dark-harden';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
