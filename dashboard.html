@@ -473,6 +473,35 @@ tr:hover td { background: var(--surface-alt); }
 /* Première colonne (souvent l'intitulé) légèrement plus présente */
 .table-card tbody td:first-child { font-weight: 500; }
 
+/* ===== Tables de données → vue en CARTES sur mobile (générique, opt-in via .tc-cards) ===== */
+@media (max-width: 900px) {
+  .table-card.tc-cards > div[style*="overflow-x"] { overflow-x: visible !important; }
+  .table-card.tc-cards table, .table-card.tc-cards thead, .table-card.tc-cards tbody,
+  .table-card.tc-cards th, .table-card.tc-cards td, .table-card.tc-cards tr { display: block; }
+  .table-card.tc-cards thead { position: absolute; left: -9999px; top: -9999px; }
+  .table-card.tc-cards tbody tr {
+    border: 1px solid var(--border-strong); border-radius: 14px; margin-bottom: 10px;
+    padding: 4px 14px 8px; background: var(--surface) !important; box-shadow: var(--shadow-sm);
+    contain-intrinsic-size: auto 200px;
+  }
+  .table-card.tc-cards td {
+    display: flex; justify-content: space-between; align-items: center; gap: 14px;
+    padding: 8px 0; border: none; border-top: 1px solid var(--border); text-align: right;
+    min-height: 0; background: transparent !important; color: var(--text);
+  }
+  .table-card.tc-cards td::before {
+    content: attr(data-label); font-weight: 600; font-size: 11px; text-transform: uppercase;
+    letter-spacing: .03em; color: var(--text-muted); text-align: left; flex-shrink: 0;
+  }
+  /* 1re cellule = en-tête de carte, pleine largeur, sans label */
+  .table-card.tc-cards tbody tr td:first-child {
+    border-top: none; border-bottom: 1px solid var(--border); text-align: left;
+    padding: 6px 0 10px; font-weight: 600; background: transparent !important;
+  }
+  .table-card.tc-cards tbody tr td:first-child::before { content: none; }
+  .table-card.tc-cards td:empty { display: none; }
+}
+
 /* Badges */
 .badge {
   font-size: 11px;
@@ -1760,17 +1789,15 @@ tbody tr { transition: background .12s; }
     letter-spacing:.03em; color:var(--text-muted); text-align:left; flex-shrink:0;
   }
   /* En-tête de carte : image + titre, pleine largeur, sans bordure ni label */
-  #stockTable td.cell-article { border:none; padding:0 42px 12px 0; margin-bottom:2px; text-align:left; }
+  #stockTable td.cell-article { border:none; padding:0 0 12px 0; margin-bottom:2px; text-align:left; }
   #stockTable td.cell-article::before { content:none; }
   #stockTable td.cell-article .product-img,
   #stockTable td.cell-article .no-img { width:56px; height:56px; flex-shrink:0; }
   #stockTable td.cell-article .stock-art { gap:12px; }
   #stockTable td.cell-article .stock-art .t { font-size:15px; font-weight:600; white-space:normal; }
   #stockTable td.cell-article .stock-art .v { font-size:12px; }
-  /* Case de sélection en haut à droite de la carte */
-  #stockTable td.cell-select { position:absolute; top:14px; right:14px; padding:0; border:none; min-height:0; }
-  #stockTable td.cell-select::before { content:none; }
-  #stockTable td.cell-select input { width:20px; height:20px; }
+  /* Sélection multiple = action desktop (soldes) → masquée sur mobile (évitait le chevauchement sur la photo) */
+  #stockTable td.cell-select { display:none; }
   #stockTable td select { max-width:62%; }
   #stockTable td[data-label="État"] .etat-btn { max-width:100%; }
 }
@@ -1858,7 +1885,7 @@ tbody tr { transition: background .12s; }
     <button class="btn btn-red js-admin-only" onclick="openSoldeModalBulk()" style="font-size:12px;">Appliquer réduction</button>
     <button class="btn" onclick="deselectAll()" style="font-size:12px;">Tout désélectionner</button>
   </div>
-  <div class="table-card">
+  <div class="table-card tc-custom">
     <div class="table-header">
       <span class="table-title" id="stockTitle">Articles en ligne</span>
       <span id="stockCount" style="font-size:12px;color:#888780;"></span>
@@ -2195,7 +2222,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v131-tables-harmo';
+const DASH_VERSION = '2025-04-25-v132-tables-mobile';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2280,6 +2307,7 @@ function switchDashBoutique(boutique, btn) {
   btn.classList.add('active');
   document.getElementById('dashSubtitle').textContent = boutique === 'admin' ? 'Toutes boutiques' : 'Dashboard ' + boutique;
   allStockData = [];
+  if (typeof resetAllStockFilters === 'function') resetAllStockFilters(); // évite un filtre résiduel qui fausse les compteurs après changement de boutique
   loadVentes(); loadRachats(); loadCleanings();
   // Recharge aussi l'onglet actif s'il n'est pas dans la liste ci-dessus
   // (sinon il garde les données de la boutique précédente jusqu'à un re-clic).
@@ -2351,12 +2379,13 @@ function switchTab(name, el) {
   if (name === 'objectif') { loadObjectif(); startObjMusic(); }
   if (name === 'ventes') loadVentes();
   if (name === 'stock') {
-    // À chaque retour sur l'onglet : on repart propre (filtres remis à zéro) et
-    // on force le rechargement des données Shopify (évite les filtres bloqués / données périmées).
+    // À chaque retour : on repart propre (filtres remis à zéro). On ne recharge
+    // les données Shopify que si elles datent de +2 min (sinon réaffichage instantané).
     if (typeof resetAllStockFilters === 'function') resetAllStockFilters();
     document.querySelectorAll('#stockSummary .qf-card.qf-active, .qa-pill.applied').forEach(c => c.classList.remove('qf-active','applied'));
-    allStockData = [];
-    loadStock();
+    const stale = !allStockData.length || (Date.now() - stockLoadedAt > 120000);
+    if (stale) { allStockData = []; loadStock(); }
+    else if (typeof filterStock === 'function') { filterStock(); } // applique le reset des filtres, instantané
     loadVintedPending();
   }
   if (name === 'rachats') loadRachats();
@@ -2513,9 +2542,14 @@ function filterSales(q) {
   renderSalesTable(filtered);
 }
 
+let stockLoadedAt = 0;
+let _stockLoadSeq = 0;
 async function loadStock() {
+  const _seq = ++_stockLoadSeq;
   document.getElementById('stockTable').innerHTML = '<tr><td colspan="11" style="text-align:center;padding:40px;color:#888780;">Chargement du stock Shopify (peut prendre 30s)...</td></tr>';
   const [data, locMap] = await Promise.all([api('/analytics/stock'), api('/stock/locations')]);
+  if (_seq !== _stockLoadSeq) return; // un chargement plus récent (ex: changement de boutique) a démarré → on abandonne celui-ci
+  stockLoadedAt = Date.now();
   allStockData = data.map(p => ({
     ...p,
     inBoutique: locMap[p.barcode]?.inBoutique === true,
@@ -2581,6 +2615,32 @@ async function loadStock() {
     document.getElementById('stockSummary').after(banner);
   }).catch(()=>{});
 }
+
+// ===== Tables de données → vue en cartes sur mobile (générique) =====
+// On affecte automatiquement à chaque cellule un data-label issu de l'en-tête de colonne,
+// et on marque le .table-card en .tc-cards pour activer le rendu carte (voir CSS).
+const TC_CARD_TABLES = ['salesTable','rachatsTable','trfTable','cmdTable','depotsTable','cleanTable','actTable'];
+function tcAssignLabels(tbody) {
+  const table = tbody.closest('table'); if (!table) return;
+  const headers = [...table.querySelectorAll('thead th')].map(th => (th.textContent || '').trim());
+  tbody.querySelectorAll('tr').forEach(tr => {
+    const cells = tr.children;
+    if (cells.length === 1 && cells[0].hasAttribute('colspan')) return; // ligne "Chargement/Aucun"
+    for (let i = 0; i < cells.length; i++) {
+      if (headers[i] !== undefined && headers[i] !== '') cells[i].setAttribute('data-label', headers[i]);
+    }
+  });
+}
+function initResponsiveTables() {
+  TC_CARD_TABLES.forEach(id => {
+    const tbody = document.getElementById(id); if (!tbody) return;
+    const card = tbody.closest('.table-card'); if (card) card.classList.add('tc-cards');
+    tcAssignLabels(tbody);
+    new MutationObserver(() => tcAssignLabels(tbody)).observe(tbody, { childList: true });
+  });
+}
+if (document.readyState !== 'loading') initResponsiveTables();
+else document.addEventListener('DOMContentLoaded', initResponsiveTables);
 
 async function resetInventaireBoutique() {
   // Respecte le filtre boutique de l'onglet stock (sinon toutes les boutiques visibles)

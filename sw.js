@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-15-tables-harmo';
+const CACHE_VERSION = 'nestore-v2026-06-15-tables-mobile';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
