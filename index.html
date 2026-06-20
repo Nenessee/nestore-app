@@ -1067,7 +1067,7 @@ async function nvHardReload(){
 </script>
 
 <script>
-  const APP_VERSION = '2025-06-15-v109-darkmode';
+  const APP_VERSION = '2025-06-15-v110-offline-sales';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   // Jeton employé envoyé au backend sur chaque appel (doit correspondre à
   // EMPLOYEE_API_KEY sur Railway). Bloque les accès directs à l'API par URL.
@@ -1318,6 +1318,51 @@ async function nvHardReload(){
     }
   }
 
+  // ===== File d'attente des ventes hors-ligne (ne jamais perdre une vente si le réseau coupe) =====
+  const NV_SALE_QUEUE = 'nv_offline_sales';
+  function nvGetQueue() { try { return JSON.parse(localStorage.getItem(NV_SALE_QUEUE) || '[]'); } catch (_) { return []; } }
+  function nvSetQueue(q) { localStorage.setItem(NV_SALE_QUEUE, JSON.stringify(q)); nvUpdateOfflineBadge(); }
+  function nvQueueSale(payload) {
+    const q = nvGetQueue();
+    q.push({ id: 'os_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7), payload, at: Date.now() });
+    nvSetQueue(q);
+  }
+  let _nvFlushing = false;
+  async function nvFlushSales() {
+    if (_nvFlushing || !navigator.onLine) return;
+    let q = nvGetQueue();
+    if (!q.length) return;
+    _nvFlushing = true;
+    const remaining = [];
+    for (const item of q) {
+      try {
+        const res = await fetch(`${BACKEND_URL}/sell`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item.payload) });
+        const result = await res.json().catch(() => ({}));
+        if (!res.ok || !result.success) remaining.push(item); // échec serveur → on garde pour réessayer
+      } catch (e) { remaining.push(item); } // réseau encore coupé → on garde
+    }
+    nvSetQueue(remaining);
+    _nvFlushing = false;
+    const synced = q.length - remaining.length;
+    if (synced > 0 && typeof showToast === 'function') showToast(`${synced} vente(s) hors-ligne synchronisée(s) ✓`, 'success');
+  }
+  function nvUpdateOfflineBadge() {
+    const n = nvGetQueue().length;
+    let el = document.getElementById('offlineBadge');
+    if (!n) { if (el) el.remove(); return; }
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'offlineBadge';
+      el.style.cssText = 'position:fixed;bottom:16px;left:16px;z-index:9998;background:#BA7517;color:#fff;padding:8px 13px;border-radius:20px;font-size:12px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer;';
+      el.title = 'Appuyer pour synchroniser maintenant';
+      el.onclick = nvFlushSales;
+      document.body.appendChild(el);
+    }
+    el.textContent = `⏳ ${n} vente${n > 1 ? 's' : ''} à synchroniser`;
+  }
+  window.addEventListener('online', nvFlushSales);
+  window.addEventListener('load', () => { nvUpdateOfflineBadge(); nvFlushSales(); });
+
   async function markAsSold() {
     const employee = document.getElementById('employeeSelect').value;
     if (!employee) { showToast('Sélectionne un employé avant de valider la vente', 'warn'); return; }
@@ -1327,27 +1372,35 @@ async function nvHardReload(){
     const btn = document.getElementById('sellBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'Envoi en cours...'; }
 
+    const boutique = document.getElementById('boutiqueSelect').value;
+    const cd = currentData; // capture avant de réinitialiser
+    const payload = {
+      inventoryItemId: cd.inventoryItemId, locationId: cd.selectedLocationId, employee, boutique,
+      productName: cd.name, barcode: cd.barcode, sku: cd.sku, price: cd.price,
+      tags: cd.tags, brand: cd.brand, imageUrl: cd.image, productCreatedAt: cd.productCreatedAt
+    };
+    const finishOffline = (msg) => {
+      nvQueueSale(payload);
+      addToHistory(cd, employee, boutique);
+      if (cd.onVinted) showVintedReminder(cd.name || cd.product_name, cd.barcode);
+      showToast(msg, 'warn');
+      document.getElementById('barcodeInput').value = '';
+      document.getElementById('productArea').innerHTML = '';
+      document.getElementById('barcodeInput').focus();
+      currentData = null;
+    };
+
+    // Hors-ligne d'emblée → on met en file et on confirme (la vente n'est pas perdue)
+    if (!navigator.onLine) { finishOffline('Hors-ligne : vente enregistrée, sera synchronisée ✓'); return; }
+
     try {
       const res = await fetch(`${BACKEND_URL}/sell`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          inventoryItemId: currentData.inventoryItemId,
-          locationId: currentData.selectedLocationId,
-          employee,
-          boutique: document.getElementById('boutiqueSelect').value,
-          productName: currentData.name,
-          barcode: currentData.barcode,
-          sku: currentData.sku,
-          price: currentData.price,
-          tags: currentData.tags,
-          brand: currentData.brand,
-          imageUrl: currentData.image,
-          productCreatedAt: currentData.productCreatedAt
-        })
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
       });
+      const result = await res.json().catch(() => ({}));
 
-      const result = await res.json();
+      // Le service worker renvoie {offline:true} en 503 quand l'API est injoignable
+      if (res.status === 503 && result.offline) { finishOffline('Réseau coupé : vente mise en file, sera synchronisée ✓'); return; }
 
       if (!res.ok || !result.success) {
         showToast('Erreur Shopify : ' + (result.error?.message || result.error || 'réponse inattendue'), 'error');
@@ -1355,13 +1408,9 @@ async function nvHardReload(){
         return;
       }
 
-      addToHistory(currentData, employee, document.getElementById('boutiqueSelect').value);
+      addToHistory(cd, employee, boutique);
       showToast('Stock mis à 0 sur Shopify ✓', 'success');
-
-      // Si l'article est sur Vinted → alerte forte pour éviter double vente
-      if (result.onVinted || currentData.onVinted) {
-        showVintedReminder(currentData.name || currentData.product_name, currentData.barcode);
-      }
+      if (result.onVinted || cd.onVinted) showVintedReminder(cd.name || cd.product_name, cd.barcode);
 
       document.getElementById('barcodeInput').value = '';
       document.getElementById('productArea').innerHTML = '';
@@ -1369,8 +1418,8 @@ async function nvHardReload(){
       currentData = null;
 
     } catch (err) {
-      showToast('Erreur réseau : ' + err.message, 'error');
-      if (btn) { btn.disabled = false; btn.textContent = 'Marquer vendu — stock à 0 sur Shopify'; }
+      // Erreur réseau → on met en file plutôt que de perdre la vente
+      finishOffline('Réseau coupé : vente enregistrée hors-ligne, sera synchronisée ✓');
     }
   }
 
