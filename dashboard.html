@@ -1716,7 +1716,8 @@ tbody tr { transition: background .12s; }
 @media (max-width: 640px) {
   .stock-stats { gap:8px; }
   .stock-stats .kpi { flex:1 1 46%; min-width:0; }
-  .qf-card { flex:1 1 46%; min-width:0; padding:9px 11px; }
+  .stock-quick { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .qf-card { min-width:0; padding:9px 11px; }
   .qf-card .qf-val { font-size:19px; }
   /* Barre de filtres du stock : grille 2 colonnes propre (au lieu du scroll horizontal cassé) */
   #tab-stock .filters-row { flex-wrap:wrap; overflow-x:visible; margin-left:0; margin-right:0; padding:0; gap:8px; }
@@ -2184,7 +2185,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v129-mobile-cards';
+const DASH_VERSION = '2025-04-25-v130-stock-fixes';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2340,7 +2341,12 @@ function switchTab(name, el) {
   if (name === 'objectif') { loadObjectif(); startObjMusic(); }
   if (name === 'ventes') loadVentes();
   if (name === 'stock') {
-    if (allStockData.length === 0) loadStock();
+    // À chaque retour sur l'onglet : on repart propre (filtres remis à zéro) et
+    // on force le rechargement des données Shopify (évite les filtres bloqués / données périmées).
+    if (typeof resetAllStockFilters === 'function') resetAllStockFilters();
+    document.querySelectorAll('#stockSummary .qf-card.qf-active, .qa-pill.applied').forEach(c => c.classList.remove('qf-active','applied'));
+    allStockData = [];
+    loadStock();
     loadVintedPending();
   }
   if (name === 'rachats') loadRachats();
@@ -2632,7 +2638,7 @@ function stockRowHtml(p) {
     <td data-label="Code-barres">${barcodeHtml}</td>
     <td data-label="Prix">${comparePrice}<span style="font-weight:600;">${parseFloat(p.price).toFixed(2)}€</span></td>
     <td data-label="Boutique"><span class="badge ${badge}">${p.boutique}</span></td>
-    <td data-label="Ancienneté"><div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;"><div class="stock-age"><span style="font-size:13px;font-weight:600;">${p.daysOnline}j</span>${statusBadge}<span style="font-size:11px;color:${scoreFill};font-weight:600;" title="Score performance">${score}</span></div><div class="days-bar" style="width:90px;"><div class="days-bar-fill" style="width:${fillPct}%;background:${fillColor};"></div></div></div></td>
+    <td data-label="Ancienneté"><div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;"><div class="stock-age"><span style="font-size:13px;font-weight:600;">${p.daysOnline}j</span>${statusBadge}</div><div class="days-bar" style="width:90px;"><div class="days-bar-fill" style="width:${fillPct}%;background:${fillColor};"></div></div></div></td>
     <td class="cell-loc" data-label="En boutique">${checkCell}</td>
     <td data-label="Localisation">${locCell}</td>
     <td class="cell-vinted" data-label="Vinted">${vintedCell}</td>
