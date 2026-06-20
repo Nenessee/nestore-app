@@ -2076,7 +2076,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v122-retour-filtre';
+const DASH_VERSION = '2025-04-25-v123-spy-unites';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -4202,10 +4202,9 @@ function veilleDetailHTML(stats,sales,catalog,diag){
     <button class="period-btn${arr?' active':''}" onclick="veilleSetMode('arrivals')">Arrivages (rachats)</button>
   </div>`;
   html+='<div class="kpi-grid" style="margin-bottom:20px;">'+
-    kpi(arr?'Arrivages':'Volume écoulé', (t.volume||0))+
+    kpi(arr?'Articles ajoutés':'Articles vendus', (t.volume||0))+
     kpi('Prix moyen', t.avg_price?fmt(t.avg_price):'—')+
     (arr?'':kpi('Délai moyen', t.avg_days!=null?t.avg_days+' j':'—'))+
-    kpi(arr?'Articles ajoutés':'Ventes détectées', (t.lines||0))+
     kpi(stats.self?(arr?"Rachats aujourd'hui":"Ventes aujourd'hui"):(arr?"Arrivages du jour (est.)":"Ventes du jour (est.)"), _todayVol+_todayExtra)+
     kpi(stats.self?'Moyenne / jour':'Moyenne / jour (est.)', _avg)+'</div>';
   if (catalog && catalog.self) {
