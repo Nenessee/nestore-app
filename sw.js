@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-15-ux-fixes';
+const CACHE_VERSION = 'nestore-v2026-06-15-bulkbar-dark';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
