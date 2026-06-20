@@ -1700,6 +1700,36 @@ tbody tr { transition: background .12s; }
 #stockPager button:hover { background:#f5f5f3; }
 #stockPager .pg-info { font-size:12px; color:#888780; }
 
+/* Bloc résumé : stats (info) + filtres rapides (cartes cliquables) */
+#stockSummary { margin-bottom:20px; }
+.stock-stats { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+.stock-section-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#a8a69d; margin:2px 2px 8px; }
+.stock-quick { display:flex; gap:8px; flex-wrap:wrap; }
+.qf-card { flex:1 1 130px; min-width:118px; cursor:pointer; border:0.5px solid #e4e2da; border-radius:12px; padding:10px 14px; background:#fff; transition:border-color .12s, box-shadow .12s, background .12s; }
+.qf-card:hover { border-color:#c9c7bd; box-shadow:0 1px 3px rgba(0,0,0,.05); }
+.qf-card.qf-alert { border-color:#f3c9c9; }
+.qf-card .qf-val { font-size:22px; font-weight:700; line-height:1.1; }
+.qf-card .qf-lbl { font-size:12px; color:#5f5e5a; font-weight:600; margin-top:2px; }
+.qf-card .qf-sub { font-size:10px; color:#a8a69d; margin-top:1px; }
+.qf-card.qf-active { border-color:#2C2C2A; box-shadow:0 0 0 1.5px #2C2C2A; background:#faf9f5; }
+[data-theme="dark"] .qf-card { background:var(--card-bg, #232320); border-color:var(--border, #38382f); }
+[data-theme="dark"] .qf-card .qf-lbl { color:var(--text, #e9e7df); }
+[data-theme="dark"] .qf-card.qf-active { background:rgba(255,255,255,0.05); border-color:#fff; box-shadow:0 0 0 1.5px #fff; }
+@media (max-width: 640px) {
+  .stock-stats { gap:8px; }
+  .stock-stats .kpi { flex:1 1 46%; min-width:0; }
+  .qf-card { flex:1 1 46%; min-width:0; padding:9px 11px; }
+  .qf-card .qf-val { font-size:19px; }
+  /* Barre de filtres du stock : grille 2 colonnes propre (au lieu du scroll horizontal cassé) */
+  #tab-stock .filters-row { flex-wrap:wrap; overflow-x:visible; margin-left:0; margin-right:0; padding:0; gap:8px; }
+  #tab-stock .filters-row .search-input { flex:1 1 100%; min-width:0; }
+  #tab-stock .filters-row .filter-select { flex:1 1 47%; min-width:0; }
+  #tab-stock .filters-row > button { flex:1 1 47%; min-width:0; justify-content:center; text-align:center; }
+  /* Boutons d'action en 2 colonnes */
+  #tab-stock .stock-actions { width:100%; }
+  #tab-stock .stock-actions .btn { flex:1 1 47%; }
+}
+
 @media (max-width: 900px) {
   #stockTableWrap { overflow-x:visible; }
   #stockTableWrap table, #stockTableWrap thead, #stockTableWrap tbody,
@@ -1750,7 +1780,7 @@ tbody tr { transition: background .12s; }
   <div style="margin-bottom:12px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
       <div class="section-title" style="margin:0;">Stock en ligne actuellement</div>
-      <div style="display:flex;gap:8px;">
+      <div class="stock-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-red js-admin-only" onclick="openSoldeModalBulk()" style="font-size:13px;">Appliquer soldes sélection</button>
         <button class="btn js-admin-only" onclick="openSoldeModalAll60()" style="font-size:13px;background:rgba(163,45,45,0.15);border-color:#A32D2D;color:#A32D2D;">Solder tous les +60j</button>
         <button class="btn js-admin-only" onclick="resetInventaireBoutique()" style="font-size:13px;" title="Décoche toutes les cases « en boutique » pour refaire l'inventaire">↺ Reset inventaire</button>
@@ -1806,7 +1836,7 @@ tbody tr { transition: background .12s; }
       <button onclick="allStockData=[];loadStock();" style="padding:8px 14px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:8px;font-size:12px;cursor:pointer;white-space:nowrap;">↻ Actualiser</button>
     </div>
   </div>
-  <div id="stockSummary" style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;"></div>
+  <div id="stockSummary"></div>
   <div class="bulk-toolbar" id="bulkToolbar">
     <span id="bulkCount" style="font-size:13px;">0 article sélectionné</span>
     <button class="btn btn-red js-admin-only" onclick="openSoldeModalBulk()" style="font-size:12px;">Appliquer réduction</button>
@@ -2149,7 +2179,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v125-stock-table';
+const DASH_VERSION = '2025-04-25-v126-stock-summary';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2494,34 +2524,27 @@ async function loadStock() {
       <div class="kpi"><div class="kpi-label">Valeur stock Lille</div><div class="kpi-value">${eur(valLille)}</div></div>
       <div class="kpi"><div class="kpi-label">Valeur stock Dunkerque</div><div class="kpi-value">${eur(valDK)}</div></div>`;
   }
-  document.getElementById('stockSummary').innerHTML = `${_valuesHtml}
-    <div class="kpi"><div class="kpi-label">Total en ligne</div><div class="kpi-value">${total}</div></div>
-    <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('stockLocationFilter').value='present';filterStock();">
-      <div class="kpi-label">Localisés ✓</div>
-      <div class="kpi-value" style="color:#3B6D11;">${localized}</div>
-      <div class="kpi-sub">sur ${total} articles</div>
+  const qf = (key,label,val,sub,color,alert) =>
+    `<div class="qf-card${alert?' qf-alert':''}" data-qf="${key}" onclick="stockQuickFilter('${key}')">
+       <div class="qf-val" style="color:${color};">${val}</div>
+       <div class="qf-lbl">${label}</div>
+       <div class="qf-sub">${sub}</div>
+     </div>`;
+  document.getElementById('stockSummary').innerHTML = `
+    <div class="stock-stats">
+      ${_valuesHtml}
+      <div class="kpi"><div class="kpi-label">Total en ligne</div><div class="kpi-value">${total}</div></div>
+      <div class="kpi"><div class="kpi-label">Score moyen</div><div class="kpi-value" style="color:${avgScore>=70?'#3B6D11':avgScore>=40?'#BA7517':'#A32D2D'}">${avgScore}</div><div class="kpi-sub">sur 100</div></div>
     </div>
-    <div class="kpi" style="cursor:pointer;border-color:${notLocalized>0?'#f7c1c1':''};" onclick="document.getElementById('stockLocationFilter').value='absent';filterStock();">
-      <div class="kpi-label">Non localisés</div>
-      <div class="kpi-value" style="color:${notLocalized>0?'#A32D2D':'#3B6D11'};">${notLocalized}</div>
-      <div class="kpi-sub">${notLocalized>0?'à vérifier':'tout localisé ✓'}</div>
-    </div>
-    <div class="kpi"><div class="kpi-label">+30 jours</div><div class="kpi-value" style="color:#BA7517;">${alert30}</div><div class="kpi-sub">à surveiller</div></div>
-    <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('stockDaysFilter').value='danger';filterStock();">
-      <div class="kpi-label">+60 jours</div><div class="kpi-value" style="color:#A32D2D;">${alert60}</div><div class="kpi-sub">cliquer pour voir</div>
-    </div>
-    <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('stockBarcodeFilter').value='missing';filterStock();">
-      <div class="kpi-label">Sans code-barres</div>
-      <div class="kpi-value" style="color:${missingBarcode>0?'#A32D2D':'#3B6D11'};">${missingBarcode}</div>
-      <div class="kpi-sub">${missingBarcode>0?'cliquer pour voir':'tout OK'}</div>
-    </div>
-    <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('stockVintedFilter').value='yes';filterStock();">
-      <div class="kpi-label">Sur Vinted</div>
-      <div class="kpi-value" style="color:#09B1BA;">${onVintedCount}</div>
-      <div class="kpi-sub">cliquer pour voir</div>
-    </div>
-    <div class="kpi"><div class="kpi-label">Score moyen</div><div class="kpi-value" style="color:${avgScore>=70?'#3B6D11':avgScore>=40?'#BA7517':'#A32D2D'}">${avgScore}</div><div class="kpi-sub">sur 100</div></div>
-  `;
+    <div class="stock-section-label">Filtres rapides — un clic applique ce filtre seul (remet les autres à zéro)</div>
+    <div class="stock-quick">
+      ${qf('localises','Localisés ✓', localized, `sur ${total}`, '#3B6D11', false)}
+      ${qf('nonlocalises','Non localisés', notLocalized, notLocalized>0?'à vérifier':'tout localisé ✓', notLocalized>0?'#A32D2D':'#3B6D11', notLocalized>0)}
+      ${qf('j30','+30 jours', alert30, 'à surveiller', '#BA7517', false)}
+      ${qf('j60','+60 jours', alert60, 'à brader', '#A32D2D', false)}
+      ${qf('nocb','Sans code-barres', missingBarcode, missingBarcode>0?'à scanner':'tout OK', missingBarcode>0?'#A32D2D':'#3B6D11', missingBarcode>0)}
+      ${qf('vinted','Sur Vinted', onVintedCount, 'annonces en ligne', '#09B1BA', false)}
+    </div>`;
   filterStock();
   // Stats synchro du jour
   fetch(`${BACKEND_URL}/stock/sync-stats`).then(r=>r.json()).then(stats => {
@@ -2621,6 +2644,7 @@ function renderStockPage() {
     if (pager) pager.innerHTML = '';
     document.getElementById('stockCount').textContent = '0 article';
     syncSelectAllCheckbox();
+    if (typeof refreshStockQuickHighlight === 'function') refreshStockQuickHighlight();
     return;
   }
   const shown = Math.min(stockShown, total);
@@ -2634,6 +2658,7 @@ function renderStockPage() {
       : (total > STOCK_PAGE_SIZE ? `<span class="pg-info">${total} articles affichés</span>` : '');
   }
   syncSelectAllCheckbox();
+  if (typeof refreshStockQuickHighlight === 'function') refreshStockQuickHighlight();
 }
 function showMoreStock() { stockShown += STOCK_PAGE_SIZE; renderStockPage(); }
 function showAllStock() { stockShown = stockFiltered.length; renderStockPage(); }
@@ -2693,6 +2718,47 @@ let _stockSearchTimer = null;
 function onStockSearchInput() {
   clearTimeout(_stockSearchTimer);
   _stockSearchTimer = setTimeout(filterStock, 180);
+}
+
+// ===== Cartes « Filtres rapides » : un clic = CE filtre seul (reset des autres) =====
+const STOCK_QUICK_DEFS = {
+  localises:    { loc:'present',  barcode:'present' },
+  nonlocalises: { loc:'absent',   barcode:'present' },
+  j30:          { days:'warn' },
+  j60:          { days:'danger' },
+  nocb:         { barcode:'missing' },
+  vinted:       { vinted:'yes' },
+};
+const STOCK_FILTER_IDS = ['stockSearch','stockBoutiqueFilter','stockDaysFilter','stockBarcodeFilter','stockLocationFilter','stockVintedFilter','stockScoreFilter'];
+function resetAllStockFilters() {
+  STOCK_FILTER_IDS.forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+}
+function stockQuickFilter(key) {
+  const def = STOCK_QUICK_DEFS[key]; if (!def) return;
+  const card = document.querySelector(`#stockSummary .qf-card[data-qf="${key}"]`);
+  const wasActive = card && card.classList.contains('qf-active');
+  resetAllStockFilters();                 // toujours repartir propre
+  if (!wasActive) {                       // re-clic sur la carte active = on retire le filtre
+    if (def.loc)     document.getElementById('stockLocationFilter').value = def.loc;
+    if (def.barcode) document.getElementById('stockBarcodeFilter').value = def.barcode;
+    if (def.days)    document.getElementById('stockDaysFilter').value = def.days;
+    if (def.vinted)  document.getElementById('stockVintedFilter').value = def.vinted;
+  }
+  filterStock(); // → renderStockPage → refreshStockQuickHighlight()
+}
+// La surbrillance se déduit de l'état RÉEL des filtres : se met à jour aussi
+// quand on touche un menu déroulant manuellement.
+function refreshStockQuickHighlight() {
+  const cur = {};
+  STOCK_FILTER_IDS.forEach(id => cur[id] = (document.getElementById(id)?.value || ''));
+  cur.stockSearch = cur.stockSearch.trim();
+  let active = null;
+  for (const key in STOCK_QUICK_DEFS) {
+    const d = STOCK_QUICK_DEFS[key];
+    const exp = { stockSearch:'', stockBoutiqueFilter:'', stockDaysFilter:d.days||'', stockBarcodeFilter:d.barcode||'', stockLocationFilter:d.loc||'', stockVintedFilter:d.vinted||'', stockScoreFilter:'' };
+    if (STOCK_FILTER_IDS.every(id => cur[id] === exp[id])) { active = key; break; }
+  }
+  document.querySelectorAll('#stockSummary .qf-card').forEach(c => c.classList.toggle('qf-active', c.dataset.qf === active));
 }
 
 function toggleProduct(cb) {
@@ -4774,9 +4840,8 @@ if (_s?.auth) {
       };
       const targetId = map[type];
       const sameClicked = document.querySelector(`.qa-pill.applied[data-filter="${type}:${value}"]`);
-      // Reset des AUTRES filtres exclusifs (location/days/barcode)
-      const exclusives = ['stockLocationFilter','stockDaysFilter','stockBarcodeFilter'];
-      exclusives.forEach(id => {
+      // Reset de TOUS les autres filtres (on repart propre, comme les cartes)
+      ['stockSearch','stockBoutiqueFilter','stockDaysFilter','stockBarcodeFilter','stockLocationFilter','stockVintedFilter','stockScoreFilter'].forEach(id => {
         const el = document.getElementById(id);
         if (el && id !== targetId) el.value = '';
       });
