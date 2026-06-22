@@ -1999,6 +1999,7 @@ tbody tr { transition: background .12s; }
     <div class="filters-row">
       <input class="search-input" id="soldesSearch" placeholder="Rechercher…" oninput="soldesRenderDebounced()"/>
       <select class="filter-select" id="soldesBoutiqueFilter" onchange="soldesRender()"><option value="">Toutes boutiques</option><option value="Lille">Lille</option><option value="DK">DK</option></select>
+      <select class="filter-select" id="soldesCategoryFilter" onchange="soldesRender()"><option value="">Toutes catégories</option><option value="Sneakers">👟 Sneakers</option><option value="Sapes">👕 Sapes</option><option value="Accessoires">👜 Accessoires/Sacs</option><option value="Autre">📦 Autre</option></select>
       <select class="filter-select" id="soldesStatusFilter" onchange="soldesRender()"><option value="">Tous statuts</option><option value="prepared">Préparés</option><option value="applied">Appliqués</option><option value="pending">À pousser</option><option value="none">Non préparés</option></select>
     </div>
     <div class="table-card tc-cards">
@@ -2307,7 +2308,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v140-soldes';
+const DASH_VERSION = '2025-04-25-v141-soldes-cat';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5548,10 +5549,12 @@ function soldesRenderDebounced(){ clearTimeout(_soldesSearchT); _soldesSearchT=s
 function soldesFiltered() {
   const q=(document.getElementById('soldesSearch').value||'').toLowerCase().trim();
   const bq=document.getElementById('soldesBoutiqueFilter').value;
+  const cat=document.getElementById('soldesCategoryFilter')?.value||'';
   const st=document.getElementById('soldesStatusFilter').value;
   return soldesCatalog.filter(p=>{
     if(q && !(p.title||'').toLowerCase().includes(q) && !(p.brand||'').toLowerCase().includes(q) && !(p.barcode||'').toLowerCase().includes(q)) return false;
     if(bq && p.boutique!==bq) return false;
+    if(cat && p.category!==cat) return false;
     if(st==='prepared' && p.salePrice==null) return false;
     if(st==='applied' && !p.applied) return false;
     if(st==='pending' && !(p.salePrice!=null && (!p.applied || p.dirty))) return false;
@@ -5568,6 +5571,7 @@ function soldesRender() {
   const shown=Math.min(soldesShown,data.length);
   tb.innerHTML=data.slice(0,shown).map(p=>{
     const img=p.image?`<img src="${p.image}" class="product-img" loading="lazy"/>`:`<span class="no-img">👕</span>`;
+    const catIcon={Sneakers:'👟',Sapes:'👕',Accessoires:'👜',Autre:'📦'}[p.category]||'';
     const disc=(p.salePrice!=null && p.price>0)?Math.round((1-p.salePrice/p.price)*100):null;
     const remise=(p.salePrice!=null)?`<span style="color:#A32D2D;font-weight:600;">−${(p.price-p.salePrice).toFixed(2)}€${disc!=null?` (−${disc}%)`:''}</span>`:'—';
     let badge='<span style="color:var(--text-muted);font-size:11px;">—</span>';
@@ -5577,7 +5581,7 @@ function soldesRender() {
       else badge='<span class="badge" style="background:#EEEDFE;color:#3C3489;">Préparé</span>';
     }
     return `<tr data-pid="${p.id}">
-      <td data-label="Article" class="cell-article"><div class="stock-art">${img}<div class="meta"><div class="t">${p.title||''}</div><div class="v">${p.brand||'—'}${p.barcode?(' · '+p.barcode):''}</div></div></div></td>
+      <td data-label="Article" class="cell-article"><div class="stock-art">${img}<div class="meta"><div class="t">${p.title||''}</div><div class="v">${catIcon} ${p.brand||'—'}${p.barcode?(' · '+p.barcode):''}</div></div></div></td>
       <td data-label="Boutique">${channelBadge(p.boutique)}</td>
       <td data-label="Prix actuel" style="font-weight:600;">${p.price.toFixed(2)}€</td>
       <td data-label="Prix soldé"><input type="number" min="0" step="0.5" value="${p.salePrice!=null?p.salePrice:''}" onchange="soldesSetPrice(${p.id}, this.value)" style="width:90px;padding:5px 7px;border:0.5px solid var(--border-strong);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;" placeholder="€"/></td>
