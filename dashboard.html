@@ -1986,7 +1986,7 @@ tbody tr { transition: background .12s; }
       <input class="search-input" id="soldesSearch" placeholder="Rechercher…" oninput="soldesRenderDebounced()"/>
       <select class="filter-select" id="soldesBoutiqueFilter" onchange="soldesRender()"><option value="">Toutes boutiques</option><option value="Lille">Lille</option><option value="DK">DK</option></select>
       <select class="filter-select" id="soldesCategoryFilter" onchange="soldesRender()"><option value="">Toutes catégories</option><option value="Sneakers">👟 Sneakers</option><option value="Sapes">👕 Sapes</option><option value="Accessoires">👜 Accessoires/Sacs</option><option value="Autre">📦 Autre</option></select>
-      <select class="filter-select" id="soldesStatusFilter" onchange="soldesRender()"><option value="">Tous statuts</option><option value="prepared">Préparés</option><option value="applied">Appliqués</option><option value="pending">À pousser</option><option value="none">Non préparés</option></select>
+      <select class="filter-select" id="soldesStatusFilter" onchange="soldesRender()"><option value="">Tous statuts</option><option value="prepared">Préparés</option><option value="applied">Appliqués</option><option value="pending">À pousser</option><option value="none">Non préparés</option><option value="relabeled">✓ Ré-étiquetés</option><option value="notfound">⚠️ Introuvables</option></select>
       <select class="filter-select" id="soldesSortFilter" onchange="soldesRender()"><option value="days_desc">Plus anciens</option><option value="days_asc">Plus récents</option><option value="price_desc">Prix décroissant</option><option value="price_asc">Prix croissant</option><option value="disc_desc">Remise décroissante</option><option value="title_asc">Nom (A→Z)</option></select>
     </div>
     <div class="table-card tc-cards">
@@ -2295,7 +2295,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v149-soldes-notfound';
+const DASH_VERSION = '2025-04-25-v150-soldes-notfound-admin';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5529,15 +5529,28 @@ function loadSoldes() {
 }
 function soldesRefresh() { loadSoldesSummary(); loadSoldesCatalog(true); }
 
+// Applique des filtres au catalogue + descend dessus (KPIs cliquables)
+function soldesFilterTo(opts) {
+  opts = opts || {};
+  const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.value=v; };
+  set('soldesSearch','');
+  set('soldesBoutiqueFilter', opts.boutique||'');
+  set('soldesStatusFilter', opts.status||'');
+  if (opts.category!==undefined) set('soldesCategoryFilter', opts.category||'');
+  soldesShown = SOLDES_PAGE;
+  soldesRender();
+  document.getElementById('soldesTable')?.closest('.table-card')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
 async function loadSoldesSummary() {
   try {
     const s = await api('/sales/summary');
+    const nf=(bq,n)=>n?` · <span style="color:#BA7517;text-decoration:underline;cursor:pointer;" onclick="event.stopPropagation();soldesFilterTo({boutique:'${bq}',status:'notfound'})">${n} introuv.</span>`:'';
     document.getElementById('soldesKpis').innerHTML =
-      `<div class="kpi"><div class="kpi-label">Préparés</div><div class="kpi-value">${s.prepared}</div><div class="kpi-sub">${s.applied} appliqués sur Shopify</div></div>`+
+      `<div class="kpi" style="cursor:pointer;" onclick="soldesFilterTo({status:'prepared'})"><div class="kpi-label">Préparés</div><div class="kpi-value">${s.prepared}</div><div class="kpi-sub">${s.applied} appliqués sur Shopify</div></div>`+
       `<div class="kpi"><div class="kpi-label">Remise totale</div><div class="kpi-value" style="color:#A32D2D;">${fmt(s.totalDiscount)}</div><div class="kpi-sub">articles préparés</div></div>`+
       `<div class="kpi"><div class="kpi-label">CA soldes</div><div class="kpi-value" style="color:#3B6D11;">${fmt(s.ca.revenue)}</div><div class="kpi-sub">${s.ca.count} vente${s.ca.count>1?'s':''} · ${s.period.start}→${s.period.end}</div></div>`+
-      `<div class="kpi"><div class="kpi-label">Ré-étiquetage Lille</div><div class="kpi-value">${s.lille.relabeled}/${s.lille.prepared}</div><div class="kpi-sub">faits / préparés${s.lille.notFound?` · <span style="color:#BA7517;">${s.lille.notFound} introuv.</span>`:''}</div></div>`+
-      `<div class="kpi"><div class="kpi-label">Ré-étiquetage DK</div><div class="kpi-value">${s.dk.relabeled}/${s.dk.prepared}</div><div class="kpi-sub">faits / préparés${s.dk.notFound?` · <span style="color:#BA7517;">${s.dk.notFound} introuv.</span>`:''}</div></div>`;
+      `<div class="kpi" style="cursor:pointer;" onclick="soldesFilterTo({boutique:'Lille'})"><div class="kpi-label">Ré-étiquetage Lille</div><div class="kpi-value">${s.lille.relabeled}/${s.lille.prepared}</div><div class="kpi-sub">faits / préparés${nf('Lille',s.lille.notFound)}</div></div>`+
+      `<div class="kpi" style="cursor:pointer;" onclick="soldesFilterTo({boutique:'DK'})"><div class="kpi-label">Ré-étiquetage DK</div><div class="kpi-value">${s.dk.relabeled}/${s.dk.prepared}</div><div class="kpi-sub">faits / préparés${nf('DK',s.dk.notFound)}</div></div>`;
   } catch(e){ document.getElementById('soldesKpis').innerHTML='<div class="loading">Récap indisponible</div>'; }
 }
 
@@ -5567,6 +5580,8 @@ function soldesFiltered() {
     if(st==='applied' && !p.applied) return false;
     if(st==='pending' && !(p.salePrice!=null && (!p.applied || p.dirty))) return false;
     if(st==='none' && p.salePrice!=null) return false;
+    if(st==='relabeled' && !p.relabeled) return false;
+    if(st==='notfound' && !p.notFound) return false;
     return true;
   });
   const disc=p=>(p.salePrice!=null?Math.max(0,(Number(p.price)||0)-Number(p.salePrice)):-1);
@@ -5591,13 +5606,17 @@ function soldesRowHtml(p) {
     else if(p.applied && p.dirty) badge='<span class="badge badge-warning">à repousser</span>';
     else badge='<span class="badge" style="background:#EEEDFE;color:#3C3489;">Préparé</span>';
   }
+  // statut ré-étiquetage (info employé)
+  let etiq='';
+  if(p.notFound) etiq=' <span class="badge" style="background:rgba(186,117,23,0.18);color:#BA7517;">⚠️ introuvable</span>';
+  else if(p.relabeled) etiq=' <span class="badge badge-ok">✓ étiqueté</span>';
   return `<tr data-pid="${p.id}">
     <td data-label="Article" class="cell-article"><div class="stock-art">${img}<div class="meta"><div class="t">${p.title||''}</div><div class="v">${catIcon} ${p.brand||'—'}${p.barcode?(' · '+p.barcode):''}</div></div></div></td>
     <td data-label="Boutique">${channelBadge(p.boutique)}</td>
     <td data-label="Prix actuel" style="font-weight:600;">${price.toFixed(2)}€</td>
     <td data-label="Prix soldé"><input type="number" min="0" step="0.5" value="${sale!=null?sale:''}" onchange="soldesSetPrice(${p.id}, this.value)" style="width:90px;padding:5px 7px;border:0.5px solid var(--border-strong);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;" placeholder="€"/></td>
     <td data-label="Remise">${remise}</td>
-    <td data-label="Statut">${badge}</td>
+    <td data-label="Statut">${badge}${etiq}</td>
     <td data-label="Fiche" style="white-space:nowrap;"><a href="${p.shopifyAdminUrl}" target="_blank" class="link-btn">Shopify ↗</a>${sale!=null?` <button class="btn" style="font-size:11px;padding:4px 8px;color:var(--accent);" onclick="soldesRemove(${p.id})">Retirer</button>`:''}</td>
   </tr>`;
 }
@@ -5761,6 +5780,7 @@ async function soldesToggleRelabel(pid) {
 async function soldesToggleNotFound(pid) {
   const x=soldesWork.find(w=>String(w.product_id)===String(pid)); if(!x) return;
   const newVal=!x.not_found;
+  if(newVal && !confirm(`Marquer « ${x.title||'cet article'} » comme INTROUVABLE ?`)) return;
   x.not_found=newVal; if(newVal) x.relabeled=false; soldesEmpRender();
   try {
     const res=await fetch(`${BACKEND_URL}/sales/notfound`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({productId:pid, notFound:newVal, employee:DASH_EMPLOYEE||null})});
