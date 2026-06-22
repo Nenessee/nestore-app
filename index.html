@@ -77,7 +77,7 @@
       --shadow-md: 0 1px 3px rgba(14, 14, 12, 0.06), 0 8px 24px rgba(14, 14, 12, 0.04);
       --shadow-lg: 0 4px 16px rgba(14, 14, 12, 0.08), 0 24px 48px rgba(14, 14, 12, 0.06);
       --bar-blur: saturate(180%) blur(24px);
-      --bar-bg: rgba(255, 255, 255, 0.72);
+      --bar-bg: rgba(250, 249, 245, 0.97);
     }
     [data-theme="dark"] {
       --bg: #0a0a09;
@@ -110,7 +110,7 @@
       --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
       --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.45), 0 16px 40px rgba(0, 0, 0, 0.25);
       --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.55), 0 32px 64px rgba(0, 0, 0, 0.35);
-      --bar-bg: rgba(20, 20, 18, 0.68);
+      --bar-bg: rgba(16, 16, 14, 0.97);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     *, *::before, *::after { -webkit-tap-highlight-color: transparent; }
@@ -255,8 +255,6 @@
       z-index: 50;
       padding-top: env(safe-area-inset-top);
       background: var(--bar-bg);
-      backdrop-filter: var(--bar-blur);
-      -webkit-backdrop-filter: var(--bar-blur);
       border-bottom: 1px solid var(--border);
     }
     .header-inner {
@@ -356,8 +354,6 @@
       z-index: 50;
       padding-bottom: env(safe-area-inset-bottom);
       background: var(--bar-bg);
-      backdrop-filter: var(--bar-blur);
-      -webkit-backdrop-filter: var(--bar-blur);
       border-top: 1px solid var(--border);
       display: flex;
       max-width: 520px;
@@ -1065,7 +1061,7 @@ async function nvHardReload(){
 </script>
 
 <script>
-  const APP_VERSION = '2025-06-15-v113-perf-css';
+  const APP_VERSION = '2025-06-15-v114-no-blur';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   // Jeton employé envoyé au backend sur chaque appel (doit correspondre à
   // EMPLOYEE_API_KEY sur Railway). Bloque les accès directs à l'API par URL.
