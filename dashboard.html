@@ -1560,6 +1560,7 @@ tbody tr { transition: background .12s; }
     <div class="tab active" onclick="switchTab('ventes',this)">Scan &amp; Ventes</div>
     <div class="tab" id="tabObjectif" onclick="switchTab('objectif',this)">Objectif <span id="objectifBadge" style="display:none;width:8px;height:8px;border-radius:50%;background:#E8504E;margin-left:2px;vertical-align:middle;"></span></div>
     <div class="tab" onclick="switchTab('stock',this)">Stock en ligne</div>
+    <div class="tab" id="tabSoldes" onclick="switchTab('soldes',this)">Soldes</div>
     <div class="tab" onclick="switchTab('rachats',this)">Rachats</div>
     <div class="tab" onclick="switchTab('depots',this)">Dépôts</div>
     <div class="tab" onclick="switchTab('nettoyage',this)">Nettoyage</div>
@@ -1973,6 +1974,55 @@ tbody tr { transition: background .12s; }
 </div>
 </div>
 
+<!-- TAB SOLDES -->
+<div id="tab-soldes" class="tab-panel">
+<div class="content">
+  <!-- Vue ADMIN : préparation + pilotage -->
+  <div id="soldesAdmin" style="display:none;">
+    <div class="section-title" style="margin:0 0 4px;">Soldes d'été — 24 juin → 21 juillet 2026</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Prépare les prix tranquillement. <strong>Rien ne part sur Shopify</strong> tant que tu ne cliques pas « Appliquer les soldes ».</div>
+    <div class="kpi-grid" id="soldesKpis" style="margin-bottom:16px;"><div class="loading">Chargement…</div></div>
+    <div class="stock-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+      <button class="btn btn-green" onclick="soldesApply()">🏷️ Appliquer les soldes</button>
+      <button class="btn" style="background:rgba(186,117,23,0.12);border-color:#BA7517;color:#BA7517;" onclick="soldesTerminate()">↩️ Terminer les soldes</button>
+      <button class="btn" onclick="soldesRefresh()" style="font-size:13px;">↻ Actualiser</button>
+    </div>
+    <div class="table-card" style="padding:14px;margin-bottom:14px;">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;">Pré-remplir les articles affichés</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <select id="soldesFillMode" class="filter-select"><option value="pct">− X %</option><option value="eur">− X €</option><option value="fixed">Prix fixe X €</option></select>
+        <input id="soldesFillValue" type="number" min="0" step="1" class="search-input" style="max-width:130px;" placeholder="ex : 30"/>
+        <button class="btn" onclick="soldesPrefill()">Pré-remplir</button>
+        <span style="font-size:12px;color:var(--text-muted);">tu peux ensuite écraser chaque prix à la main</span>
+      </div>
+    </div>
+    <div class="filters-row">
+      <input class="search-input" id="soldesSearch" placeholder="Rechercher…" oninput="soldesRenderDebounced()"/>
+      <select class="filter-select" id="soldesBoutiqueFilter" onchange="soldesRender()"><option value="">Toutes boutiques</option><option value="Lille">Lille</option><option value="DK">DK</option></select>
+      <select class="filter-select" id="soldesStatusFilter" onchange="soldesRender()"><option value="">Tous statuts</option><option value="prepared">Préparés</option><option value="applied">Appliqués</option><option value="pending">À pousser</option><option value="none">Non préparés</option></select>
+    </div>
+    <div class="table-card tc-cards">
+      <div class="table-header"><span class="table-title">Catalogue en ligne</span><span id="soldesCount" style="font-size:12px;color:var(--text-muted);"></span></div>
+      <div style="overflow-x:auto;"><table>
+        <thead><tr><th>Article</th><th>Boutique</th><th>Prix actuel</th><th>Prix soldé</th><th>Remise</th><th>Statut</th><th></th></tr></thead>
+        <tbody id="soldesTable"><tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Chargement…</td></tr></tbody>
+      </table></div>
+      <div id="soldesPager"></div>
+    </div>
+  </div>
+  <!-- Vue EMPLOYÉ : liste de ré-étiquetage de sa boutique -->
+  <div id="soldesEmp" style="display:none;">
+    <div class="section-title" id="soldesEmpTitle" style="margin:0 0 4px;">Ré-étiquetage soldes</div>
+    <div id="soldesEmpProgress" style="font-size:13px;color:var(--text-muted);margin-bottom:14px;"></div>
+    <div class="filters-row">
+      <input class="search-input" id="soldesEmpSearch" placeholder="Rechercher (marque, réf…)" oninput="soldesEmpRender()"/>
+      <select class="filter-select" id="soldesEmpFilter" onchange="soldesEmpRender()"><option value="todo">À faire</option><option value="">Tous</option><option value="done">Faits</option></select>
+    </div>
+    <div id="soldesEmpList"></div>
+  </div>
+</div>
+</div>
+
 <!-- TAB TRANSFERTS -->
 <div id="tab-transferts" class="tab-panel">
 <div class="content">
@@ -2257,7 +2307,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v139-equipe-selects';
+const DASH_VERSION = '2025-04-25-v140-soldes';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2427,6 +2477,7 @@ function switchTab(name, el) {
   if (name === 'rachats') loadRachats();
   if (name === 'depots') loadDepots();
   if (name === 'nettoyage') loadCleanings();
+  if (name === 'soldes') loadSoldes();
   if (name === 'commandes') loadDashCommandes();
   if (name === 'transferts') loadTransferts();
   if (name === 'seo') initSeoTab();
@@ -5454,6 +5505,219 @@ if (_s?.auth) {
     };
   }
 })();
+
+/* ============================== ONGLET SOLDES ============================== */
+let soldesCatalog = [];
+let soldesWork = [];
+let soldesShown = 100;
+const SOLDES_PAGE = 100;
+
+function loadSoldes() {
+  const admin = DASH_BOUTIQUE === 'admin';
+  document.getElementById('soldesAdmin').style.display = admin ? 'block' : 'none';
+  document.getElementById('soldesEmp').style.display = admin ? 'none' : 'block';
+  if (admin) { loadSoldesSummary(); loadSoldesCatalog(); }
+  else loadSoldesWork();
+}
+function soldesRefresh() { loadSoldesSummary(); loadSoldesCatalog(true); }
+
+async function loadSoldesSummary() {
+  try {
+    const s = await api('/sales/summary');
+    document.getElementById('soldesKpis').innerHTML =
+      `<div class="kpi"><div class="kpi-label">Préparés</div><div class="kpi-value">${s.prepared}</div><div class="kpi-sub">${s.applied} appliqués sur Shopify</div></div>`+
+      `<div class="kpi"><div class="kpi-label">Remise totale</div><div class="kpi-value" style="color:#A32D2D;">${fmt(s.totalDiscount)}</div><div class="kpi-sub">articles préparés</div></div>`+
+      `<div class="kpi"><div class="kpi-label">CA soldes</div><div class="kpi-value" style="color:#3B6D11;">${fmt(s.ca.revenue)}</div><div class="kpi-sub">${s.ca.count} vente${s.ca.count>1?'s':''} · ${s.period.start}→${s.period.end}</div></div>`+
+      `<div class="kpi"><div class="kpi-label">Ré-étiquetage Lille</div><div class="kpi-value">${s.lille.relabeled}/${s.lille.applied}</div><div class="kpi-sub">faits / appliqués</div></div>`+
+      `<div class="kpi"><div class="kpi-label">Ré-étiquetage DK</div><div class="kpi-value">${s.dk.relabeled}/${s.dk.applied}</div><div class="kpi-sub">faits / appliqués</div></div>`;
+  } catch(e){ document.getElementById('soldesKpis').innerHTML='<div class="loading">Récap indisponible</div>'; }
+}
+
+async function loadSoldesCatalog(force) {
+  document.getElementById('soldesTable').innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Chargement du catalogue…</td></tr>';
+  try {
+    soldesCatalog = await api('/sales/catalog' + (force ? '?fresh=1' : ''));
+    soldesShown = SOLDES_PAGE;
+    soldesRender();
+  } catch(e){ document.getElementById('soldesTable').innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:#A32D2D;">Erreur de chargement</td></tr>'; }
+}
+
+let _soldesSearchT=null;
+function soldesRenderDebounced(){ clearTimeout(_soldesSearchT); _soldesSearchT=setTimeout(()=>{ soldesShown=SOLDES_PAGE; soldesRender(); },180); }
+
+function soldesFiltered() {
+  const q=(document.getElementById('soldesSearch').value||'').toLowerCase().trim();
+  const bq=document.getElementById('soldesBoutiqueFilter').value;
+  const st=document.getElementById('soldesStatusFilter').value;
+  return soldesCatalog.filter(p=>{
+    if(q && !(p.title||'').toLowerCase().includes(q) && !(p.brand||'').toLowerCase().includes(q) && !(p.barcode||'').toLowerCase().includes(q)) return false;
+    if(bq && p.boutique!==bq) return false;
+    if(st==='prepared' && p.salePrice==null) return false;
+    if(st==='applied' && !p.applied) return false;
+    if(st==='pending' && !(p.salePrice!=null && (!p.applied || p.dirty))) return false;
+    if(st==='none' && p.salePrice!=null) return false;
+    return true;
+  });
+}
+
+function soldesRender() {
+  const data=soldesFiltered();
+  document.getElementById('soldesCount').textContent=`${data.length} article${data.length>1?'s':''}`;
+  const tb=document.getElementById('soldesTable');
+  if(!data.length){ tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Aucun article</td></tr>'; document.getElementById('soldesPager').innerHTML=''; return; }
+  const shown=Math.min(soldesShown,data.length);
+  tb.innerHTML=data.slice(0,shown).map(p=>{
+    const img=p.image?`<img src="${p.image}" class="product-img" loading="lazy"/>`:`<span class="no-img">👕</span>`;
+    const disc=(p.salePrice!=null && p.price>0)?Math.round((1-p.salePrice/p.price)*100):null;
+    const remise=(p.salePrice!=null)?`<span style="color:#A32D2D;font-weight:600;">−${(p.price-p.salePrice).toFixed(2)}€${disc!=null?` (−${disc}%)`:''}</span>`:'—';
+    let badge='<span style="color:var(--text-muted);font-size:11px;">—</span>';
+    if(p.salePrice!=null){
+      if(p.applied && !p.dirty) badge='<span class="badge badge-ok">Appliqué</span>';
+      else if(p.applied && p.dirty) badge='<span class="badge badge-warning">à repousser</span>';
+      else badge='<span class="badge" style="background:#EEEDFE;color:#3C3489;">Préparé</span>';
+    }
+    return `<tr data-pid="${p.id}">
+      <td data-label="Article" class="cell-article"><div class="stock-art">${img}<div class="meta"><div class="t">${p.title||''}</div><div class="v">${p.brand||'—'}${p.barcode?(' · '+p.barcode):''}</div></div></div></td>
+      <td data-label="Boutique">${channelBadge(p.boutique)}</td>
+      <td data-label="Prix actuel" style="font-weight:600;">${p.price.toFixed(2)}€</td>
+      <td data-label="Prix soldé"><input type="number" min="0" step="0.5" value="${p.salePrice!=null?p.salePrice:''}" onchange="soldesSetPrice(${p.id}, this.value)" style="width:90px;padding:5px 7px;border:0.5px solid var(--border-strong);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;" placeholder="€"/></td>
+      <td data-label="Remise">${remise}</td>
+      <td data-label="Statut">${badge}</td>
+      <td data-label="">${p.salePrice!=null?`<button class="btn" style="font-size:11px;padding:4px 8px;color:var(--accent);" onclick="soldesRemove(${p.id})">Retirer</button>`:''}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('soldesPager').innerHTML = shown<data.length
+    ? `<button onclick="soldesShown+=SOLDES_PAGE;soldesRender()">Afficher plus (${Math.min(SOLDES_PAGE,data.length-shown)})</button> <span class="pg-info">${shown} / ${data.length}</span>` : '';
+}
+
+async function soldesSetPrice(id, value) {
+  const p=soldesCatalog.find(x=>x.id===id); if(!p) return;
+  if(value===''){ return soldesRemove(id); }
+  const v=Number(value);
+  if(!(v>=0)||Number.isNaN(v)){ showDashToast('Prix invalide','warn'); return; }
+  try {
+    const res=await fetch(`${BACKEND_URL}/sales/prepare`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      productId:p.id, variantId:p.variantId, barcode:p.barcode, title:p.title, image:p.image, brand:p.brand, boutique:p.boutique,
+      originalPrice:p.price, originalCompareAt:p.compareAtPrice, salePrice:v
+    })});
+    if(!res.ok){ const e=await res.json().catch(()=>({})); showDashToast('Erreur : '+(e.error||res.status),'error'); return; }
+    p.salePrice=v; p.dirty=true; soldesRender(); loadSoldesSummary();
+  } catch(e){ showDashToast('Erreur réseau','error'); }
+}
+
+async function soldesRemove(id) {
+  const p=soldesCatalog.find(x=>x.id===id); if(!p) return;
+  try {
+    const res=await fetch(`${BACKEND_URL}/sales/item/${id}`,{method:'DELETE'});
+    if(!res.ok){ const e=await res.json().catch(()=>({})); showDashToast('Erreur : '+(e.error||res.status),'error'); return; }
+    p.salePrice=null; p.applied=false; p.dirty=false; soldesRender(); loadSoldesSummary();
+  } catch(e){ showDashToast('Erreur réseau','error'); }
+}
+
+async function soldesPrefill() {
+  const mode=document.getElementById('soldesFillMode').value;
+  const val=Number(document.getElementById('soldesFillValue').value);
+  if(!(val>=0)||Number.isNaN(val)){ showDashToast('Entre une valeur','warn'); return; }
+  const data=soldesFiltered();
+  if(!data.length){ showDashToast('Aucun article affiché','warn'); return; }
+  if(!confirm(`Pré-remplir le prix soldé de ${data.length} article(s) affiché(s) ?\n\nTu pourras ensuite modifier chaque prix à la main. Rien n'est poussé sur Shopify.`)) return;
+  const items=data.map(p=>{
+    let sp;
+    if(mode==='pct') sp=Math.max(0,+(p.price*(1-val/100)).toFixed(2));
+    else if(mode==='eur') sp=Math.max(0,+(p.price-val).toFixed(2));
+    else sp=Math.max(0,+val.toFixed(2));
+    return { productId:p.id, variantId:p.variantId, barcode:p.barcode, title:p.title, image:p.image, brand:p.brand, boutique:p.boutique, originalPrice:p.price, originalCompareAt:p.compareAtPrice, salePrice:sp, _sp:sp };
+  });
+  try {
+    const res=await fetch(`${BACKEND_URL}/sales/prepare-bulk`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items})});
+    const d=await res.json().catch(()=>({}));
+    if(!res.ok){ showDashToast('Erreur : '+(d.error||res.status),'error'); return; }
+    items.forEach(it=>{ const p=soldesCatalog.find(x=>x.id===it.productId); if(p){ p.salePrice=it._sp; p.dirty=true; } });
+    showDashToast(`${d.count} prix pré-remplis ✓`,'success'); soldesRender(); loadSoldesSummary();
+  } catch(e){ showDashToast('Erreur réseau','error'); }
+}
+
+async function soldesApply() {
+  const prepared=soldesCatalog.filter(p=>p.salePrice!=null);
+  const pending=prepared.filter(p=>!p.applied||p.dirty);
+  if(!prepared.length){ showDashToast('Aucun prix préparé','warn'); return; }
+  const totalDisc=prepared.reduce((a,p)=>a+Math.max(0,p.price-p.salePrice),0);
+  if(!confirm(`Appliquer les soldes sur Shopify ?\n\n• ${pending.length} article(s) à pousser (nouveaux/modifiés)\n• ${prepared.length} soldés au total\n• Remise totale : ${totalDisc.toFixed(2)}€\n\nLes prix passeront en soldé, l'ancien prix en prix barré, + tag « sldete ».`)) return;
+  showDashToast('Application en cours… (peut prendre un moment)','warn');
+  try {
+    const res=await fetch(`${BACKEND_URL}/sales/apply`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    const d=await res.json().catch(()=>({}));
+    if(!res.ok){ showDashToast('Erreur : '+(d.error||res.status),'error'); return; }
+    if(d.failed>0) showDashToast(`${d.success} appliqués, ${d.failed} en échec — réessaie pour rattraper`,'warn');
+    else showDashToast(`${d.success} article(s) appliqué(s) sur Shopify ✓`,'success');
+    loadSoldesCatalog(true); loadSoldesSummary();
+  } catch(e){ showDashToast('Erreur réseau','error'); }
+}
+
+async function soldesTerminate() {
+  if(!confirm('Terminer les soldes ?\n\nTous les prix d\'origine seront restaurés ; prix barré et tag « sldete » retirés sur Shopify.')) return;
+  showDashToast('Restauration en cours…','warn');
+  try {
+    const res=await fetch(`${BACKEND_URL}/sales/terminate`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    const d=await res.json().catch(()=>({}));
+    if(!res.ok){ showDashToast('Erreur : '+(d.error||res.status),'error'); return; }
+    if(d.failed>0) showDashToast(`${d.success} restaurés, ${d.failed} en échec — réessaie`,'warn');
+    else showDashToast(`Soldes terminés — ${d.success} prix restaurés ✓`,'success');
+    loadSoldesCatalog(true); loadSoldesSummary();
+  } catch(e){ showDashToast('Erreur réseau','error'); }
+}
+
+/* ----- Vue employé : ré-étiquetage ----- */
+async function loadSoldesWork() {
+  const list=document.getElementById('soldesEmpList');
+  list.innerHTML='<div class="loading">Chargement…</div>';
+  document.getElementById('soldesEmpTitle').textContent=`Ré-étiquetage soldes — ${DASH_BOUTIQUE}`;
+  try {
+    soldesWork=await api('/sales/work');
+    soldesEmpRender();
+  } catch(e){ list.innerHTML='<div style="padding:16px;color:#A32D2D;">Erreur de chargement</div>'; }
+}
+function soldesEmpRender() {
+  const q=(document.getElementById('soldesEmpSearch').value||'').toLowerCase().trim();
+  const f=document.getElementById('soldesEmpFilter').value;
+  const total=soldesWork.length, done=soldesWork.filter(x=>x.relabeled).length;
+  document.getElementById('soldesEmpProgress').innerHTML=`<strong>${done}/${total}</strong> articles ré-étiquetés`;
+  const data=soldesWork.filter(x=>{
+    if(q && !(x.title||'').toLowerCase().includes(q) && !(x.brand||'').toLowerCase().includes(q) && !(x.barcode||'').toLowerCase().includes(q)) return false;
+    if(f==='todo' && x.relabeled) return false;
+    if(f==='done' && !x.relabeled) return false;
+    return true;
+  });
+  const list=document.getElementById('soldesEmpList');
+  if(!total){ list.innerHTML='<div style="padding:16px;color:var(--text-muted);">Aucun article soldé pour ta boutique pour l\'instant.</div>'; return; }
+  if(!data.length){ list.innerHTML='<div style="padding:16px;color:var(--text-muted);">Rien avec ce filtre.</div>'; return; }
+  list.innerHTML=data.map(x=>{
+    const img=x.image?`<img src="${x.image}" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex-shrink:0;"/>`:`<div style="width:64px;height:64px;border-radius:10px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">👕</div>`;
+    const disc=x.original_price>0?Math.round((1-x.sale_price/x.original_price)*100):0;
+    return `<div class="table-card" style="padding:12px;margin-bottom:10px;display:flex;gap:12px;align-items:center;${x.relabeled?'opacity:.55;':''}">
+      ${img}
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:600;font-size:14px;">${x.title||''}</div>
+        <div style="font-size:12px;color:var(--text-muted);">${x.brand||'—'}${x.barcode?(' · '+x.barcode):''}</div>
+        <div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="text-decoration:line-through;color:var(--text-muted);font-size:14px;">${x.original_price.toFixed(2)}€</span>
+          <span style="font-size:20px;font-weight:800;color:#A32D2D;">${x.sale_price.toFixed(2)}€</span>
+          <span style="font-size:11px;color:#A32D2D;font-weight:600;">−${disc}%</span>
+        </div>
+      </div>
+      <button class="btn ${x.relabeled?'':'btn-green'}" style="white-space:nowrap;" onclick="soldesToggleRelabel('${x.product_id}')">${x.relabeled?'✓ Fait':'Marquer fait'}</button>
+    </div>`;
+  }).join('');
+}
+async function soldesToggleRelabel(pid) {
+  const x=soldesWork.find(w=>String(w.product_id)===String(pid)); if(!x) return;
+  const newVal=!x.relabeled;
+  x.relabeled=newVal; soldesEmpRender();
+  try {
+    const res=await fetch(`${BACKEND_URL}/sales/relabel`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({productId:pid, relabeled:newVal, employee:DASH_EMPLOYEE||null})});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+  } catch(e){ x.relabeled=!newVal; soldesEmpRender(); showDashToast('Erreur réseau','error'); }
+}
 
 /* ========== ALERTE VENTES OUBLIÉES (épuisé sur Shopify sans vente enregistrée) ========== */
 window.loadForgottenSales = async function() {
