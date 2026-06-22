@@ -1987,6 +1987,7 @@ tbody tr { transition: background .12s; }
       <select class="filter-select" id="soldesBoutiqueFilter" onchange="soldesRender()"><option value="">Toutes boutiques</option><option value="Lille">Lille</option><option value="DK">DK</option></select>
       <select class="filter-select" id="soldesCategoryFilter" onchange="soldesRender()"><option value="">Toutes catégories</option><option value="Sneakers">👟 Sneakers</option><option value="Sapes">👕 Sapes</option><option value="Accessoires">👜 Accessoires/Sacs</option><option value="Autre">📦 Autre</option></select>
       <select class="filter-select" id="soldesStatusFilter" onchange="soldesRender()"><option value="">Tous statuts</option><option value="prepared">Préparés</option><option value="applied">Appliqués</option><option value="pending">À pousser</option><option value="none">Non préparés</option></select>
+      <select class="filter-select" id="soldesSortFilter" onchange="soldesRender()"><option value="days_desc">Plus anciens</option><option value="days_asc">Plus récents</option><option value="price_desc">Prix décroissant</option><option value="price_asc">Prix croissant</option><option value="disc_desc">Remise décroissante</option><option value="title_asc">Nom (A→Z)</option></select>
     </div>
     <div class="table-card tc-cards">
       <div class="table-header"><span class="table-title">Catalogue en ligne</span><span id="soldesCount" style="font-size:12px;color:var(--text-muted);"></span></div>
@@ -2294,7 +2295,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v147-remember-tab';
+const DASH_VERSION = '2025-04-25-v148-soldes-sort';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5557,7 +5558,8 @@ function soldesFiltered() {
   const bq=document.getElementById('soldesBoutiqueFilter').value;
   const cat=document.getElementById('soldesCategoryFilter')?.value||'';
   const st=document.getElementById('soldesStatusFilter').value;
-  return soldesCatalog.filter(p=>{
+  const sort=document.getElementById('soldesSortFilter')?.value||'days_desc';
+  const out=soldesCatalog.filter(p=>{
     if(q && !(p.title||'').toLowerCase().includes(q) && !(p.brand||'').toLowerCase().includes(q) && !(p.barcode||'').toLowerCase().includes(q)) return false;
     if(bq && p.boutique!==bq) return false;
     if(cat && p.category!==cat) return false;
@@ -5567,6 +5569,14 @@ function soldesFiltered() {
     if(st==='none' && p.salePrice!=null) return false;
     return true;
   });
+  const disc=p=>(p.salePrice!=null?Math.max(0,(Number(p.price)||0)-Number(p.salePrice)):-1);
+  if(sort==='days_desc') out.sort((a,b)=>(b.daysOnline||0)-(a.daysOnline||0));
+  else if(sort==='days_asc') out.sort((a,b)=>(a.daysOnline||0)-(b.daysOnline||0));
+  else if(sort==='price_desc') out.sort((a,b)=>(Number(b.price)||0)-(Number(a.price)||0));
+  else if(sort==='price_asc') out.sort((a,b)=>(Number(a.price)||0)-(Number(b.price)||0));
+  else if(sort==='disc_desc') out.sort((a,b)=>disc(b)-disc(a));
+  else if(sort==='title_asc') out.sort((a,b)=>(a.title||'').localeCompare(b.title||''));
+  return out;
 }
 
 function soldesRowHtml(p) {

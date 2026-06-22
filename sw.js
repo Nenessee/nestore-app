@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-15-remember-tab';
+const CACHE_VERSION = 'nestore-v2026-06-15-soldes-sort';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
