@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-15-soldes-sort';
+const CACHE_VERSION = 'nestore-v2026-06-15-soldes-notfound';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
