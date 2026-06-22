@@ -2294,7 +2294,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v146-soldes-prep-relabel';
+const DASH_VERSION = '2025-04-25-v147-remember-tab';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2443,10 +2443,12 @@ function getDateParams() {
 }
 
 function switchTab(name, el) {
+  el = el || document.querySelector(`.tab[onclick*="switchTab('${name}'"]`);
+  try { localStorage.setItem('nv_dash_tab', name); } catch (_) {} // mémorise le dernier onglet ouvert
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  el.classList.add('active');
-  document.getElementById(`tab-${name}`).classList.add('active');
+  if (el) el.classList.add('active');
+  document.getElementById(`tab-${name}`)?.classList.add('active');
   if (name !== 'objectif') stopObjMusic();          // couper la musique en quittant l'onglet Objectif
   if (name === 'objectif') { loadObjectif(); startObjMusic(); }
   if (name === 'ventes') loadVentes();
@@ -4781,6 +4783,18 @@ function initDashboard(boutique, employee) {
   DASH_EMPLOYEE = employee || null;
   localStorage.setItem('nv_session', JSON.stringify({auth:true, boutique, employee: employee||null}));
   document.getElementById('loginScreen').style.display = 'none';
+  // Restaure le dernier onglet ouvert AVANT d'afficher l'app (pas de flash par « Scan & Ventes »)
+  let _savedTab = 'ventes';
+  try { _savedTab = localStorage.getItem('nv_dash_tab') || 'ventes'; } catch (_) {}
+  if (['equipe','veille','seo'].includes(_savedTab) && boutique !== 'admin') _savedTab = 'ventes';
+  const _stEl = document.querySelector(`.tab[onclick*="switchTab('${_savedTab}'"]`);
+  const _stPanel = document.getElementById('tab-' + _savedTab); // (la visibilité du bouton d'onglet admin est réglée plus bas)
+  if (_stEl && _stPanel) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    _stEl.classList.add('active'); _stPanel.classList.add('active');
+  } else { _savedTab = 'ventes'; }
+  window._initSavedTab = _savedTab;
   document.getElementById('dashApp').style.display = 'block';
 
   // Titre topbar
@@ -4852,7 +4866,8 @@ function initDashboard(boutique, employee) {
     el.style.display = boutique === 'admin' ? '' : 'none';
   });
 
-  loadVentes();
+  // Charge les données de l'onglet restauré (Ventes par défaut)
+  switchTab(window._initSavedTab || 'ventes');
   // Rappel de saisie CA manquante (veille ouvrée) + badge sur l'onglet Objectif
   setTimeout(() => { try { checkRevenueMissing(); } catch (_) {} }, 900);
 }
