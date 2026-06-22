@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-15-soldes-notfound-admin';
+const CACHE_VERSION = 'nestore-v2026-06-15-soldes-introuvable-admin';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

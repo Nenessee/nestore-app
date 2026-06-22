@@ -1986,7 +1986,7 @@ tbody tr { transition: background .12s; }
       <input class="search-input" id="soldesSearch" placeholder="Rechercher…" oninput="soldesRenderDebounced()"/>
       <select class="filter-select" id="soldesBoutiqueFilter" onchange="soldesRender()"><option value="">Toutes boutiques</option><option value="Lille">Lille</option><option value="DK">DK</option></select>
       <select class="filter-select" id="soldesCategoryFilter" onchange="soldesRender()"><option value="">Toutes catégories</option><option value="Sneakers">👟 Sneakers</option><option value="Sapes">👕 Sapes</option><option value="Accessoires">👜 Accessoires/Sacs</option><option value="Autre">📦 Autre</option></select>
-      <select class="filter-select" id="soldesStatusFilter" onchange="soldesRender()"><option value="">Tous statuts</option><option value="prepared">Préparés</option><option value="applied">Appliqués</option><option value="pending">À pousser</option><option value="none">Non préparés</option><option value="relabeled">✓ Ré-étiquetés</option><option value="notfound">⚠️ Introuvables</option></select>
+      <select class="filter-select" id="soldesStatusFilter" onchange="soldesRender()"><option value="">Tous statuts</option><option value="prepared">Préparés</option><option value="applied">Appliqués</option><option value="pending">À pousser</option><option value="none">Non préparés</option><option value="torelabel">⏳ À ré-étiqueter</option><option value="relabeled">✓ Ré-étiquetés</option><option value="notfound">⚠️ Introuvables</option></select>
       <select class="filter-select" id="soldesSortFilter" onchange="soldesRender()"><option value="days_desc">Plus anciens</option><option value="days_asc">Plus récents</option><option value="price_desc">Prix décroissant</option><option value="price_asc">Prix croissant</option><option value="disc_desc">Remise décroissante</option><option value="title_asc">Nom (A→Z)</option></select>
     </div>
     <div class="table-card tc-cards">
@@ -2295,7 +2295,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v150-soldes-notfound-admin';
+const DASH_VERSION = '2025-04-25-v151-soldes-introuvable-admin';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5582,6 +5582,7 @@ function soldesFiltered() {
     if(st==='none' && p.salePrice!=null) return false;
     if(st==='relabeled' && !p.relabeled) return false;
     if(st==='notfound' && !p.notFound) return false;
+    if(st==='torelabel' && !(p.salePrice!=null && !p.relabeled && !p.notFound)) return false;
     return true;
   });
   const disc=p=>(p.salePrice!=null?Math.max(0,(Number(p.price)||0)-Number(p.salePrice)):-1);
@@ -5608,7 +5609,7 @@ function soldesRowHtml(p) {
   }
   // statut ré-étiquetage (info employé)
   let etiq='';
-  if(p.notFound) etiq=' <span class="badge" style="background:rgba(186,117,23,0.18);color:#BA7517;">⚠️ introuvable</span>';
+  if(p.notFound) etiq=` <button class="badge" style="background:rgba(186,117,23,0.18);color:#BA7517;border:none;cursor:pointer;" title="Retirer le statut introuvable" onclick="soldesAdminClearNotFound(${p.id})">⚠️ introuvable ✕</button>`;
   else if(p.relabeled) etiq=' <span class="badge badge-ok">✓ étiqueté</span>';
   return `<tr data-pid="${p.id}">
     <td data-label="Article" class="cell-article"><div class="stock-art">${img}<div class="meta"><div class="t">${p.title||''}</div><div class="v">${catIcon} ${p.brand||'—'}${p.barcode?(' · '+p.barcode):''}</div></div></div></td>
@@ -5656,7 +5657,20 @@ async function soldesRemove(id) {
   try {
     const res=await fetch(`${BACKEND_URL}/sales/item/${id}`,{method:'DELETE'});
     if(!res.ok){ const e=await res.json().catch(()=>({})); showDashToast('Erreur : '+(e.error||res.status),'error'); return; }
-    p.salePrice=null; p.applied=false; p.dirty=false; soldesRender(); loadSoldesSummary();
+    // l'article est supprimé en base → on remet l'état local propre (sinon le badge introuvable/étiqueté persiste au ré-ajout)
+    p.salePrice=null; p.applied=false; p.dirty=false; p.relabeled=false; p.notFound=false;
+    soldesRender(); loadSoldesSummary();
+  } catch(e){ showDashToast('Erreur réseau','error'); }
+}
+
+// Admin : retire le statut "introuvable" d'un article
+async function soldesAdminClearNotFound(id) {
+  const p=soldesCatalog.find(x=>x.id===id); if(!p) return;
+  if(!confirm(`Retirer le statut « introuvable » de « ${p.title||'cet article'} » ?`)) return;
+  try {
+    const res=await fetch(`${BACKEND_URL}/sales/notfound`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({productId:id, notFound:false, employee:DASH_EMPLOYEE||null})});
+    if(!res.ok){ const e=await res.json().catch(()=>({})); showDashToast('Erreur : '+(e.error||res.status),'error'); return; }
+    p.notFound=false; soldesRender(); loadSoldesSummary();
   } catch(e){ showDashToast('Erreur réseau','error'); }
 }
 
