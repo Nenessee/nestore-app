@@ -2315,7 +2315,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v142-cat-stock-link';
+const DASH_VERSION = '2025-04-25-v143-soldes-fix';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5575,33 +5575,40 @@ function soldesFiltered() {
   });
 }
 
+function soldesRowHtml(p) {
+  const img=p.image?`<img src="${p.image}" class="product-img" loading="lazy"/>`:`<span class="no-img">👕</span>`;
+  const catIcon={Sneakers:'👟',Sapes:'👕',Accessoires:'👜',Autre:'📦'}[p.category]||'';
+  const price=Number(p.price||0), sale=(p.salePrice!=null?Number(p.salePrice):null);
+  const disc=(sale!=null && price>0)?Math.round((1-sale/price)*100):null;
+  const remise=(sale!=null)?`<span style="color:#A32D2D;font-weight:600;">−${(price-sale).toFixed(2)}€${disc!=null?` (−${disc}%)`:''}</span>`:'—';
+  let badge='<span style="color:var(--text-muted);font-size:11px;">—</span>';
+  if(sale!=null){
+    if(p.applied && !p.dirty) badge='<span class="badge badge-ok">Appliqué</span>';
+    else if(p.applied && p.dirty) badge='<span class="badge badge-warning">à repousser</span>';
+    else badge='<span class="badge" style="background:#EEEDFE;color:#3C3489;">Préparé</span>';
+  }
+  return `<tr data-pid="${p.id}">
+    <td data-label="Article" class="cell-article"><div class="stock-art">${img}<div class="meta"><div class="t">${p.title||''}</div><div class="v">${catIcon} ${p.brand||'—'}${p.barcode?(' · '+p.barcode):''}</div></div></div></td>
+    <td data-label="Boutique">${channelBadge(p.boutique)}</td>
+    <td data-label="Prix actuel" style="font-weight:600;">${price.toFixed(2)}€</td>
+    <td data-label="Prix soldé"><input type="number" min="0" step="0.5" value="${sale!=null?sale:''}" onchange="soldesSetPrice(${p.id}, this.value)" style="width:90px;padding:5px 7px;border:0.5px solid var(--border-strong);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;" placeholder="€"/></td>
+    <td data-label="Remise">${remise}</td>
+    <td data-label="Statut">${badge}</td>
+    <td data-label="Fiche" style="white-space:nowrap;"><a href="${p.shopifyAdminUrl}" target="_blank" class="link-btn">Shopify ↗</a>${sale!=null?` <button class="btn" style="font-size:11px;padding:4px 8px;color:var(--accent);" onclick="soldesRemove(${p.id})">Retirer</button>`:''}</td>
+  </tr>`;
+}
+// Met à jour UNE ligne sans redessiner toute la table (garde le focus / permet d'enchaîner les saisies)
+function soldesUpdateRow(p) {
+  const tr=document.querySelector(`#soldesTable tr[data-pid="${p.id}"]`);
+  if(tr) tr.outerHTML=soldesRowHtml(p);
+}
 function soldesRender() {
   const data=soldesFiltered();
   document.getElementById('soldesCount').textContent=`${data.length} article${data.length>1?'s':''}`;
   const tb=document.getElementById('soldesTable');
   if(!data.length){ tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Aucun article</td></tr>'; document.getElementById('soldesPager').innerHTML=''; return; }
   const shown=Math.min(soldesShown,data.length);
-  tb.innerHTML=data.slice(0,shown).map(p=>{
-    const img=p.image?`<img src="${p.image}" class="product-img" loading="lazy"/>`:`<span class="no-img">👕</span>`;
-    const catIcon={Sneakers:'👟',Sapes:'👕',Accessoires:'👜',Autre:'📦'}[p.category]||'';
-    const disc=(p.salePrice!=null && p.price>0)?Math.round((1-p.salePrice/p.price)*100):null;
-    const remise=(p.salePrice!=null)?`<span style="color:#A32D2D;font-weight:600;">−${(p.price-p.salePrice).toFixed(2)}€${disc!=null?` (−${disc}%)`:''}</span>`:'—';
-    let badge='<span style="color:var(--text-muted);font-size:11px;">—</span>';
-    if(p.salePrice!=null){
-      if(p.applied && !p.dirty) badge='<span class="badge badge-ok">Appliqué</span>';
-      else if(p.applied && p.dirty) badge='<span class="badge badge-warning">à repousser</span>';
-      else badge='<span class="badge" style="background:#EEEDFE;color:#3C3489;">Préparé</span>';
-    }
-    return `<tr data-pid="${p.id}">
-      <td data-label="Article" class="cell-article"><div class="stock-art">${img}<div class="meta"><div class="t">${p.title||''}</div><div class="v">${catIcon} ${p.brand||'—'}${p.barcode?(' · '+p.barcode):''}</div></div></div></td>
-      <td data-label="Boutique">${channelBadge(p.boutique)}</td>
-      <td data-label="Prix actuel" style="font-weight:600;">${p.price.toFixed(2)}€</td>
-      <td data-label="Prix soldé"><input type="number" min="0" step="0.5" value="${p.salePrice!=null?p.salePrice:''}" onchange="soldesSetPrice(${p.id}, this.value)" style="width:90px;padding:5px 7px;border:0.5px solid var(--border-strong);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;" placeholder="€"/></td>
-      <td data-label="Remise">${remise}</td>
-      <td data-label="Statut">${badge}</td>
-      <td data-label="Fiche" style="white-space:nowrap;"><a href="${p.shopifyAdminUrl}" target="_blank" class="link-btn">Shopify ↗</a>${p.salePrice!=null?` <button class="btn" style="font-size:11px;padding:4px 8px;color:var(--accent);" onclick="soldesRemove(${p.id})">Retirer</button>`:''}</td>
-    </tr>`;
-  }).join('');
+  tb.innerHTML=data.slice(0,shown).map(soldesRowHtml).join('');
   document.getElementById('soldesPager').innerHTML = shown<data.length
     ? `<button onclick="soldesShown+=SOLDES_PAGE;soldesRender()">Afficher plus (${Math.min(SOLDES_PAGE,data.length-shown)})</button> <span class="pg-info">${shown} / ${data.length}</span>` : '';
 }
@@ -5617,7 +5624,7 @@ async function soldesSetPrice(id, value) {
       originalPrice:p.price, originalCompareAt:p.compareAtPrice, salePrice:v
     })});
     if(!res.ok){ const e=await res.json().catch(()=>({})); showDashToast('Erreur : '+(e.error||res.status),'error'); return; }
-    p.salePrice=v; p.dirty=true; soldesRender(); loadSoldesSummary();
+    p.salePrice=v; p.dirty=true; soldesUpdateRow(p); loadSoldesSummary();
   } catch(e){ showDashToast('Erreur réseau','error'); }
 }
 
