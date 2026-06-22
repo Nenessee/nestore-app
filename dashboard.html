@@ -71,7 +71,7 @@
   --shadow-md: 0 1px 3px rgba(14, 14, 12, 0.06), 0 8px 24px rgba(14, 14, 12, 0.04);
   --shadow-lg: 0 4px 16px rgba(14, 14, 12, 0.08), 0 24px 48px rgba(14, 14, 12, 0.06);
   --bar-blur: saturate(180%) blur(24px);
-  --bar-bg: rgba(255, 255, 255, 0.75);
+  --bar-bg: rgba(250, 249, 245, 0.97);
   --bar-border: rgba(26, 26, 24, 0.06);
   --row-stripe: rgba(26, 26, 24, 0.022);
 }
@@ -112,7 +112,7 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.45), 0 16px 40px rgba(0, 0, 0, 0.25);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.55), 0 32px 64px rgba(0, 0, 0, 0.35);
-  --bar-bg: rgba(20, 20, 18, 0.72);
+  --bar-bg: rgba(16, 16, 14, 0.97);
   --bar-border: rgba(245, 244, 239, 0.07);
   --row-stripe: rgba(245, 244, 239, 0.028);
 }
@@ -141,8 +141,6 @@ a { color: inherit; text-decoration: none; }
   position: sticky; top: 0; z-index: 100;
   padding-top: env(safe-area-inset-top);
   background: var(--bar-bg);
-  backdrop-filter: var(--bar-blur);
-  -webkit-backdrop-filter: var(--bar-blur);
   border-bottom: 1px solid var(--bar-border);
 }
 .topbar-inner {
@@ -256,8 +254,6 @@ a { color: inherit; text-decoration: none; }
   position: sticky; top: calc(60px + env(safe-area-inset-top));
   z-index: 90;
   background: var(--bar-bg);
-  backdrop-filter: var(--bar-blur);
-  -webkit-backdrop-filter: var(--bar-blur);
   border-bottom: 1px solid var(--bar-border);
 }
 .tabs-inner {
@@ -1008,8 +1004,6 @@ tr:hover td { background: var(--surface-alt); }
     top: 0;
     z-index: 2;
     background: var(--surface-alt);
-    backdrop-filter: saturate(180%) blur(8px);
-    -webkit-backdrop-filter: saturate(180%) blur(8px);
   }
 }
 
@@ -2300,7 +2294,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v144-perf-css';
+const DASH_VERSION = '2025-04-25-v145-no-blur';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
