@@ -1873,6 +1873,13 @@ tbody tr { transition: background .12s; }
         <option value="Lille">Lille</option>
         <option value="DK">DK</option>
       </select>
+      <select class="filter-select" id="stockCategoryFilter" onchange="filterStock()">
+        <option value="">Toutes catégories</option>
+        <option value="Sneakers">👟 Sneakers</option>
+        <option value="Sapes">👕 Sapes</option>
+        <option value="Accessoires">👜 Accessoires/Sacs</option>
+        <option value="Autre">📦 Autre</option>
+      </select>
       <select class="filter-select" id="stockDaysFilter" onchange="filterStock()">
         <option value="">Tous délais</option>
         <option value="ok">Moins 30j</option>
@@ -2308,7 +2315,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v141-soldes-cat';
+const DASH_VERSION = '2025-04-25-v142-cat-stock-link';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2767,6 +2774,7 @@ const LOC_COLORS = { en_magasin:'#3B6D11', reserve:'#185FA5', local:'#7B4FBA', p
 
 function stockRowHtml(p) {
   const badge = p.boutique==='DK'?'badge-dk':'badge-lille';
+  const catIcon = {Sneakers:'👟',Sapes:'👕',Accessoires:'👜',Autre:'📦'}[p.category]||'';
   const img = p.image?`<img src="${p.image}" class="product-img" loading="lazy" decoding="async"/>`:`<span class="no-img">👕</span>`;
   const fillPct = Math.min((p.daysOnline/90)*100,100);
   const fillColor = p.daysOnline>=60?'#E24B4A':p.daysOnline>=30?'#EF9F27':'#5DCAA5';
@@ -2804,7 +2812,7 @@ function stockRowHtml(p) {
   const rowCls = (!inBoutique && p.barcode) ? 'stock-row row-unlocated' : 'stock-row';
   return `<tr class="${rowCls}" data-pid="${p.id}" data-barcode="${p.barcode||''}">
     <td class="cell-select"><input type="checkbox" class="cb product-cb" data-id="${p.id}" data-varid="${p.variantId}" ${isSelected?'checked':''} onchange="toggleProduct(this)"/></td>
-    <td class="cell-article"><div class="stock-art">${img}<div class="meta"><div class="t">${p.title}</div><div class="v">${p.vendor||'—'}</div></div></div></td>
+    <td class="cell-article"><div class="stock-art">${img}<div class="meta"><div class="t">${p.title}</div><div class="v">${catIcon} ${p.vendor||'—'}</div></div></div></td>
     <td data-label="Code-barres">${barcodeHtml}</td>
     <td data-label="Prix">${comparePrice}<span style="font-weight:600;">${parseFloat(p.price).toFixed(2)}€</span></td>
     <td data-label="Boutique"><span class="badge ${badge}">${p.boutique}</span></td>
@@ -2860,6 +2868,7 @@ function syncSelectAllCheckbox() {
 function filterStock() {
   const q=(document.getElementById('stockSearch')?.value||'').toLowerCase();
   const boutique=document.getElementById('stockBoutiqueFilter').value;
+  const category=document.getElementById('stockCategoryFilter')?.value||'';
   const days=document.getElementById('stockDaysFilter').value;
   const barcode=document.getElementById('stockBarcodeFilter').value;
   const scoreF=document.getElementById('stockScoreFilter').value;
@@ -2869,6 +2878,7 @@ function filterStock() {
   let filtered=allStockData.filter(p=>{
     if(q&&!p.title?.toLowerCase().includes(q)&&!p.vendor?.toLowerCase().includes(q)&&!p.barcode?.toLowerCase().includes(q)) return false;
     if(boutique&&p.boutique!==boutique) return false;
+    if(category&&p.category!==category) return false;
     if(days==='ok'&&p.daysOnline>=30) return false;
     if(days==='warn'&&(p.daysOnline<30||p.daysOnline>=60)) return false;
     if(days==='danger'&&p.daysOnline<60) return false;
@@ -2910,7 +2920,7 @@ const STOCK_QUICK_DEFS = {
   nocb:         { barcode:'missing' },
   vinted:       { vinted:'yes' },
 };
-const STOCK_FILTER_IDS = ['stockSearch','stockBoutiqueFilter','stockDaysFilter','stockBarcodeFilter','stockLocationFilter','stockVintedFilter','stockScoreFilter'];
+const STOCK_FILTER_IDS = ['stockSearch','stockBoutiqueFilter','stockCategoryFilter','stockDaysFilter','stockBarcodeFilter','stockLocationFilter','stockVintedFilter','stockScoreFilter'];
 function resetAllStockFilters() {
   STOCK_FILTER_IDS.forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
 }
@@ -2936,7 +2946,7 @@ function refreshStockQuickHighlight() {
   let active = null;
   for (const key in STOCK_QUICK_DEFS) {
     const d = STOCK_QUICK_DEFS[key];
-    const exp = { stockSearch:'', stockBoutiqueFilter:'', stockDaysFilter:d.days||'', stockBarcodeFilter:d.barcode||'', stockLocationFilter:d.loc||'', stockVintedFilter:d.vinted||'', stockScoreFilter:'' };
+    const exp = { stockSearch:'', stockBoutiqueFilter:'', stockCategoryFilter:'', stockDaysFilter:d.days||'', stockBarcodeFilter:d.barcode||'', stockLocationFilter:d.loc||'', stockVintedFilter:d.vinted||'', stockScoreFilter:'' };
     if (STOCK_FILTER_IDS.every(id => cur[id] === exp[id])) { active = key; break; }
   }
   document.querySelectorAll('#stockSummary .qf-card').forEach(c => c.classList.toggle('qf-active', c.dataset.qf === active));
@@ -5401,6 +5411,7 @@ if (_s?.auth) {
       }
       // Réplique la logique mais avec smartMatch
       const boutique = document.getElementById('stockBoutiqueFilter').value;
+      const category = document.getElementById('stockCategoryFilter')?.value || '';
       const days = document.getElementById('stockDaysFilter').value;
       const barcode = document.getElementById('stockBarcodeFilter').value;
       const scoreF = document.getElementById('stockScoreFilter').value;
@@ -5410,6 +5421,7 @@ if (_s?.auth) {
       let filtered = window.allStockData.filter(p => {
         if (!smartMatch(q, p.title, p.vendor, p.barcode)) return false;
         if (boutique && p.boutique !== boutique) return false;
+        if (category && p.category !== category) return false;
         if (days === 'ok' && p.daysOnline >= 30) return false;
         if (days === 'warn' && (p.daysOnline < 30 || p.daysOnline >= 60)) return false;
         if (days === 'danger' && p.daysOnline < 60) return false;
@@ -5587,7 +5599,7 @@ function soldesRender() {
       <td data-label="Prix soldé"><input type="number" min="0" step="0.5" value="${p.salePrice!=null?p.salePrice:''}" onchange="soldesSetPrice(${p.id}, this.value)" style="width:90px;padding:5px 7px;border:0.5px solid var(--border-strong);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;" placeholder="€"/></td>
       <td data-label="Remise">${remise}</td>
       <td data-label="Statut">${badge}</td>
-      <td data-label="">${p.salePrice!=null?`<button class="btn" style="font-size:11px;padding:4px 8px;color:var(--accent);" onclick="soldesRemove(${p.id})">Retirer</button>`:''}</td>
+      <td data-label="Fiche" style="white-space:nowrap;"><a href="${p.shopifyAdminUrl}" target="_blank" class="link-btn">Shopify ↗</a>${p.salePrice!=null?` <button class="btn" style="font-size:11px;padding:4px 8px;color:var(--accent);" onclick="soldesRemove(${p.id})">Retirer</button>`:''}</td>
     </tr>`;
   }).join('');
   document.getElementById('soldesPager').innerHTML = shown<data.length
