@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-15-no-blur';
+const CACHE_VERSION = 'nestore-v2026-06-15-soldes-prep-relabel';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
