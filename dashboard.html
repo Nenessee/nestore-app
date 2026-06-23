@@ -2295,7 +2295,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v151-soldes-introuvable-admin';
+const DASH_VERSION = '2025-04-25-v152-soldes-apply-count';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5698,11 +5698,12 @@ async function soldesPrefill() {
 }
 
 async function soldesApply() {
-  const prepared=soldesCatalog.filter(p=>p.salePrice!=null);
-  const pending=prepared.filter(p=>!p.applied||p.dirty);
-  if(!prepared.length){ showDashToast('Aucun prix préparé','warn'); return; }
-  const totalDisc=prepared.reduce((a,p)=>a+Math.max(0,p.price-p.salePrice),0);
-  if(!confirm(`Appliquer les soldes sur Shopify ?\n\n• ${pending.length} article(s) à pousser (nouveaux/modifiés)\n• ${prepared.length} soldés au total\n• Remise totale : ${totalDisc.toFixed(2)}€\n\nLes prix passeront en soldé, l'ancien prix en prix barré, + tag « sldete ».`)) return;
+  // On se base sur le récap serveur (vérité base) : le catalogue visible n'inclut que le stock dispo,
+  // alors que des articles préparés ont pu être vendus depuis → le serveur les applique quand même.
+  let s; try { s = await api('/sales/summary'); } catch(_) { showDashToast('Récap indisponible','error'); return; }
+  if(!s.prepared){ showDashToast('Aucun prix préparé','warn'); return; }
+  if(!s.pending){ showDashToast('Tout est déjà appliqué et à jour ✓','success'); return; }
+  if(!confirm(`Appliquer les soldes sur Shopify ?\n\n• ${s.pending} article(s) à pousser (nouveaux/modifiés)\n• ${s.prepared} soldés au total\n• Remise totale : ${fmt(s.totalDiscount)}\n\nLes prix passeront en soldé, l'ancien prix en prix barré, + tag « sldete ».`)) return;
   showDashToast('Application en cours… (peut prendre un moment)','warn');
   try {
     const res=await fetch(`${BACKEND_URL}/sales/apply`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
