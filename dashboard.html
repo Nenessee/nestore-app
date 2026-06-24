@@ -2295,7 +2295,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v155-soldes-sold-ca';
+const DASH_VERSION = '2025-04-25-v156-soldes-catalog-nonblocking';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5555,12 +5555,25 @@ async function loadSoldesSummary() {
   } catch(e){ document.getElementById('soldesKpis').innerHTML='<div class="loading">Récap indisponible</div>'; }
 }
 
+let _soldesPartialRetry=null;
 async function loadSoldesCatalog(force) {
+  clearTimeout(_soldesPartialRetry);
   document.getElementById('soldesTable').innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Chargement du catalogue…</td></tr>';
   try {
-    soldesCatalog = await api('/sales/catalog' + (force ? '?fresh=1' : ''));
+    const path='/sales/catalog' + (force ? '?fresh=1' : '');
+    const bp = DASH_BOUTIQUE!=='admin' ? ((path.includes('?')?'&':'?')+'boutique='+DASH_BOUTIQUE) : '';
+    const res = await fetch(`${BACKEND_URL}${path}${bp}`);
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    // Catalogue partiel : le serveur calcule le catalogue Shopify complet en arrière-plan
+    // et n'a renvoyé que les articles déjà préparés → on réessaie en silence dans quelques secondes.
+    const partial = res.headers.get('X-Catalog-Partial')==='1';
+    soldesCatalog = await res.json();
     soldesShown = SOLDES_PAGE;
     soldesRender();
+    if(partial){
+      const c=document.getElementById('soldesCount'); if(c) c.textContent += ' · synchronisation du catalogue…';
+      _soldesPartialRetry=setTimeout(()=>loadSoldesCatalog(false), 7000);
+    }
   } catch(e){ document.getElementById('soldesTable').innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:#A32D2D;">Erreur de chargement</td></tr>'; }
 }
 
