@@ -1863,6 +1863,7 @@ tbody tr { transition: background .12s; }
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
       <div class="section-title" style="margin:0;">Stock en ligne actuellement</div>
       <div class="stock-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn js-admin-only" onclick="openInventaireReport()" style="font-size:13px;background:rgba(24,95,165,0.12);border-color:#185FA5;color:#185FA5;" title="Bilan de l'inventaire : couverture, manquants, mal rangés, codes-barres en double">📋 Rapport inventaire</button>
         <button class="btn js-admin-only" onclick="resetInventaireBoutique()" style="font-size:13px;background:rgba(186,117,23,0.12);border-color:#BA7517;color:#BA7517;" title="Décoche toutes les cases « en boutique » pour refaire l'inventaire (confirmation demandée)">⚠️ Reset inventaire</button>
       </div>
     </div>
@@ -2317,7 +2318,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v158-fix-scroll-jump-cocher';
+const DASH_VERSION = '2025-04-25-v159-rapport-inventaire';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2775,6 +2776,101 @@ async function resetInventaireBoutique() {
     showDashToast(`Inventaire réinitialisé — ${d.reset||0} case(s) décochée(s)`, 'success');
     allStockData = []; loadStock();
   } catch(e) { showDashToast('Erreur réseau', 'error'); }
+}
+
+// ===== Rapport d'inventaire (couverture, manquants, mal rangés, codes-barres en double) =====
+function _invEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function openInventaireReport() {
+  const bq = document.getElementById('stockBoutiqueFilter')?.value || '';
+  const scope = bq ? allStockData.filter(p => p.boutique === bq) : allStockData;
+  const withBc = scope.filter(p => p.barcode);
+  const total = withBc.length;
+  const coches = withBc.filter(p => p.inBoutique);
+  const manquants = withBc.filter(p => !p.inBoutique);
+  const malRanges = scope.filter(p => p.misplaced);
+  const noBc = scope.filter(p => !p.barcode);
+  const pct = total ? Math.round(coches.length / total * 100) : 0;
+  const eur = n => (Number(n)||0).toLocaleString('fr-FR',{minimumFractionDigits:0,maximumFractionDigits:0})+' €';
+  const valCoche = coches.reduce((s,p)=>s+(parseFloat(p.price)||0),0);
+  const valManq = manquants.reduce((s,p)=>s+(parseFloat(p.price)||0),0);
+  const label = bq || 'toutes boutiques';
+  window._invReportScope = { manquants, malRanges };
+
+  const ov = document.createElement('div');
+  ov.id = 'invReportOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:24px 12px;overflow:auto;';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  const kpi = (val, lbl, color) => `<div style="flex:1 1 120px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;"><div style="font-size:22px;font-weight:800;color:${color};">${val}</div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;">${lbl}</div></div>`;
+  ov.innerHTML = `<div style="background:var(--surface);color:var(--text);max-width:720px;width:100%;border-radius:18px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.4);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <div style="font-size:18px;font-weight:800;">📋 Rapport d'inventaire — ${_invEsc(label)}</div>
+      <button onclick="document.getElementById('invReportOverlay').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-muted);">×</button>
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">Basé sur le stock actuellement chargé. Coché = scanné « en boutique ».</div>
+    <div style="margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span style="font-weight:700;">Couverture</span><span style="font-weight:700;">${coches.length} / ${total} · ${pct}%</span></div>
+      <div style="height:12px;background:var(--surface-2);border-radius:99px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${pct>=90?'#3B6D11':pct>=60?'#EF9F27':'#E24B4A'};"></div></div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;">
+      ${kpi(coches.length, 'Cochés', '#3B6D11')}
+      ${kpi(manquants.length, 'Manquants', '#E24B4A')}
+      ${kpi(malRanges.length, 'Mal rangés', '#185FA5')}
+      ${kpi(noBc.length, 'Sans code-barres', '#BA7517')}
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;font-size:12px;color:var(--text-muted);">
+      <span>Valeur cochée : <b style="color:var(--text);">${eur(valCoche)}</b></span>
+      <span>Valeur manquante : <b style="color:#E24B4A;">${eur(valManq)}</b></span>
+    </div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+      ${manquants.length?`<button class="btn" style="font-size:12px;" onclick="exportInvMissing()">⬇️ Exporter les manquants (CSV)</button>`:''}
+      ${malRanges.length?`<button class="btn" style="font-size:12px;" onclick="document.getElementById('invReportOverlay').remove();document.getElementById('stockLocationFilter').value='misplaced';filterStock();switchTab('stock');">Voir les mal rangés dans le tableau →</button>`:''}
+    </div>
+
+    ${malRanges.length?`<details style="margin-bottom:12px;"><summary style="cursor:pointer;font-weight:700;font-size:14px;color:#185FA5;">⚠️ ${malRanges.length} article(s) mal rangé(s)</summary>
+      <div style="max-height:180px;overflow:auto;margin-top:8px;">${malRanges.slice(0,200).map(p=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_invEsc(p.title)}</span><span style="color:#A32D2D;white-space:nowrap;">vu à ${_invEsc(p.scannedBoutique)} · ${_invEsc(p.boutique)}</span></div>`).join('')}</div></details>`:''}
+
+    ${manquants.length?`<details style="margin-bottom:12px;"><summary style="cursor:pointer;font-weight:700;font-size:14px;color:#E24B4A;">❓ ${manquants.length} manquant(s) — non scanné(s)</summary>
+      <div style="max-height:200px;overflow:auto;margin-top:8px;">${manquants.slice(0,300).map(p=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_invEsc(p.title)}</span><span style="color:var(--text-muted);white-space:nowrap;font-family:monospace;">${_invEsc(p.barcode)}</span></div>`).join('')}${manquants.length>300?`<div style="padding:6px 0;color:var(--text-muted);font-size:11px;">… et ${manquants.length-300} autres (voir l'export CSV)</div>`:''}</div></details>`:''}
+
+    <div id="invDupSection" style="margin-top:10px;border-top:1px solid var(--border);padding-top:12px;">
+      <div style="font-weight:700;font-size:14px;margin-bottom:8px;">🔁 Codes-barres en double</div>
+      <div id="invDupBody" style="font-size:13px;color:var(--text-muted);">Chargement…</div>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  loadInvDuplicates();
+}
+
+function exportInvMissing() {
+  const list = (window._invReportScope?.manquants) || [];
+  if (!list.length) return;
+  const rows = [['Code-barres','Article','Marque','Boutique','Prix','Jours en ligne']]
+    .concat(list.map(p => [p.barcode||'', p.title||'', p.vendor||'', p.boutique||'', p.price||'', p.daysOnline||'']));
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'inventaire-manquants.csv';
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+async function loadInvDuplicates() {
+  const body = document.getElementById('invDupBody');
+  if (!body) return;
+  try {
+    const data = await api('/stock/duplicate-barcodes');
+    if (!document.getElementById('invDupBody')) return;
+    if (data.warming) { body.innerHTML = 'Catalogue en cours de synchronisation… <button class="btn" style="font-size:11px;" onclick="loadInvDuplicates()">Réessayer</button>'; return; }
+    if (!data.groups || !data.groups.length) { body.innerHTML = '<span style="color:#3B6D11;">✓ Aucun code-barres partagé par plusieurs articles.</span>'; return; }
+    body.innerHTML = `<div style="margin-bottom:8px;color:var(--text);"><b>${data.totalGroups}</b> code(s)-barres partagé(s) par <b>${data.totalArticles}</b> articles — à corriger pour éviter les ambiguïtés en caisse.</div>
+      <div style="max-height:240px;overflow:auto;">${data.groups.map(g=>`
+        <div style="border:1px solid var(--border);border-radius:10px;padding:8px 10px;margin-bottom:8px;">
+          <div style="font-family:monospace;font-weight:700;font-size:12px;margin-bottom:4px;">${_invEsc(g.barcode)} <span style="color:#A32D2D;">×${g.count}</span></div>
+          ${g.items.map(it=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px;"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_invEsc(it.title)} <span style="color:var(--text-muted);">· ${_invEsc(it.boutique)}</span></span><a href="${it.shopifyAdminUrl}" target="_blank" class="link-btn" style="white-space:nowrap;">Shopify ↗</a></div>`).join('')}
+        </div>`).join('')}</div>`;
+  } catch(e) {
+    body.innerHTML = '<span style="color:#A32D2D;">Erreur de chargement.</span> <button class="btn" style="font-size:11px;" onclick="loadInvDuplicates()">Réessayer</button>';
+  }
 }
 // ===== Rendu paginé du tableau Stock en ligne =====
 let stockFiltered = [];

@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-multi-barcode-choix';
+const CACHE_VERSION = 'nestore-v2026-06-24-inventaire-rapport-feedback';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
