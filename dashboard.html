@@ -2295,7 +2295,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v154-aulocal-admin';
+const DASH_VERSION = '2025-04-25-v155-soldes-sold-ca';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5547,7 +5547,7 @@ async function loadSoldesSummary() {
     const nf=(bq,n)=>n?` · <span style="color:#BA7517;text-decoration:underline;cursor:pointer;" onclick="event.stopPropagation();soldesFilterTo({boutique:'${bq}',status:'notfound'})">${n} introuv.</span>`:'';
     const al=(bq,n)=>n?` · <span style="color:#185FA5;text-decoration:underline;cursor:pointer;" onclick="event.stopPropagation();soldesFilterTo({boutique:'${bq}',status:'atlocal'})">${n} au local</span>`:'';
     document.getElementById('soldesKpis').innerHTML =
-      `<div class="kpi" style="cursor:pointer;" onclick="soldesFilterTo({status:'prepared'})"><div class="kpi-label">Préparés</div><div class="kpi-value">${s.prepared}</div><div class="kpi-sub">${s.applied} appliqués sur Shopify</div></div>`+
+      `<div class="kpi" style="cursor:pointer;" onclick="soldesFilterTo({status:'prepared'})"><div class="kpi-label">Préparés</div><div class="kpi-value">${s.prepared}</div><div class="kpi-sub">${s.applied} appliqués${s.sold?` · ${s.sold} déjà vendus`:''}</div></div>`+
       `<div class="kpi"><div class="kpi-label">Remise totale</div><div class="kpi-value" style="color:#A32D2D;">${fmt(s.totalDiscount)}</div><div class="kpi-sub">articles préparés</div></div>`+
       `<div class="kpi"><div class="kpi-label">CA soldes</div><div class="kpi-value" style="color:#3B6D11;">${fmt(s.ca.revenue)}</div><div class="kpi-sub">${s.ca.count} vente${s.ca.count>1?'s':''} · ${s.period.start}→${s.period.end}</div></div>`+
       `<div class="kpi" style="cursor:pointer;" onclick="soldesFilterTo({boutique:'Lille'})"><div class="kpi-label">Ré-étiquetage Lille</div><div class="kpi-value">${s.lille.relabeled}/${s.lille.prepared}</div><div class="kpi-sub">faits / préparés${nf('Lille',s.lille.notFound)}${al('Lille',s.lille.atLocal)}</div></div>`+
