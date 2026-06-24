@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-transfert-cible-productid';
+const CACHE_VERSION = 'nestore-v2026-06-24-filtre-doublons-codebarres';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

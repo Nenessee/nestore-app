@@ -1921,6 +1921,8 @@ tbody tr { transition: background .12s; }
         <option value="price_desc">Prix décroissant</option>
         <option value="price_asc">Prix croissant</option>
       </select>
+      <!-- Filtre doublons code-barres (piloté par la carte KPI admin, masqué) -->
+      <select id="stockDupFilter" onchange="filterStock()" style="display:none;"><option value=""></option><option value="yes">Doublons</option></select>
       <button onclick="exportMissingStock()" style="padding:8px 14px;background:#2C2C2A;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">📋 Exporter non cochés</button>
       <button onclick="allStockData=[];loadStock(true);" style="padding:8px 14px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:8px;font-size:12px;cursor:pointer;white-space:nowrap;" title="Force un rechargement frais depuis Shopify">↻ Actualiser</button>
     </div>
@@ -2328,7 +2330,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v162-transfert-cible-productid';
+const DASH_VERSION = '2025-04-25-v163-filtre-doublons-codebarres';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2691,6 +2693,11 @@ async function loadStock(force) {
   const localized = allStockData.filter(p=>p.barcode&&p.inBoutique).length;
   const notLocalized = allStockData.filter(p=>p.barcode&&!p.inBoutique).length;
   const onVintedCount = allStockData.filter(p=>p.barcode&&p.onVinted).length;
+  // Doublons de code-barres : articles dont le code-barres est porté par 2+ articles en stock.
+  const _bcCount = {};
+  allStockData.forEach(p => { if (p.barcode) _bcCount[p.barcode] = (_bcCount[p.barcode]||0) + 1; });
+  allStockData.forEach(p => { p.dupBarcode = !!(p.barcode && _bcCount[p.barcode] > 1); });
+  const dupCount = allStockData.filter(p=>p.dupBarcode).length;
   const avgScore = allStockData.length ? Math.round(allStockData.reduce((a,b)=>a+(b.score||0),0)/allStockData.length) : 0;
   // Valeurs de stock (€) = donnée sensible → réservée à l'admin
   const _isAdmin = !!localStorage.getItem('nv_admin_key');
@@ -2728,6 +2735,7 @@ async function loadStock(force) {
       ${qf('j60','+60 jours', alert60, 'à brader', '#A32D2D', false)}
       ${qf('nocb','Sans code-barres', missingBarcode, missingBarcode>0?'à scanner':'tout OK', missingBarcode>0?'#A32D2D':'#3B6D11', missingBarcode>0)}
       ${qf('vinted','Sur Vinted', onVintedCount, 'annonces en ligne', '#09B1BA', false)}
+      ${_isAdmin ? qf('doublons','Codes-barres en double', dupCount, dupCount>0?'à corriger':'aucun ✓', dupCount>0?'#A32D2D':'#3B6D11', dupCount>0) : ''}
     </div>`;
   filterStock();
   if (typeof loadForgottenSales === 'function') loadForgottenSales(); // cache serveur chaud → alerte ventes oubliées
@@ -2992,7 +3000,9 @@ function filterStock() {
   const sort=document.getElementById('stockSortFilter').value;
   const locF=document.getElementById('stockLocationFilter')?.value||'';
   const vintedF=document.getElementById('stockVintedFilter')?.value||'';
+  const dupF=document.getElementById('stockDupFilter')?.value||'';
   let filtered=allStockData.filter(p=>{
+    if(dupF==='yes'&&!p.dupBarcode) return false;
     if(q&&!p.title?.toLowerCase().includes(q)&&!p.vendor?.toLowerCase().includes(q)&&!p.barcode?.toLowerCase().includes(q)&&!p.sku?.toLowerCase().includes(q)) return false;
     if(boutique&&p.boutique!==boutique) return false;
     if(category&&p.category!==category) return false;
@@ -3018,6 +3028,8 @@ function filterStock() {
   else if(sort==='price_asc') filtered.sort((a,b)=>parseFloat(a.price)-parseFloat(b.price));
   else if(sort==='score_asc') filtered.sort((a,b)=>(a.score||0)-(b.score||0));
   else if(sort==='score_desc') filtered.sort((a,b)=>(b.score||0)-(a.score||0));
+  // Filtre doublons actif → on regroupe par code-barres pour voir les paires côte à côte.
+  if(dupF==='yes') filtered.sort((a,b)=>(a.barcode||'').localeCompare(b.barcode||''));
   stockFiltered = filtered;
   stockShown = STOCK_PAGE_SIZE; // un changement de filtre/tri repart de la 1re page
   renderStockPage();
@@ -3037,8 +3049,9 @@ const STOCK_QUICK_DEFS = {
   j60:          { days:'danger' },
   nocb:         { barcode:'missing' },
   vinted:       { vinted:'yes' },
+  doublons:     { dup:'yes' },
 };
-const STOCK_FILTER_IDS = ['stockSearch','stockBoutiqueFilter','stockCategoryFilter','stockDaysFilter','stockBarcodeFilter','stockLocationFilter','stockVintedFilter','stockScoreFilter'];
+const STOCK_FILTER_IDS = ['stockSearch','stockBoutiqueFilter','stockCategoryFilter','stockDaysFilter','stockBarcodeFilter','stockLocationFilter','stockVintedFilter','stockScoreFilter','stockDupFilter'];
 function resetAllStockFilters() {
   STOCK_FILTER_IDS.forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
 }
@@ -3052,6 +3065,7 @@ function stockQuickFilter(key) {
     if (def.barcode) document.getElementById('stockBarcodeFilter').value = def.barcode;
     if (def.days)    document.getElementById('stockDaysFilter').value = def.days;
     if (def.vinted)  document.getElementById('stockVintedFilter').value = def.vinted;
+    if (def.dup)     document.getElementById('stockDupFilter').value = def.dup;
   }
   filterStock(); // → renderStockPage → refreshStockQuickHighlight()
 }
@@ -3064,7 +3078,7 @@ function refreshStockQuickHighlight() {
   let active = null;
   for (const key in STOCK_QUICK_DEFS) {
     const d = STOCK_QUICK_DEFS[key];
-    const exp = { stockSearch:'', stockBoutiqueFilter:'', stockCategoryFilter:'', stockDaysFilter:d.days||'', stockBarcodeFilter:d.barcode||'', stockLocationFilter:d.loc||'', stockVintedFilter:d.vinted||'', stockScoreFilter:'' };
+    const exp = { stockSearch:'', stockBoutiqueFilter:'', stockCategoryFilter:'', stockDaysFilter:d.days||'', stockBarcodeFilter:d.barcode||'', stockLocationFilter:d.loc||'', stockVintedFilter:d.vinted||'', stockScoreFilter:'', stockDupFilter:d.dup||'' };
     if (STOCK_FILTER_IDS.every(id => cur[id] === exp[id])) { active = key; break; }
   }
   document.querySelectorAll('#stockSummary .qf-card').forEach(c => c.classList.toggle('qf-active', c.dataset.qf === active));
@@ -5276,7 +5290,7 @@ if (_s?.auth) {
       const targetId = map[type];
       const sameClicked = document.querySelector(`.qa-pill.applied[data-filter="${type}:${value}"]`);
       // Reset de TOUS les autres filtres (on repart propre, comme les cartes)
-      ['stockSearch','stockBoutiqueFilter','stockDaysFilter','stockBarcodeFilter','stockLocationFilter','stockVintedFilter','stockScoreFilter'].forEach(id => {
+      ['stockSearch','stockBoutiqueFilter','stockDaysFilter','stockBarcodeFilter','stockLocationFilter','stockVintedFilter','stockScoreFilter','stockDupFilter'].forEach(id => {
         const el = document.getElementById(id);
         if (el && id !== targetId) el.value = '';
       });
@@ -5297,7 +5311,7 @@ if (_s?.auth) {
     }, 50);
   };
   window.resetStockFilters = function() {
-    ['stockSearch','stockBoutiqueFilter','stockDaysFilter','stockBarcodeFilter','stockLocationFilter','stockScoreFilter'].forEach(id => {
+    ['stockSearch','stockBoutiqueFilter','stockDaysFilter','stockBarcodeFilter','stockLocationFilter','stockScoreFilter','stockDupFilter'].forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
       el.value = '';
@@ -5658,7 +5672,9 @@ if (_s?.auth) {
       const sort = document.getElementById('stockSortFilter').value;
       const locF = document.getElementById('stockLocationFilter')?.value || '';
       const vintedF = document.getElementById('stockVintedFilter')?.value || '';
+      const dupF = document.getElementById('stockDupFilter')?.value || '';
       let filtered = window.allStockData.filter(p => {
+        if (dupF === 'yes' && !p.dupBarcode) return false;
         if (!smartMatch(q, p.title, p.vendor, p.barcode, p.sku)) return false;
         if (boutique && p.boutique !== boutique) return false;
         if (category && p.category !== category) return false;
@@ -5684,6 +5700,7 @@ if (_s?.auth) {
       else if (sort === 'price_asc') filtered.sort((a,b) => parseFloat(a.price) - parseFloat(b.price));
       else if (sort === 'score_asc') filtered.sort((a,b) => (a.score||0) - (b.score||0));
       else if (sort === 'score_desc') filtered.sort((a,b) => (b.score||0) - (a.score||0));
+      if (dupF === 'yes') filtered.sort((a,b) => (a.barcode||'').localeCompare(b.barcode||''));
       if (typeof renderStockTable === 'function') renderStockTable(filtered);
     };
   }
