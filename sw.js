@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-ca-soldes-vendus';
+const CACHE_VERSION = 'nestore-v2026-06-24-transfert-cible-productid';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

@@ -1061,7 +1061,7 @@ async function nvHardReload(){
 </script>
 
 <script>
-  const APP_VERSION = '2025-06-15-v116-inventaire-feedback';
+  const APP_VERSION = '2025-06-15-v117-transfert-cible-productid';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   // Jeton employé envoyé au backend sur chaque appel (doit correspondre à
   // EMPLOYEE_API_KEY sur Railway). Bloque les accès directs à l'API par URL.
@@ -1530,6 +1530,7 @@ async function nvHardReload(){
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           barcode: currentData.barcode,
+          productId: currentData.productId, // cible CE produit précis (code-barres partagé)
           productName: currentData.name,
           brand: currentData.brand,
           imageUrl: currentData.image,
