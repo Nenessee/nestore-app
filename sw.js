@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-15-soldes-apply-count';
+const CACHE_VERSION = 'nestore-v2026-06-15-soldes-aulocal';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

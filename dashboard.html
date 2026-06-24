@@ -1986,7 +1986,7 @@ tbody tr { transition: background .12s; }
       <input class="search-input" id="soldesSearch" placeholder="Rechercher…" oninput="soldesRenderDebounced()"/>
       <select class="filter-select" id="soldesBoutiqueFilter" onchange="soldesRender()"><option value="">Toutes boutiques</option><option value="Lille">Lille</option><option value="DK">DK</option></select>
       <select class="filter-select" id="soldesCategoryFilter" onchange="soldesRender()"><option value="">Toutes catégories</option><option value="Sneakers">👟 Sneakers</option><option value="Sapes">👕 Sapes</option><option value="Accessoires">👜 Accessoires/Sacs</option><option value="Autre">📦 Autre</option></select>
-      <select class="filter-select" id="soldesStatusFilter" onchange="soldesRender()"><option value="">Tous statuts</option><option value="prepared">Préparés</option><option value="applied">Appliqués</option><option value="pending">À pousser</option><option value="none">Non préparés</option><option value="torelabel">⏳ À ré-étiqueter</option><option value="relabeled">✓ Ré-étiquetés</option><option value="notfound">⚠️ Introuvables</option></select>
+      <select class="filter-select" id="soldesStatusFilter" onchange="soldesRender()"><option value="">Tous statuts</option><option value="prepared">Préparés</option><option value="applied">Appliqués</option><option value="pending">À pousser</option><option value="none">Non préparés</option><option value="torelabel">⏳ À ré-étiqueter</option><option value="relabeled">✓ Ré-étiquetés</option><option value="notfound">⚠️ Introuvables</option><option value="atlocal">📦 Au local</option></select>
       <select class="filter-select" id="soldesSortFilter" onchange="soldesRender()"><option value="days_desc">Plus anciens</option><option value="days_asc">Plus récents</option><option value="price_desc">Prix décroissant</option><option value="price_asc">Prix croissant</option><option value="disc_desc">Remise décroissante</option><option value="title_asc">Nom (A→Z)</option></select>
     </div>
     <div class="table-card tc-cards">
@@ -2004,7 +2004,7 @@ tbody tr { transition: background .12s; }
     <div id="soldesEmpProgress" style="font-size:13px;color:var(--text-muted);margin-bottom:14px;"></div>
     <div class="filters-row">
       <input class="search-input" id="soldesEmpSearch" placeholder="Rechercher (marque, réf…)" oninput="soldesEmpRender()"/>
-      <select class="filter-select" id="soldesEmpFilter" onchange="soldesEmpRender()"><option value="todo">À faire</option><option value="">Tous</option><option value="done">Faits</option><option value="notfound">Introuvables</option></select>
+      <select class="filter-select" id="soldesEmpFilter" onchange="soldesEmpRender()"><option value="todo">À faire</option><option value="">Tous</option><option value="done">Faits</option><option value="notfound">Introuvables</option><option value="atlocal">📦 Au local</option></select>
     </div>
     <div id="soldesEmpList"></div>
   </div>
@@ -2295,7 +2295,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v152-soldes-apply-count';
+const DASH_VERSION = '2025-04-25-v153-soldes-aulocal';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5545,12 +5545,13 @@ async function loadSoldesSummary() {
   try {
     const s = await api('/sales/summary');
     const nf=(bq,n)=>n?` · <span style="color:#BA7517;text-decoration:underline;cursor:pointer;" onclick="event.stopPropagation();soldesFilterTo({boutique:'${bq}',status:'notfound'})">${n} introuv.</span>`:'';
+    const al=(bq,n)=>n?` · <span style="color:#185FA5;text-decoration:underline;cursor:pointer;" onclick="event.stopPropagation();soldesFilterTo({boutique:'${bq}',status:'atlocal'})">${n} au local</span>`:'';
     document.getElementById('soldesKpis').innerHTML =
       `<div class="kpi" style="cursor:pointer;" onclick="soldesFilterTo({status:'prepared'})"><div class="kpi-label">Préparés</div><div class="kpi-value">${s.prepared}</div><div class="kpi-sub">${s.applied} appliqués sur Shopify</div></div>`+
       `<div class="kpi"><div class="kpi-label">Remise totale</div><div class="kpi-value" style="color:#A32D2D;">${fmt(s.totalDiscount)}</div><div class="kpi-sub">articles préparés</div></div>`+
       `<div class="kpi"><div class="kpi-label">CA soldes</div><div class="kpi-value" style="color:#3B6D11;">${fmt(s.ca.revenue)}</div><div class="kpi-sub">${s.ca.count} vente${s.ca.count>1?'s':''} · ${s.period.start}→${s.period.end}</div></div>`+
-      `<div class="kpi" style="cursor:pointer;" onclick="soldesFilterTo({boutique:'Lille'})"><div class="kpi-label">Ré-étiquetage Lille</div><div class="kpi-value">${s.lille.relabeled}/${s.lille.prepared}</div><div class="kpi-sub">faits / préparés${nf('Lille',s.lille.notFound)}</div></div>`+
-      `<div class="kpi" style="cursor:pointer;" onclick="soldesFilterTo({boutique:'DK'})"><div class="kpi-label">Ré-étiquetage DK</div><div class="kpi-value">${s.dk.relabeled}/${s.dk.prepared}</div><div class="kpi-sub">faits / préparés${nf('DK',s.dk.notFound)}</div></div>`;
+      `<div class="kpi" style="cursor:pointer;" onclick="soldesFilterTo({boutique:'Lille'})"><div class="kpi-label">Ré-étiquetage Lille</div><div class="kpi-value">${s.lille.relabeled}/${s.lille.prepared}</div><div class="kpi-sub">faits / préparés${nf('Lille',s.lille.notFound)}${al('Lille',s.lille.atLocal)}</div></div>`+
+      `<div class="kpi" style="cursor:pointer;" onclick="soldesFilterTo({boutique:'DK'})"><div class="kpi-label">Ré-étiquetage DK</div><div class="kpi-value">${s.dk.relabeled}/${s.dk.prepared}</div><div class="kpi-sub">faits / préparés${nf('DK',s.dk.notFound)}${al('DK',s.dk.atLocal)}</div></div>`;
   } catch(e){ document.getElementById('soldesKpis').innerHTML='<div class="loading">Récap indisponible</div>'; }
 }
 
@@ -5582,7 +5583,8 @@ function soldesFiltered() {
     if(st==='none' && p.salePrice!=null) return false;
     if(st==='relabeled' && !p.relabeled) return false;
     if(st==='notfound' && !p.notFound) return false;
-    if(st==='torelabel' && !(p.salePrice!=null && !p.relabeled && !p.notFound)) return false;
+    if(st==='atlocal' && !p.atLocal) return false;
+    if(st==='torelabel' && !(p.salePrice!=null && !p.relabeled && !p.notFound && !p.atLocal)) return false;
     return true;
   });
   const disc=p=>(p.salePrice!=null?Math.max(0,(Number(p.price)||0)-Number(p.salePrice)):-1);
@@ -5610,6 +5612,7 @@ function soldesRowHtml(p) {
   // statut ré-étiquetage (info employé)
   let etiq='';
   if(p.notFound) etiq=` <button class="badge" style="background:rgba(186,117,23,0.18);color:#BA7517;border:none;cursor:pointer;" title="Retirer le statut introuvable" onclick="soldesAdminClearNotFound(${p.id})">⚠️ introuvable ✕</button>`;
+  else if(p.atLocal) etiq=' <span class="badge" style="background:rgba(24,95,165,0.15);color:#185FA5;">📦 au local</span>';
   else if(p.relabeled) etiq=' <span class="badge badge-ok">✓ étiqueté</span>';
   return `<tr data-pid="${p.id}">
     <td data-label="Article" class="cell-article"><div class="stock-art">${img}<div class="meta"><div class="t">${p.title||''}</div><div class="v">${catIcon} ${p.brand||'—'}${p.barcode?(' · '+p.barcode):''}</div></div></div></td>
@@ -5658,7 +5661,7 @@ async function soldesRemove(id) {
     const res=await fetch(`${BACKEND_URL}/sales/item/${id}`,{method:'DELETE'});
     if(!res.ok){ const e=await res.json().catch(()=>({})); showDashToast('Erreur : '+(e.error||res.status),'error'); return; }
     // l'article est supprimé en base → on remet l'état local propre (sinon le badge introuvable/étiqueté persiste au ré-ajout)
-    p.salePrice=null; p.applied=false; p.dirty=false; p.relabeled=false; p.notFound=false;
+    p.salePrice=null; p.applied=false; p.dirty=false; p.relabeled=false; p.notFound=false; p.atLocal=false;
     soldesRender(); loadSoldesSummary();
   } catch(e){ showDashToast('Erreur réseau','error'); }
 }
@@ -5741,13 +5744,14 @@ async function loadSoldesWork() {
 function soldesEmpRender() {
   const q=(document.getElementById('soldesEmpSearch').value||'').toLowerCase().trim();
   const f=document.getElementById('soldesEmpFilter').value;
-  const total=soldesWork.length, done=soldesWork.filter(x=>x.relabeled).length, nf=soldesWork.filter(x=>x.not_found).length;
-  document.getElementById('soldesEmpProgress').innerHTML=`<strong>${done}/${total}</strong> ré-étiquetés${nf?` · <span style="color:#BA7517;">${nf} introuvable${nf>1?'s':''}</span>`:''}`;
+  const total=soldesWork.length, done=soldesWork.filter(x=>x.relabeled).length, nf=soldesWork.filter(x=>x.not_found).length, al=soldesWork.filter(x=>x.at_local).length;
+  document.getElementById('soldesEmpProgress').innerHTML=`<strong>${done}/${total}</strong> ré-étiquetés${nf?` · <span style="color:#BA7517;">${nf} introuvable${nf>1?'s':''}</span>`:''}${al?` · <span style="color:#185FA5;">${al} au local</span>`:''}`;
   const data=soldesWork.filter(x=>{
     if(q && !(x.title||'').toLowerCase().includes(q) && !(x.brand||'').toLowerCase().includes(q) && !(x.barcode||'').toLowerCase().includes(q)) return false;
-    if(f==='todo' && (x.relabeled || x.not_found)) return false;
+    if(f==='todo' && (x.relabeled || x.not_found || x.at_local)) return false;
     if(f==='done' && !x.relabeled) return false;
     if(f==='notfound' && !x.not_found) return false;
+    if(f==='atlocal' && !x.at_local) return false;
     return true;
   });
   const list=document.getElementById('soldesEmpList');
@@ -5756,22 +5760,31 @@ function soldesEmpRender() {
   list.innerHTML=data.map(x=>{
     const img=x.image?`<img src="${x.image}" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex-shrink:0;"/>`:`<div style="width:64px;height:64px;border-radius:10px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">👕</div>`;
     const disc=x.original_price>0?Math.round((1-x.sale_price/x.original_price)*100):0;
-    const cardStyle = x.relabeled ? 'opacity:.55;' : (x.not_found ? 'border-color:#BA7517;' : '');
+    const cardStyle = x.relabeled ? 'opacity:.55;' : (x.not_found ? 'border-color:#BA7517;' : (x.at_local ? 'border-color:#185FA5;' : ''));
     let actions;
     if (x.relabeled) {
       actions=`<button class="btn" style="white-space:nowrap;" onclick="soldesToggleRelabel('${x.product_id}')">✓ Fait</button>`;
     } else if (x.not_found) {
-      actions=`<button class="btn" style="white-space:nowrap;background:rgba(186,117,23,0.15);border-color:#BA7517;color:#BA7517;" onclick="soldesToggleNotFound('${x.product_id}')">⚠️ Introuvable</button>`;
+      actions=`<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+        <button class="btn" style="white-space:nowrap;background:rgba(186,117,23,0.15);border-color:#BA7517;color:#BA7517;" onclick="soldesToggleNotFound('${x.product_id}')">⚠️ Introuvable</button>
+        <button class="btn" style="white-space:nowrap;font-size:12px;background:rgba(24,95,165,0.12);border-color:#185FA5;color:#185FA5;" onclick="soldesMarkAtLocal('${x.product_id}')">📦 Au local</button>
+      </div>`;
+    } else if (x.at_local) {
+      actions=`<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+        <button class="btn btn-green" style="white-space:nowrap;" onclick="soldesToggleRelabel('${x.product_id}')">Marquer fait</button>
+        <button class="btn" style="white-space:nowrap;font-size:12px;background:rgba(24,95,165,0.15);border-color:#185FA5;color:#185FA5;" onclick="soldesMarkAtLocal('${x.product_id}')">📦 Au local ✓</button>
+      </div>`;
     } else {
       actions=`<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
         <button class="btn btn-green" style="white-space:nowrap;" onclick="soldesToggleRelabel('${x.product_id}')">Marquer fait</button>
         <button class="btn" style="white-space:nowrap;font-size:12px;background:rgba(186,117,23,0.12);border-color:#BA7517;color:#BA7517;" onclick="soldesToggleNotFound('${x.product_id}')">Introuvable</button>
       </div>`;
     }
+    const tag = x.not_found?' <span style="font-size:11px;color:#BA7517;font-weight:700;">· introuvable</span>' : (x.at_local?' <span style="font-size:11px;color:#185FA5;font-weight:700;">· au local</span>':'');
     return `<div class="table-card" style="padding:12px;margin-bottom:10px;display:flex;gap:12px;align-items:center;${cardStyle}">
       ${img}
       <div style="flex:1;min-width:0;">
-        <div style="font-weight:600;font-size:14px;">${x.title||''}${x.not_found?' <span style="font-size:11px;color:#BA7517;font-weight:700;">· introuvable</span>':''}</div>
+        <div style="font-weight:600;font-size:14px;">${x.title||''}${tag}</div>
         <div style="font-size:12px;color:var(--text-muted);">${x.brand||'—'}${x.barcode?(' · '+x.barcode):''}</div>
         <div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <span style="text-decoration:line-through;color:var(--text-muted);font-size:14px;">${x.original_price.toFixed(2)}€</span>
@@ -5786,7 +5799,7 @@ function soldesEmpRender() {
 async function soldesToggleRelabel(pid) {
   const x=soldesWork.find(w=>String(w.product_id)===String(pid)); if(!x) return;
   const newVal=!x.relabeled;
-  x.relabeled=newVal; if(newVal) x.not_found=false; soldesEmpRender();
+  x.relabeled=newVal; if(newVal){ x.not_found=false; x.at_local=false; } soldesEmpRender();
   try {
     const res=await fetch(`${BACKEND_URL}/sales/relabel`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({productId:pid, relabeled:newVal, employee:DASH_EMPLOYEE||null})});
     if(!res.ok) throw new Error('HTTP '+res.status);
@@ -5796,11 +5809,20 @@ async function soldesToggleNotFound(pid) {
   const x=soldesWork.find(w=>String(w.product_id)===String(pid)); if(!x) return;
   const newVal=!x.not_found;
   if(newVal && !confirm(`Marquer « ${x.title||'cet article'} » comme INTROUVABLE ?`)) return;
-  x.not_found=newVal; if(newVal) x.relabeled=false; soldesEmpRender();
+  x.not_found=newVal; if(newVal){ x.relabeled=false; x.at_local=false; } soldesEmpRender();
   try {
     const res=await fetch(`${BACKEND_URL}/sales/notfound`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({productId:pid, notFound:newVal, employee:DASH_EMPLOYEE||null})});
     if(!res.ok) throw new Error('HTTP '+res.status);
   } catch(e){ x.not_found=!newVal; soldesEmpRender(); showDashToast('Erreur réseau','error'); }
+}
+async function soldesMarkAtLocal(pid) {
+  const x=soldesWork.find(w=>String(w.product_id)===String(pid)); if(!x) return;
+  const newVal=!x.at_local;
+  x.at_local=newVal; if(newVal){ x.not_found=false; x.relabeled=false; } soldesEmpRender();
+  try {
+    const res=await fetch(`${BACKEND_URL}/sales/atlocal`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({productId:pid, atLocal:newVal, employee:DASH_EMPLOYEE||null})});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+  } catch(e){ x.at_local=!newVal; soldesEmpRender(); showDashToast('Erreur réseau','error'); }
 }
 
 /* ========== ALERTE VENTES OUBLIÉES (épuisé sur Shopify sans vente enregistrée) ========== */
