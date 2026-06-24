@@ -2058,6 +2058,16 @@ tbody tr { transition: background .12s; }
       </select>
     </div>
   </div>
+  <!-- Transfert manuel (admin uniquement) -->
+  <div class="table-card js-admin-only" id="trfManualPanel" style="display:none;padding:16px 18px;margin-bottom:16px;">
+    <div style="font-weight:700;font-size:14px;margin-bottom:4px;">🔄 Nouveau transfert</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Scanne ou saisis le code-barres : l'article et sa boutique actuelle s'affichent, puis transfère-le vers l'autre boutique (le tag est corrigé sur Shopify).</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <input id="trfBarcodeInput" class="search-input" style="flex:1;min-width:200px;" placeholder="Code-barres…" onkeydown="if(event.key==='Enter')trfLookup()"/>
+      <button class="btn" onclick="trfLookup()">Rechercher</button>
+    </div>
+    <div id="trfManualResult" style="margin-top:12px;"></div>
+  </div>
   <div id="trfKpis" class="kpi-grid" style="margin-bottom:20px;"></div>
   <div class="table-card">
     <div class="table-header">
@@ -2318,7 +2328,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v159-rapport-inventaire';
+const DASH_VERSION = '2025-04-25-v160-transfert-manuel-dashboard';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -3336,6 +3346,79 @@ async function loadTransferts() {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:30px;color:#A32D2D;">Erreur de chargement : ${e.message}</td></tr>`;
     document.getElementById('trfKpis').innerHTML = '';
   }
+}
+
+// ===== Transfert manuel depuis le dashboard (admin) =====
+function trfBuildObj(m, bc) {
+  const from = m.boutique || 'Lille';
+  return {
+    barcode: bc, name: m.name || m.title || '', brand: m.brand || '', image: m.image || '',
+    from, to: from === 'DK' ? 'Lille' : 'DK', totalStock: (m.totalStock != null ? m.totalStock : null)
+  };
+}
+function trfCardHtml(c) {
+  const badge = c.from === 'DK' ? 'badge-dk' : 'badge-lille';
+  const img = c.image ? `<img src="${c.image}" style="width:54px;height:54px;object-fit:cover;border-radius:10px;flex-shrink:0;">`
+    : `<div style="width:54px;height:54px;border-radius:10px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">👕</div>`;
+  return `<div class="kpi" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 14px;">
+    ${img}
+    <div style="flex:1;min-width:0;">
+      <div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_invEsc(c.name)}</div>
+      <div style="font-size:12px;color:var(--text-muted);">${c.brand ? _invEsc(c.brand) + ' · ' : ''}${_invEsc(c.barcode)}</div>
+      <div style="margin-top:5px;"><span class="badge ${badge}">${c.from}</span> ${c.totalStock != null ? `<span style="font-size:12px;color:var(--text-muted);">Stock ${c.totalStock}</span>` : ''}</div>
+    </div>
+    <button class="btn" id="trfConfirmBtn" style="background:#185FA5;color:#fff;border-color:#185FA5;" onclick="trfConfirm()">🔄 Transférer vers ${c.to}</button>
+  </div>`;
+}
+async function trfLookup() {
+  if (DASH_BOUTIQUE !== 'admin') return;
+  const bc = (document.getElementById('trfBarcodeInput')?.value || '').trim();
+  const box = document.getElementById('trfManualResult');
+  window._trfCurrent = null; window._trfMatches = null;
+  if (!bc) { box.innerHTML = ''; return; }
+  box.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0;">Recherche…</div>';
+  try {
+    const res = await fetch(`${BACKEND_URL}/product/${encodeURIComponent(bc)}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error || (!data.multiple && !data.name && !data.title)) {
+      box.innerHTML = '<div style="color:#A32D2D;font-size:13px;padding:8px 0;">Article introuvable sur Shopify.</div>'; return;
+    }
+    // Code-barres partagé → on laisse choisir lequel transférer
+    if (data.multiple && Array.isArray(data.matches)) {
+      window._trfMatches = data.matches.map(m => trfBuildObj(m, bc));
+      box.innerHTML = `<div style="font-size:12px;color:#BA7517;font-weight:700;margin-bottom:8px;">⚠️ ${data.matches.length} articles ont ce code-barres — choisis lequel transférer :</div>`
+        + window._trfMatches.map((c, i) => `<div style="border:1px solid var(--border);border-radius:10px;padding:8px 10px;margin-bottom:8px;display:flex;justify-content:space-between;gap:8px;align-items:center;">
+            <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_invEsc(c.name)} <span class="badge ${c.from==='DK'?'badge-dk':'badge-lille'}">${c.from}</span></span>
+            <button class="btn" style="font-size:12px;white-space:nowrap;" onclick="trfChoose(${i})">Choisir</button>
+          </div>`).join('');
+      return;
+    }
+    window._trfCurrent = trfBuildObj(data, bc);
+    box.innerHTML = trfCardHtml(window._trfCurrent);
+  } catch(e) { box.innerHTML = `<div style="color:#A32D2D;font-size:13px;padding:8px 0;">Erreur : ${e.message}</div>`; }
+}
+function trfChoose(i) {
+  const c = (window._trfMatches || [])[i]; if (!c) return;
+  window._trfCurrent = c;
+  document.getElementById('trfManualResult').innerHTML = trfCardHtml(c);
+}
+async function trfConfirm() {
+  const c = window._trfCurrent; if (!c) return;
+  if (!confirm(`Transférer « ${c.name} » de ${c.from} vers ${c.to} ?\n\nLe tag boutique sera corrigé sur Shopify.`)) return;
+  const btn = document.getElementById('trfConfirmBtn'); if (btn) { btn.disabled = true; btn.textContent = 'Transfert…'; }
+  try {
+    const res = await fetch(`${BACKEND_URL}/transfer`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ barcode: c.barcode, productName: c.name, brand: c.brand, imageUrl: c.image, fromBoutique: c.from, toBoutique: c.to, employee: DASH_EMPLOYEE || 'Admin' })
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) { showDashToast(d.error || 'Erreur transfert', 'error'); if (btn) { btn.disabled = false; btn.textContent = '🔄 Transférer vers ' + c.to; } return; }
+    showDashToast(`Transféré vers ${c.to} ✓`, 'success');
+    document.getElementById('trfManualResult').innerHTML = `<div style="color:#3B6D11;font-size:13px;padding:8px 0;">✓ « ${_invEsc(c.name)} » transféré ${c.from} → ${c.to}</div>`;
+    const inp = document.getElementById('trfBarcodeInput'); if (inp) { inp.value = ''; inp.focus(); }
+    window._trfCurrent = null;
+    loadTransferts();
+  } catch(e) { showDashToast('Erreur réseau', 'error'); if (btn) { btn.disabled = false; btn.textContent = '🔄 Transférer vers ' + c.to; } }
 }
 
 function renderTransferts() {

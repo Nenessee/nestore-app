@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-inventaire-rapport-feedback';
+const CACHE_VERSION = 'nestore-v2026-06-24-transfert-manuel-dashboard';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
