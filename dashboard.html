@@ -2328,7 +2328,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v160-transfert-manuel-dashboard';
+const DASH_VERSION = '2025-04-25-v161-ca-soldes-vendus';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5794,7 +5794,7 @@ async function loadSoldesSummary() {
     document.getElementById('soldesKpis').innerHTML =
       `<div class="kpi" style="cursor:pointer;" onclick="soldesFilterTo({status:'prepared'})"><div class="kpi-label">Préparés</div><div class="kpi-value">${s.prepared}</div><div class="kpi-sub">${s.applied} appliqués${s.sold?` · ${s.sold} déjà vendus`:''}</div></div>`+
       `<div class="kpi"><div class="kpi-label">Remise totale</div><div class="kpi-value" style="color:#A32D2D;">${fmt(s.totalDiscount)}</div><div class="kpi-sub">articles préparés</div></div>`+
-      `<div class="kpi"><div class="kpi-label">CA soldes</div><div class="kpi-value" style="color:#3B6D11;">${fmt(s.ca.revenue)}</div><div class="kpi-sub">${s.ca.count} vente${s.ca.count>1?'s':''} · ${s.period.start}→${s.period.end}</div></div>`+
+      `<div class="kpi"><div class="kpi-label">CA soldes</div><div class="kpi-value" style="color:#3B6D11;">${fmt(s.ca.revenue)}</div><div class="kpi-sub">${s.ca.count} article${s.ca.count>1?'s':''} soldé${s.ca.count>1?'s':''} vendu${s.ca.count>1?'s':''} · prix réel ou estimé</div></div>`+
       `<div class="kpi" style="cursor:pointer;" onclick="soldesFilterTo({boutique:'Lille'})"><div class="kpi-label">Ré-étiquetage Lille</div><div class="kpi-value">${s.lille.relabeled}/${s.lille.prepared}</div><div class="kpi-sub">faits / préparés${nf('Lille',s.lille.notFound)}${al('Lille',s.lille.atLocal)}</div></div>`+
       `<div class="kpi" style="cursor:pointer;" onclick="soldesFilterTo({boutique:'DK'})"><div class="kpi-label">Ré-étiquetage DK</div><div class="kpi-value">${s.dk.relabeled}/${s.dk.prepared}</div><div class="kpi-sub">faits / préparés${nf('DK',s.dk.notFound)}${al('DK',s.dk.atLocal)}</div></div>`;
   } catch(e){ document.getElementById('soldesKpis').innerHTML='<div class="loading">Récap indisponible</div>'; }
