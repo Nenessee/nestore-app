@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-fix-scroll-jump-cocher';
+const CACHE_VERSION = 'nestore-v2026-06-24-multi-barcode-choix';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
