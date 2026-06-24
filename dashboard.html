@@ -2328,7 +2328,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v161-ca-soldes-vendus';
+const DASH_VERSION = '2025-04-25-v162-transfert-cible-productid';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -3352,7 +3352,8 @@ async function loadTransferts() {
 function trfBuildObj(m, bc) {
   const from = m.boutique || 'Lille';
   return {
-    barcode: bc, name: m.name || m.title || '', brand: m.brand || '', image: m.image || '',
+    barcode: bc, productId: m.productId || m.id || null,
+    name: m.name || m.title || '', brand: m.brand || '', image: m.image || '',
     from, to: from === 'DK' ? 'Lille' : 'DK', totalStock: (m.totalStock != null ? m.totalStock : null)
   };
 }
@@ -3409,7 +3410,7 @@ async function trfConfirm() {
   try {
     const res = await fetch(`${BACKEND_URL}/transfer`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ barcode: c.barcode, productName: c.name, brand: c.brand, imageUrl: c.image, fromBoutique: c.from, toBoutique: c.to, employee: DASH_EMPLOYEE || 'Admin' })
+      body: JSON.stringify({ barcode: c.barcode, productId: c.productId, productName: c.name, brand: c.brand, imageUrl: c.image, fromBoutique: c.from, toBoutique: c.to, employee: DASH_EMPLOYEE || 'Admin' })
     });
     const d = await res.json().catch(() => ({}));
     if (!res.ok) { showDashToast(d.error || 'Erreur transfert', 'error'); if (btn) { btn.disabled = false; btn.textContent = '🔄 Transférer vers ' + c.to; } return; }
@@ -3835,7 +3836,7 @@ async function correctBoutique(barcode) {
   try {
     const res = await fetch(`${BACKEND_URL}/transfer`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ barcode, productName: p.title, brand: p.vendor, imageUrl: p.image, fromBoutique: from, toBoutique: to, employee: DASH_EMPLOYEE || DASH_BOUTIQUE || 'inconnu' })
+      body: JSON.stringify({ barcode, productId: p.id, productName: p.title, brand: p.vendor, imageUrl: p.image, fromBoutique: from, toBoutique: to, employee: DASH_EMPLOYEE || DASH_BOUTIQUE || 'inconnu' })
     });
     if (!res.ok) { const err = await res.json().catch(()=>({})); showToast('Erreur : ' + (err.error || res.status), 'error'); return; }
     p.boutique = to; p.misplaced = false;
