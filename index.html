@@ -1061,7 +1061,7 @@ async function nvHardReload(){
 </script>
 
 <script>
-  const APP_VERSION = '2025-06-15-v117-transfert-cible-productid';
+  const APP_VERSION = '2025-06-15-v118-audit-coherence';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   // Jeton employé envoyé au backend sur chaque appel (doit correspondre à
   // EMPLOYEE_API_KEY sur Railway). Bloque les accès directs à l'API par URL.
@@ -1393,6 +1393,19 @@ async function nvHardReload(){
 
   // ===== File d'attente des ventes hors-ligne (ne jamais perdre une vente si le réseau coupe) =====
   const NV_SALE_QUEUE = 'nv_offline_sales';
+  // Clé d'idempotence : une vente garde la MÊME clé entre la 1re tentative et un éventuel rejeu
+  // hors-ligne → le serveur dédoublonne (ON CONFLICT) et le CA n'est jamais compté deux fois.
+  function nvUuid() {
+    try { if (crypto && crypto.randomUUID) return 'caisse_' + crypto.randomUUID(); } catch(_) {}
+    return 'caisse_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+  }
+  // Retire de la file hors-ligne toute vente d'un code-barres (ex: l'article vient d'être retourné
+  // avant d'avoir été synchronisé → on évite une vente fantôme).
+  function nvPurgeQueueByBarcode(bc) {
+    if (!bc) return;
+    const q = nvGetQueue().filter(it => (it.payload && it.payload.barcode) !== bc);
+    nvSetQueue(q);
+  }
   function nvGetQueue() { try { return JSON.parse(localStorage.getItem(NV_SALE_QUEUE) || '[]'); } catch (_) { return []; } }
   function nvSetQueue(q) { localStorage.setItem(NV_SALE_QUEUE, JSON.stringify(q)); nvUpdateOfflineBadge(); }
   function nvQueueSale(payload) {
@@ -1450,7 +1463,8 @@ async function nvHardReload(){
     const payload = {
       inventoryItemId: cd.inventoryItemId, locationId: cd.selectedLocationId, employee, boutique,
       productName: cd.name, barcode: cd.barcode, sku: cd.sku, price: cd.price,
-      tags: cd.tags, brand: cd.brand, imageUrl: cd.image, productCreatedAt: cd.productCreatedAt
+      tags: cd.tags, brand: cd.brand, imageUrl: cd.image, productCreatedAt: cd.productCreatedAt,
+      idempotencyKey: nvUuid() // généré une seule fois → réutilisé tel quel en cas de rejeu hors-ligne
     };
     const finishOffline = (msg) => {
       nvQueueSale(payload);
@@ -1507,11 +1521,14 @@ async function nvHardReload(){
     try {
       const res = await fetch(`${BACKEND_URL}/return`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inventoryItemId: currentData.inventoryItemId, locationId: currentData.selectedLocationId, barcode: currentData.barcode })
+        body: JSON.stringify({ inventoryItemId: currentData.inventoryItemId, locationId: currentData.selectedLocationId, barcode: currentData.barcode, sku: currentData.sku, price: currentData.price })
       });
       const result = await res.json().catch(() => ({}));
       if (res.status === 409) { showToast(result.error || 'Déjà en stock — ce n\'est pas un retour', 'warn'); reset(); return; }
       if (!res.ok || !result.ok) { showToast(result.error || 'Erreur lors du retour', 'error'); reset(); return; }
+      // L'article était peut-être vendu hors-ligne et pas encore synchronisé → on purge la file
+      // pour ne pas réinsérer une vente annulée.
+      nvPurgeQueueByBarcode(currentData.barcode);
       showToast(result.saleReversed ? 'Retour ✓ — remis en stock, vente annulée' : 'Remis en stock ✓', 'success');
       try { if (typeof window.__nvLog === 'function') window.__nvLog('retour', { barcode: currentData.barcode, productName: currentData.name, boutique: currentData.boutique }); } catch(_) {}
       const bc = currentData.barcode, inp = document.getElementById('barcodeInput');
@@ -2007,7 +2024,8 @@ async function nvHardReload(){
           updatedBy: currentEmployee || 'caisse',
           productName: name || barcode,
           imageUrl: image || null,
-          scannedBoutique: scanB
+          scannedBoutique: scanB,
+          productId: (match && (match.productId || match.id)) || null // désambiguïse les codes-barres partagés
         })
       });
 

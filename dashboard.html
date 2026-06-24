@@ -2011,7 +2011,7 @@ tbody tr { transition: background .12s; }
       <input class="search-input" id="soldesSearch" placeholder="Rechercher…" oninput="soldesRenderDebounced()"/>
       <select class="filter-select" id="soldesBoutiqueFilter" onchange="soldesRender()"><option value="">Toutes boutiques</option><option value="Lille">Lille</option><option value="DK">DK</option></select>
       <select class="filter-select" id="soldesCategoryFilter" onchange="soldesRender()"><option value="">Toutes catégories</option><option value="Sneakers">👟 Sneakers</option><option value="Sapes">👕 Sapes</option><option value="Accessoires">👜 Accessoires/Sacs</option><option value="Autre">📦 Autre</option></select>
-      <select class="filter-select" id="soldesStatusFilter" onchange="soldesRender()"><option value="">Tous statuts</option><option value="prepared">Préparés</option><option value="applied">Appliqués</option><option value="pending">À pousser</option><option value="none">Non préparés</option><option value="torelabel">⏳ À ré-étiqueter</option><option value="relabeled">✓ Ré-étiquetés</option><option value="notfound">⚠️ Introuvables</option><option value="atlocal">📦 Au local</option></select>
+      <select class="filter-select" id="soldesStatusFilter" onchange="soldesRender()"><option value="">Tous statuts</option><option value="prepared">Préparés</option><option value="applied">Appliqués</option><option value="pending">À pousser</option><option value="none">Non préparés</option><option value="torelabel">⏳ À ré-étiqueter</option><option value="relabeled">✓ Ré-étiquetés</option><option value="notfound">⚠️ Introuvables</option><option value="atlocal">📦 Au local</option><option value="sold">💰 Vendus</option></select>
       <select class="filter-select" id="soldesSortFilter" onchange="soldesRender()"><option value="days_desc">Plus anciens</option><option value="days_asc">Plus récents</option><option value="price_desc">Prix décroissant</option><option value="price_asc">Prix croissant</option><option value="disc_desc">Remise décroissante</option><option value="title_asc">Nom (A→Z)</option></select>
     </div>
     <div class="table-card tc-cards">
@@ -2330,7 +2330,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v163-filtre-doublons-codebarres';
+const DASH_VERSION = '2025-04-25-v164-audit-coherence';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2674,7 +2674,11 @@ async function loadStock(force) {
   if (_seq !== _stockLoadSeq) return; // un chargement plus récent (ex: changement de boutique) a démarré → on abandonne celui-ci
   stockLoadedAt = Date.now();
   allStockData = data.map(p => {
-    const loc = locMap[p.barcode] || {};
+    let loc = locMap[p.barcode] || {};
+    // Code-barres partagé : la ligne stock_locations ne concerne QU'UN article (product_id mémorisé).
+    // Si elle pointe un autre product_id que celui-ci, on n'hérite pas de son état (sinon le jumeau
+    // serait faussement « localisé / sur Vinted »).
+    if (loc.productId != null && Number(loc.productId) !== Number(p.id)) loc = {};
     const scannedBoutique = loc.scannedBoutique || null;
     return {
       ...p,
@@ -2915,13 +2919,13 @@ function stockRowHtml(p) {
   const rawLoc = p.location || '';
   const loc = rawLoc === 'en_boutique' ? 'en_magasin' : rawLoc; // compat ancienne valeur
   const checkCell = p.barcode
-    ? `<input type="checkbox" class="cb-loc" ${inBoutique?'checked':''} onchange="onCheckLocation('${p.barcode}', this.checked, '${loc}')" style="width:18px;height:18px;cursor:pointer;accent-color:#3B6D11;"/>`
+    ? `<input type="checkbox" class="cb-loc" ${inBoutique?'checked':''} onchange="onCheckLocation('${p.barcode}', this.checked, '${loc}', ${p.id})" style="width:18px;height:18px;cursor:pointer;accent-color:#3B6D11;"/>`
     : `<span style="color:#b4b2a9;font-size:11px;">—</span>`;
   const vintedCell = p.barcode
-    ? `<input type="checkbox" class="cb-vinted" ${p.onVinted?'checked':''} onchange="onCheckVinted('${p.barcode}', this.checked)" style="width:18px;height:18px;cursor:pointer;accent-color:#09B1BA;"/>`
+    ? `<input type="checkbox" class="cb-vinted" ${p.onVinted?'checked':''} onchange="onCheckVinted('${p.barcode}', this.checked, ${p.id})" style="width:18px;height:18px;cursor:pointer;accent-color:#09B1BA;"/>`
     : `<span style="color:#b4b2a9;font-size:11px;">—</span>`;
   const locCell = p.barcode
-    ? `<select onchange="updateStockLocation('${p.barcode}', ${inBoutique}, this.value)" style="font-size:11px;padding:4px 6px;border:0.5px solid #d3d1c7;border-radius:6px;color:${LOC_COLORS[loc]||'#888780'};max-width:130px;">
+    ? `<select onchange="updateStockLocation('${p.barcode}', ${inBoutique}, this.value, ${p.id})" style="font-size:11px;padding:4px 6px;border:0.5px solid #d3d1c7;border-radius:6px;color:${LOC_COLORS[loc]||'#888780'};max-width:130px;">
         <option value="" ${!loc?'selected':''}>— Choisir —</option>
         <option value="en_magasin" ${loc==='en_magasin'?'selected':''}>🏪 En magasin</option>
         <option value="reserve" ${loc==='reserve'?'selected':''}>📦 Réserve</option>
@@ -3003,7 +3007,11 @@ function filterStock() {
   const dupF=document.getElementById('stockDupFilter')?.value||'';
   let filtered=allStockData.filter(p=>{
     if(dupF==='yes'&&!p.dupBarcode) return false;
-    if(q&&!p.title?.toLowerCase().includes(q)&&!p.vendor?.toLowerCase().includes(q)&&!p.barcode?.toLowerCase().includes(q)&&!p.sku?.toLowerCase().includes(q)) return false;
+    // Même moteur de recherche que la version "recherche intelligente" → résultats identiques.
+    if(q){ const sm=window.__nvSmartMatch;
+      if(sm){ if(!sm(q,p.title,p.vendor,p.barcode,p.sku)) return false; }
+      else if(!p.title?.toLowerCase().includes(q)&&!p.vendor?.toLowerCase().includes(q)&&!p.barcode?.toLowerCase().includes(q)&&!p.sku?.toLowerCase().includes(q)) return false;
+    }
     if(boutique&&p.boutique!==boutique) return false;
     if(category&&p.category!==category) return false;
     if(days==='ok'&&p.daysOnline>=30) return false;
@@ -3758,11 +3766,11 @@ async function saveBarcode(variantId, input) {
   } catch(e) { showToast('Erreur réseau : ' + e.message, 'error'); input.disabled=false; }
 }
 
-function onCheckLocation(barcode, checked, currentLoc) {
+function onCheckLocation(barcode, checked, currentLoc, productId) {
   const newLoc = checked ? 'en_magasin' : '';
-  updateStockLocation(barcode, checked, newLoc);
-  // Mettre à jour le state local immédiatement
-  const p = allStockData.find(p => p.barcode === barcode);
+  updateStockLocation(barcode, checked, newLoc, productId);
+  // Mettre à jour le state local immédiatement (cible le bon article si code-barres partagé)
+  const p = (productId!=null ? allStockData.find(p => p.id === productId) : null) || allStockData.find(p => p.barcode === barcode);
   if (p) { p.inBoutique = checked; p.location = newLoc; }
   // Re-render UNIQUEMENT si un filtre localisation est actif (sinon la ligne reste
   // visible là où elle est, pas besoin de tout redessiner — gros gain de perf sur
@@ -3788,14 +3796,14 @@ function onCheckLocation(barcode, checked, currentLoc) {
   }
 }
 
-async function onCheckVinted(barcode, checked) {
-  // Update state local immédiatement pour UI réactive
-  const p = allStockData.find(p => p.barcode === barcode);
+async function onCheckVinted(barcode, checked, productId) {
+  // Update state local immédiatement pour UI réactive (cible le bon article si code-barres partagé)
+  const p = (productId!=null ? allStockData.find(p => p.id === productId) : null) || allStockData.find(p => p.barcode === barcode);
   if (p) p.onVinted = checked;
   try {
     const res = await fetch(`${BACKEND_URL}/stock/vinted`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ barcode, onVinted: checked, updatedBy: DASH_EMPLOYEE || DASH_BOUTIQUE || null })
+      body: JSON.stringify({ barcode, onVinted: checked, updatedBy: DASH_EMPLOYEE || DASH_BOUTIQUE || null, productId: productId || null })
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     if (typeof showDashToast === 'function') {
@@ -3824,15 +3832,15 @@ function currentScanBoutique() {
   return (f === 'Lille' || f === 'DK') ? f : null;
 }
 
-async function updateStockLocation(barcode, inBoutique, location) {
+async function updateStockLocation(barcode, inBoutique, location, productId) {
   try {
     const scannedBoutique = inBoutique ? currentScanBoutique() : null;
     const res = await fetch(`${BACKEND_URL}/stock/location`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ barcode, inBoutique, location, updatedBy: DASH_EMPLOYEE || DASH_BOUTIQUE || null, scannedBoutique })
+      body: JSON.stringify({ barcode, inBoutique, location, updatedBy: DASH_EMPLOYEE || DASH_BOUTIQUE || null, scannedBoutique, productId: productId || null })
     });
     if (!res.ok) { const err = await res.json().catch(()=>({})); showToast('Erreur : ' + (err.error || res.status), 'error'); return; }
-    const p = allStockData.find(p => p.barcode === barcode);
+    const p = (productId!=null ? allStockData.find(p => p.id === productId) : null) || allStockData.find(p => p.barcode === barcode);
     if (p) {
       p.inBoutique = inBoutique; p.location = location;
       p.scannedBoutique = inBoutique ? scannedBoutique : null;
@@ -5850,6 +5858,9 @@ function soldesFiltered() {
   const st=document.getElementById('soldesStatusFilter').value;
   const sort=document.getElementById('soldesSortFilter')?.value||'days_desc';
   const out=soldesCatalog.filter(p=>{
+    // Les articles déjà vendus ne s'affichent que sous le filtre « vendus » → les autres vues
+    // (et leurs compteurs) restent alignées avec les KPI (qui excluent les vendus).
+    if(st==='sold'){ if(!p.sold) return false; } else if(p.sold) return false;
     if(q && !(p.title||'').toLowerCase().includes(q) && !(p.brand||'').toLowerCase().includes(q) && !(p.barcode||'').toLowerCase().includes(q)) return false;
     if(bq && p.boutique!==bq) return false;
     if(cat && p.category!==cat) return false;
@@ -5880,11 +5891,13 @@ function soldesRowHtml(p) {
   const disc=(sale!=null && price>0)?Math.round((1-sale/price)*100):null;
   const remise=(sale!=null)?`<span style="color:#A32D2D;font-weight:600;">−${(price-sale).toFixed(2)}€${disc!=null?` (−${disc}%)`:''}</span>`:'—';
   let badge='<span style="color:var(--text-muted);font-size:11px;">—</span>';
-  if(sale!=null){
+  if(p.sold) badge='<span class="badge" style="background:rgba(59,109,17,0.15);color:#3B6D11;">💰 vendu</span>';
+  else if(sale!=null){
     if(p.applied && !p.dirty) badge='<span class="badge badge-ok">Appliqué</span>';
     else if(p.applied && p.dirty) badge='<span class="badge badge-warning">à repousser</span>';
     else badge='<span class="badge" style="background:#EEEDFE;color:#3C3489;">Préparé</span>';
   }
+  if(p.inStock===false && !p.sold) badge+=' <span class="badge" style="background:rgba(186,117,23,0.15);color:#BA7517;">hors stock</span>';
   // statut ré-étiquetage (info employé)
   let etiq='';
   if(p.notFound) etiq=` <span class="badge" style="background:rgba(186,117,23,0.18);color:#BA7517;">⚠️ introuvable</span> <button class="btn" style="font-size:10px;padding:3px 7px;background:rgba(24,95,165,0.12);border-color:#185FA5;color:#185FA5;" title="Requalifier en « au local »" onclick="soldesAdminAtLocal(${p.id})">📦 Au local</button> <button class="btn" style="font-size:10px;padding:3px 6px;color:var(--text-muted);" title="Retirer le statut introuvable" onclick="soldesAdminClearNotFound(${p.id})">✕</button>`;
