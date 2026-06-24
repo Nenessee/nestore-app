@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-transfert-sync-sku-inventaire-mobile';
+const CACHE_VERSION = 'nestore-v2026-06-24-fix-scroll-jump-cocher';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

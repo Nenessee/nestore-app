@@ -1288,9 +1288,12 @@ tbody tr { transition: none !important; }
     will-change: auto !important;
     contain: none !important;
   }
+  /* En mode cartes, `content-visibility:auto` (hérité de la règle générique) recalcule les hauteurs
+     estimées à chaque coche/maj de ligne → le scroll saute en haut. On le désactive : les listes
+     sont paginées, peindre les cartes visibles est largement assez rapide. */
   .table-card.tc-cards tbody tr {
-    content-visibility: auto;
-    contain-intrinsic-size: auto 240px; /* hauteur estimée d'une carte → moins de sauts de scroll */
+    content-visibility: visible;
+    contain-intrinsic-size: auto;
   }
 }
 
@@ -2314,7 +2317,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v157-transfert-sync-sku-inventaire-mobile';
+const DASH_VERSION = '2025-04-25-v158-fix-scroll-jump-cocher';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -3573,9 +3576,13 @@ function onCheckLocation(barcode, checked, currentLoc) {
   const locF = document.getElementById('stockLocationFilter')?.value;
   const vintedF = document.getElementById('stockVintedFilter')?.value;
   if (locF || vintedF) {
-    // Defer avec rAF pour garder le clic fluide
+    // Defer avec rAF pour garder le clic fluide. On mémorise la position de scroll et on la
+    // restaure après le re-render (sinon, en inventaire, cocher un article le retire de la liste
+    // filtrée et la page remonte tout en haut → très pénible).
     if (window._locFilterRaf) cancelAnimationFrame(window._locFilterRaf);
-    window._locFilterRaf = requestAnimationFrame(() => filterStock());
+    const se = document.scrollingElement || document.documentElement;
+    const y = se.scrollTop;
+    window._locFilterRaf = requestAnimationFrame(() => { filterStock(); se.scrollTop = y; });
   } else {
     // Mise à jour ciblée de la ligne (via data-barcode), sans tout redessiner
     const row = document.querySelector(`#stockTable tr[data-barcode="${String(barcode).replace(/"/g,'\\"')}"]`);
