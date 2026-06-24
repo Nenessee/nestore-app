@@ -2295,7 +2295,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v153-soldes-aulocal';
+const DASH_VERSION = '2025-04-25-v154-aulocal-admin';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5611,8 +5611,8 @@ function soldesRowHtml(p) {
   }
   // statut ré-étiquetage (info employé)
   let etiq='';
-  if(p.notFound) etiq=` <button class="badge" style="background:rgba(186,117,23,0.18);color:#BA7517;border:none;cursor:pointer;" title="Retirer le statut introuvable" onclick="soldesAdminClearNotFound(${p.id})">⚠️ introuvable ✕</button>`;
-  else if(p.atLocal) etiq=' <span class="badge" style="background:rgba(24,95,165,0.15);color:#185FA5;">📦 au local</span>';
+  if(p.notFound) etiq=` <span class="badge" style="background:rgba(186,117,23,0.18);color:#BA7517;">⚠️ introuvable</span> <button class="btn" style="font-size:10px;padding:3px 7px;background:rgba(24,95,165,0.12);border-color:#185FA5;color:#185FA5;" title="Requalifier en « au local »" onclick="soldesAdminAtLocal(${p.id})">📦 Au local</button> <button class="btn" style="font-size:10px;padding:3px 6px;color:var(--text-muted);" title="Retirer le statut introuvable" onclick="soldesAdminClearNotFound(${p.id})">✕</button>`;
+  else if(p.atLocal) etiq=` <span class="badge" style="background:rgba(24,95,165,0.15);color:#185FA5;">📦 au local</span> <button class="btn" style="font-size:10px;padding:3px 6px;color:var(--text-muted);" title="Retirer le statut au local" onclick="soldesAdminClearAtLocal(${p.id})">✕</button>`;
   else if(p.relabeled) etiq=' <span class="badge badge-ok">✓ étiqueté</span>';
   return `<tr data-pid="${p.id}">
     <td data-label="Article" class="cell-article"><div class="stock-art">${img}<div class="meta"><div class="t">${p.title||''}</div><div class="v">${catIcon} ${p.brand||'—'}${p.barcode?(' · '+p.barcode):''}</div></div></div></td>
@@ -5765,15 +5765,10 @@ function soldesEmpRender() {
     if (x.relabeled) {
       actions=`<button class="btn" style="white-space:nowrap;" onclick="soldesToggleRelabel('${x.product_id}')">✓ Fait</button>`;
     } else if (x.not_found) {
-      actions=`<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
-        <button class="btn" style="white-space:nowrap;background:rgba(186,117,23,0.15);border-color:#BA7517;color:#BA7517;" onclick="soldesToggleNotFound('${x.product_id}')">⚠️ Introuvable</button>
-        <button class="btn" style="white-space:nowrap;font-size:12px;background:rgba(24,95,165,0.12);border-color:#185FA5;color:#185FA5;" onclick="soldesMarkAtLocal('${x.product_id}')">📦 Au local</button>
-      </div>`;
+      actions=`<button class="btn" style="white-space:nowrap;background:rgba(186,117,23,0.15);border-color:#BA7517;color:#BA7517;" onclick="soldesToggleNotFound('${x.product_id}')">⚠️ Introuvable</button>`;
     } else if (x.at_local) {
-      actions=`<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
-        <button class="btn btn-green" style="white-space:nowrap;" onclick="soldesToggleRelabel('${x.product_id}')">Marquer fait</button>
-        <button class="btn" style="white-space:nowrap;font-size:12px;background:rgba(24,95,165,0.15);border-color:#185FA5;color:#185FA5;" onclick="soldesMarkAtLocal('${x.product_id}')">📦 Au local ✓</button>
-      </div>`;
+      // "au local" est géré par l'admin → l'employé peut juste marquer fait une fois récupéré/étiqueté
+      actions=`<button class="btn btn-green" style="white-space:nowrap;" onclick="soldesToggleRelabel('${x.product_id}')">Marquer fait</button>`;
     } else {
       actions=`<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
         <button class="btn btn-green" style="white-space:nowrap;" onclick="soldesToggleRelabel('${x.product_id}')">Marquer fait</button>
@@ -5815,14 +5810,23 @@ async function soldesToggleNotFound(pid) {
     if(!res.ok) throw new Error('HTTP '+res.status);
   } catch(e){ x.not_found=!newVal; soldesEmpRender(); showDashToast('Erreur réseau','error'); }
 }
-async function soldesMarkAtLocal(pid) {
-  const x=soldesWork.find(w=>String(w.product_id)===String(pid)); if(!x) return;
-  const newVal=!x.at_local;
-  x.at_local=newVal; if(newVal){ x.not_found=false; x.relabeled=false; } soldesEmpRender();
+// Admin : requalifie un article (introuvable → au local), ou retire le statut "au local"
+async function soldesAdminAtLocal(id) {
+  const p=soldesCatalog.find(x=>x.id===id); if(!p) return;
   try {
-    const res=await fetch(`${BACKEND_URL}/sales/atlocal`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({productId:pid, atLocal:newVal, employee:DASH_EMPLOYEE||null})});
-    if(!res.ok) throw new Error('HTTP '+res.status);
-  } catch(e){ x.at_local=!newVal; soldesEmpRender(); showDashToast('Erreur réseau','error'); }
+    const res=await fetch(`${BACKEND_URL}/sales/atlocal`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({productId:id, atLocal:true, employee:DASH_EMPLOYEE||null})});
+    if(!res.ok){ const e=await res.json().catch(()=>({})); showDashToast('Erreur : '+(e.error||res.status),'error'); return; }
+    p.atLocal=true; p.notFound=false; p.relabeled=false; soldesRender(); loadSoldesSummary();
+  } catch(e){ showDashToast('Erreur réseau','error'); }
+}
+async function soldesAdminClearAtLocal(id) {
+  const p=soldesCatalog.find(x=>x.id===id); if(!p) return;
+  if(!confirm(`Retirer le statut « au local » de « ${p.title||'cet article'} » ?`)) return;
+  try {
+    const res=await fetch(`${BACKEND_URL}/sales/atlocal`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({productId:id, atLocal:false, employee:DASH_EMPLOYEE||null})});
+    if(!res.ok){ const e=await res.json().catch(()=>({})); showDashToast('Erreur : '+(e.error||res.status),'error'); return; }
+    p.atLocal=false; soldesRender(); loadSoldesSummary();
+  } catch(e){ showDashToast('Erreur réseau','error'); }
 }
 
 /* ========== ALERTE VENTES OUBLIÉES (épuisé sur Shopify sans vente enregistrée) ========== */
