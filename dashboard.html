@@ -1276,6 +1276,24 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 /* Pas de transition sur tr (evite repaint à chaque hover) */
 tbody tr { transition: none !important; }
 
+/* ====== PERF MOBILE : scroll fluide ======
+   Sur mobile les tables passent en cartes (pas de colonnes figées) → le `will-change: transform`
+   permanent ci-dessus créait une couche GPU par cellule (100+ couches), saturait la mémoire et
+   provoquait des saccades au défilement. On le neutralise et on cale l'estimation de hauteur des
+   cartes pour un défilement régulier. */
+@media (max-width: 900px) {
+  #stockTable td:first-child, #stockTable td:nth-child(2),
+  #salesTable td:first-child, #rachatsTable td:first-child,
+  #cmdTable td:first-child, #cleanTable td:first-child {
+    will-change: auto !important;
+    contain: none !important;
+  }
+  .table-card.tc-cards tbody tr {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 240px; /* hauteur estimée d'une carte → moins de sauts de scroll */
+  }
+}
+
 /* Sticky cells uniformes (pas de zebra qui les fait alterner foncées) */
 tbody tr td:first-child,
 tbody tr td:nth-child(2) {
@@ -1878,6 +1896,7 @@ tbody tr { transition: background .12s; }
         <option value="reserve">📦 Réserve</option>
         <option value="local">🏠 Local</option>
         <option value="pressing">👟 Pressing</option>
+        <option value="misplaced">⚠️ Mauvaise boutique</option>
       </select>
       <select class="filter-select" id="stockVintedFilter" onchange="filterStock()">
         <option value="">Tous — Vinted</option>
@@ -2295,7 +2314,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v156-soldes-catalog-nonblocking';
+const DASH_VERSION = '2025-04-25-v157-transfert-sync-sku-inventaire-mobile';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2638,12 +2657,19 @@ async function loadStock(force) {
   const [data, locMap] = await Promise.all([api('/analytics/stock' + (force ? '?fresh=1' : '')), api('/stock/locations')]);
   if (_seq !== _stockLoadSeq) return; // un chargement plus récent (ex: changement de boutique) a démarré → on abandonne celui-ci
   stockLoadedAt = Date.now();
-  allStockData = data.map(p => ({
-    ...p,
-    inBoutique: locMap[p.barcode]?.inBoutique === true,
-    location: locMap[p.barcode]?.location || null,
-    onVinted: locMap[p.barcode]?.onVinted === true
-  }));
+  allStockData = data.map(p => {
+    const loc = locMap[p.barcode] || {};
+    const scannedBoutique = loc.scannedBoutique || null;
+    return {
+      ...p,
+      inBoutique: loc.inBoutique === true,
+      location: loc.location || null,
+      onVinted: loc.onVinted === true,
+      scannedBoutique,
+      // Mal rangé : scanné physiquement dans une boutique ≠ de sa boutique Shopify (tag dk) → à transférer.
+      misplaced: loc.inBoutique === true && !!scannedBoutique && scannedBoutique !== p.boutique
+    };
+  });
   const total = allStockData.length;
   const alert30 = allStockData.filter(p=>p.daysOnline>=30&&p.daysOnline<60).length;
   const alert60 = allStockData.filter(p=>p.daysOnline>=60).length;
@@ -2797,7 +2823,7 @@ function stockRowHtml(p) {
     <td class="cell-article"><div class="stock-art">${img}<div class="meta"><div class="t">${p.title}</div><div class="v">${catIcon} ${p.vendor||'—'}</div></div></div></td>
     <td data-label="Code-barres">${barcodeHtml}</td>
     <td data-label="Prix">${comparePrice}<span style="font-weight:600;">${parseFloat(p.price).toFixed(2)}€</span></td>
-    <td data-label="Boutique"><span class="badge ${badge}">${p.boutique}</span></td>
+    <td data-label="Boutique"><span class="badge ${badge}">${p.boutique}</span>${p.misplaced?` <span class="badge badge-danger" title="Scanné à ${p.scannedBoutique}, mais rangé en ${p.boutique} sur Shopify">⚠️ vu à ${p.scannedBoutique}</span> <button class="btn" style="font-size:10px;padding:3px 7px;background:rgba(24,95,165,0.12);border-color:#185FA5;color:#185FA5;" title="Corriger : transférer vers ${p.scannedBoutique}" onclick="correctBoutique('${p.barcode}')">→ ${p.scannedBoutique}</button>`:''}</td>
     <td data-label="Ancienneté"><div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;"><div class="stock-age"><span style="font-size:13px;font-weight:600;">${p.daysOnline}j</span>${statusBadge}</div><div class="days-bar" style="width:90px;"><div class="days-bar-fill" style="width:${fillPct}%;background:${fillColor};"></div></div></div></td>
     <td class="cell-loc" data-label="En boutique">${checkCell}</td>
     <td data-label="Localisation">${locCell}</td>
@@ -2858,7 +2884,7 @@ function filterStock() {
   const locF=document.getElementById('stockLocationFilter')?.value||'';
   const vintedF=document.getElementById('stockVintedFilter')?.value||'';
   let filtered=allStockData.filter(p=>{
-    if(q&&!p.title?.toLowerCase().includes(q)&&!p.vendor?.toLowerCase().includes(q)&&!p.barcode?.toLowerCase().includes(q)) return false;
+    if(q&&!p.title?.toLowerCase().includes(q)&&!p.vendor?.toLowerCase().includes(q)&&!p.barcode?.toLowerCase().includes(q)&&!p.sku?.toLowerCase().includes(q)) return false;
     if(boutique&&p.boutique!==boutique) return false;
     if(category&&p.category!==category) return false;
     if(days==='ok'&&p.daysOnline>=30) return false;
@@ -2866,6 +2892,7 @@ function filterStock() {
     if(days==='danger'&&p.daysOnline<60) return false;
     if(barcode==='missing'&&p.barcode) return false;
     if(barcode==='present'&&!p.barcode) return false;
+    if(locF==='misplaced'&&!p.misplaced) return false;
     if(locF==='present'&&!p.inBoutique) return false;
     if(locF==='absent'&&p.inBoutique) return false;
     if(['en_magasin','reserve','local','pressing'].includes(locF) && (p.location !== locF || !p.inBoutique)) return false;
@@ -3588,15 +3615,46 @@ async function onCheckVinted(barcode, checked) {
   }
 }
 
+// Boutique où l'on scanne physiquement : la boutique connectée (employé) ou, pour un admin,
+// celle sélectionnée dans le filtre boutique. Sert à détecter les articles mal rangés.
+function currentScanBoutique() {
+  if (DASH_BOUTIQUE === 'Lille' || DASH_BOUTIQUE === 'DK') return DASH_BOUTIQUE;
+  const f = document.getElementById('stockBoutiqueFilter')?.value;
+  return (f === 'Lille' || f === 'DK') ? f : null;
+}
+
 async function updateStockLocation(barcode, inBoutique, location) {
   try {
+    const scannedBoutique = inBoutique ? currentScanBoutique() : null;
     const res = await fetch(`${BACKEND_URL}/stock/location`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ barcode, inBoutique, location, updatedBy: DASH_EMPLOYEE || DASH_BOUTIQUE || null })
+      body: JSON.stringify({ barcode, inBoutique, location, updatedBy: DASH_EMPLOYEE || DASH_BOUTIQUE || null, scannedBoutique })
     });
     if (!res.ok) { const err = await res.json().catch(()=>({})); showToast('Erreur : ' + (err.error || res.status), 'error'); return; }
     const p = allStockData.find(p => p.barcode === barcode);
-    if (p) { p.inBoutique = inBoutique; p.location = location; }
+    if (p) {
+      p.inBoutique = inBoutique; p.location = location;
+      p.scannedBoutique = inBoutique ? scannedBoutique : null;
+      p.misplaced = inBoutique && !!p.scannedBoutique && p.scannedBoutique !== p.boutique;
+    }
+  } catch(e) { showToast('Erreur réseau : ' + e.message, 'error'); }
+}
+
+// Corrige un article mal rangé : le transfère vers la boutique où il a été physiquement scanné.
+async function correctBoutique(barcode) {
+  const p = allStockData.find(x => x.barcode === barcode);
+  if (!p || !p.misplaced) return;
+  const to = p.scannedBoutique, from = p.boutique;
+  if (!confirm(`Transférer « ${p.title || barcode} » de ${from} vers ${to} ?\n\nLe tag boutique sera corrigé sur Shopify (scanné à ${to}, mais rangé en ${from}).`)) return;
+  try {
+    const res = await fetch(`${BACKEND_URL}/transfer`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ barcode, productName: p.title, brand: p.vendor, imageUrl: p.image, fromBoutique: from, toBoutique: to, employee: DASH_EMPLOYEE || DASH_BOUTIQUE || 'inconnu' })
+    });
+    if (!res.ok) { const err = await res.json().catch(()=>({})); showToast('Erreur : ' + (err.error || res.status), 'error'); return; }
+    p.boutique = to; p.misplaced = false;
+    if (typeof showDashToast === 'function') showDashToast(`Transféré vers ${to} ✓`, 'success');
+    filterStock();
   } catch(e) { showToast('Erreur réseau : ' + e.message, 'error'); }
 }
 
@@ -5414,7 +5472,7 @@ if (_s?.auth) {
       const locF = document.getElementById('stockLocationFilter')?.value || '';
       const vintedF = document.getElementById('stockVintedFilter')?.value || '';
       let filtered = window.allStockData.filter(p => {
-        if (!smartMatch(q, p.title, p.vendor, p.barcode)) return false;
+        if (!smartMatch(q, p.title, p.vendor, p.barcode, p.sku)) return false;
         if (boutique && p.boutique !== boutique) return false;
         if (category && p.category !== category) return false;
         if (days === 'ok' && p.daysOnline >= 30) return false;
@@ -5422,6 +5480,7 @@ if (_s?.auth) {
         if (days === 'danger' && p.daysOnline < 60) return false;
         if (barcode === 'missing' && p.barcode) return false;
         if (barcode === 'present' && !p.barcode) return false;
+        if (locF === 'misplaced' && !p.misplaced) return false;
         if (locF === 'present' && !p.inBoutique) return false;
         if (locF === 'absent' && p.inBoutique) return false;
         if (['en_magasin','reserve','local','pressing'].includes(locF) && (p.location !== locF || !p.inBoutique)) return false;

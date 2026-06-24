@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-soldes-catalog-nonblocking';
+const CACHE_VERSION = 'nestore-v2026-06-24-transfert-sync-sku-inventaire-mobile';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
