@@ -1061,7 +1061,7 @@ async function nvHardReload(){
 </script>
 
 <script>
-  const APP_VERSION = '2025-06-15-v114-no-blur';
+  const APP_VERSION = '2025-06-15-v115-multi-barcode-choix';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
   // Jeton employé envoyé au backend sur chaque appel (doit correspondre à
   // EMPLOYEE_API_KEY sur Railway). Bloque les accès directs à l'API par URL.
@@ -1261,66 +1261,13 @@ async function nvHardReload(){
         return;
       }
 
-      if (!_offline && data && !data.error) nvCacheProduct(barcode, data); // garde la fiche pour le mode hors-ligne
-      currentData = data;
-      // Fallback: si backend ne retourne pas onVinted, utilise la map locale
-      if (data.onVinted === undefined && window._vintedMap && data.barcode) {
-        data.onVinted = window._vintedMap[data.barcode] === true;
-        currentData.onVinted = data.onVinted;
+      // Plusieurs articles partagent ce code-barres → on laisse choisir lequel gérer/enlever
+      if (data.multiple && Array.isArray(data.matches)) {
+        renderProductChooser(data, barcode);
+        return;
       }
-      const isSold = data.totalStock === 0;
-      const badgeClass = data.boutique === 'DK' ? 'badge-dk' : 'badge-lille';
-
-      // Trouver la location correspondant à la boutique sélectionnée
-      const selectedBoutique = document.getElementById('boutiqueSelect').value;
-      const matchedLocation = data.locations[0];
-
-      currentData.selectedLocationId = matchedLocation?.id;
-
-      area.innerHTML = `<div class="product-card">
-        ${data.onVinted ? `
-        <div style="background:rgba(232,80,78,0.12);border:1px solid rgba(232,80,78,0.4);border-radius:12px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
-          <span style="font-size:22px;">⚠️</span>
-          <div style="flex:1;">
-            <div style="font-weight:700;font-size:13px;color:#A32D2D;">Aussi en ligne sur Vinted</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Pense à retirer l'annonce après la vente pour éviter une double vente.</div>
-          </div>
-        </div>` : ''}
-        <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;">
-          ${data.image ? `<img src="${data.image}" style="width:80px;height:80px;object-fit:cover;border-radius:10px;flex-shrink:0;">` : ''}
-          <div style="flex:1;">
-            <div class="card-top">
-              <div>
-                <div class="pname">${data.name}</div>
-                <div class="pcode">${barcode}${data.brand ? ' · ' + data.brand : ''}</div>
-              </div>
-              <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
-                <span class="badge ${badgeClass}">${data.boutique}</span>
-                ${data.onVinted ? '<span class="badge" style="background:#09B1BA;color:#fff;">VINTED</span>' : ''}
-                ${isSold ? `<span class="badge badge-stock0">Stock 0</span>` : ''}
-              </div>
-            </div>
-            <div class="pprice">${parseFloat(data.price).toFixed(2)} €</div>
-          </div>
-        </div>
-        <div class="pdetails">
-          <span>Stock total : ${data.totalStock}</span>
-          ${data.tags.length ? `<span>Tags : ${data.tags.slice(0,3).join(', ')}</span>` : ''}
-        </div>
-        ${!isSold
-          ? `<button class="btn-sell" id="sellBtn" onclick="markAsSold()">
-              Marquer vendu — stock à 0 sur Shopify
-            </button>`
-          : `<div class="already-sold">Cet article est en stock 0 sur Shopify (vendu)</div>
-             <button class="btn-sell" id="returnBtn" onclick="markAsReturned()" style="background:#185FA5;margin-top:8px;">↩️ Retour — remettre en stock</button>`
-        }
-        ${currentEmployee && !isSold ? (() => {
-          const target = data.boutique === 'DK' ? 'Lille' : 'DK';
-          return `<button class="btn-transfer" id="transferBtn" onclick="transferProduct('${target}')" style="width:100%;margin-top:8px;padding:12px;background:#185FA5;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">
-            🔄 Transférer vers ${target}
-          </button>`;
-        })() : ''}
-      </div>`;
+      if (!_offline && data && !data.error) nvCacheProduct(barcode, data); // garde la fiche pour le mode hors-ligne
+      renderProductCard(data, barcode);
 
     } catch (err) {
       area.innerHTML = `<div class="product-card error">
@@ -1328,6 +1275,105 @@ async function nvHardReload(){
         <div class="error-msg">${err.message}</div>
       </div>`;
     }
+  }
+
+  // Affiche la fiche d'UN article et l'arme pour la vente / le retour / le transfert.
+  function renderProductCard(data, barcode) {
+    const area = document.getElementById('productArea');
+    currentData = data;
+    // Fallback: si backend ne retourne pas onVinted, utilise la map locale
+    if (data.onVinted === undefined && window._vintedMap && data.barcode) {
+      data.onVinted = window._vintedMap[data.barcode] === true;
+      currentData.onVinted = data.onVinted;
+    }
+    const isSold = data.totalStock === 0;
+    const badgeClass = data.boutique === 'DK' ? 'badge-dk' : 'badge-lille';
+    const matchedLocation = (data.locations || [])[0];
+    currentData.selectedLocationId = matchedLocation?.id;
+
+    area.innerHTML = `<div class="product-card">
+      ${data.onVinted ? `
+      <div style="background:rgba(232,80,78,0.12);border:1px solid rgba(232,80,78,0.4);border-radius:12px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:22px;">⚠️</span>
+        <div style="flex:1;">
+          <div style="font-weight:700;font-size:13px;color:#A32D2D;">Aussi en ligne sur Vinted</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Pense à retirer l'annonce après la vente pour éviter une double vente.</div>
+        </div>
+      </div>` : ''}
+      <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;">
+        ${data.image ? `<img src="${data.image}" style="width:80px;height:80px;object-fit:cover;border-radius:10px;flex-shrink:0;">` : ''}
+        <div style="flex:1;">
+          <div class="card-top">
+            <div>
+              <div class="pname">${data.name}</div>
+              <div class="pcode">${barcode}${data.brand ? ' · ' + data.brand : ''}</div>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+              <span class="badge ${badgeClass}">${data.boutique}</span>
+              ${data.onVinted ? '<span class="badge" style="background:#09B1BA;color:#fff;">VINTED</span>' : ''}
+              ${isSold ? `<span class="badge badge-stock0">Stock 0</span>` : ''}
+            </div>
+          </div>
+          <div class="pprice">${parseFloat(data.price).toFixed(2)} €</div>
+        </div>
+      </div>
+      <div class="pdetails">
+        <span>Stock total : ${data.totalStock}</span>
+        ${data.tags && data.tags.length ? `<span>Tags : ${data.tags.slice(0,3).join(', ')}</span>` : ''}
+      </div>
+      ${!isSold
+        ? `<button class="btn-sell" id="sellBtn" onclick="markAsSold()">
+            Marquer vendu — stock à 0 sur Shopify
+          </button>`
+        : `<div class="already-sold">Cet article est en stock 0 sur Shopify (vendu)</div>
+           <button class="btn-sell" id="returnBtn" onclick="markAsReturned()" style="background:#185FA5;margin-top:8px;">↩️ Retour — remettre en stock</button>`
+      }
+      ${currentEmployee && !isSold ? (() => {
+        const target = data.boutique === 'DK' ? 'Lille' : 'DK';
+        return `<button class="btn-transfer" id="transferBtn" onclick="transferProduct('${target}')" style="width:100%;margin-top:8px;padding:12px;background:#185FA5;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">
+          🔄 Transférer vers ${target}
+        </button>`;
+      })() : ''}
+    </div>`;
+  }
+
+  // Plusieurs articles ont le même code-barres → liste de choix avant de gérer le bon.
+  function renderProductChooser(data, barcode) {
+    currentData = null;
+    const area = document.getElementById('productArea');
+    window._lastMatches = data.matches;
+    window._lastMatchBarcode = barcode;
+    const cards = data.matches.map((m, i) => {
+      const badgeClass = m.boutique === 'DK' ? 'badge-dk' : 'badge-lille';
+      const isSold = m.totalStock === 0;
+      return `<div class="product-card" style="margin-bottom:10px;">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          ${m.image ? `<img src="${m.image}" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex-shrink:0;">` : '<div style="width:64px;height:64px;border-radius:10px;background:#EAF3DE;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">👕</div>'}
+          <div style="flex:1;min-width:0;">
+            <div class="pname">${m.name}</div>
+            <div class="pcode">${m.brand ? m.brand + ' · ' : ''}${parseFloat(m.price).toFixed(2)} €${m.sku ? ' · ' + m.sku : ''}</div>
+            <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
+              <span class="badge ${badgeClass}">${m.boutique}</span>
+              <span class="badge ${isSold ? 'badge-stock0' : ''}">Stock ${m.totalStock}</span>
+            </div>
+          </div>
+        </div>
+        <button class="btn-sell" style="margin-top:10px;" onclick="chooseMatch(${i})">Choisir cet article</button>
+      </div>`;
+    }).join('');
+    area.innerHTML = `
+      <div style="background:rgba(186,117,23,0.12);border:1px solid rgba(186,117,23,0.4);border-radius:12px;padding:12px 14px;margin-bottom:12px;">
+        <div style="font-weight:700;font-size:14px;color:#BA7517;">⚠️ ${data.matches.length} articles ont ce code-barres</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:3px;">Code-barres ${barcode} — choisis lequel tu veux vendre / gérer.</div>
+      </div>
+      ${cards}`;
+  }
+
+  function chooseMatch(i) {
+    const m = (window._lastMatches || [])[i];
+    if (!m) return;
+    nvCacheProduct(window._lastMatchBarcode, m); // garde le choix pour le hors-ligne
+    renderProductCard(m, window._lastMatchBarcode);
   }
 
   // ===== Cache local des fiches produit (permet de scanner/vendre hors-ligne un article déjà vu) =====
