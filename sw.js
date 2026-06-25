@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-audit-coherence';
+const CACHE_VERSION = 'nestore-v2026-06-24-onglet-vinted';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
