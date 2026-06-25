@@ -1569,6 +1569,7 @@ tbody tr { transition: background .12s; }
     <div class="tab" id="tabSeo" style="display:none;" onclick="guardSeoTab(this)">SEO</div>
     <div class="tab" id="tabEquipe" style="display:none;" onclick="switchTab('equipe',this)">Équipe</div>
     <div class="tab" id="tabVeille" style="display:none;" onclick="switchTab('veille',this)">SPY</div>
+    <div class="tab" id="tabVinted" style="display:none;" onclick="switchTab('vinted',this)">Vinted</div>
   </div>
 </div>
 
@@ -2328,9 +2329,120 @@ tbody tr { transition: background .12s; }
 </div>
 </div>
 
+<style>
+  .vinted-subtab { color:var(--text-muted); font-weight:600; }
+  .vinted-subtab-on { background:var(--text); color:var(--surface); border-color:var(--text); }
+  .vinted-kv { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); font-size:13px; }
+  .vinted-kv:last-child { border-bottom:none; }
+  .vinted-kv > span { color:var(--text-muted); }
+  .vinted-kv > b { font-weight:600; text-align:right; font-variant-numeric:tabular-nums; }
+  .vcat { display:inline-block; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600; border:1px solid var(--border); color:var(--text-muted); white-space:nowrap; }
+  .vcat.vet { color:#7c5cd6; border-color:#c9b8f0; } .vcat.snk { color:#1f86b8; border-color:#a7d9ef; } .vcat.acc { color:#b87917; border-color:#efd6a7; }
+  [data-theme="dark"] .vcat.vet { color:#c9a3ff; border-color:#3d2d5c; } [data-theme="dark"] .vcat.snk { color:#7fd4ff; border-color:#23475c; } [data-theme="dark"] .vcat.acc { color:#ffcf8f; border-color:#5c4523; }
+  .vtag { display:inline-block; padding:3px 9px; border-radius:999px; font-size:11px; font-weight:600; border:1px solid var(--border); white-space:nowrap; }
+  .vtag.acaisse { color:#BA7517; border-color:#efd6a7; background:rgba(186,117,23,.10); }
+  .vtag.encaisse { color:#3B6D11; border-color:#bfe0a0; background:rgba(59,109,17,.10); }
+  .vtag.recevoir { color:#185FA5; border-color:#a7c6ef; background:rgba(24,95,165,.10); }
+  .veur.miss { color:#BA7517; font-weight:700; }
+  #vintedRowsCaisse tr, #vintedRowsHisto tr { cursor:pointer; }
+  @media(max-width:620px){ .vinted-fiche-cols{ grid-template-columns:1fr !important; } }
+</style>
+<!-- TAB VINTED (admin only) -->
+<div id="tab-vinted" class="tab-panel">
+<div class="content">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px;">
+    <span class="section-title" style="margin:0;">Vinted <span id="vintedSub" style="color:var(--text-muted);font-weight:600;font-size:14px;">· à traiter</span></span>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn" onclick="document.getElementById('vintedRevolutFile').click()">Importer relevé Revolut</button>
+      <input type="file" id="vintedRevolutFile" accept=".csv,text/csv" style="display:none;" onchange="vintedRevolutFileChosen(this)"/>
+      <button class="btn" id="vintedResyncBtn" onclick="vintedResync()">↻ Resync Sheet</button>
+    </div>
+  </div>
+  <div id="vintedStatusLine" style="font-size:12.5px;color:var(--text-muted);margin-bottom:16px;display:flex;gap:20px;flex-wrap:wrap;"></div>
+
+  <div class="filters-row" style="margin-bottom:14px;gap:6px;">
+    <button class="btn vinted-subtab vinted-subtab-on" data-view="caisse" onclick="vintedSwitchView('caisse',this)">À traiter / mise en caisse</button>
+    <button class="btn vinted-subtab" data-view="histo" onclick="vintedSwitchView('histo',this)">Historique</button>
+  </div>
+
+  <div id="vintedKpis" class="kpi-grid" style="margin-bottom:16px;"></div>
+
+  <!-- VUE À TRAITER -->
+  <div id="vinted-caisse">
+    <div class="filters-row" style="margin-bottom:12px;align-items:center;gap:6px;">
+      <span style="font-size:12px;color:var(--text-muted);">Catégorie :</span>
+      <div id="vintedCatChips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+      <button class="btn" id="vintedSortBtn" style="margin-left:auto;" onclick="vintedToggleSort()">↑ Plus ancien d'abord</button>
+    </div>
+    <div class="table-card">
+      <div style="overflow-x:auto;"><table>
+        <thead><tr><th>Date achat</th><th>Vendeur / Article</th><th>Prix</th><th>Transaction ID</th><th>Catégorie</th></tr></thead>
+        <tbody id="vintedRowsCaisse"><tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text-muted);">Chargement…</td></tr></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- VUE HISTORIQUE -->
+  <div id="vinted-histo" style="display:none;">
+    <div class="filters-row" style="margin-bottom:12px;">
+      <input class="search-input" id="vintedSearch" placeholder="Rechercher (pseudo, transaction, prix, titre, date…)" oninput="vintedRenderHisto()"/>
+      <select class="filter-select" id="vintedFAnnee" onchange="vintedRenderHisto()"><option value="">Toutes années</option></select>
+      <select class="filter-select" id="vintedFCat" onchange="vintedRenderHisto()"><option value="">Toutes catégories</option><option>Vêtements</option><option>Sneakers</option><option>Accessoires</option></select>
+      <select class="filter-select" id="vintedFStatut" onchange="vintedRenderHisto()"><option value="">Tous statuts</option><option value="encaisse">En caisse</option><option value="acaisse">Pas en caisse</option></select>
+    </div>
+    <div class="table-card">
+      <div style="overflow-x:auto;"><table>
+        <thead><tr><th>Date</th><th>Vendeur / Article</th><th>Prix</th><th>Transaction ID</th><th>Catégorie</th><th>Statut</th></tr></thead>
+        <tbody id="vintedRowsHisto"></tbody>
+      </table></div>
+    </div>
+    <div id="vintedHistoCount" style="font-size:12px;color:var(--text-muted);margin-top:10px;"></div>
+  </div>
+</div>
+</div>
+
+<!-- FICHE VINTED -->
+<div class="modal" id="vintedFiche">
+  <div class="modal-box" style="position:relative;max-width:720px;width:min(720px,94vw);text-align:left;max-height:90vh;overflow-y:auto;">
+    <button onclick="vintedCloseFiche()" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-muted);">×</button>
+    <div style="font-size:20px;font-weight:800;letter-spacing:-.3px;line-height:1.2;" id="vfTitre">Article</div>
+    <div style="color:var(--text-muted);font-size:14px;margin-top:3px;" id="vfVendeur">vendeur</div>
+    <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <span class="badge" id="vfStatut">À mettre en caisse</span>
+      <a id="vfJustif" href="#" target="_blank" class="btn" style="font-size:12px;padding:6px 11px;">🧾 Justificatif PDF</a>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:20px;" class="vinted-fiche-cols">
+      <div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:700;margin-bottom:10px;">Achat · lecture seule</div>
+        <div class="vinted-kv"><span>Date d'achat</span><b id="vfDate">—</b></div>
+        <div class="vinted-kv"><span>Prix £</span><b id="vfGbp">—</b></div>
+        <div class="vinted-kv"><span>Prix €</span><b id="vfEur">—</b></div>
+        <div class="vinted-kv"><span>Statut Vinted</span><b id="vfStatutV">—</b></div>
+        <div class="vinted-kv"><span>Transaction ID</span><b style="display:inline-flex;gap:6px;align-items:center;"><span id="vfTx">—</span><button class="btn" style="font-size:11px;padding:2px 7px;" onclick="vintedCopy(this,document.getElementById('vfTx').textContent)">copier</button></b></div>
+        <div class="vinted-kv"><span>UID</span><b style="display:inline-flex;gap:6px;align-items:center;"><span id="vfUid" style="font-size:12px;">—</span><button class="btn" style="font-size:11px;padding:2px 7px;" onclick="vintedCopy(this,document.getElementById('vfUid').textContent)">copier</button></b></div>
+        <div class="vinted-kv" id="vfEmpRow"><span>Emplacement <i style="color:var(--text-muted);">(ancien)</i></span><b id="vfEmp" style="color:var(--text-muted);font-style:italic;">—</b></div>
+      </div>
+      <div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:700;margin-bottom:10px;">Traitement · écrit dans le Sheet</div>
+        <div style="margin-bottom:12px;"><label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:6px;font-weight:600;">Catégorie</label>
+          <select id="vfCat" class="filter-select" style="width:100%;"><option value="">— choisir —</option><option>Vêtements</option><option>Sneakers</option><option>Accessoires</option></select></div>
+        <div style="margin-bottom:12px;"><label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:6px;font-weight:600;">Authenticité</label>
+          <select id="vfAuth" class="filter-select" style="width:100%;"><option value="">— choisir —</option><option>OK</option><option>FAKE</option><option>À vérifier</option></select></div>
+        <div><label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:6px;font-weight:600;">Note</label>
+          <input id="vfNote" class="search-input" style="width:100%;" placeholder="(optionnel)"/></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:22px;border-top:1px solid var(--border);padding-top:16px;">
+      <button class="btn btn-green" id="vfEncaisseBtn" style="flex:1;font-weight:700;" onclick="vintedSave(true)">✓ Mettre en caisse <span style="opacity:.7;font-weight:500;">(Entrée)</span></button>
+      <button class="btn" onclick="vintedSave(false)">Enregistrer</button>
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:12px;">Écrit dans le Google Sheet (colonnes G→P). Données d'achat (A→F) jamais modifiées. <b>Entrée</b> = mettre en caisse + article suivant · <b>Échap</b> = fermer.</div>
+  </div>
+</div>
+
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v164-audit-coherence';
+const DASH_VERSION = '2025-04-25-v165-onglet-vinted';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2508,6 +2620,7 @@ function switchTab(name, el) {
   if (name === 'seo') initSeoTab();
   if (name === 'equipe') loadEquipeTab();
   if (name === 'veille') loadVeille();
+  if (name === 'vinted') loadVinted();
 }
 // Onglet Équipe fusionné : Activité (admin+superadmin) + gestion des comptes (superadmin)
 function loadEquipeTab() {
@@ -4644,6 +4757,202 @@ function veilleRangeParams(){
   return q;
 }
 
+/* ===================== ONGLET VINTED (admin) ===================== */
+let vintedAll = [], vintedView = 'caisse', vintedCat = '', vintedAsc = true, vintedCurrentUid = null;
+const VINTED_CATS = ['Vêtements', 'Sneakers', 'Accessoires'];
+const VCAT_CLS = { 'Vêtements': 'vet', 'Sneakers': 'snk', 'Accessoires': 'acc' };
+function vEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function vintedParseDate(s){ if(!s) return 0; let m=/^(\d{2})\/(\d{2})\/(\d{4})/.exec(s); if(m) return Date.UTC(+m[3],+m[2]-1,+m[1]); m=/^(\d{4})-(\d{2})-(\d{2})/.exec(s); if(m) return Date.UTC(+m[1],+m[2]-1,+m[3]); const t=Date.parse(s); return Number.isNaN(t)?0:t; }
+function vEur(a){ return a.prix_eur!=null ? (Number(a.prix_eur).toFixed(2)+' €') : '—'; }
+function vGbp(a){ return a.prix_gbp!=null ? ('£'+Number(a.prix_gbp).toFixed(2)) : '—'; }
+function vIsEnCaisse(a){ return !!(a.en_caisse && String(a.en_caisse).trim()); }
+function vCatPill(c){ if(!c) return '<span class="vcat" style="opacity:.55;">à catégoriser</span>'; return `<span class="vcat ${VCAT_CLS[c]||''}">${vEsc(c)}</span>`; }
+function vYear(a){ const m=/(\d{4})/.exec(a.tab||'')||/(\d{4})/.exec(a.date_achat||''); return m?m[1]:''; }
+
+async function loadVinted(){
+  vintedRenderChips();
+  try {
+    const [status, arts] = await Promise.all([ api('/vinted/status').catch(()=>null), api('/vinted/articles') ]);
+    window._vintedStatus = status && status.ok ? status : null;
+    vintedAll = Array.isArray(arts) ? arts : [];
+    vintedRenderStatusLine(); vintedRenderKpis(); vintedFillYears();
+    vintedRenderCurrent();
+  } catch(e){
+    document.getElementById('vintedRowsCaisse').innerHTML = `<tr><td colspan="5" style="text-align:center;padding:30px;color:#A32D2D;">Erreur de chargement : ${vEsc(e.message)}</td></tr>`;
+  }
+}
+function vintedRenderStatusLine(){
+  const s=window._vintedStatus; const el=document.getElementById('vintedStatusLine'); if(!el) return;
+  const fmtD=(d)=>{ if(!d) return '—'; const dt=new Date(d); return dt.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'}); };
+  const sync = s&&s.lastSync ? fmtD(s.lastSync) : '—';
+  const rev = s&&s.lastRevolutImport ? fmtD(s.lastRevolutImport) : 'jamais';
+  el.innerHTML = `<span><b style="color:var(--text);">Google Sheet</b> — dernière sync : ${sync}</span><span><b style="color:var(--text);">Revolut</b> — dernier import : ${rev}</span>`;
+}
+function vintedRenderKpis(){
+  const aTraiter = vintedAll.filter(a=>!vIsEnCaisse(a)).length;
+  const sansPrix = vintedAll.filter(a=>a.prix_eur==null).length;
+  const total = vintedAll.length;
+  const s = window._vintedStatus;
+  const encMois = s? s.kpis.encaisseMois : 0;
+  const depMois = s? s.kpis.depenseMois : 0;
+  const kpi=(n,l,cls)=>`<div class="kpi"><div class="kpi-value" ${cls?`style="color:${cls};"`:''}>${n}</div><div class="kpi-label">${l}</div></div>`;
+  document.getElementById('vintedKpis').innerHTML =
+    kpi(aTraiter,'À mettre en caisse','#BA7517') +
+    kpi(sansPrix,'Sans prix €','#185FA5') +
+    kpi(encMois,'Mis en caisse ce mois','#3B6D11') +
+    kpi(Math.round(depMois).toLocaleString('fr-FR')+' €','Dépensé ce mois (caisse)');
+}
+function vintedRenderChips(){
+  const box=document.getElementById('vintedCatChips'); if(!box) return;
+  const chip=(val,lbl)=>`<button class="btn" style="${vintedCat===val?'background:var(--text);color:var(--surface);border-color:var(--text);':''}font-size:12px;" onclick="setVintedCat('${val}')">${lbl}</button>`;
+  box.innerHTML = chip('','Toutes') + VINTED_CATS.map(c=>chip(c,c)).join('') + chip('__none','Pas encore catégorisé');
+}
+function setVintedCat(c){ vintedCat=c; vintedRenderChips(); vintedRenderCaisse(); }
+function vintedToggleSort(){ vintedAsc=!vintedAsc; document.getElementById('vintedSortBtn').textContent = vintedAsc?"↑ Plus ancien d'abord":"↓ Plus récent d'abord"; vintedRenderCaisse(); }
+function vintedSwitchView(v, el){
+  vintedView=v;
+  document.querySelectorAll('.vinted-subtab').forEach(b=>b.classList.remove('vinted-subtab-on'));
+  if(el) el.classList.add('vinted-subtab-on');
+  document.getElementById('vinted-caisse').style.display = v==='caisse'?'block':'none';
+  document.getElementById('vinted-histo').style.display = v==='histo'?'block':'none';
+  document.getElementById('vintedSub').textContent = v==='caisse'?'· à traiter':'· historique';
+  vintedRenderCurrent();
+}
+function vintedRenderCurrent(){ if(vintedView==='histo') vintedRenderHisto(); else vintedRenderCaisse(); }
+
+function vintedCaisseOrdered(){
+  let list = vintedAll.filter(a=>!vIsEnCaisse(a));
+  if(vintedCat==='__none') list=list.filter(a=>!(a.categorie&&a.categorie.trim()));
+  else if(vintedCat) list=list.filter(a=>a.categorie===vintedCat);
+  list.sort((x,y)=> vintedParseDate(x.date_achat)-vintedParseDate(y.date_achat));
+  if(!vintedAsc) list.reverse();
+  return list;
+}
+function vintedRowHtml(a, withStatus){
+  const eurCls = a.prix_eur==null?'veur miss':'';
+  const statut = withStatus ? `<td><span class="vtag ${vIsEnCaisse(a)?'encaisse':'acaisse'}">${vIsEnCaisse(a)?'En caisse':'À mettre en caisse'}</span></td>` : '';
+  return `<tr onclick="openVintedFiche('${vEsc(a.uid)}')">
+    <td class="date" style="white-space:nowrap;color:var(--text-muted);">${vEsc(a.date_achat||'—')}</td>
+    <td><div style="font-weight:600;">${vEsc(a.vendeur||'—')}</div><div style="color:var(--text-muted);font-size:12px;">${vEsc(a.titre||'')}</div></td>
+    <td style="white-space:nowrap;"><span style="color:var(--text-muted);">${vGbp(a)}</span> · <span class="${eurCls}">${vEur(a)}</span></td>
+    <td style="font-variant-numeric:tabular-nums;color:var(--text-muted);">${vEsc(a.transaction_id||'—')} ${a.transaction_id?`<button class="btn" style="font-size:11px;padding:2px 7px;" onclick="event.stopPropagation();vintedCopy(this,'${vEsc(a.transaction_id)}')">copier</button>`:''}</td>
+    <td>${vCatPill(a.categorie)}</td>${statut}</tr>`;
+}
+function vintedRenderCaisse(){
+  const list=vintedCaisseOrdered();
+  const tb=document.getElementById('vintedRowsCaisse');
+  tb.innerHTML = list.length ? list.map(a=>vintedRowHtml(a,false)).join('') : '<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text-muted);">Rien à traiter ✓</td></tr>';
+}
+function vintedRenderHisto(){
+  const q=(document.getElementById('vintedSearch').value||'').toLowerCase().trim();
+  const an=document.getElementById('vintedFAnnee').value, ca=document.getElementById('vintedFCat').value, st=document.getElementById('vintedFStatut').value;
+  const list=vintedAll.filter(a=>{
+    if(q){ const txt=(a.vendeur+' '+a.titre+' '+a.transaction_id+' '+a.prix_gbp+' '+a.prix_eur+' '+a.date_achat+' '+a.categorie+' '+a.uid).toLowerCase(); if(!txt.includes(q)) return false; }
+    if(an && vYear(a)!==an) return false;
+    if(ca && a.categorie!==ca) return false;
+    if(st==='encaisse' && !vIsEnCaisse(a)) return false;
+    if(st==='acaisse' && vIsEnCaisse(a)) return false;
+    return true;
+  }).sort((x,y)=> vintedParseDate(y.date_achat)-vintedParseDate(x.date_achat));
+  document.getElementById('vintedRowsHisto').innerHTML = list.length ? list.map(a=>vintedRowHtml(a,true)).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-muted);">Aucun résultat</td></tr>';
+  document.getElementById('vintedHistoCount').textContent = `${list.length} ligne(s) sur ${vintedAll.length}`;
+}
+function vintedFillYears(){
+  const sel=document.getElementById('vintedFAnnee'); if(!sel) return;
+  const years=[...new Set(vintedAll.map(vYear).filter(Boolean))].sort().reverse();
+  const cur=sel.value;
+  sel.innerHTML='<option value="">Toutes années</option>'+years.map(y=>`<option ${y===cur?'selected':''}>${y}</option>`).join('');
+}
+
+function openVintedFiche(uid){
+  const a=vintedAll.find(x=>x.uid===uid); if(!a) return;
+  vintedCurrentUid=uid;
+  document.getElementById('vfTitre').textContent=a.titre||'(sans titre)';
+  document.getElementById('vfVendeur').textContent=a.vendeur||'—';
+  const enc=vIsEnCaisse(a);
+  const stEl=document.getElementById('vfStatut'); stEl.textContent=enc?'En caisse':'À mettre en caisse'; stEl.className='vtag '+(enc?'encaisse':'acaisse');
+  document.getElementById('vfDate').textContent=a.date_achat||'—';
+  document.getElementById('vfGbp').textContent=vGbp(a);
+  document.getElementById('vfEur').textContent=vEur(a);
+  document.getElementById('vfStatutV').textContent=a.statut||'—';
+  document.getElementById('vfTx').textContent=a.transaction_id||'—';
+  document.getElementById('vfUid').textContent=a.uid||'—';
+  document.getElementById('vfEmpRow').style.display = (a.emplacement&&a.emplacement.trim())?'flex':'none';
+  document.getElementById('vfEmp').textContent=a.emplacement||'—';
+  const j=document.getElementById('vfJustif');
+  if(a.justificatif && /^https?:\/\//.test(a.justificatif)){ j.href=a.justificatif; j.style.opacity='1'; j.style.pointerEvents='auto'; j.removeAttribute('aria-disabled'); }
+  else { j.href='#'; j.style.opacity='.45'; j.style.pointerEvents='none'; j.setAttribute('aria-disabled','true'); }
+  document.getElementById('vfCat').value=a.categorie||'';
+  document.getElementById('vfAuth').value=a.authenticite||'';
+  document.getElementById('vfNote').value=a.note||'';
+  const encBtn=document.getElementById('vfEncaisseBtn'); encBtn.style.display = enc?'none':'';
+  document.getElementById('vintedFiche').classList.add('active');
+  setTimeout(()=>document.getElementById('vfCat').focus(),60);
+}
+function vintedCloseFiche(){ document.getElementById('vintedFiche').classList.remove('active'); vintedCurrentUid=null; }
+function vintedCopy(btn,val){ try{ navigator.clipboard&&navigator.clipboard.writeText(val); }catch(_){}; const t=btn.textContent; btn.textContent='copié ✓'; setTimeout(()=>btn.textContent=t,1200); }
+
+function vintedSave(encaisse){
+  const uid=vintedCurrentUid; const a=vintedAll.find(x=>x.uid===uid); if(!a) return;
+  const fields={ categorie:document.getElementById('vfCat').value, authenticite:document.getElementById('vfAuth').value, note:document.getElementById('vfNote').value };
+  // article suivant à traiter (avant d'appliquer, dans l'ordre courant) pour enchaîner
+  let nextUid=null;
+  if(encaisse && vintedView==='caisse'){ const list=vintedCaisseOrdered(); const i=list.findIndex(x=>x.uid===uid); nextUid = i>=0 ? (list[i+1]&&list[i+1].uid) : null; }
+  // UI optimiste
+  a.categorie=fields.categorie; a.authenticite=fields.authenticite; a.note=fields.note;
+  if(encaisse){ a.en_caisse='Oui'; a.en_caisse_at=new Date().toISOString(); }
+  vintedRenderKpis(); vintedRenderCurrent();
+  // écriture Sheet + base en fond
+  fetch(`${BACKEND_URL}/vinted/article/${encodeURIComponent(uid)}/save`,{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ fields, encaisse }) })
+    .then(r=>r.json()).then(d=>{ if(!d||!d.ok){ showDashToast('Échec écriture Sheet : '+((d&&d.erreur)||'?'),'error'); loadVinted(); } })
+    .catch(()=>{ showDashToast('Erreur réseau (Sheet)','error'); loadVinted(); });
+  if(encaisse){
+    if(nextUid){ openVintedFiche(nextUid); }
+    else { vintedCloseFiche(); showDashToast('Mis en caisse ✓ — plus rien à traiter ici','success'); }
+  } else { showDashToast('Enregistré ✓','success'); vintedCloseFiche(); }
+}
+
+async function vintedResync(){
+  const btn=document.getElementById('vintedResyncBtn'); if(btn){ btn.disabled=true; btn.textContent='Sync…'; }
+  try { const d=await api('/vinted/sync'); showDashToast(`Sheet synchronisé : ${d.upsertees} ligne(s)`,'success'); await loadVinted(); }
+  catch(e){ showDashToast('Erreur sync : '+e.message,'error'); }
+  finally { if(btn){ btn.disabled=false; btn.textContent='↻ Resync Sheet'; } }
+}
+
+function vintedRevolutFileChosen(input){
+  const file=input.files&&input.files[0]; input.value=''; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=async()=>{
+    const csv=String(reader.result||'');
+    showDashToast('Analyse du relevé…','');
+    try {
+      // 1) dry-run : aperçu
+      const prev=await (await fetch(`${BACKEND_URL}/vinted/import-revolut`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({csv,commit:false})})).json();
+      if(!prev.ok){ showDashToast('Erreur import : '+(prev.erreur||'?'),'error'); return; }
+      const msg=`Relevé Revolut analysé :\n\n• ${prev.paiements} paiements Vinted détectés\n• ${prev.matchees} associés à un article sans prix €\n• ${prev.ambigues} ambigus (non écrits)\n• ${prev.non_matchees} sans correspondance\n\nÉcrire les ${prev.matchees} prix € dans le Sheet ?`;
+      if(!prev.matchees){ alert('Aucun prix € à remplir (0 correspondance).'); return; }
+      if(!confirm(msg)) return;
+      // 2) commit
+      const res=await (await fetch(`${BACKEND_URL}/vinted/import-revolut`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({csv,commit:true})})).json();
+      if(!res.ok){ showDashToast('Erreur écriture : '+(res.erreur||'?'),'error'); return; }
+      showDashToast(`${res.ecrites} prix € remplis ✓`,'success');
+      await loadVinted();
+    } catch(e){ showDashToast('Erreur réseau import','error'); }
+  };
+  reader.readAsText(file);
+}
+
+// Raccourcis clavier dans la fiche : Entrée = mettre en caisse + suivant, Échap = fermer.
+document.addEventListener('keydown', (e)=>{
+  const fiche=document.getElementById('vintedFiche');
+  if(!fiche || !fiche.classList.contains('active')) return;
+  if(e.key==='Escape'){ e.preventDefault(); vintedCloseFiche(); }
+  else if(e.key==='Enter' && (e.target.tagName!=='SELECT')){
+    const encBtn=document.getElementById('vfEncaisseBtn');
+    if(encBtn && encBtn.style.display!=='none'){ e.preventDefault(); vintedSave(true); }
+  }
+});
+
 async function loadVeille(){
   if (!ensureAdminKey()){ document.getElementById('veilleBody').innerHTML='<div style="padding:30px;text-align:center;color:var(--accent);">Accès admin requis</div>'; return; }
   if (!veilleState.competitors.length){
@@ -5096,6 +5405,15 @@ function initDashboard(boutique, employee) {
   } else {
     if (tabVeille) tabVeille.remove();
     if (panelVeille) panelVeille.remove();
+  }
+  // Onglet Vinted : strictement admin — retiré du DOM pour les non-admin.
+  const tabVinted = document.getElementById('tabVinted');
+  const panelVinted = document.getElementById('tab-vinted');
+  if (boutique === 'admin') {
+    if (tabVinted) tabVinted.style.display = 'block';
+  } else {
+    if (tabVinted) tabVinted.remove();
+    if (panelVinted) panelVinted.remove();
   }
   // KPIs + graphiques Scan & Ventes : admin/superadmin uniquement.
   // Les employés ne voient que l'historique des ventes (table « Toutes les ventes »).
