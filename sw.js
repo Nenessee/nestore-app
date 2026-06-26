@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-vinted-fake-rembourse-ui';
+const CACHE_VERSION = 'nestore-v2026-06-24-vinted-exclure-setup';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
