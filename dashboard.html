@@ -2497,7 +2497,8 @@ tbody tr { transition: background .12s; }
     <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <span class="badge" id="vfStatut">À mettre en caisse</span>
       <span class="vlist" id="vfListe"></span>
-      <a id="vfJustif" href="#" target="_blank" class="btn" style="font-size:12px;padding:6px 11px;">🧾 Justificatif PDF</a>
+      <a id="vfJustif" href="#" target="_blank" class="btn" style="font-size:12px;padding:6px 11px;">🧾 Justificatif achat</a>
+      <a id="vfJustifRemb" href="#" target="_blank" class="btn" style="display:none;font-size:12px;padding:6px 11px;">↩ Justificatif remboursement</a>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:20px;" class="vinted-fiche-cols">
       <div>
@@ -2533,7 +2534,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v179-vinted-statut-casse';
+const DASH_VERSION = '2025-04-25-v180-vinted-justif-remboursement';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -4899,6 +4900,7 @@ function vCatPill(c){ if(!c) return '<span class="vcat" style="opacity:.55;">à 
 function vYear(a){ const m=/(\d{4})/.exec(a.tab||'')||/(\d{4})/.exec(a.date_achat||''); return m?m[1]:''; }
 // Justificatif (lien PDF, col Q) présent ?
 function vHasJustif(a){ return !!(a.justificatif && /^https?:\/\//.test(String(a.justificatif).trim())); }
+function vHasRefundJustif(a){ return !!(a.justificatif_remboursement && /^https?:\/\//.test(String(a.justificatif_remboursement).trim())); }
 // Anomalie de prix : € très éloigné de £ × taux (≈1.16) → match Revolut probablement faux.
 function vPriceAnomaly(a){ if(a.prix_eur==null||a.prix_gbp==null) return false; const g=Number(a.prix_gbp); if(!(g>0)) return false; const r=Number(a.prix_eur)/g; return r<1.0 || r>1.42; }
 
@@ -4949,8 +4951,8 @@ function vintedBulkSuggest(){
 function vintedExportCsv(){
   const arts=vintedAll.filter(a=>vintedMatchYear(a)&&vintedMatchListe(a)).sort((x,y)=>vintedParseDate(x.date_achat)-vintedParseDate(y.date_achat));
   if(!arts.length){ showDashToast('Rien à exporter','warn'); return; }
-  const head=['Date achat','Vendeur','Titre','Transaction ID','Prix GBP','Prix EUR','Categorie','Authenticite','Rembourse','En caisse','Emplacement','Localisation','Justificatif','Liste','UID'];
-  const rows=[head].concat(arts.map(a=>[a.date_achat,a.vendeur,a.titre,a.transaction_id,a.prix_gbp,a.prix_eur,a.categorie,a.authenticite,a.rembourse,a.en_caisse,a.emplacement,a.emplacement_2,a.justificatif,vintedListeOf(a),a.uid]));
+  const head=['Date achat','Vendeur','Titre','Transaction ID','Prix GBP','Prix EUR','Categorie','Authenticite','Rembourse','En caisse','Emplacement','Localisation','Justificatif achat','Justificatif remboursement','Liste','UID'];
+  const rows=[head].concat(arts.map(a=>[a.date_achat,a.vendeur,a.titre,a.transaction_id,a.prix_gbp,a.prix_eur,a.categorie,a.authenticite,a.rembourse,a.en_caisse,a.emplacement,a.emplacement_2,a.justificatif,a.justificatif_remboursement,vintedListeOf(a),a.uid]));
   const csv=rows.map(r=>r.map(c=>`"${String(c==null?'':c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
   const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'});
   const url=URL.createObjectURL(blob); const a=document.createElement('a');
@@ -5081,9 +5083,13 @@ function vintedRowHtml(a, view){
   let lastCell;
   if(view==='histo'){
     const canCaisse = !enc && !fake && !refunded;
-    const justif = vHasJustif(a) ? `<a class="vjustif" href="${a.justificatif}" target="_blank" title="Justificatif PDF" onclick="event.stopPropagation()">🧾</a>` : `<span class="vjustif off" title="Sans justificatif PDF">🧾</span>`;
+    const justif = vHasJustif(a) ? `<a class="vjustif" href="${a.justificatif}" target="_blank" title="Justificatif d'achat" onclick="event.stopPropagation()">🧾</a>` : `<span class="vjustif off" title="Sans justificatif d'achat">🧾</span>`;
+    // Pour les remboursés : indicateur du justificatif de remboursement (col R).
+    const justifR = refunded ? (vHasRefundJustif(a)
+      ? `<a class="vjustif" href="${a.justificatif_remboursement}" target="_blank" title="Justificatif de remboursement" onclick="event.stopPropagation()" style="color:#7c5cd6;">↩🧾</a>`
+      : `<span class="vjustif off" title="Sans justificatif de remboursement">↩🧾</span>`) : '';
     const undo = enc ? ` <button class="vbtn-undo" title="Annuler la mise en caisse" onclick="event.stopPropagation();vintedDecaisseRow('${vEsc(a.uid)}')">↩ annuler</button>` : '';
-    lastCell = `<td style="white-space:nowrap;">${statusTag}${canCaisse?` <button class="vbtn-caisse mini" title="Mettre en caisse" onclick="event.stopPropagation();vintedEncaisseRow('${vEsc(a.uid)}')">✓</button>`:''}${undo}${justif}</td>`;
+    lastCell = `<td style="white-space:nowrap;">${statusTag}${canCaisse?` <button class="vbtn-caisse mini" title="Mettre en caisse" onclick="event.stopPropagation();vintedEncaisseRow('${vEsc(a.uid)}')">✓</button>`:''}${undo}${justif}${justifR}</td>`;
   } else {
     // vue « à traiter » : seuls les éligibles y sont, donc bouton direct
     lastCell = `<td><button class="vbtn-caisse" onclick="event.stopPropagation();vintedEncaisseRow('${vEsc(a.uid)}')">✓ En caisse</button></td>`;
@@ -5182,8 +5188,15 @@ function openVintedFiche(uid){
   document.getElementById('vfEmpRow').style.display = (a.emplacement&&a.emplacement.trim())?'flex':'none';
   document.getElementById('vfEmp').textContent=a.emplacement||'—';
   const j=document.getElementById('vfJustif');
-  if(a.justificatif && /^https?:\/\//.test(a.justificatif)){ j.href=a.justificatif; j.style.opacity='1'; j.style.pointerEvents='auto'; j.removeAttribute('aria-disabled'); }
-  else { j.href='#'; j.style.opacity='.45'; j.style.pointerEvents='none'; j.setAttribute('aria-disabled','true'); }
+  if(vHasJustif(a)){ j.href=a.justificatif; j.style.opacity='1'; j.style.pointerEvents='auto'; j.title='Justificatif d\'achat (reçu Vinted)'; }
+  else { j.href='#'; j.style.opacity='.45'; j.style.pointerEvents='none'; j.title='Pas encore de justificatif d\'achat'; }
+  // Justificatif de remboursement (col R) : visible UNIQUEMENT sur les articles remboursés.
+  const jr=document.getElementById('vfJustifRemb');
+  if(vIsRefunded(a)){
+    jr.style.display='';
+    if(vHasRefundJustif(a)){ jr.href=a.justificatif_remboursement; jr.style.opacity='1'; jr.style.pointerEvents='auto'; jr.title='Justificatif de remboursement (mail Vinted)'; }
+    else { jr.href='#'; jr.style.opacity='.45'; jr.style.pointerEvents='none'; jr.title='Pas encore de justificatif de remboursement'; }
+  } else { jr.style.display='none'; }
   document.getElementById('vfCat').value=a.categorie||'';
   document.getElementById('vfAuth').value=a.authenticite||'';
   document.getElementById('vfLoc').value=vLocOf(a);
