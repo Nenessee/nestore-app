@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-vinted-defaut-2026-nouvelle';
+const CACHE_VERSION = 'nestore-v2026-06-24-vinted-suggest-export-justif-anomalie';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
