@@ -2402,6 +2402,14 @@ tbody tr { transition: background .12s; }
   .vtag.fake { color:#A32D2D; border-color:#e6b3b3; background:rgba(163,45,45,.10); }
   .vtag.rembourse { color:#7c5cd6; border-color:#c9b8f0; background:rgba(124,92,214,.10); }
   [data-theme="dark"] .vtag.rembourse { color:#c9a3ff; border-color:#3d2d5c; }
+  /* Tag localisation (articles pas encore en caisse) : aucun / local / boutique */
+  #tab-vinted .vloc { display:inline-flex; align-items:center; gap:3px; font-size:10.5px; font-weight:600; padding:1px 8px; border-radius:999px; border:1px solid var(--border); background:var(--surface); color:var(--text-muted); cursor:pointer; font-family:inherit; transition:.12s; }
+  #tab-vinted .vloc:hover { border-color:var(--text-muted); color:var(--text); }
+  #tab-vinted .vloc.loc-none { border-style:dashed; }
+  #tab-vinted .vloc.loc-local { color:#0E8A6E; border-color:#9fd9c8; background:rgba(14,138,110,.10); }
+  #tab-vinted .vloc.loc-boutique { color:#C0561E; border-color:#f0c4a7; background:rgba(192,86,30,.10); }
+  [data-theme="dark"] #tab-vinted .vloc.loc-local { color:#4fd0b0; border-color:#1d5447; }
+  [data-theme="dark"] #tab-vinted .vloc.loc-boutique { color:#f0925e; border-color:#5c3520; }
   @media(max-width:620px){ .vinted-fiche-cols{ grid-template-columns:1fr !important; } #tab-vinted .vinted-toolbar .vseg-view{ margin-left:0; } }
 </style>
 <!-- TAB VINTED (admin only) -->
@@ -2496,6 +2504,8 @@ tbody tr { transition: background .12s; }
           <select id="vfCat" class="filter-select" style="width:100%;"><option value="">— choisir —</option><option>Vêtements</option><option>Sneakers</option><option>Accessoires</option></select></div>
         <div style="margin-bottom:12px;"><label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:6px;font-weight:600;">Authenticité</label>
           <select id="vfAuth" class="filter-select" style="width:100%;"><option value="">— choisir —</option><option>OK</option><option>FAKE</option><option>À vérifier</option></select></div>
+        <div style="margin-bottom:12px;"><label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:6px;font-weight:600;">Localisation (avant caisse)</label>
+          <select id="vfLoc" class="filter-select" style="width:100%;"><option value="">— aucune —</option><option value="local">🏠 Local</option><option value="boutique">🏪 Boutique</option></select></div>
         <div><label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:6px;font-weight:600;">Note</label>
           <input id="vfNote" class="search-input" style="width:100%;" placeholder="(optionnel)"/></div>
       </div>
@@ -2510,7 +2520,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v173-vinted-kpi-categorie';
+const DASH_VERSION = '2025-04-25-v174-vinted-localisation';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -4855,6 +4865,23 @@ const VINTED_SETUP_BEFORE = Date.UTC(2025, 4, 1); // 01/05/2025
 function vIsSetup(a){ const t=vintedParseDate(a.date_achat); return t>0 && t < VINTED_SETUP_BEFORE; }
 // Un article fake, remboursé ou de la période de mise en place ne peut pas être mis en caisse → exclu du « à traiter ».
 function vEligibleCaisse(a){ return !vIsEnCaisse(a) && !vIsFake(a) && !vIsRefunded(a) && !vIsSetup(a); }
+// Localisation physique (avant mise en caisse) stockée dans emplacement_2 (col I) : '' / local / boutique.
+function vLocOf(a){ const v=String(a.emplacement_2||'').trim().toLowerCase(); if(v==='local') return 'local'; if(v==='boutique'||v==='magasin') return 'boutique'; return ''; }
+function vLocPill(a){
+  const l=vLocOf(a);
+  const next = l==='' ? 'local' : (l==='local' ? 'boutique' : '');
+  const label = l==='local' ? '🏠 Local' : l==='boutique' ? '🏪 Boutique' : '＋ localiser';
+  const cls = l==='local' ? 'loc-local' : l==='boutique' ? 'loc-boutique' : 'loc-none';
+  return `<button class="vloc ${cls}" title="Localiser : aucun → local → boutique" onclick="event.stopPropagation();vintedSetLoc('${vEsc(a.uid)}','${next}')">${label}</button>`;
+}
+function vintedSetLoc(uid, value){
+  const a=vintedAll.find(x=>x.uid===uid); if(!a) return;
+  const prev=a.emplacement_2!=null?a.emplacement_2:''; a.emplacement_2=value;
+  setTimeout(vintedRenderCurrent,0); // defer : le bouton déclencheur est retiré au re-render
+  fetch(`${BACKEND_URL}/vinted/article/${encodeURIComponent(uid)}/save`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fields:{emplacement_2:value}})})
+    .then(r=>r.json()).then(d=>{ if(!d||!d.ok){ a.emplacement_2=prev; showDashToast('Échec localisation','error'); vintedRenderCurrent(); } })
+    .catch(()=>{ a.emplacement_2=prev; showDashToast('Erreur réseau','error'); vintedRenderCurrent(); });
+}
 function vCatPill(c){ if(!c) return '<span class="vcat" style="opacity:.55;">à catégoriser</span>'; return `<span class="vcat ${VCAT_CLS[c]||''}">${vEsc(c)}</span>`; }
 function vYear(a){ const m=/(\d{4})/.exec(a.tab||'')||/(\d{4})/.exec(a.date_achat||''); return m?m[1]:''; }
 
@@ -4982,7 +5009,7 @@ function vintedRowHtml(a, view){
   }
   return `<tr onclick="openVintedFiche('${vEsc(a.uid)}')">
     <td style="white-space:nowrap;color:var(--text-muted);">${vEsc(a.date_achat||'—')}</td>
-    <td><div style="font-weight:600;line-height:1.25;">${vEsc(a.titre||'(sans titre)')}</div><div style="color:var(--text-muted);font-size:12px;display:flex;align-items:center;gap:6px;">${vEsc(a.vendeur||'—')} ${vListePill(a)}</div></td>
+    <td><div style="font-weight:600;line-height:1.25;">${vEsc(a.titre||'(sans titre)')}</div><div style="color:var(--text-muted);font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${vEsc(a.vendeur||'—')} ${vListePill(a)}${(!enc&&!fake&&!refunded)?vLocPill(a):''}</div></td>
     <td style="white-space:nowrap;"><span style="color:var(--text-muted);">${vGbp(a)}</span> · ${eur}</td>
     <td style="white-space:nowrap;">${tx}</td>
     <td>${vintedCatSelect(a)}</td>
@@ -5063,6 +5090,7 @@ function openVintedFiche(uid){
   else { j.href='#'; j.style.opacity='.45'; j.style.pointerEvents='none'; j.setAttribute('aria-disabled','true'); }
   document.getElementById('vfCat').value=a.categorie||'';
   document.getElementById('vfAuth').value=a.authenticite||'';
+  document.getElementById('vfLoc').value=vLocOf(a);
   document.getElementById('vfNote').value=a.note||'';
   const encBtn=document.getElementById('vfEncaisseBtn'); encBtn.style.display = (enc||vIsFake(a)||vIsRefunded(a))?'none':'';
   document.getElementById('vintedFiche').classList.add('active');
@@ -5073,14 +5101,14 @@ function vintedCopy(btn,val){ try{ navigator.clipboard&&navigator.clipboard.writ
 
 function vintedSave(encaisse){
   const uid=vintedCurrentUid; const a=vintedAll.find(x=>x.uid===uid); if(!a) return;
-  const fields={ categorie:document.getElementById('vfCat').value, authenticite:document.getElementById('vfAuth').value, note:document.getElementById('vfNote').value };
+  const fields={ categorie:document.getElementById('vfCat').value, authenticite:document.getElementById('vfAuth').value, note:document.getElementById('vfNote').value, emplacement_2:document.getElementById('vfLoc').value };
   // Un article fake ou remboursé ne peut pas être mis en caisse → on enregistre les champs sans encaisser.
   if(encaisse && (fields.authenticite==='FAKE' || vIsRefunded(a))){ showDashToast('Article fake/remboursé : enregistré sans mise en caisse','warn'); encaisse=false; }
   // article suivant à traiter (avant d'appliquer, dans l'ordre courant) pour enchaîner
   let nextUid=null;
   if(encaisse && vintedView==='caisse'){ const list=vintedCaisseOrdered(); const i=list.findIndex(x=>x.uid===uid); nextUid = i>=0 ? (list[i+1]&&list[i+1].uid) : null; }
   // UI optimiste
-  a.categorie=fields.categorie; a.authenticite=fields.authenticite; a.note=fields.note;
+  a.categorie=fields.categorie; a.authenticite=fields.authenticite; a.note=fields.note; a.emplacement_2=fields.emplacement_2;
   if(encaisse){ a.en_caisse='Oui'; a.en_caisse_at=new Date().toISOString(); }
   vintedRenderKpis(); vintedRenderCurrent();
   // écriture Sheet + base en fond
