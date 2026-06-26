@@ -2445,6 +2445,7 @@ tbody tr { transition: background .12s; }
   <!-- VUE À TRAITER -->
   <div id="vinted-caisse">
     <div class="vinted-subbar">
+      <input class="search-input" id="vintedCaisseSearch" placeholder="Rechercher un article à mettre en caisse (titre, pseudo, transaction…)" style="flex:1;min-width:230px;" oninput="vintedRenderCaisseDebounced()"/>
       <div id="vintedCatChips" class="vchips"></div>
       <button class="btn" id="vintedSortBtn" style="margin-left:auto;font-size:12.5px;" onclick="vintedToggleSort()">↑ Plus ancien d'abord</button>
     </div>
@@ -2520,7 +2521,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v174-vinted-localisation';
+const DASH_VERSION = '2025-04-25-v175-vinted-recherche-caisse';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -4973,10 +4974,13 @@ function vintedCaisseOrdered(){
   let list = vintedAll.filter(a=>vEligibleCaisse(a) && vintedMatchYear(a) && vintedMatchListe(a));
   if(vintedCat==='__none') list=list.filter(a=>!(a.categorie&&a.categorie.trim()));
   else if(vintedCat) list=list.filter(a=>a.categorie===vintedCat);
+  const q=(document.getElementById('vintedCaisseSearch')?.value||'').toLowerCase().trim();
+  if(q) list=list.filter(a=>(a.vendeur+' '+a.titre+' '+a.transaction_id+' '+a.prix_gbp+' '+a.prix_eur+' '+a.date_achat+' '+a.categorie+' '+a.uid).toLowerCase().includes(q));
   list.sort((x,y)=> vintedParseDate(x.date_achat)-vintedParseDate(y.date_achat));
   if(!vintedAsc) list.reverse();
   return list;
 }
+function vintedRenderCaisseDebounced(){ clearTimeout(_vintedSearchT); _vintedSearchT=setTimeout(()=>{ vintedShownCaisse=VINTED_PAGE; vintedRenderCaisse(); },180); }
 const VCOPY_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
 const VCHECK_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
 function vCopyBtn(val,label){ return `<button class="vcopy" title="Copier ${label}" onclick="event.stopPropagation();vCopy(this,'${val}')">${VCOPY_SVG}</button>`; }
