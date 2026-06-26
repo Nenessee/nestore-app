@@ -2510,7 +2510,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v171-vinted-fake-rembourse-ui';
+const DASH_VERSION = '2025-04-25-v172-vinted-exclure-setup';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -4850,8 +4850,11 @@ function vGbp(a){ return a.prix_gbp!=null ? ('£'+Number(a.prix_gbp).toFixed(2))
 function vIsEnCaisse(a){ return !!(a.en_caisse && String(a.en_caisse).trim()); }
 function vIsFake(a){ return String(a.authenticite||'').trim().toUpperCase()==='FAKE'; }
 function vIsRefunded(a){ const r=String(a.rembourse||'').trim().toLowerCase(); return r!=='' && !['non','no','0','false','-','aucun'].includes(r); }
-// Un article fake ou remboursé ne peut pas être mis en caisse → exclu du « à traiter ».
-function vEligibleCaisse(a){ return !vIsEnCaisse(a) && !vIsFake(a) && !vIsRefunded(a); }
+// Période de mise en place du système (jusqu'à fin avril 2025) : achats à ne pas traiter (inutiles).
+const VINTED_SETUP_BEFORE = Date.UTC(2025, 4, 1); // 01/05/2025
+function vIsSetup(a){ const t=vintedParseDate(a.date_achat); return t>0 && t < VINTED_SETUP_BEFORE; }
+// Un article fake, remboursé ou de la période de mise en place ne peut pas être mis en caisse → exclu du « à traiter ».
+function vEligibleCaisse(a){ return !vIsEnCaisse(a) && !vIsFake(a) && !vIsRefunded(a) && !vIsSetup(a); }
 function vCatPill(c){ if(!c) return '<span class="vcat" style="opacity:.55;">à catégoriser</span>'; return `<span class="vcat ${VCAT_CLS[c]||''}">${vEsc(c)}</span>`; }
 function vYear(a){ const m=/(\d{4})/.exec(a.tab||'')||/(\d{4})/.exec(a.date_achat||''); return m?m[1]:''; }
 
