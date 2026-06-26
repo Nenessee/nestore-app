@@ -2432,8 +2432,8 @@ tbody tr { transition: background .12s; }
   <div class="vinted-toolbar">
     <div class="vseg" id="vintedYearSeg"></div>
     <div class="vseg" id="vintedListeSeg">
-      <button class="vseg-btn on" data-liste="" onclick="setVintedListe('')">Toutes listes</button>
-      <button class="vseg-btn" data-liste="nouvelle" onclick="setVintedListe('nouvelle')">Nouvelle</button>
+      <button class="vseg-btn" data-liste="" onclick="setVintedListe('')">Toutes listes</button>
+      <button class="vseg-btn on" data-liste="nouvelle" onclick="setVintedListe('nouvelle')">Nouvelle</button>
       <button class="vseg-btn" data-liste="ancienne" onclick="setVintedListe('ancienne')">Ancienne</button>
     </div>
     <div class="vseg vseg-view">
@@ -2521,7 +2521,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v175-vinted-recherche-caisse';
+const DASH_VERSION = '2025-04-25-v176-vinted-defaut-2026-nouvelle';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -4838,7 +4838,7 @@ function veilleRangeParams(){
 
 /* ===================== ONGLET VINTED (admin) ===================== */
 let vintedAll = [], vintedView = 'caisse', vintedCat = '', vintedAsc = true, vintedCurrentUid = null;
-let vintedYear = null, vintedShownCaisse = 60, vintedShownHisto = 60, _vintedSearchT = null, vintedListeFilter = '';
+let vintedYear = null, vintedShownCaisse = 60, vintedShownHisto = 60, _vintedSearchT = null, vintedListeFilter = 'nouvelle'; // défaut : nouvelle liste
 const VINTED_PAGE = 60;
 // Frontière ancienne / nouvelle liste : à partir de la transaction 18649839876 (17/03/2026), c'est la
 // nouvelle liste. Les transaction_id Vinted sont séquentiels → comparaison numérique fiable ; repli sur la date.
@@ -4888,6 +4888,8 @@ function vYear(a){ const m=/(\d{4})/.exec(a.tab||'')||/(\d{4})/.exec(a.date_acha
 
 async function loadVinted(){
   vintedRenderChips();
+  // Reflète le filtre liste par défaut (nouvelle) sur le segmented control.
+  document.querySelectorAll('#vintedListeSeg .vseg-btn').forEach(b=>b.classList.toggle('on', b.getAttribute('data-liste')===vintedListeFilter));
   try {
     const [status, arts] = await Promise.all([ api('/vinted/status').catch(()=>null), api('/vinted/articles') ]);
     window._vintedStatus = status && status.ok ? status : null;
