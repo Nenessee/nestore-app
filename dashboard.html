@@ -2417,6 +2417,8 @@ tbody tr { transition: background .12s; }
   #tab-vinted .vjustif { text-decoration:none; font-size:13px; margin-left:6px; }
   #tab-vinted .vjustif.off { opacity:.3; }
   #tab-vinted .vanomalie { margin-left:5px; cursor:help; }
+  #tab-vinted .vbtn-undo { font-size:11px; padding:3px 8px; border-radius:7px; border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer; font-family:inherit; transition:.12s; margin-left:4px; }
+  #tab-vinted .vbtn-undo:hover { border-color:#A32D2D; color:#A32D2D; }
   @media(max-width:620px){ .vinted-fiche-cols{ grid-template-columns:1fr !important; } #tab-vinted .vinted-toolbar .vseg-view{ margin-left:0; } }
 </style>
 <!-- TAB VINTED (admin only) -->
@@ -2522,6 +2524,7 @@ tbody tr { transition: background .12s; }
     </div>
     <div style="display:flex;gap:10px;margin-top:22px;border-top:1px solid var(--border);padding-top:16px;">
       <button class="btn btn-green" id="vfEncaisseBtn" style="flex:1;font-weight:700;" onclick="vintedSave(true)">✓ Mettre en caisse <span style="opacity:.7;font-weight:500;">(Entrée)</span></button>
+      <button class="btn" id="vfDecaisseBtn" style="display:none;flex:1;" onclick="vintedDecaisseRow(vintedCurrentUid)">↩ Annuler la mise en caisse</button>
       <button class="btn" onclick="vintedSave(false)">Enregistrer</button>
     </div>
     <div style="font-size:12px;color:var(--text-muted);margin-top:12px;">Écrit dans le Google Sheet (colonnes G→P). Données d'achat (A→F) jamais modifiées. <b>Entrée</b> = mettre en caisse + article suivant · <b>Échap</b> = fermer.</div>
@@ -2530,7 +2533,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v177-vinted-suggest-export-justif-anomalie';
+const DASH_VERSION = '2025-04-25-v178-vinted-annuler-caisse';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5079,7 +5082,8 @@ function vintedRowHtml(a, view){
   if(view==='histo'){
     const canCaisse = !enc && !fake && !refunded;
     const justif = vHasJustif(a) ? `<a class="vjustif" href="${a.justificatif}" target="_blank" title="Justificatif PDF" onclick="event.stopPropagation()">🧾</a>` : `<span class="vjustif off" title="Sans justificatif PDF">🧾</span>`;
-    lastCell = `<td style="white-space:nowrap;">${statusTag}${canCaisse?` <button class="vbtn-caisse mini" title="Mettre en caisse" onclick="event.stopPropagation();vintedEncaisseRow('${vEsc(a.uid)}')">✓</button>`:''}${justif}</td>`;
+    const undo = enc ? ` <button class="vbtn-undo" title="Annuler la mise en caisse" onclick="event.stopPropagation();vintedDecaisseRow('${vEsc(a.uid)}')">↩ annuler</button>` : '';
+    lastCell = `<td style="white-space:nowrap;">${statusTag}${canCaisse?` <button class="vbtn-caisse mini" title="Mettre en caisse" onclick="event.stopPropagation();vintedEncaisseRow('${vEsc(a.uid)}')">✓</button>`:''}${undo}${justif}</td>`;
   } else {
     // vue « à traiter » : seuls les éligibles y sont, donc bouton direct
     lastCell = `<td><button class="vbtn-caisse" onclick="event.stopPropagation();vintedEncaisseRow('${vEsc(a.uid)}')">✓ En caisse</button></td>`;
@@ -5111,6 +5115,17 @@ function vintedEncaisseRow(uid){
     .then(r=>r.json()).then(d=>{ if(!d||!d.ok){ showDashToast('Échec écriture Sheet','error'); loadVinted(); } })
     .catch(()=>{ showDashToast('Erreur réseau (Sheet)','error'); loadVinted(); });
 }
+function vintedDecaisseRow(uid){
+  const a=vintedAll.find(x=>x.uid===uid); if(!a) return;
+  if(!confirm('Annuler la mise en caisse de cet article ?\nIl repassera dans « à traiter ».')) return;
+  const prevEc=a.en_caisse, prevAt=a.en_caisse_at;
+  a.en_caisse=''; a.en_caisse_at=null;
+  vintedRenderKpis(); setTimeout(vintedRenderCurrent,0);
+  if(vintedCurrentUid===uid) vintedCloseFiche();
+  fetch(`${BACKEND_URL}/vinted/article/${encodeURIComponent(uid)}/save`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({decaisse:true})})
+    .then(r=>r.json()).then(d=>{ if(!d||!d.ok){ a.en_caisse=prevEc; a.en_caisse_at=prevAt; showDashToast('Échec annulation','error'); loadVinted(); } else showDashToast('Mise en caisse annulée — repassé à traiter','success'); })
+    .catch(()=>{ a.en_caisse=prevEc; a.en_caisse_at=prevAt; showDashToast('Erreur réseau (Sheet)','error'); loadVinted(); });
+}
 function vintedRenderCaisse(){
   const list=vintedCaisseOrdered();
   const tb=document.getElementById('vintedRowsCaisse');
@@ -5135,7 +5150,9 @@ function vintedHistoFiltered(){
     if(st==='anomalie' && !vPriceAnomaly(a)) return false;
     if(q){ const txt=(a.vendeur+' '+a.titre+' '+a.transaction_id+' '+a.prix_gbp+' '+a.prix_eur+' '+a.date_achat+' '+a.categorie+' '+a.uid).toLowerCase(); if(!txt.includes(q)) return false; }
     return true;
-  }).sort((x,y)=> vintedParseDate(y.date_achat)-vintedParseDate(x.date_achat));
+  }).sort((x,y)=> st==='encaisse'
+      ? ((Date.parse(y.en_caisse_at)||0)-(Date.parse(x.en_caisse_at)||0))   // En caisse → plus récemment encaissé en 1er (retrouver une erreur)
+      : (vintedParseDate(y.date_achat)-vintedParseDate(x.date_achat)));
 }
 function vintedRenderHisto(){
   const list=vintedHistoFiltered();
@@ -5172,6 +5189,7 @@ function openVintedFiche(uid){
   document.getElementById('vfLoc').value=vLocOf(a);
   document.getElementById('vfNote').value=a.note||'';
   const encBtn=document.getElementById('vfEncaisseBtn'); encBtn.style.display = (enc||vIsFake(a)||vIsRefunded(a))?'none':'';
+  document.getElementById('vfDecaisseBtn').style.display = enc ? '' : 'none';
   document.getElementById('vintedFiche').classList.add('active');
   setTimeout(()=>document.getElementById('vfCat').focus(),60);
 }
