@@ -2372,7 +2372,8 @@ tbody tr { transition: background .12s; }
   .veur.miss { color:#BA7517; font-weight:700; }
   .vlist { display:inline-block; padding:1px 7px; border-radius:999px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.3px; border:1px solid var(--border); white-space:nowrap; }
   .vlist-nouvelle { color:#3B6D11; border-color:#bfe0a0; background:rgba(59,109,17,.10); }
-  .vlist-ancienne { color:var(--text-muted); background:var(--surface-2); }
+  .vlist-ancienne { color:#185FA5; border-color:#a7c6ef; background:rgba(24,95,165,.12); }
+  [data-theme="dark"] .vlist-ancienne { color:#7fb6ef; border-color:#26456f; background:rgba(24,95,165,.18); }
   @media(max-width:620px){ .vinted-fiche-cols{ grid-template-columns:1fr !important; } #tab-vinted .vinted-toolbar .vseg-view{ margin-left:0; } }
 </style>
 <!-- TAB VINTED (admin only) -->
@@ -2481,7 +2482,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v168-vinted-listes';
+const DASH_VERSION = '2025-04-25-v169-vinted-tag-ancienne';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
