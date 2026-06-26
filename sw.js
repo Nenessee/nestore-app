@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-vinted-statut-casse';
+const CACHE_VERSION = 'nestore-v2026-06-24-vinted-justif-remboursement';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
