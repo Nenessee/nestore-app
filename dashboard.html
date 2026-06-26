@@ -2533,7 +2533,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v178-vinted-annuler-caisse';
+const DASH_VERSION = '2025-04-25-v179-vinted-statut-casse';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -4870,7 +4870,7 @@ function vEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;
 function vintedParseDate(s){ if(!s) return 0; let m=/^(\d{2})\/(\d{2})\/(\d{4})/.exec(s); if(m) return Date.UTC(+m[3],+m[2]-1,+m[1]); m=/^(\d{4})-(\d{2})-(\d{2})/.exec(s); if(m) return Date.UTC(+m[1],+m[2]-1,+m[3]); const t=Date.parse(s); return Number.isNaN(t)?0:t; }
 function vEur(a){ return a.prix_eur!=null ? (Number(a.prix_eur).toFixed(2)+' €') : '—'; }
 function vGbp(a){ return a.prix_gbp!=null ? ('£'+Number(a.prix_gbp).toFixed(2)) : '—'; }
-function vIsEnCaisse(a){ return !!(a.en_caisse && String(a.en_caisse).trim()); }
+function vIsEnCaisse(a){ const v=String(a.en_caisse||'').trim().toLowerCase(); return v!=='' && !['non','no','0','false','-'].includes(v); }
 function vIsFake(a){ return String(a.authenticite||'').trim().toUpperCase()==='FAKE'; }
 function vIsRefunded(a){ const r=String(a.rembourse||'').trim().toLowerCase(); return r!=='' && !['non','no','0','false','-','aucun'].includes(r); }
 // Période de mise en place du système (jusqu'à fin avril 2025) : achats à ne pas traiter (inutiles).
