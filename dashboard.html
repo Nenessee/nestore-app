@@ -2374,6 +2374,27 @@ tbody tr { transition: background .12s; }
   .vlist-nouvelle { color:#3B6D11; border-color:#bfe0a0; background:rgba(59,109,17,.10); }
   .vlist-ancienne { color:#185FA5; border-color:#a7c6ef; background:rgba(24,95,165,.12); }
   [data-theme="dark"] .vlist-ancienne { color:#7fb6ef; border-color:#26456f; background:rgba(24,95,165,.18); }
+  #tab-vinted .vlist { font-size:9.5px; padding:1px 6px; opacity:.9; }
+  /* Zébrures discrètes */
+  #tab-vinted tbody tr:nth-child(even) td { background:rgba(0,0,0,.013); }
+  [data-theme="dark"] #tab-vinted tbody tr:nth-child(even) td { background:rgba(255,255,255,.022); }
+  #tab-vinted tbody tr:hover td { background:var(--surface-alt); }
+  /* Copie au clic (prix €, transaction) — pas d'icône, discret */
+  #tab-vinted .vcopytext { cursor:pointer; border-radius:5px; padding:1px 4px; margin:0 -2px; transition:background .12s; }
+  #tab-vinted .vcopytext:hover { background:var(--surface-2); }
+  #tab-vinted .vcopied { background:rgba(59,109,17,.22) !important; }
+  #tab-vinted .vtx { font-variant-numeric:tabular-nums; color:var(--text-muted); }
+  #tab-vinted .vtx:hover { color:var(--text); }
+  /* Sélecteur catégorie discret */
+  #tab-vinted .vcatsel { font-size:12.5px; padding:5px 9px; max-width:155px; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--text); font-family:inherit; cursor:pointer; }
+  #tab-vinted .vcatsel:hover { border-color:var(--text-muted); }
+  #tab-vinted .vcatsel.empty { color:var(--text-muted); border-style:dashed; }
+  /* Bouton « En caisse » fantôme → vert plein au survol (fini le mur de vert) */
+  #tab-vinted .vbtn-caisse { font-size:12px; font-weight:600; padding:6px 13px; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer; white-space:nowrap; transition:.12s; font-family:inherit; }
+  #tab-vinted .vbtn-caisse:hover { background:#3B6D11; color:#fff; border-color:#3B6D11; }
+  #tab-vinted .vbtn-caisse.mini { padding:3px 9px; font-size:11px; }
+  #tab-vinted tbody tr:hover .vbtn-caisse { border-color:#bfe0a0; color:#3B6D11; }
+  [data-theme="dark"] #tab-vinted tbody tr:hover .vbtn-caisse { border-color:#2c5214; color:#7bbf4a; }
   @media(max-width:620px){ .vinted-fiche-cols{ grid-template-columns:1fr !important; } #tab-vinted .vinted-toolbar .vseg-view{ margin-left:0; } }
 </style>
 <!-- TAB VINTED (admin only) -->
@@ -2482,7 +2503,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v169-vinted-tag-ancienne';
+const DASH_VERSION = '2025-04-25-v170-vinted-clean-table';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -4912,26 +4933,31 @@ function vintedCaisseOrdered(){
   if(!vintedAsc) list.reverse();
   return list;
 }
+function vCopyFlash(el,val){ try{ navigator.clipboard&&navigator.clipboard.writeText(val); }catch(_){}; el.classList.add('vcopied'); setTimeout(()=>el.classList.remove('vcopied'),650); }
 function vintedCatSelect(a){
   const opts = ['', ...VINTED_CATS].map(c=>`<option value="${c}" ${(a.categorie||'')===c?'selected':''}>${c||'— à catégoriser —'}</option>`).join('');
-  const styled = (a.categorie? '' : 'color:var(--accent);');
-  return `<select class="filter-select" style="font-size:12px;padding:5px 8px;max-width:150px;${styled}" onclick="event.stopPropagation()" onchange="event.stopPropagation();vintedSetCatInline('${vEsc(a.uid)}',this.value)">${opts}</select>`;
+  const empty = a.categorie ? '' : ' empty';
+  return `<select class="vcatsel${empty}" onclick="event.stopPropagation()" onchange="event.stopPropagation();vintedSetCatInline('${vEsc(a.uid)}',this.value)">${opts}</select>`;
 }
 function vintedRowHtml(a, view){
-  const eurCls = a.prix_eur==null?'veur miss':'';
-  const copyEur = a.prix_eur!=null ? `<button class="btn" style="font-size:11px;padding:2px 7px;margin-left:4px;" title="Copier le prix €" onclick="event.stopPropagation();vintedCopy(this,'${Number(a.prix_eur).toFixed(2)}')">⧉</button>` : '';
   const enc = vIsEnCaisse(a);
+  const eur = a.prix_eur!=null
+    ? `<span class="veur vcopytext" title="Cliquer pour copier le prix €" onclick="event.stopPropagation();vCopyFlash(this,'${Number(a.prix_eur).toFixed(2)}')">${Number(a.prix_eur).toFixed(2)} €</span>`
+    : `<span class="veur miss">—</span>`;
+  const tx = a.transaction_id
+    ? `<span class="vtx vcopytext" title="Cliquer pour copier" onclick="event.stopPropagation();vCopyFlash(this,'${vEsc(a.transaction_id)}')">${vEsc(a.transaction_id)}</span>`
+    : '<span style="color:var(--text-muted);">—</span>';
   let lastCell;
   if(view==='histo'){
-    lastCell = `<td style="white-space:nowrap;"><span class="vtag ${enc?'encaisse':'acaisse'}">${enc?'En caisse':'À traiter'}</span>${!enc?` <button class="btn btn-green" style="font-size:11px;padding:3px 8px;" title="Mettre en caisse" onclick="event.stopPropagation();vintedEncaisseRow('${vEsc(a.uid)}')">✓</button>`:''}</td>`;
+    lastCell = `<td style="white-space:nowrap;"><span class="vtag ${enc?'encaisse':'acaisse'}">${enc?'En caisse':'À traiter'}</span>${!enc?` <button class="vbtn-caisse mini" title="Mettre en caisse" onclick="event.stopPropagation();vintedEncaisseRow('${vEsc(a.uid)}')">✓</button>`:''}</td>`;
   } else {
-    lastCell = `<td>${enc?`<span class="vtag encaisse">En caisse</span>`:`<button class="btn btn-green" style="font-size:12px;padding:6px 13px;font-weight:700;white-space:nowrap;" onclick="event.stopPropagation();vintedEncaisseRow('${vEsc(a.uid)}')">✓ En caisse</button>`}</td>`;
+    lastCell = `<td>${enc?`<span class="vtag encaisse">En caisse</span>`:`<button class="vbtn-caisse" onclick="event.stopPropagation();vintedEncaisseRow('${vEsc(a.uid)}')">✓ En caisse</button>`}</td>`;
   }
   return `<tr onclick="openVintedFiche('${vEsc(a.uid)}')">
     <td style="white-space:nowrap;color:var(--text-muted);">${vEsc(a.date_achat||'—')}</td>
     <td><div style="font-weight:600;line-height:1.25;">${vEsc(a.titre||'(sans titre)')}</div><div style="color:var(--text-muted);font-size:12px;display:flex;align-items:center;gap:6px;">${vEsc(a.vendeur||'—')} ${vListePill(a)}</div></td>
-    <td style="white-space:nowrap;"><span style="color:var(--text-muted);">${vGbp(a)}</span> · <span class="${eurCls}">${vEur(a)}</span>${copyEur}</td>
-    <td style="font-variant-numeric:tabular-nums;color:var(--text-muted);white-space:nowrap;">${vEsc(a.transaction_id||'—')}${a.transaction_id?` <button class="btn" style="font-size:11px;padding:2px 7px;" title="Copier" onclick="event.stopPropagation();vintedCopy(this,'${vEsc(a.transaction_id)}')">⧉</button>`:''}</td>
+    <td style="white-space:nowrap;"><span style="color:var(--text-muted);">${vGbp(a)}</span> · ${eur}</td>
+    <td style="white-space:nowrap;">${tx}</td>
     <td>${vintedCatSelect(a)}</td>
     ${lastCell}</tr>`;
 }
