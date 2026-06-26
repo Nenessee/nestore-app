@@ -2330,73 +2330,103 @@ tbody tr { transition: background .12s; }
 </div>
 
 <style>
-  .vinted-subtab { color:var(--text-muted); font-weight:600; }
-  .vinted-subtab-on { background:var(--text); color:var(--surface); border-color:var(--text); }
+  #tab-vinted .vinted-head { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; flex-wrap:wrap; }
+  #tab-vinted .vinted-actions { display:flex; gap:8px; flex-wrap:wrap; }
+  #tab-vinted .vinted-status { display:flex; gap:18px; flex-wrap:wrap; margin-top:8px; font-size:12.5px; color:var(--text-muted); }
+  #tab-vinted .vinted-status .vdot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#3B6D11; margin-right:6px; vertical-align:middle; }
+  #tab-vinted .vinted-status .vdot.old { background:#BA7517; }
+  #tab-vinted .vinted-status .vdot.never { background:var(--text-muted); }
+  /* Segmented controls (année + vue) */
+  #tab-vinted .vinted-toolbar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
+  #tab-vinted .vseg { display:inline-flex; gap:2px; background:var(--surface-2); border:1px solid var(--border); border-radius:11px; padding:3px; }
+  #tab-vinted .vseg-btn { border:none; background:transparent; color:var(--text-muted); font-weight:600; font-size:13px; padding:7px 15px; border-radius:8px; cursor:pointer; font-family:inherit; transition:.12s; white-space:nowrap; }
+  #tab-vinted .vseg-btn:hover { color:var(--text); }
+  #tab-vinted .vseg-btn.on { background:var(--surface); color:var(--text); box-shadow:0 1px 2px rgba(0,0,0,.08); }
+  #tab-vinted .vinted-toolbar .vseg-view { margin-left:auto; }
+  /* Sous-barre filtres */
+  #tab-vinted .vinted-subbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+  #tab-vinted .vchips { display:flex; gap:6px; flex-wrap:wrap; }
+  #tab-vinted .vchip { border:1px solid var(--border); background:var(--surface); color:var(--text-muted); font-size:12.5px; font-weight:600; padding:7px 13px; border-radius:999px; cursor:pointer; font-family:inherit; transition:.12s; }
+  #tab-vinted .vchip:hover { border-color:var(--text-muted); color:var(--text); }
+  #tab-vinted .vchip.on { background:var(--text); color:var(--surface); border-color:var(--text); }
+  /* Tableaux */
+  #tab-vinted table { width:100%; border-collapse:collapse; }
+  #tab-vinted thead th { position:sticky; top:0; z-index:1; background:var(--surface-2); text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--text-muted); font-weight:600; padding:11px 14px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  #tab-vinted tbody td { padding:11px 14px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  #tab-vinted tbody tr { cursor:pointer; transition:background .1s; }
+  #tab-vinted tbody tr:last-child td { border-bottom:none; }
+  #tab-vinted tbody tr:hover { background:var(--surface-alt); }
+  #tab-vinted .vinted-pager { display:flex; gap:10px; align-items:center; justify-content:center; padding:13px; border-top:1px solid var(--border); }
+  #tab-vinted .vinted-pager .pg-info { color:var(--text-muted); font-size:12px; }
+  #tab-vinted .vinted-count { font-size:12px; color:var(--text-muted); margin-top:10px; }
   .vinted-kv { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); font-size:13px; }
   .vinted-kv:last-child { border-bottom:none; }
   .vinted-kv > span { color:var(--text-muted); }
   .vinted-kv > b { font-weight:600; text-align:right; font-variant-numeric:tabular-nums; }
-  .vcat { display:inline-block; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600; border:1px solid var(--border); color:var(--text-muted); white-space:nowrap; }
+  .vcat { display:inline-block; padding:2px 9px; border-radius:6px; font-size:11px; font-weight:600; border:1px solid var(--border); color:var(--text-muted); white-space:nowrap; }
   .vcat.vet { color:#7c5cd6; border-color:#c9b8f0; } .vcat.snk { color:#1f86b8; border-color:#a7d9ef; } .vcat.acc { color:#b87917; border-color:#efd6a7; }
   [data-theme="dark"] .vcat.vet { color:#c9a3ff; border-color:#3d2d5c; } [data-theme="dark"] .vcat.snk { color:#7fd4ff; border-color:#23475c; } [data-theme="dark"] .vcat.acc { color:#ffcf8f; border-color:#5c4523; }
   .vtag { display:inline-block; padding:3px 9px; border-radius:999px; font-size:11px; font-weight:600; border:1px solid var(--border); white-space:nowrap; }
   .vtag.acaisse { color:#BA7517; border-color:#efd6a7; background:rgba(186,117,23,.10); }
   .vtag.encaisse { color:#3B6D11; border-color:#bfe0a0; background:rgba(59,109,17,.10); }
-  .vtag.recevoir { color:#185FA5; border-color:#a7c6ef; background:rgba(24,95,165,.10); }
   .veur.miss { color:#BA7517; font-weight:700; }
-  #vintedRowsCaisse tr, #vintedRowsHisto tr { cursor:pointer; }
-  @media(max-width:620px){ .vinted-fiche-cols{ grid-template-columns:1fr !important; } }
+  @media(max-width:620px){ .vinted-fiche-cols{ grid-template-columns:1fr !important; } #tab-vinted .vinted-toolbar .vseg-view{ margin-left:0; } }
 </style>
 <!-- TAB VINTED (admin only) -->
 <div id="tab-vinted" class="tab-panel">
 <div class="content">
-  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px;">
-    <span class="section-title" style="margin:0;">Vinted <span id="vintedSub" style="color:var(--text-muted);font-weight:600;font-size:14px;">· à traiter</span></span>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn" onclick="document.getElementById('vintedRevolutFile').click()">Importer relevé Revolut</button>
+  <div class="vinted-head">
+    <div>
+      <div class="section-title" style="margin:0;">Vinted <span id="vintedSub" style="color:var(--text-muted);font-weight:600;font-size:14px;">· à traiter</span></div>
+      <div id="vintedStatusLine" class="vinted-status"></div>
+    </div>
+    <div class="vinted-actions">
+      <button class="btn" onclick="document.getElementById('vintedRevolutFile').click()">⬆ Importer relevé Revolut</button>
       <input type="file" id="vintedRevolutFile" accept=".csv,text/csv" style="display:none;" onchange="vintedRevolutFileChosen(this)"/>
-      <button class="btn" id="vintedResyncBtn" onclick="vintedResync()">↻ Resync Sheet</button>
+      <button class="btn" id="vintedResyncBtn" onclick="vintedResync()">↻ Resync</button>
     </div>
   </div>
-  <div id="vintedStatusLine" style="font-size:12.5px;color:var(--text-muted);margin-bottom:16px;display:flex;gap:20px;flex-wrap:wrap;"></div>
 
-  <div class="filters-row" style="margin-bottom:14px;gap:6px;">
-    <button class="btn vinted-subtab vinted-subtab-on" data-view="caisse" onclick="vintedSwitchView('caisse',this)">À traiter / mise en caisse</button>
-    <button class="btn vinted-subtab" data-view="histo" onclick="vintedSwitchView('histo',this)">Historique</button>
+  <div id="vintedKpis" class="kpi-grid" style="margin:16px 0;"></div>
+
+  <div class="vinted-toolbar">
+    <div class="vseg" id="vintedYearSeg"></div>
+    <div class="vseg vseg-view">
+      <button class="vseg-btn on" data-view="caisse" onclick="vintedSwitchView('caisse',this)">À traiter</button>
+      <button class="vseg-btn" data-view="histo" onclick="vintedSwitchView('histo',this)">Historique</button>
+    </div>
   </div>
-
-  <div id="vintedKpis" class="kpi-grid" style="margin-bottom:16px;"></div>
 
   <!-- VUE À TRAITER -->
   <div id="vinted-caisse">
-    <div class="filters-row" style="margin-bottom:12px;align-items:center;gap:6px;">
-      <span style="font-size:12px;color:var(--text-muted);">Catégorie :</span>
-      <div id="vintedCatChips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
-      <button class="btn" id="vintedSortBtn" style="margin-left:auto;" onclick="vintedToggleSort()">↑ Plus ancien d'abord</button>
+    <div class="vinted-subbar">
+      <div id="vintedCatChips" class="vchips"></div>
+      <button class="btn" id="vintedSortBtn" style="margin-left:auto;font-size:12.5px;" onclick="vintedToggleSort()">↑ Plus ancien d'abord</button>
     </div>
     <div class="table-card">
       <div style="overflow-x:auto;"><table>
-        <thead><tr><th>Date achat</th><th>Vendeur / Article</th><th>Prix</th><th>Transaction ID</th><th>Catégorie</th></tr></thead>
-        <tbody id="vintedRowsCaisse"><tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text-muted);">Chargement…</td></tr></tbody>
+        <thead><tr><th style="width:110px;">Date achat</th><th>Vendeur / Article</th><th style="width:140px;">Prix</th><th style="width:200px;">Transaction ID</th><th style="width:130px;">Catégorie</th></tr></thead>
+        <tbody id="vintedRowsCaisse"><tr><td colspan="5" style="text-align:center;padding:34px;color:var(--text-muted);">Chargement…</td></tr></tbody>
       </table></div>
+      <div id="vintedPagerCaisse" class="vinted-pager" style="display:none;"></div>
     </div>
   </div>
 
   <!-- VUE HISTORIQUE -->
   <div id="vinted-histo" style="display:none;">
-    <div class="filters-row" style="margin-bottom:12px;">
-      <input class="search-input" id="vintedSearch" placeholder="Rechercher (pseudo, transaction, prix, titre, date…)" oninput="vintedRenderHisto()"/>
-      <select class="filter-select" id="vintedFAnnee" onchange="vintedRenderHisto()"><option value="">Toutes années</option></select>
+    <div class="vinted-subbar">
+      <input class="search-input" id="vintedSearch" placeholder="Rechercher (pseudo, transaction, prix, titre, date…)" style="flex:1;min-width:240px;" oninput="vintedRenderHistoDebounced()"/>
       <select class="filter-select" id="vintedFCat" onchange="vintedRenderHisto()"><option value="">Toutes catégories</option><option>Vêtements</option><option>Sneakers</option><option>Accessoires</option></select>
       <select class="filter-select" id="vintedFStatut" onchange="vintedRenderHisto()"><option value="">Tous statuts</option><option value="encaisse">En caisse</option><option value="acaisse">Pas en caisse</option></select>
     </div>
     <div class="table-card">
       <div style="overflow-x:auto;"><table>
-        <thead><tr><th>Date</th><th>Vendeur / Article</th><th>Prix</th><th>Transaction ID</th><th>Catégorie</th><th>Statut</th></tr></thead>
+        <thead><tr><th style="width:110px;">Date</th><th>Vendeur / Article</th><th style="width:140px;">Prix</th><th style="width:200px;">Transaction ID</th><th style="width:130px;">Catégorie</th><th style="width:120px;">Statut</th></tr></thead>
         <tbody id="vintedRowsHisto"></tbody>
       </table></div>
+      <div id="vintedPagerHisto" class="vinted-pager" style="display:none;"></div>
     </div>
-    <div id="vintedHistoCount" style="font-size:12px;color:var(--text-muted);margin-top:10px;"></div>
+    <div id="vintedHistoCount" class="vinted-count"></div>
   </div>
 </div>
 </div>
@@ -2442,7 +2472,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v165-onglet-vinted';
+const DASH_VERSION = '2025-04-25-v166-vinted-design';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -4759,6 +4789,8 @@ function veilleRangeParams(){
 
 /* ===================== ONGLET VINTED (admin) ===================== */
 let vintedAll = [], vintedView = 'caisse', vintedCat = '', vintedAsc = true, vintedCurrentUid = null;
+let vintedYear = null, vintedShownCaisse = 60, vintedShownHisto = 60, _vintedSearchT = null;
+const VINTED_PAGE = 60;
 const VINTED_CATS = ['Vêtements', 'Sneakers', 'Accessoires'];
 const VCAT_CLS = { 'Vêtements': 'vet', 'Sneakers': 'snk', 'Accessoires': 'acc' };
 function vEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
@@ -4775,7 +4807,7 @@ async function loadVinted(){
     const [status, arts] = await Promise.all([ api('/vinted/status').catch(()=>null), api('/vinted/articles') ]);
     window._vintedStatus = status && status.ok ? status : null;
     vintedAll = Array.isArray(arts) ? arts : [];
-    vintedRenderStatusLine(); vintedRenderKpis(); vintedFillYears();
+    vintedRenderStatusLine(); vintedRenderKpis(); vintedRenderYearSeg();
     vintedRenderCurrent();
   } catch(e){
     document.getElementById('vintedRowsCaisse').innerHTML = `<tr><td colspan="5" style="text-align:center;padding:30px;color:#A32D2D;">Erreur de chargement : ${vEsc(e.message)}</td></tr>`;
@@ -4783,11 +4815,25 @@ async function loadVinted(){
 }
 function vintedRenderStatusLine(){
   const s=window._vintedStatus; const el=document.getElementById('vintedStatusLine'); if(!el) return;
-  const fmtD=(d)=>{ if(!d) return '—'; const dt=new Date(d); return dt.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'}); };
-  const sync = s&&s.lastSync ? fmtD(s.lastSync) : '—';
-  const rev = s&&s.lastRevolutImport ? fmtD(s.lastRevolutImport) : 'jamais';
-  el.innerHTML = `<span><b style="color:var(--text);">Google Sheet</b> — dernière sync : ${sync}</span><span><b style="color:var(--text);">Revolut</b> — dernier import : ${rev}</span>`;
+  const fmtD=(d)=>{ if(!d) return null; const dt=new Date(d); return dt.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'}); };
+  const ageDot=(d)=>{ if(!d) return 'never'; return (Date.now()-new Date(d).getTime() > 36e5*24) ? 'old' : ''; };
+  const sync = s&&s.lastSync ? fmtD(s.lastSync) : null;
+  const rev = s&&s.lastRevolutImport ? fmtD(s.lastRevolutImport) : null;
+  el.innerHTML =
+    `<span><span class="vdot ${ageDot(s&&s.lastSync)}"></span><b style="color:var(--text);">Sheet</b> — ${sync||'jamais synchronisé'}</span>`+
+    `<span><span class="vdot ${ageDot(s&&s.lastRevolutImport)}"></span><b style="color:var(--text);">Revolut</b> — ${rev?('importé le '+rev):'jamais importé'}</span>`;
 }
+function vintedYears(){ return [...new Set(vintedAll.map(vYear).filter(Boolean))].sort().reverse(); }
+function vintedRenderYearSeg(){
+  const seg=document.getElementById('vintedYearSeg'); if(!seg) return;
+  const years=vintedYears();
+  if(vintedYear===null) vintedYear = years[0] || ''; // défaut : année la plus récente
+  if(vintedYear && !years.includes(vintedYear)) vintedYear = years[0] || '';
+  const btn=(val,lbl)=>`<button class="vseg-btn ${vintedYear===val?'on':''}" onclick="setVintedYear('${val}')">${lbl}</button>`;
+  seg.innerHTML = years.map(y=>btn(y,y)).join('') + btn('','Toutes');
+}
+function setVintedYear(y){ vintedYear=y; vintedShownCaisse=VINTED_PAGE; vintedShownHisto=VINTED_PAGE; vintedRenderYearSeg(); vintedRenderCurrent(); }
+function vintedMatchYear(a){ return !vintedYear || vYear(a)===vintedYear; }
 function vintedRenderKpis(){
   const aTraiter = vintedAll.filter(a=>!vIsEnCaisse(a)).length;
   const sansPrix = vintedAll.filter(a=>a.prix_eur==null).length;
@@ -4804,24 +4850,29 @@ function vintedRenderKpis(){
 }
 function vintedRenderChips(){
   const box=document.getElementById('vintedCatChips'); if(!box) return;
-  const chip=(val,lbl)=>`<button class="btn" style="${vintedCat===val?'background:var(--text);color:var(--surface);border-color:var(--text);':''}font-size:12px;" onclick="setVintedCat('${val}')">${lbl}</button>`;
-  box.innerHTML = chip('','Toutes') + VINTED_CATS.map(c=>chip(c,c)).join('') + chip('__none','Pas encore catégorisé');
+  const chip=(val,lbl)=>`<button class="vchip ${vintedCat===val?'on':''}" onclick="setVintedCat('${val}')">${lbl}</button>`;
+  box.innerHTML = chip('','Toutes') + VINTED_CATS.map(c=>chip(c,c)).join('') + chip('__none','À catégoriser');
 }
-function setVintedCat(c){ vintedCat=c; vintedRenderChips(); vintedRenderCaisse(); }
-function vintedToggleSort(){ vintedAsc=!vintedAsc; document.getElementById('vintedSortBtn').textContent = vintedAsc?"↑ Plus ancien d'abord":"↓ Plus récent d'abord"; vintedRenderCaisse(); }
+function setVintedCat(c){ vintedCat=c; vintedShownCaisse=VINTED_PAGE; vintedRenderChips(); vintedRenderCaisse(); }
+function vintedToggleSort(){ vintedAsc=!vintedAsc; vintedShownCaisse=VINTED_PAGE; document.getElementById('vintedSortBtn').textContent = vintedAsc?"↑ Plus ancien d'abord":"↓ Plus récent d'abord"; vintedRenderCaisse(); }
 function vintedSwitchView(v, el){
   vintedView=v;
-  document.querySelectorAll('.vinted-subtab').forEach(b=>b.classList.remove('vinted-subtab-on'));
-  if(el) el.classList.add('vinted-subtab-on');
+  document.querySelectorAll('#tab-vinted .vseg-view .vseg-btn').forEach(b=>b.classList.toggle('on', b.getAttribute('data-view')===v));
   document.getElementById('vinted-caisse').style.display = v==='caisse'?'block':'none';
   document.getElementById('vinted-histo').style.display = v==='histo'?'block':'none';
   document.getElementById('vintedSub').textContent = v==='caisse'?'· à traiter':'· historique';
   vintedRenderCurrent();
 }
 function vintedRenderCurrent(){ if(vintedView==='histo') vintedRenderHisto(); else vintedRenderCaisse(); }
+function vintedPager(boxId, shown, total, moreFn){
+  const box=document.getElementById(boxId); if(!box) return;
+  if(shown>=total){ box.style.display='none'; box.innerHTML=''; return; }
+  box.style.display='flex';
+  box.innerHTML = `<button class="btn" onclick="${moreFn}">Afficher plus (${Math.min(VINTED_PAGE,total-shown)})</button><span class="pg-info">${shown} / ${total}</span>`;
+}
 
 function vintedCaisseOrdered(){
-  let list = vintedAll.filter(a=>!vIsEnCaisse(a));
+  let list = vintedAll.filter(a=>!vIsEnCaisse(a) && vintedMatchYear(a));
   if(vintedCat==='__none') list=list.filter(a=>!(a.categorie&&a.categorie.trim()));
   else if(vintedCat) list=list.filter(a=>a.categorie===vintedCat);
   list.sort((x,y)=> vintedParseDate(x.date_achat)-vintedParseDate(y.date_achat));
@@ -4841,28 +4892,33 @@ function vintedRowHtml(a, withStatus){
 function vintedRenderCaisse(){
   const list=vintedCaisseOrdered();
   const tb=document.getElementById('vintedRowsCaisse');
-  tb.innerHTML = list.length ? list.map(a=>vintedRowHtml(a,false)).join('') : '<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text-muted);">Rien à traiter ✓</td></tr>';
+  if(!list.length){ tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:34px;color:var(--text-muted);">Rien à traiter ici ✓</td></tr>'; vintedPager('vintedPagerCaisse',0,0,''); return; }
+  const shown=Math.min(vintedShownCaisse,list.length);
+  tb.innerHTML = list.slice(0,shown).map(a=>vintedRowHtml(a,false)).join('');
+  vintedPager('vintedPagerCaisse', shown, list.length, 'vintedShownCaisse+=VINTED_PAGE;vintedRenderCaisse()');
 }
-function vintedRenderHisto(){
+function vintedHistoFiltered(){
   const q=(document.getElementById('vintedSearch').value||'').toLowerCase().trim();
-  const an=document.getElementById('vintedFAnnee').value, ca=document.getElementById('vintedFCat').value, st=document.getElementById('vintedFStatut').value;
-  const list=vintedAll.filter(a=>{
-    if(q){ const txt=(a.vendeur+' '+a.titre+' '+a.transaction_id+' '+a.prix_gbp+' '+a.prix_eur+' '+a.date_achat+' '+a.categorie+' '+a.uid).toLowerCase(); if(!txt.includes(q)) return false; }
-    if(an && vYear(a)!==an) return false;
+  const ca=document.getElementById('vintedFCat').value, st=document.getElementById('vintedFStatut').value;
+  return vintedAll.filter(a=>{
+    if(!vintedMatchYear(a)) return false;
     if(ca && a.categorie!==ca) return false;
     if(st==='encaisse' && !vIsEnCaisse(a)) return false;
     if(st==='acaisse' && vIsEnCaisse(a)) return false;
+    if(q){ const txt=(a.vendeur+' '+a.titre+' '+a.transaction_id+' '+a.prix_gbp+' '+a.prix_eur+' '+a.date_achat+' '+a.categorie+' '+a.uid).toLowerCase(); if(!txt.includes(q)) return false; }
     return true;
   }).sort((x,y)=> vintedParseDate(y.date_achat)-vintedParseDate(x.date_achat));
-  document.getElementById('vintedRowsHisto').innerHTML = list.length ? list.map(a=>vintedRowHtml(a,true)).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-muted);">Aucun résultat</td></tr>';
-  document.getElementById('vintedHistoCount').textContent = `${list.length} ligne(s) sur ${vintedAll.length}`;
 }
-function vintedFillYears(){
-  const sel=document.getElementById('vintedFAnnee'); if(!sel) return;
-  const years=[...new Set(vintedAll.map(vYear).filter(Boolean))].sort().reverse();
-  const cur=sel.value;
-  sel.innerHTML='<option value="">Toutes années</option>'+years.map(y=>`<option ${y===cur?'selected':''}>${y}</option>`).join('');
+function vintedRenderHisto(){
+  const list=vintedHistoFiltered();
+  const tb=document.getElementById('vintedRowsHisto');
+  if(!list.length){ tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:34px;color:var(--text-muted);">Aucun résultat</td></tr>'; vintedPager('vintedPagerHisto',0,0,''); document.getElementById('vintedHistoCount').textContent=`0 ligne sur ${vintedAll.length}`; return; }
+  const shown=Math.min(vintedShownHisto,list.length);
+  tb.innerHTML = list.slice(0,shown).map(a=>vintedRowHtml(a,true)).join('');
+  vintedPager('vintedPagerHisto', shown, list.length, 'vintedShownHisto+=VINTED_PAGE;vintedRenderHisto()');
+  document.getElementById('vintedHistoCount').textContent = `${list.length} ligne(s)${vintedYear?(' · '+vintedYear):''} sur ${vintedAll.length} au total`;
 }
+function vintedRenderHistoDebounced(){ clearTimeout(_vintedSearchT); _vintedSearchT=setTimeout(()=>{ vintedShownHisto=VINTED_PAGE; vintedRenderHisto(); },180); }
 
 function openVintedFiche(uid){
   const a=vintedAll.find(x=>x.uid===uid); if(!a) return;
