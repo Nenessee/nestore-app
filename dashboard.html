@@ -2419,6 +2419,10 @@ tbody tr { transition: background .12s; }
   #tab-vinted .vanomalie { margin-left:5px; cursor:help; }
   #tab-vinted .vbtn-undo { font-size:11px; padding:3px 8px; border-radius:7px; border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer; font-family:inherit; transition:.12s; margin-left:4px; }
   #tab-vinted .vbtn-undo:hover { border-color:#A32D2D; color:#A32D2D; }
+  /* Badge bundle (article issu d'un lot dégroupé) */
+  #tab-vinted .vbundle { display:inline-flex; align-items:center; font-size:9.5px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; padding:1px 7px; border-radius:999px; border:1px solid #efc07a; color:#9a5b00; background:rgba(224,161,6,.16); cursor:pointer; font-family:inherit; white-space:nowrap; }
+  #tab-vinted .vbundle:hover { background:#E0A106; color:#3a2400; border-color:#E0A106; }
+  [data-theme="dark"] #tab-vinted .vbundle { color:#f0c060; border-color:#6b4d12; }
   @media(max-width:620px){ .vinted-fiche-cols{ grid-template-columns:1fr !important; } #tab-vinted .vinted-toolbar .vseg-view{ margin-left:0; } }
 </style>
 <!-- TAB VINTED (admin only) -->
@@ -2497,6 +2501,7 @@ tbody tr { transition: background .12s; }
     <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <span class="badge" id="vfStatut">À mettre en caisse</span>
       <span class="vlist" id="vfListe"></span>
+      <span id="vfBundle"></span>
       <a id="vfJustif" href="#" target="_blank" class="btn" style="font-size:12px;padding:6px 11px;">🧾 Justificatif achat</a>
       <a id="vfJustifRemb" href="#" target="_blank" class="btn" style="display:none;font-size:12px;padding:6px 11px;">↩ Justificatif remboursement</a>
     </div>
@@ -2534,7 +2539,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v180-vinted-justif-remboursement';
+const DASH_VERSION = '2025-04-25-v181-vinted-bundle';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -4901,6 +4906,28 @@ function vYear(a){ const m=/(\d{4})/.exec(a.tab||'')||/(\d{4})/.exec(a.date_acha
 // Justificatif (lien PDF, col Q) présent ?
 function vHasJustif(a){ return !!(a.justificatif && /^https?:\/\//.test(String(a.justificatif).trim())); }
 function vHasRefundJustif(a){ return !!(a.justificatif_remboursement && /^https?:\/\//.test(String(a.justificatif_remboursement).trim())); }
+// Bundle : signal robuste = mention « BUNDLE x/y » dans la note (insensible casse/espaces),
+// avec repli sur « plusieurs lignes partagent le même transaction_id ».
+function vBundleMatch(note){ const m=/bundle\s*(\d+)\s*\/\s*(\d+)/i.exec(String(note||'')); return m?{x:+m[1],y:+m[2]}:null; }
+function vIsBundle(a){
+  if(vBundleMatch(a.note) || /bundle/i.test(String(a.note||''))) return true;
+  const tx=String(a.transaction_id||'').trim();
+  return !!(tx && window._vintedTxCount && window._vintedTxCount[tx]>1);
+}
+function vBundleLabel(a){ const m=vBundleMatch(a.note); if(m) return `BUNDLE ${m.x}/${m.y}`; return vIsBundle(a)?'BUNDLE':''; }
+function vBundlePill(a){
+  const lbl=vBundleLabel(a); if(!lbl) return '';
+  return `<button class="vbundle" title="Article issu d'un bundle — cliquer pour voir toutes les lignes du lot (même transaction)" onclick="event.stopPropagation();vintedShowBundle('${vEsc(String(a.transaction_id||''))}')">📦 ${lbl}</button>`;
+}
+function vintedShowBundle(tx){
+  if(!tx){ showDashToast('Pas de transaction pour regrouper','warn'); return; }
+  vintedSwitchViewTo('histo');
+  const sr=document.getElementById('vintedSearch'); if(sr) sr.value=tx;
+  const st=document.getElementById('vintedFStatut'); if(st) st.value='';
+  const ca=document.getElementById('vintedFCat'); if(ca) ca.value='';
+  vintedShownHisto=VINTED_PAGE; vintedRenderHisto();
+  showDashToast('Lignes du bundle (même transaction)','');
+}
 // Anomalie de prix : € très éloigné de £ × taux (≈1.16) → match Revolut probablement faux.
 function vPriceAnomaly(a){ if(a.prix_eur==null||a.prix_gbp==null) return false; const g=Number(a.prix_gbp); if(!(g>0)) return false; const r=Number(a.prix_eur)/g; return r<1.0 || r>1.42; }
 
@@ -4968,6 +4995,9 @@ async function loadVinted(){
     const [status, arts] = await Promise.all([ api('/vinted/status').catch(()=>null), api('/vinted/articles') ]);
     window._vintedStatus = status && status.ok ? status : null;
     vintedAll = Array.isArray(arts) ? arts : [];
+    // Comptage des transaction_id pour détecter les bundles (lignes partageant la même transaction).
+    window._vintedTxCount = {};
+    for(const a of vintedAll){ const tx=String(a.transaction_id||'').trim(); if(tx) window._vintedTxCount[tx]=(window._vintedTxCount[tx]||0)+1; }
     vintedRenderStatusLine(); vintedRenderKpis(); vintedRenderYearSeg();
     vintedRenderCurrent();
   } catch(e){
@@ -5096,7 +5126,7 @@ function vintedRowHtml(a, view){
   }
   return `<tr onclick="openVintedFiche('${vEsc(a.uid)}')">
     <td style="white-space:nowrap;color:var(--text-muted);">${vEsc(a.date_achat||'—')}</td>
-    <td><div style="font-weight:600;line-height:1.25;">${vEsc(a.titre||'(sans titre)')}</div><div style="color:var(--text-muted);font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${vEsc(a.vendeur||'—')} ${vListePill(a)}${(!enc&&!fake&&!refunded)?vLocPill(a):''}</div></td>
+    <td><div style="font-weight:600;line-height:1.25;">${vEsc(a.titre||'(sans titre)')}</div><div style="color:var(--text-muted);font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${vEsc(a.vendeur||'—')} ${vListePill(a)}${vBundlePill(a)}${(!enc&&!fake&&!refunded)?vLocPill(a):''}</div></td>
     <td style="white-space:nowrap;"><span style="color:var(--text-muted);">${vGbp(a)}</span> · ${eur}</td>
     <td style="white-space:nowrap;">${tx}</td>
     <td>${vintedCatSelect(a)}${vSuggestBtn(a)}</td>
@@ -5114,6 +5144,7 @@ function vintedEncaisseRow(uid){
   const a=vintedAll.find(x=>x.uid===uid); if(!a) return;
   if(vIsFake(a)){ showDashToast('Article FAKE : pas de mise en caisse','warn'); return; }
   if(vIsRefunded(a)){ showDashToast('Article remboursé : pas de mise en caisse','warn'); return; }
+  if(vIsBundle(a) && a.prix_eur==null){ if(!confirm('⚠️ Prix € à renseigner — article issu d\'un bundle, le prix doit être réparti à la main entre les lignes du lot.\n\nMettre en caisse quand même ?')) return; }
   a.en_caisse='Oui'; a.en_caisse_at=new Date().toISOString();
   vintedRenderKpis(); setTimeout(vintedRenderCurrent,0); // defer : le bouton déclencheur est retiré au re-render
   showDashToast('Mis en caisse ✓','success');
@@ -5179,6 +5210,7 @@ function openVintedFiche(uid){
   const enc=vIsEnCaisse(a);
   const stEl=document.getElementById('vfStatut'); stEl.textContent=enc?'En caisse':'À mettre en caisse'; stEl.className='vtag '+(enc?'encaisse':'acaisse');
   const lst=vintedListeOf(a); const lEl=document.getElementById('vfListe'); lEl.textContent=lst+' liste'; lEl.className='vlist vlist-'+lst;
+  document.getElementById('vfBundle').innerHTML = vBundlePill(a); // badge bundle (+ clic = voir le lot)
   document.getElementById('vfDate').textContent=a.date_achat||'—';
   document.getElementById('vfGbp').textContent=vGbp(a);
   document.getElementById('vfEur').textContent=vEur(a);
@@ -5214,6 +5246,8 @@ function vintedSave(encaisse){
   const fields={ categorie:document.getElementById('vfCat').value, authenticite:document.getElementById('vfAuth').value, note:document.getElementById('vfNote').value, emplacement_2:document.getElementById('vfLoc').value };
   // Un article fake ou remboursé ne peut pas être mis en caisse → on enregistre les champs sans encaisser.
   if(encaisse && (fields.authenticite==='FAKE' || vIsRefunded(a))){ showDashToast('Article fake/remboursé : enregistré sans mise en caisse','warn'); encaisse=false; }
+  // Bundle sans prix € : on avertit (sans bloquer — Louis reste maître).
+  if(encaisse && vIsBundle(a) && a.prix_eur==null){ if(!confirm('⚠️ Prix € à renseigner — article issu d\'un bundle, le prix doit être réparti à la main entre les lignes du lot.\n\nMettre en caisse quand même ?')) encaisse=false; }
   // article suivant à traiter (avant d'appliquer, dans l'ordre courant) pour enchaîner
   let nextUid=null;
   if(encaisse && vintedView==='caisse'){ const list=vintedCaisseOrdered(); const i=list.findIndex(x=>x.uid===uid); nextUid = i>=0 ? (list[i+1]&&list[i+1].uid) : null; }
