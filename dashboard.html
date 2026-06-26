@@ -2370,6 +2370,9 @@ tbody tr { transition: background .12s; }
   .vtag.acaisse { color:#BA7517; border-color:#efd6a7; background:rgba(186,117,23,.10); }
   .vtag.encaisse { color:#3B6D11; border-color:#bfe0a0; background:rgba(59,109,17,.10); }
   .veur.miss { color:#BA7517; font-weight:700; }
+  .vlist { display:inline-block; padding:1px 7px; border-radius:999px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.3px; border:1px solid var(--border); white-space:nowrap; }
+  .vlist-nouvelle { color:#3B6D11; border-color:#bfe0a0; background:rgba(59,109,17,.10); }
+  .vlist-ancienne { color:var(--text-muted); background:var(--surface-2); }
   @media(max-width:620px){ .vinted-fiche-cols{ grid-template-columns:1fr !important; } #tab-vinted .vinted-toolbar .vseg-view{ margin-left:0; } }
 </style>
 <!-- TAB VINTED (admin only) -->
@@ -2391,6 +2394,11 @@ tbody tr { transition: background .12s; }
 
   <div class="vinted-toolbar">
     <div class="vseg" id="vintedYearSeg"></div>
+    <div class="vseg" id="vintedListeSeg">
+      <button class="vseg-btn on" data-liste="" onclick="setVintedListe('')">Toutes listes</button>
+      <button class="vseg-btn" data-liste="nouvelle" onclick="setVintedListe('nouvelle')">Nouvelle</button>
+      <button class="vseg-btn" data-liste="ancienne" onclick="setVintedListe('ancienne')">Ancienne</button>
+    </div>
     <div class="vseg vseg-view">
       <button class="vseg-btn on" data-view="caisse" onclick="vintedSwitchView('caisse',this)">À traiter</button>
       <button class="vseg-btn" data-view="histo" onclick="vintedSwitchView('histo',this)">Historique</button>
@@ -2439,6 +2447,7 @@ tbody tr { transition: background .12s; }
     <div style="color:var(--text-muted);font-size:14px;margin-top:3px;" id="vfVendeur">vendeur</div>
     <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <span class="badge" id="vfStatut">À mettre en caisse</span>
+      <span class="vlist" id="vfListe"></span>
       <a id="vfJustif" href="#" target="_blank" class="btn" style="font-size:12px;padding:6px 11px;">🧾 Justificatif PDF</a>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:20px;" class="vinted-fiche-cols">
@@ -2472,7 +2481,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v167-vinted-kpi-table';
+const DASH_VERSION = '2025-04-25-v168-vinted-listes';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -4789,8 +4798,20 @@ function veilleRangeParams(){
 
 /* ===================== ONGLET VINTED (admin) ===================== */
 let vintedAll = [], vintedView = 'caisse', vintedCat = '', vintedAsc = true, vintedCurrentUid = null;
-let vintedYear = null, vintedShownCaisse = 60, vintedShownHisto = 60, _vintedSearchT = null;
+let vintedYear = null, vintedShownCaisse = 60, vintedShownHisto = 60, _vintedSearchT = null, vintedListeFilter = '';
 const VINTED_PAGE = 60;
+// Frontière ancienne / nouvelle liste : à partir de la transaction 18649839876 (17/03/2026), c'est la
+// nouvelle liste. Les transaction_id Vinted sont séquentiels → comparaison numérique fiable ; repli sur la date.
+const VINTED_NEW_TX = 18649839876;
+const VINTED_NEW_DATE = Date.UTC(2026, 2, 17); // 17/03/2026
+function vintedListeOf(a){
+  const tx=String(a.transaction_id||'').trim();
+  if(/^\d+$/.test(tx)) return Number(tx) >= VINTED_NEW_TX ? 'nouvelle' : 'ancienne';
+  return vintedParseDate(a.date_achat) >= VINTED_NEW_DATE ? 'nouvelle' : 'ancienne';
+}
+function vintedMatchListe(a){ return !vintedListeFilter || vintedListeOf(a)===vintedListeFilter; }
+function setVintedListe(l){ vintedListeFilter=l; vintedShownCaisse=VINTED_PAGE; vintedShownHisto=VINTED_PAGE; document.querySelectorAll('#vintedListeSeg .vseg-btn').forEach(b=>b.classList.toggle('on', b.getAttribute('data-liste')===l)); vintedRenderKpis(); vintedRenderCurrent(); }
+function vListePill(a){ const l=vintedListeOf(a); return `<span class="vlist vlist-${l}">${l}</span>`; }
 const VINTED_CATS = ['Vêtements', 'Sneakers', 'Accessoires'];
 const VCAT_CLS = { 'Vêtements': 'vet', 'Sneakers': 'snk', 'Accessoires': 'acc' };
 function vEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
@@ -4834,7 +4855,7 @@ function vintedRenderYearSeg(){
 }
 function setVintedYear(y){ vintedYear=y; vintedShownCaisse=VINTED_PAGE; vintedShownHisto=VINTED_PAGE; vintedRenderYearSeg(); vintedRenderKpis(); vintedRenderCurrent(); }
 function vintedMatchYear(a){ return !vintedYear || vYear(a)===vintedYear; }
-function vintedYearArts(){ return vintedAll.filter(vintedMatchYear); }
+function vintedYearArts(){ return vintedAll.filter(a=>vintedMatchYear(a)&&vintedMatchListe(a)); }
 function vintedRenderKpis(){
   const arts = vintedYearArts(); // KPIs scopés à l'année sélectionnée
   const aTraiter = arts.filter(a=>!vIsEnCaisse(a)).length;
@@ -4883,7 +4904,7 @@ function vintedPager(boxId, shown, total, moreFn){
 }
 
 function vintedCaisseOrdered(){
-  let list = vintedAll.filter(a=>!vIsEnCaisse(a) && vintedMatchYear(a));
+  let list = vintedAll.filter(a=>!vIsEnCaisse(a) && vintedMatchYear(a) && vintedMatchListe(a));
   if(vintedCat==='__none') list=list.filter(a=>!(a.categorie&&a.categorie.trim()));
   else if(vintedCat) list=list.filter(a=>a.categorie===vintedCat);
   list.sort((x,y)=> vintedParseDate(x.date_achat)-vintedParseDate(y.date_achat));
@@ -4907,7 +4928,7 @@ function vintedRowHtml(a, view){
   }
   return `<tr onclick="openVintedFiche('${vEsc(a.uid)}')">
     <td style="white-space:nowrap;color:var(--text-muted);">${vEsc(a.date_achat||'—')}</td>
-    <td><div style="font-weight:600;line-height:1.25;">${vEsc(a.titre||'(sans titre)')}</div><div style="color:var(--text-muted);font-size:12px;">${vEsc(a.vendeur||'—')}</div></td>
+    <td><div style="font-weight:600;line-height:1.25;">${vEsc(a.titre||'(sans titre)')}</div><div style="color:var(--text-muted);font-size:12px;display:flex;align-items:center;gap:6px;">${vEsc(a.vendeur||'—')} ${vListePill(a)}</div></td>
     <td style="white-space:nowrap;"><span style="color:var(--text-muted);">${vGbp(a)}</span> · <span class="${eurCls}">${vEur(a)}</span>${copyEur}</td>
     <td style="font-variant-numeric:tabular-nums;color:var(--text-muted);white-space:nowrap;">${vEsc(a.transaction_id||'—')}${a.transaction_id?` <button class="btn" style="font-size:11px;padding:2px 7px;" title="Copier" onclick="event.stopPropagation();vintedCopy(this,'${vEsc(a.transaction_id)}')">⧉</button>`:''}</td>
     <td>${vintedCatSelect(a)}</td>
@@ -4943,6 +4964,7 @@ function vintedHistoFiltered(){
   const ca=document.getElementById('vintedFCat').value, st=document.getElementById('vintedFStatut').value;
   return vintedAll.filter(a=>{
     if(!vintedMatchYear(a)) return false;
+    if(!vintedMatchListe(a)) return false;
     if(ca && a.categorie!==ca) return false;
     if(st==='encaisse' && !vIsEnCaisse(a)) return false;
     if(st==='acaisse' && vIsEnCaisse(a)) return false;
@@ -4969,6 +4991,7 @@ function openVintedFiche(uid){
   document.getElementById('vfVendeur').textContent=a.vendeur||'—';
   const enc=vIsEnCaisse(a);
   const stEl=document.getElementById('vfStatut'); stEl.textContent=enc?'En caisse':'À mettre en caisse'; stEl.className='vtag '+(enc?'encaisse':'acaisse');
+  const lst=vintedListeOf(a); const lEl=document.getElementById('vfListe'); lEl.textContent=lst+' liste'; lEl.className='vlist vlist-'+lst;
   document.getElementById('vfDate').textContent=a.date_achat||'—';
   document.getElementById('vfGbp').textContent=vGbp(a);
   document.getElementById('vfEur').textContent=vEur(a);
