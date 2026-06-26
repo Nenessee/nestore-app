@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-vinted-exclure-setup';
+const CACHE_VERSION = 'nestore-v2026-06-24-vinted-kpi-categorie';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

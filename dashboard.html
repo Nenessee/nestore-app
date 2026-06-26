@@ -2510,7 +2510,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v172-vinted-exclure-setup';
+const DASH_VERSION = '2025-04-25-v173-vinted-kpi-categorie';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -4891,7 +4891,9 @@ function vintedRenderYearSeg(){
 }
 function setVintedYear(y){ vintedYear=y; vintedShownCaisse=VINTED_PAGE; vintedShownHisto=VINTED_PAGE; vintedRenderYearSeg(); vintedRenderKpis(); vintedRenderCurrent(); }
 function vintedMatchYear(a){ return !vintedYear || vYear(a)===vintedYear; }
-function vintedYearArts(){ return vintedAll.filter(a=>vintedMatchYear(a)&&vintedMatchListe(a)); }
+// Catégorie active = celle des chips (vue à traiter). Sert aussi à scoper les KPIs.
+function vintedMatchCat(a){ if(!vintedCat) return true; if(vintedCat==='__none') return !(a.categorie&&String(a.categorie).trim()); return a.categorie===vintedCat; }
+function vintedYearArts(){ return vintedAll.filter(a=>vintedMatchYear(a)&&vintedMatchListe(a)&&vintedMatchCat(a)); }
 function vintedRenderKpis(){
   const arts = vintedYearArts(); // KPIs scopés à l'année sélectionnée
   const aTraiter = arts.filter(vEligibleCaisse).length; // exclut fake / remboursés
@@ -4899,16 +4901,17 @@ function vintedRenderKpis(){
   const enCaisse = arts.filter(a=>vIsEnCaisse(a)).length;
   const depense = arts.reduce((s,a)=>s+(Number(a.prix_eur)||0),0);
   const yLbl = vintedYear || 'toutes';
+  const catLbl = vintedCat ? (vintedCat==='__none' ? ' · à catégoriser' : ' · '+vintedCat) : '';
   const kpi=(n,l,color,go)=>`<div class="kpi" style="cursor:pointer;" onclick="vintedKpiGo('${go}')" title="Filtrer"><div class="kpi-value" ${color?`style="color:${color};"`:''}>${n}</div><div class="kpi-label">${l}</div></div>`;
   document.getElementById('vintedKpis').innerHTML =
-    kpi(aTraiter,'À mettre en caisse','#BA7517','atraiter') +
-    kpi(sansPrix,'Sans prix €','#185FA5','sansprix') +
-    kpi(enCaisse,'Mis en caisse ('+yLbl+')','#3B6D11','encaisse') +
-    kpi(Math.round(depense).toLocaleString('fr-FR')+' €','Dépensé ('+yLbl+')','','depense');
+    kpi(aTraiter,'À mettre en caisse'+catLbl,'#BA7517','atraiter') +
+    kpi(sansPrix,'Sans prix €'+catLbl,'#185FA5','sansprix') +
+    kpi(enCaisse,'Mis en caisse ('+yLbl+')'+catLbl,'#3B6D11','encaisse') +
+    kpi(Math.round(depense).toLocaleString('fr-FR')+' €','Dépensé ('+yLbl+')'+catLbl,'','depense');
 }
 function vintedSwitchViewTo(v){ vintedSwitchView(v, document.querySelector(`#tab-vinted .vseg-view .vseg-btn[data-view="${v}"]`)); }
 function vintedKpiGo(which){
-  if(which==='atraiter'){ vintedSwitchViewTo('caisse'); setVintedCat(''); return; }
+  if(which==='atraiter'){ vintedSwitchViewTo('caisse'); return; } // garde la catégorie active
   vintedSwitchViewTo('histo');
   const sr=document.getElementById('vintedSearch'); if(sr) sr.value='';
   const cat=document.getElementById('vintedFCat'); if(cat) cat.value='';
@@ -4921,7 +4924,7 @@ function vintedRenderChips(){
   const chip=(val,lbl)=>`<button class="vchip ${vintedCat===val?'on':''}" onclick="setVintedCat('${val}')">${lbl}</button>`;
   box.innerHTML = chip('','Toutes') + VINTED_CATS.map(c=>chip(c,c)).join('') + chip('__none','À catégoriser');
 }
-function setVintedCat(c){ vintedCat=c; vintedShownCaisse=VINTED_PAGE; vintedRenderChips(); vintedRenderCaisse(); }
+function setVintedCat(c){ vintedCat=c; vintedShownCaisse=VINTED_PAGE; vintedRenderChips(); vintedRenderKpis(); vintedRenderCaisse(); }
 function vintedToggleSort(){ vintedAsc=!vintedAsc; vintedShownCaisse=VINTED_PAGE; document.getElementById('vintedSortBtn').textContent = vintedAsc?"↑ Plus ancien d'abord":"↓ Plus récent d'abord"; vintedRenderCaisse(); }
 function vintedSwitchView(v, el){
   vintedView=v;
