@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-vinted-tag-ancienne';
+const CACHE_VERSION = 'nestore-v2026-06-24-vinted-clean-table';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
