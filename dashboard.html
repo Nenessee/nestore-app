@@ -2410,6 +2410,13 @@ tbody tr { transition: background .12s; }
   #tab-vinted .vloc.loc-boutique { color:#C0561E; border-color:#f0c4a7; background:rgba(192,86,30,.10); }
   [data-theme="dark"] #tab-vinted .vloc.loc-local { color:#4fd0b0; border-color:#1d5447; }
   [data-theme="dark"] #tab-vinted .vloc.loc-boutique { color:#f0925e; border-color:#5c3520; }
+  /* Suggestion auto de catégorie */
+  #tab-vinted .vsugg { font-size:10.5px; font-weight:600; padding:3px 8px; border-radius:6px; border:1px dashed #c9b8f0; color:#7c5cd6; background:transparent; cursor:pointer; white-space:nowrap; margin-left:5px; font-family:inherit; transition:.12s; }
+  #tab-vinted .vsugg:hover { background:#7c5cd6; color:#fff; border-style:solid; }
+  [data-theme="dark"] #tab-vinted .vsugg { color:#c9a3ff; border-color:#3d2d5c; }
+  #tab-vinted .vjustif { text-decoration:none; font-size:13px; margin-left:6px; }
+  #tab-vinted .vjustif.off { opacity:.3; }
+  #tab-vinted .vanomalie { margin-left:5px; cursor:help; }
   @media(max-width:620px){ .vinted-fiche-cols{ grid-template-columns:1fr !important; } #tab-vinted .vinted-toolbar .vseg-view{ margin-left:0; } }
 </style>
 <!-- TAB VINTED (admin only) -->
@@ -2423,6 +2430,7 @@ tbody tr { transition: background .12s; }
     <div class="vinted-actions">
       <button class="btn" onclick="document.getElementById('vintedRevolutFile').click()">⬆ Importer relevé Revolut</button>
       <input type="file" id="vintedRevolutFile" accept=".csv,text/csv" style="display:none;" onchange="vintedRevolutFileChosen(this)"/>
+      <button class="btn" title="Exporter l'année/liste affichée en CSV (compta)" onclick="vintedExportCsv()">⬇ Export CSV</button>
       <button class="btn" id="vintedResyncBtn" onclick="vintedResync()">↻ Resync</button>
     </div>
   </div>
@@ -2447,6 +2455,7 @@ tbody tr { transition: background .12s; }
     <div class="vinted-subbar">
       <input class="search-input" id="vintedCaisseSearch" placeholder="Rechercher un article à mettre en caisse (titre, pseudo, transaction…)" style="flex:1;min-width:230px;" oninput="vintedRenderCaisseDebounced()"/>
       <div id="vintedCatChips" class="vchips"></div>
+      <button class="btn" style="font-size:12.5px;" title="Catégoriser automatiquement les titres clairs (les ambigus restent à la main)" onclick="vintedBulkSuggest()">✨ Suggérer catégories</button>
       <button class="btn" id="vintedSortBtn" style="margin-left:auto;font-size:12.5px;" onclick="vintedToggleSort()">↑ Plus ancien d'abord</button>
     </div>
     <div class="table-card">
@@ -2463,7 +2472,7 @@ tbody tr { transition: background .12s; }
     <div class="vinted-subbar">
       <input class="search-input" id="vintedSearch" placeholder="Rechercher (pseudo, transaction, prix, titre, date…)" style="flex:1;min-width:240px;" oninput="vintedRenderHistoDebounced()"/>
       <select class="filter-select" id="vintedFCat" onchange="vintedRenderHisto()"><option value="">Toutes catégories</option><option>Vêtements</option><option>Sneakers</option><option>Accessoires</option></select>
-      <select class="filter-select" id="vintedFStatut" onchange="vintedRenderHisto()"><option value="">Tous statuts</option><option value="encaisse">En caisse</option><option value="acaisse">À traiter</option><option value="sansprix">Sans prix €</option><option value="fake">Fake</option><option value="rembourse">Remboursé</option></select>
+      <select class="filter-select" id="vintedFStatut" onchange="vintedRenderHisto()"><option value="">Tous statuts</option><option value="encaisse">En caisse</option><option value="acaisse">À traiter</option><option value="sansprix">Sans prix €</option><option value="fake">Fake</option><option value="rembourse">Remboursé</option><option value="sansjustif">Sans justificatif</option><option value="anomalie">Anomalie prix</option></select>
     </div>
     <div class="table-card">
       <div style="overflow-x:auto;"><table>
@@ -2521,7 +2530,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v176-vinted-defaut-2026-nouvelle';
+const DASH_VERSION = '2025-04-25-v177-vinted-suggest-export-justif-anomalie';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -4885,6 +4894,66 @@ function vintedSetLoc(uid, value){
 }
 function vCatPill(c){ if(!c) return '<span class="vcat" style="opacity:.55;">à catégoriser</span>'; return `<span class="vcat ${VCAT_CLS[c]||''}">${vEsc(c)}</span>`; }
 function vYear(a){ const m=/(\d{4})/.exec(a.tab||'')||/(\d{4})/.exec(a.date_achat||''); return m?m[1]:''; }
+// Justificatif (lien PDF, col Q) présent ?
+function vHasJustif(a){ return !!(a.justificatif && /^https?:\/\//.test(String(a.justificatif).trim())); }
+// Anomalie de prix : € très éloigné de £ × taux (≈1.16) → match Revolut probablement faux.
+function vPriceAnomaly(a){ if(a.prix_eur==null||a.prix_gbp==null) return false; const g=Number(a.prix_gbp); if(!(g>0)) return false; const r=Number(a.prix_eur)/g; return r<1.0 || r>1.42; }
+
+/* ----- Suggestion automatique de catégorie (robuste, EN/FR, mots ENTIERS) ----- */
+function vNorm(s){ return (s||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim(); }
+const VCAT_KW = {
+  'Sneakers': {
+    ph:['air max','air force','new balance','golden goose','super star','travis scott','sb dunk','dunk low','dunk high','air jordan'],
+    w:['sneakers','sneaker','trainers','trainer','shoes','shoe','boots','boot','dunk','dunks','jordan','jordans','yeezy','yeezys','af1','samba','sambas','gazelle','gazelles','campus','sl72','forum','ozweego','cortez','blazer','blazers','presto','vapormax','airmax','runner','runners','kicks','vans','converse','asics','crocs','uggs','mules','baskets','basket','foamposite','huarache','superstar','shox','waffle','550','990','991','992','993','2002','574','327','9060']
+  },
+  'Vêtements': {
+    ph:['t shirt','tee shirt','long sleeve','zip up','full zip','half zip','crew neck','track top','track pants','track suit'],
+    w:['hoodie','hoody','hoodies','sweat','sweatshirt','sweater','jumper','jumpers','knit','knitwear','crewneck','pull','pullover','tee','tees','tshirt','tshirts','shirt','shirts','polo','polos','jacket','jackets','coat','coats','veste','vestes','manteau','parka','puffer','gilet','cardigan','jeans','jean','denim','pants','pant','trousers','jogger','joggers','jogging','cargo','cargos','shorts','short','tracksuit','top','tops','vest','vests','longsleeve','flannel','fleece','jersey','dress','skirt','tank','singlet','bomber','windbreaker','anorak','sweatpants','leggings','overshirt','varsity']
+  },
+  'Accessoires': {
+    ph:['card holder','cross body','bum bag','tote bag','duffle bag'],
+    w:['bag','bags','sac','sacs','satchel','backpack','sacoche','pouch','belt','ceinture','cap','casquette','hat','hats','beanie','bonnet','scarf','scarves','echarpe','gloves','gants','sunglasses','glasses','lunettes','watch','watches','montre','wallet','portefeuille','jewellery','necklace','bracelet','ring','rings','socks','tie','ties','cravate','keychain','crossbody','tote','duffle','holdall','clutch','beret','umbrella']
+  }
+};
+function vintedSuggestCat(title){
+  const t = ' '+vNorm(title)+' ';
+  if(t===' ') return null;
+  const sc = {'Sneakers':0,'Vêtements':0,'Accessoires':0};
+  for(const cat in VCAT_KW){
+    for(const p of VCAT_KW[cat].ph){ if(t.includes(' '+p+' ')) sc[cat]+=2; }
+    for(const w of VCAT_KW[cat].w){ if(t.includes(' '+w+' ')) sc[cat]+=1; }
+  }
+  let best=null, bestN=0, tie=false;
+  for(const c in sc){ if(sc[c]>bestN){ best=c; bestN=sc[c]; tie=false; } else if(sc[c]===bestN && bestN>0){ tie=true; } }
+  return (best && bestN>0 && !tie) ? best : null; // que si une catégorie domine clairement
+}
+function vSuggestBtn(a){
+  if(a.categorie) return '';
+  const s=vintedSuggestCat(a.titre); if(!s) return '';
+  return `<button class="vsugg" title="Suggestion automatique — cliquer pour appliquer" onclick="event.stopPropagation();vintedSetCatInline('${vEsc(a.uid)}','${s}')">✨ ${s}</button>`;
+}
+function vintedBulkSuggest(){
+  const list=(vintedView==='histo'?vintedHistoFiltered():vintedCaisseOrdered()).filter(a=>!a.categorie && vintedSuggestCat(a.titre));
+  if(!list.length){ showDashToast('Aucune suggestion fiable à appliquer ici','warn'); return; }
+  if(!confirm(`Appliquer la catégorie suggérée à ${list.length} article(s) ?\n\nSeuls les titres clairs sont catégorisés ; les ambigus restent à faire à la main. Tu peux corriger ensuite.`)) return;
+  const items=list.map(a=>({uid:a.uid, categorie:vintedSuggestCat(a.titre)}));
+  items.forEach(it=>{ const a=vintedAll.find(x=>x.uid===it.uid); if(a) a.categorie=it.categorie; }); // optimiste
+  vintedRenderKpis(); vintedRenderCurrent();
+  fetch(`${BACKEND_URL}/vinted/categorize-bulk`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items})})
+    .then(r=>r.json()).then(d=>{ if(!d||!d.ok){ showDashToast('Échec catégorisation : '+((d&&d.erreur)||'?'),'error'); loadVinted(); } else showDashToast(`${d.count} catégorie(s) appliquée(s) ✓`,'success'); })
+    .catch(()=>{ showDashToast('Erreur réseau','error'); loadVinted(); });
+}
+function vintedExportCsv(){
+  const arts=vintedAll.filter(a=>vintedMatchYear(a)&&vintedMatchListe(a)).sort((x,y)=>vintedParseDate(x.date_achat)-vintedParseDate(y.date_achat));
+  if(!arts.length){ showDashToast('Rien à exporter','warn'); return; }
+  const head=['Date achat','Vendeur','Titre','Transaction ID','Prix GBP','Prix EUR','Categorie','Authenticite','Rembourse','En caisse','Emplacement','Localisation','Justificatif','Liste','UID'];
+  const rows=[head].concat(arts.map(a=>[a.date_achat,a.vendeur,a.titre,a.transaction_id,a.prix_gbp,a.prix_eur,a.categorie,a.authenticite,a.rembourse,a.en_caisse,a.emplacement,a.emplacement_2,a.justificatif,vintedListeOf(a),a.uid]));
+  const csv=rows.map(r=>r.map(c=>`"${String(c==null?'':c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download=`vinted-${vintedYear||'tout'}${vintedListeFilter?('-'+vintedListeFilter):''}.csv`; a.click(); URL.revokeObjectURL(url);
+  showDashToast(`${arts.length} ligne(s) exportée(s)`,'success');
+}
 
 async function loadVinted(){
   vintedRenderChips();
@@ -4994,8 +5063,9 @@ function vintedCatSelect(a){
 }
 function vintedRowHtml(a, view){
   const enc = vIsEnCaisse(a);
+  const anomalie = vPriceAnomaly(a) ? `<span class="vanomalie" title="Prix € incohérent avec le prix £ — match Revolut à vérifier">⚠️</span>` : '';
   const eur = a.prix_eur!=null
-    ? `<span class="veur ${''}">${Number(a.prix_eur).toFixed(2)} €</span>${vCopyBtn(Number(a.prix_eur).toFixed(2),'le prix €')}`
+    ? `<span class="veur">${Number(a.prix_eur).toFixed(2)} €</span>${anomalie}${vCopyBtn(Number(a.prix_eur).toFixed(2),'le prix €')}`
     : `<span class="veur miss">—</span>`;
   const tx = a.transaction_id
     ? `<span class="vtx">${vEsc(a.transaction_id)}</span>${vCopyBtn(vEsc(a.transaction_id),'la transaction')}`
@@ -5008,7 +5078,8 @@ function vintedRowHtml(a, view){
   let lastCell;
   if(view==='histo'){
     const canCaisse = !enc && !fake && !refunded;
-    lastCell = `<td style="white-space:nowrap;">${statusTag}${canCaisse?` <button class="vbtn-caisse mini" title="Mettre en caisse" onclick="event.stopPropagation();vintedEncaisseRow('${vEsc(a.uid)}')">✓</button>`:''}</td>`;
+    const justif = vHasJustif(a) ? `<a class="vjustif" href="${a.justificatif}" target="_blank" title="Justificatif PDF" onclick="event.stopPropagation()">🧾</a>` : `<span class="vjustif off" title="Sans justificatif PDF">🧾</span>`;
+    lastCell = `<td style="white-space:nowrap;">${statusTag}${canCaisse?` <button class="vbtn-caisse mini" title="Mettre en caisse" onclick="event.stopPropagation();vintedEncaisseRow('${vEsc(a.uid)}')">✓</button>`:''}${justif}</td>`;
   } else {
     // vue « à traiter » : seuls les éligibles y sont, donc bouton direct
     lastCell = `<td><button class="vbtn-caisse" onclick="event.stopPropagation();vintedEncaisseRow('${vEsc(a.uid)}')">✓ En caisse</button></td>`;
@@ -5018,7 +5089,7 @@ function vintedRowHtml(a, view){
     <td><div style="font-weight:600;line-height:1.25;">${vEsc(a.titre||'(sans titre)')}</div><div style="color:var(--text-muted);font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${vEsc(a.vendeur||'—')} ${vListePill(a)}${(!enc&&!fake&&!refunded)?vLocPill(a):''}</div></td>
     <td style="white-space:nowrap;"><span style="color:var(--text-muted);">${vGbp(a)}</span> · ${eur}</td>
     <td style="white-space:nowrap;">${tx}</td>
-    <td>${vintedCatSelect(a)}</td>
+    <td>${vintedCatSelect(a)}${vSuggestBtn(a)}</td>
     ${lastCell}</tr>`;
 }
 function vintedSetCatInline(uid, value){
@@ -5060,6 +5131,8 @@ function vintedHistoFiltered(){
     if(st==='sansprix' && a.prix_eur!=null) return false;
     if(st==='fake' && !vIsFake(a)) return false;
     if(st==='rembourse' && !vIsRefunded(a)) return false;
+    if(st==='sansjustif' && vHasJustif(a)) return false;
+    if(st==='anomalie' && !vPriceAnomaly(a)) return false;
     if(q){ const txt=(a.vendeur+' '+a.titre+' '+a.transaction_id+' '+a.prix_gbp+' '+a.prix_eur+' '+a.date_achat+' '+a.categorie+' '+a.uid).toLowerCase(); if(!txt.includes(q)) return false; }
     return true;
   }).sort((x,y)=> vintedParseDate(y.date_achat)-vintedParseDate(x.date_achat));
