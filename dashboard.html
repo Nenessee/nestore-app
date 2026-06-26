@@ -2379,22 +2379,29 @@ tbody tr { transition: background .12s; }
   #tab-vinted tbody tr:nth-child(even) td { background:rgba(0,0,0,.013); }
   [data-theme="dark"] #tab-vinted tbody tr:nth-child(even) td { background:rgba(255,255,255,.022); }
   #tab-vinted tbody tr:hover td { background:var(--surface-alt); }
-  /* Copie au clic (prix €, transaction) — pas d'icône, discret */
-  #tab-vinted .vcopytext { cursor:pointer; border-radius:5px; padding:1px 4px; margin:0 -2px; transition:background .12s; }
-  #tab-vinted .vcopytext:hover { background:var(--surface-2); }
-  #tab-vinted .vcopied { background:rgba(59,109,17,.22) !important; }
   #tab-vinted .vtx { font-variant-numeric:tabular-nums; color:var(--text-muted); }
-  #tab-vinted .vtx:hover { color:var(--text); }
-  /* Sélecteur catégorie discret */
-  #tab-vinted .vcatsel { font-size:12.5px; padding:5px 9px; max-width:155px; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--text); font-family:inherit; cursor:pointer; }
+  #tab-vinted .veur { font-weight:600; }
+  /* Bouton copier (icône presse-papier → ✓ vert à la copie) */
+  #tab-vinted .vcopy { display:inline-flex; align-items:center; justify-content:center; width:24px; height:23px; margin-left:5px; padding:0; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text-muted); cursor:pointer; vertical-align:middle; transition:.12s; }
+  #tab-vinted .vcopy:hover { border-color:var(--text-muted); color:var(--text); background:var(--surface-2); }
+  #tab-vinted .vcopy.ok { color:#3B6D11; border-color:#bfe0a0; background:rgba(59,109,17,.12); }
+  #tab-vinted .vcopy svg { width:13px; height:13px; display:block; }
+  /* Sélecteur catégorie — propre, coloré par catégorie */
+  #tab-vinted .vcatsel { font-size:12.5px; font-weight:600; padding:6px 10px; max-width:160px; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--text); font-family:inherit; cursor:pointer; transition:.12s; }
   #tab-vinted .vcatsel:hover { border-color:var(--text-muted); }
-  #tab-vinted .vcatsel.empty { color:var(--text-muted); border-style:dashed; }
-  /* Bouton « En caisse » fantôme → vert plein au survol (fini le mur de vert) */
-  #tab-vinted .vbtn-caisse { font-size:12px; font-weight:600; padding:6px 13px; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer; white-space:nowrap; transition:.12s; font-family:inherit; }
-  #tab-vinted .vbtn-caisse:hover { background:#3B6D11; color:#fff; border-color:#3B6D11; }
-  #tab-vinted .vbtn-caisse.mini { padding:3px 9px; font-size:11px; }
-  #tab-vinted tbody tr:hover .vbtn-caisse { border-color:#bfe0a0; color:#3B6D11; }
-  [data-theme="dark"] #tab-vinted tbody tr:hover .vbtn-caisse { border-color:#2c5214; color:#7bbf4a; }
+  #tab-vinted .vcatsel.empty { color:var(--text-muted); font-weight:500; border-style:dashed; }
+  #tab-vinted .vcatsel.vet { color:#7c5cd6; border-color:#c9b8f0; } #tab-vinted .vcatsel.snk { color:#1f86b8; border-color:#a7d9ef; } #tab-vinted .vcatsel.acc { color:#b87917; border-color:#efd6a7; }
+  [data-theme="dark"] #tab-vinted .vcatsel.vet { color:#c9a3ff; border-color:#3d2d5c; } [data-theme="dark"] #tab-vinted .vcatsel.snk { color:#7fd4ff; border-color:#23475c; } [data-theme="dark"] #tab-vinted .vcatsel.acc { color:#ffcf8f; border-color:#5c4523; }
+  /* Bouton « En caisse » — vert doux, plein au survol (ni mur saturé, ni fantôme gris) */
+  #tab-vinted .vbtn-caisse { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; padding:7px 13px; border-radius:8px; border:1px solid #bfe0a0; background:rgba(59,109,17,.09); color:#3B6D11; cursor:pointer; white-space:nowrap; transition:.12s; font-family:inherit; }
+  #tab-vinted .vbtn-caisse:hover { background:#3B6D11; color:#fff; border-color:#3B6D11; box-shadow:0 1px 4px rgba(59,109,17,.3); }
+  #tab-vinted .vbtn-caisse.mini { padding:4px 9px; font-size:11px; }
+  [data-theme="dark"] #tab-vinted .vbtn-caisse { border-color:#2c5214; background:rgba(59,109,17,.16); color:#8fd05f; }
+  [data-theme="dark"] #tab-vinted .vbtn-caisse:hover { background:#3B6D11; color:#fff; }
+  /* Tags statut fake / remboursé */
+  .vtag.fake { color:#A32D2D; border-color:#e6b3b3; background:rgba(163,45,45,.10); }
+  .vtag.rembourse { color:#7c5cd6; border-color:#c9b8f0; background:rgba(124,92,214,.10); }
+  [data-theme="dark"] .vtag.rembourse { color:#c9a3ff; border-color:#3d2d5c; }
   @media(max-width:620px){ .vinted-fiche-cols{ grid-template-columns:1fr !important; } #tab-vinted .vinted-toolbar .vseg-view{ margin-left:0; } }
 </style>
 <!-- TAB VINTED (admin only) -->
@@ -2447,7 +2454,7 @@ tbody tr { transition: background .12s; }
     <div class="vinted-subbar">
       <input class="search-input" id="vintedSearch" placeholder="Rechercher (pseudo, transaction, prix, titre, date…)" style="flex:1;min-width:240px;" oninput="vintedRenderHistoDebounced()"/>
       <select class="filter-select" id="vintedFCat" onchange="vintedRenderHisto()"><option value="">Toutes catégories</option><option>Vêtements</option><option>Sneakers</option><option>Accessoires</option></select>
-      <select class="filter-select" id="vintedFStatut" onchange="vintedRenderHisto()"><option value="">Tous statuts</option><option value="encaisse">En caisse</option><option value="acaisse">Pas en caisse</option><option value="sansprix">Sans prix €</option></select>
+      <select class="filter-select" id="vintedFStatut" onchange="vintedRenderHisto()"><option value="">Tous statuts</option><option value="encaisse">En caisse</option><option value="acaisse">À traiter</option><option value="sansprix">Sans prix €</option><option value="fake">Fake</option><option value="rembourse">Remboursé</option></select>
     </div>
     <div class="table-card">
       <div style="overflow-x:auto;"><table>
@@ -2503,7 +2510,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v170-vinted-clean-table';
+const DASH_VERSION = '2025-04-25-v171-vinted-fake-rembourse-ui';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -4841,6 +4848,10 @@ function vintedParseDate(s){ if(!s) return 0; let m=/^(\d{2})\/(\d{2})\/(\d{4})/
 function vEur(a){ return a.prix_eur!=null ? (Number(a.prix_eur).toFixed(2)+' €') : '—'; }
 function vGbp(a){ return a.prix_gbp!=null ? ('£'+Number(a.prix_gbp).toFixed(2)) : '—'; }
 function vIsEnCaisse(a){ return !!(a.en_caisse && String(a.en_caisse).trim()); }
+function vIsFake(a){ return String(a.authenticite||'').trim().toUpperCase()==='FAKE'; }
+function vIsRefunded(a){ const r=String(a.rembourse||'').trim().toLowerCase(); return r!=='' && !['non','no','0','false','-','aucun'].includes(r); }
+// Un article fake ou remboursé ne peut pas être mis en caisse → exclu du « à traiter ».
+function vEligibleCaisse(a){ return !vIsEnCaisse(a) && !vIsFake(a) && !vIsRefunded(a); }
 function vCatPill(c){ if(!c) return '<span class="vcat" style="opacity:.55;">à catégoriser</span>'; return `<span class="vcat ${VCAT_CLS[c]||''}">${vEsc(c)}</span>`; }
 function vYear(a){ const m=/(\d{4})/.exec(a.tab||'')||/(\d{4})/.exec(a.date_achat||''); return m?m[1]:''; }
 
@@ -4880,7 +4891,7 @@ function vintedMatchYear(a){ return !vintedYear || vYear(a)===vintedYear; }
 function vintedYearArts(){ return vintedAll.filter(a=>vintedMatchYear(a)&&vintedMatchListe(a)); }
 function vintedRenderKpis(){
   const arts = vintedYearArts(); // KPIs scopés à l'année sélectionnée
-  const aTraiter = arts.filter(a=>!vIsEnCaisse(a)).length;
+  const aTraiter = arts.filter(vEligibleCaisse).length; // exclut fake / remboursés
   const sansPrix = arts.filter(a=>a.prix_eur==null).length;
   const enCaisse = arts.filter(a=>vIsEnCaisse(a)).length;
   const depense = arts.reduce((s,a)=>s+(Number(a.prix_eur)||0),0);
@@ -4926,32 +4937,42 @@ function vintedPager(boxId, shown, total, moreFn){
 }
 
 function vintedCaisseOrdered(){
-  let list = vintedAll.filter(a=>!vIsEnCaisse(a) && vintedMatchYear(a) && vintedMatchListe(a));
+  let list = vintedAll.filter(a=>vEligibleCaisse(a) && vintedMatchYear(a) && vintedMatchListe(a));
   if(vintedCat==='__none') list=list.filter(a=>!(a.categorie&&a.categorie.trim()));
   else if(vintedCat) list=list.filter(a=>a.categorie===vintedCat);
   list.sort((x,y)=> vintedParseDate(x.date_achat)-vintedParseDate(y.date_achat));
   if(!vintedAsc) list.reverse();
   return list;
 }
-function vCopyFlash(el,val){ try{ navigator.clipboard&&navigator.clipboard.writeText(val); }catch(_){}; el.classList.add('vcopied'); setTimeout(()=>el.classList.remove('vcopied'),650); }
+const VCOPY_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
+const VCHECK_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+function vCopyBtn(val,label){ return `<button class="vcopy" title="Copier ${label}" onclick="event.stopPropagation();vCopy(this,'${val}')">${VCOPY_SVG}</button>`; }
+function vCopy(btn,val){ try{ navigator.clipboard&&navigator.clipboard.writeText(val); }catch(_){}; btn.classList.add('ok'); btn.innerHTML=VCHECK_SVG; setTimeout(()=>{ btn.classList.remove('ok'); btn.innerHTML=VCOPY_SVG; },1100); }
 function vintedCatSelect(a){
   const opts = ['', ...VINTED_CATS].map(c=>`<option value="${c}" ${(a.categorie||'')===c?'selected':''}>${c||'— à catégoriser —'}</option>`).join('');
-  const empty = a.categorie ? '' : ' empty';
-  return `<select class="vcatsel${empty}" onclick="event.stopPropagation()" onchange="event.stopPropagation();vintedSetCatInline('${vEsc(a.uid)}',this.value)">${opts}</select>`;
+  const cls = a.categorie ? (VCAT_CLS[a.categorie]||'') : 'empty';
+  return `<select class="vcatsel ${cls}" onclick="event.stopPropagation()" onchange="event.stopPropagation();vintedSetCatInline('${vEsc(a.uid)}',this.value)">${opts}</select>`;
 }
 function vintedRowHtml(a, view){
   const enc = vIsEnCaisse(a);
   const eur = a.prix_eur!=null
-    ? `<span class="veur vcopytext" title="Cliquer pour copier le prix €" onclick="event.stopPropagation();vCopyFlash(this,'${Number(a.prix_eur).toFixed(2)}')">${Number(a.prix_eur).toFixed(2)} €</span>`
+    ? `<span class="veur ${''}">${Number(a.prix_eur).toFixed(2)} €</span>${vCopyBtn(Number(a.prix_eur).toFixed(2),'le prix €')}`
     : `<span class="veur miss">—</span>`;
   const tx = a.transaction_id
-    ? `<span class="vtx vcopytext" title="Cliquer pour copier" onclick="event.stopPropagation();vCopyFlash(this,'${vEsc(a.transaction_id)}')">${vEsc(a.transaction_id)}</span>`
+    ? `<span class="vtx">${vEsc(a.transaction_id)}</span>${vCopyBtn(vEsc(a.transaction_id),'la transaction')}`
     : '<span style="color:var(--text-muted);">—</span>';
+  const fake=vIsFake(a), refunded=vIsRefunded(a);
+  const statusTag = fake ? '<span class="vtag fake">FAKE</span>'
+                  : refunded ? '<span class="vtag rembourse">remboursé</span>'
+                  : enc ? '<span class="vtag encaisse">En caisse</span>'
+                  : '<span class="vtag acaisse">À traiter</span>';
   let lastCell;
   if(view==='histo'){
-    lastCell = `<td style="white-space:nowrap;"><span class="vtag ${enc?'encaisse':'acaisse'}">${enc?'En caisse':'À traiter'}</span>${!enc?` <button class="vbtn-caisse mini" title="Mettre en caisse" onclick="event.stopPropagation();vintedEncaisseRow('${vEsc(a.uid)}')">✓</button>`:''}</td>`;
+    const canCaisse = !enc && !fake && !refunded;
+    lastCell = `<td style="white-space:nowrap;">${statusTag}${canCaisse?` <button class="vbtn-caisse mini" title="Mettre en caisse" onclick="event.stopPropagation();vintedEncaisseRow('${vEsc(a.uid)}')">✓</button>`:''}</td>`;
   } else {
-    lastCell = `<td>${enc?`<span class="vtag encaisse">En caisse</span>`:`<button class="vbtn-caisse" onclick="event.stopPropagation();vintedEncaisseRow('${vEsc(a.uid)}')">✓ En caisse</button>`}</td>`;
+    // vue « à traiter » : seuls les éligibles y sont, donc bouton direct
+    lastCell = `<td><button class="vbtn-caisse" onclick="event.stopPropagation();vintedEncaisseRow('${vEsc(a.uid)}')">✓ En caisse</button></td>`;
   }
   return `<tr onclick="openVintedFiche('${vEsc(a.uid)}')">
     <td style="white-space:nowrap;color:var(--text-muted);">${vEsc(a.date_achat||'—')}</td>
@@ -4971,6 +4992,8 @@ function vintedSetCatInline(uid, value){
 }
 function vintedEncaisseRow(uid){
   const a=vintedAll.find(x=>x.uid===uid); if(!a) return;
+  if(vIsFake(a)){ showDashToast('Article FAKE : pas de mise en caisse','warn'); return; }
+  if(vIsRefunded(a)){ showDashToast('Article remboursé : pas de mise en caisse','warn'); return; }
   a.en_caisse='Oui'; a.en_caisse_at=new Date().toISOString();
   vintedRenderKpis(); setTimeout(vintedRenderCurrent,0); // defer : le bouton déclencheur est retiré au re-render
   showDashToast('Mis en caisse ✓','success');
@@ -4994,8 +5017,10 @@ function vintedHistoFiltered(){
     if(!vintedMatchListe(a)) return false;
     if(ca && a.categorie!==ca) return false;
     if(st==='encaisse' && !vIsEnCaisse(a)) return false;
-    if(st==='acaisse' && vIsEnCaisse(a)) return false;
+    if(st==='acaisse' && !vEligibleCaisse(a)) return false; // « à traiter » = éligible (ni en caisse, ni fake, ni remboursé)
     if(st==='sansprix' && a.prix_eur!=null) return false;
+    if(st==='fake' && !vIsFake(a)) return false;
+    if(st==='rembourse' && !vIsRefunded(a)) return false;
     if(q){ const txt=(a.vendeur+' '+a.titre+' '+a.transaction_id+' '+a.prix_gbp+' '+a.prix_eur+' '+a.date_achat+' '+a.categorie+' '+a.uid).toLowerCase(); if(!txt.includes(q)) return false; }
     return true;
   }).sort((x,y)=> vintedParseDate(y.date_achat)-vintedParseDate(x.date_achat));
@@ -5033,7 +5058,7 @@ function openVintedFiche(uid){
   document.getElementById('vfCat').value=a.categorie||'';
   document.getElementById('vfAuth').value=a.authenticite||'';
   document.getElementById('vfNote').value=a.note||'';
-  const encBtn=document.getElementById('vfEncaisseBtn'); encBtn.style.display = enc?'none':'';
+  const encBtn=document.getElementById('vfEncaisseBtn'); encBtn.style.display = (enc||vIsFake(a)||vIsRefunded(a))?'none':'';
   document.getElementById('vintedFiche').classList.add('active');
   setTimeout(()=>document.getElementById('vfCat').focus(),60);
 }
@@ -5043,6 +5068,8 @@ function vintedCopy(btn,val){ try{ navigator.clipboard&&navigator.clipboard.writ
 function vintedSave(encaisse){
   const uid=vintedCurrentUid; const a=vintedAll.find(x=>x.uid===uid); if(!a) return;
   const fields={ categorie:document.getElementById('vfCat').value, authenticite:document.getElementById('vfAuth').value, note:document.getElementById('vfNote').value };
+  // Un article fake ou remboursé ne peut pas être mis en caisse → on enregistre les champs sans encaisser.
+  if(encaisse && (fields.authenticite==='FAKE' || vIsRefunded(a))){ showDashToast('Article fake/remboursé : enregistré sans mise en caisse','warn'); encaisse=false; }
   // article suivant à traiter (avant d'appliquer, dans l'ordre courant) pour enchaîner
   let nextUid=null;
   if(encaisse && vintedView==='caisse'){ const list=vintedCaisseOrdered(); const i=list.findIndex(x=>x.uid===uid); nextUid = i>=0 ? (list[i+1]&&list[i+1].uid) : null; }
