@@ -2437,6 +2437,7 @@ tbody tr { transition: background .12s; }
       <button class="btn" onclick="document.getElementById('vintedRevolutFile').click()">⬆ Importer relevé Revolut</button>
       <input type="file" id="vintedRevolutFile" accept=".csv,text/csv" style="display:none;" onchange="vintedRevolutFileChosen(this)"/>
       <button class="btn" title="Exporter l'année/liste affichée en CSV (compta)" onclick="vintedExportCsv()">⬇ Export CSV</button>
+      <button class="btn" title="Suivi des colis (tracking Vinted ↔ Reship)" onclick="vintedOpenReship()">📦 Suivi colis</button>
       <button class="btn" id="vintedResyncBtn" onclick="vintedResync()">↻ Resync</button>
     </div>
   </div>
@@ -2492,6 +2493,29 @@ tbody tr { transition: background .12s; }
 </div>
 </div>
 
+<!-- SUIVI COLIS (RESHIP) -->
+<div class="modal" id="vintedReshipModal">
+  <div class="modal-box" style="position:relative;max-width:640px;width:min(640px,94vw);text-align:left;max-height:90vh;overflow-y:auto;">
+    <button onclick="document.getElementById('vintedReshipModal').classList.remove('active')" style="position:relative;float:right;background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-muted);">×</button>
+    <div style="font-size:18px;font-weight:800;margin-bottom:4px;">📦 Suivi colis — Vinted ↔ Reship</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">Relie chaque achat à son colis Reship via le numéro de suivi.</div>
+    <div id="vintedReshipBody"><div class="loading">Chargement…</div></div>
+    <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;">
+      <button class="btn btn-green" id="vintedScanBtn" onclick="vintedRunScan()">▶ Relancer le scan</button>
+      <button class="btn" id="vintedReshipSyncBtn" onclick="vintedReshipSync()">↻ Resync Reship</button>
+    </div>
+    <div style="border-top:1px solid var(--border);margin-top:18px;padding-top:14px;">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:700;margin-bottom:8px;">Recoller un cookie de session (compte expiré)</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;">
+        <input id="vintedSessLabel" class="search-input" placeholder="Nom du compte (ex: compte1)" style="width:180px;"/>
+        <textarea id="vintedSessCookie" class="search-input" placeholder="Header Cookie complet (collé depuis le navigateur)" style="flex:1;min-width:220px;height:64px;resize:vertical;"></textarea>
+        <button class="btn" onclick="vintedSaveSession()">Enregistrer</button>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Le cookie est stocké côté serveur, jamais réaffiché.</div>
+    </div>
+  </div>
+</div>
+
 <!-- FICHE VINTED -->
 <div class="modal" id="vintedFiche">
   <div class="modal-box" style="position:relative;max-width:720px;width:min(720px,94vw);text-align:left;max-height:90vh;overflow-y:auto;">
@@ -2539,7 +2563,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v182-stock-valeur-tous-admins';
+const DASH_VERSION = '2025-04-25-v183-vinted-suivi-colis';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5271,6 +5295,64 @@ async function vintedResync(){
   try { const d=await api('/vinted/sync'); showDashToast(`Sheet synchronisé : ${d.upsertees} ligne(s)`,'success'); await loadVinted(); }
   catch(e){ showDashToast('Erreur sync : '+e.message,'error'); }
   finally { if(btn){ btn.disabled=false; btn.textContent='↻ Resync Sheet'; } }
+}
+
+/* ----- Suivi colis (tracking Vinted ↔ Reship) ----- */
+function vintedOpenReship(){ document.getElementById('vintedReshipModal').classList.add('active'); vintedLoadReship(); }
+async function vintedLoadReship(){
+  const box=document.getElementById('vintedReshipBody');
+  box.innerHTML='<div class="loading">Chargement…</div>';
+  try{
+    const d=await api('/vinted/reship/status');
+    if(!d.ok){ box.innerHTML='<div style="color:#A32D2D;">Erreur de chargement.</div>'; return; }
+    const k=d.compteurs||{};
+    const kpi=(n,l,color)=>`<div class="kpi" style="padding:11px 13px;"><div class="kpi-value" ${color?`style="color:${color};"`:''}>${n}</div><div class="kpi-label">${l}</div></div>`;
+    const sess=(d.sessions||[]).map(s=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;"><span style="font-weight:600;">${vEsc(s.account_label)}</span><span class="vtag ${s.status==='active'?'encaisse':'fake'}">${s.status==='active'?'active':'expirée'}</span></div>`).join('') || '<div style="color:var(--text-muted);font-size:13px;">Aucune session enregistrée.</div>';
+    box.innerHTML = `
+      <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:8px;">
+        ${kpi(k.withTracking||0,'Avec n° de suivi','#3B6D11')}
+        ${kpi(k.matched||0,'Matchés à un colis','#185FA5')}
+        ${kpi(k.introuvables||0,'Introuvables','#BA7517')}
+        ${kpi((k.tauxPerte||0)+' %','Taux de perte (périmètre)','#A32D2D')}
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">
+        ${k.scanned||0} transaction(s) scannée(s) · ${k.perdusDansPerimetre||0} potentiellement perdu(s) dans le périmètre Reship · ${k.horsPerimetreReship||0} hors périmètre
+        ${d.reshipCoverageStart?` · couverture Reship depuis le ${d.reshipCoverageStart}`:''}
+      </div>
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:700;margin-bottom:6px;">Sessions Vinted</div>
+      ${sess}`;
+  }catch(e){ box.innerHTML='<div style="color:#A32D2D;">Erreur : '+vEsc(e.message)+'</div>'; }
+}
+async function vintedRunScan(){
+  const btn=document.getElementById('vintedScanBtn'); if(btn){ btn.disabled=true; btn.textContent='Scan en cours…'; }
+  try{
+    const r=await (await fetch(`${BACKEND_URL}/vinted/scan`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
+    if(!r.ok){ showDashToast('Erreur scan : '+(r.erreur||'?'),'error'); }
+    else showDashToast(`Scan : ${r.trouves||0} trouvé(s), ${r.introuvables||0} introuvable(s)${r.reste?' (reste à faire)':''}`,'success');
+    vintedLoadReship();
+  }catch(e){ showDashToast('Erreur réseau (scan)','error'); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='▶ Relancer le scan'; } }
+}
+async function vintedReshipSync(){
+  const btn=document.getElementById('vintedReshipSyncBtn'); if(btn){ btn.disabled=true; btn.textContent='Sync…'; }
+  try{
+    const r=await (await fetch(`${BACKEND_URL}/vinted/reship/sync`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
+    if(!r.ok){ showDashToast('Erreur resync : '+(r.erreur||'?'),'error'); }
+    else { showDashToast(`Reship synchronisé : ${r.packages||0} colis`,'success'); vintedLoadReship(); }
+  }catch(e){ showDashToast('Erreur réseau (resync)','error'); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='↻ Resync Reship'; } }
+}
+async function vintedSaveSession(){
+  const label=(document.getElementById('vintedSessLabel').value||'').trim();
+  const cookie=(document.getElementById('vintedSessCookie').value||'').trim();
+  if(!label||!cookie){ showDashToast('Nom de compte et cookie requis','warn'); return; }
+  try{
+    const r=await (await fetch(`${BACKEND_URL}/vinted/session`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({account_label:label,cookie})})).json();
+    if(!r.ok){ showDashToast('Erreur : '+(r.erreur||'?'),'error'); return; }
+    document.getElementById('vintedSessCookie').value=''; document.getElementById('vintedSessLabel').value='';
+    showDashToast(`Session « ${label} » enregistrée ✓`,'success');
+    vintedLoadReship();
+  }catch(e){ showDashToast('Erreur réseau','error'); }
 }
 
 function vintedRevolutFileChosen(input){
