@@ -2539,7 +2539,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v181-vinted-bundle';
+const DASH_VERSION = '2025-04-25-v182-stock-valeur-tous-admins';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2913,8 +2913,9 @@ async function loadStock(force) {
   allStockData.forEach(p => { p.dupBarcode = !!(p.barcode && _bcCount[p.barcode] > 1); });
   const dupCount = allStockData.filter(p=>p.dupBarcode).length;
   const avgScore = allStockData.length ? Math.round(allStockData.reduce((a,b)=>a+(b.score||0),0)/allStockData.length) : 0;
-  // Valeurs de stock (€) = donnée sensible → réservée à l'admin
-  const _isAdmin = !!localStorage.getItem('nv_admin_key');
+  // Valeurs de stock (€) = donnée sensible → visible par tous les comptes admin/superadmin
+  // (vue « admin » = toutes boutiques) ou via la clé admin maître.
+  const _isAdmin = (DASH_BOUTIQUE === 'admin') || !!localStorage.getItem('nv_admin_key');
   let _valuesHtml = '';
   if (_isAdmin) {
     const _sumPrice = (arr)=>arr.reduce((a,b)=>a+(Number(b.price)||0),0);
