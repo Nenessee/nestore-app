@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-stock-valeur-tous-admins';
+const CACHE_VERSION = 'nestore-v2026-06-24-vinted-suivi-colis';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
