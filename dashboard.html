@@ -2511,9 +2511,10 @@ tbody tr { transition: background .12s; }
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;">
         <input id="vintedSessLabel" class="search-input" placeholder="Nom du compte (ex: compte1)" style="width:180px;"/>
         <textarea id="vintedSessCookie" class="search-input" placeholder="Header Cookie complet (collé depuis le navigateur)" style="flex:1;min-width:220px;height:64px;resize:vertical;"></textarea>
+        <input id="vintedSessCsrf" class="search-input" placeholder="x-csrf-token (optionnel)" style="width:220px;"/>
         <button class="btn" onclick="vintedSaveSession()">Enregistrer</button>
       </div>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Le cookie est stocké côté serveur, jamais réaffiché.</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Le cookie est stocké côté serveur, jamais réaffiché. L'anon-id est extrait automatiquement du cookie ; le x-csrf-token est facultatif (depuis l'onglet Network).</div>
     </div>
   </div>
 </div>
@@ -2565,7 +2566,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v191-vinted-sliding-window';
+const DASH_VERSION = '2025-04-25-v192-vinted-refresh-headers';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5312,9 +5313,12 @@ async function vintedLoadReship(){
     const fmtRefresh=(iso)=>{ if(!iso) return ''; const dt=new Date(iso); if(isNaN(dt)) return ''; const hhmm=dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}); const j=dt.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}); const today=new Date(); const sameDay=dt.toDateString()===today.toDateString(); return (sameDay?hhmm:(j+' '+hhmm)); };
     const sess=(d.sessions||[]).map(s=>{
       const rf=fmtRefresh(s.last_refresh_at);
+      const badge=(ok,labelOk,labelKo)=>`<span style="color:${ok?'#3B6D11':'#BA7517'};">${ok?labelOk:labelKo}</span>`;
+      const refTxt=(rf?('refresh '+vEsc(rf)):'aucun refresh')+(s.last_refresh_status?(' · statut '+vEsc(String(s.last_refresh_status))):'');
       return `<div style="padding:7px 0;border-bottom:1px solid var(--border);">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;"><span style="font-weight:600;">${vEsc(s.account_label)}</span><span class="vtag ${s.status==='active'?'encaisse':'fake'}">${s.status==='active'?'active':'expirée'}</span></div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${rf?('🔄 dernier refresh réussi à '+vEsc(rf)):'🔄 aucun refresh encore'}${s.has_refresh?'':' · <span style="color:#BA7517;">pas de refresh_token (recolle le cookie complet)</span>'}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">🔄 ${refTxt}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">csrf : ${badge(s.has_csrf,'oui','non')} · anon-id : ${badge(s.has_anon,'oui','non')} · refresh_token : ${badge(s.has_refresh,'oui','non')}</div>
         ${s.last_error?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px;font-family:monospace;word-break:break-all;">${vEsc(String(s.last_error).slice(0,220))}</div>`:''}
       </div>`; }).join('') || '<div style="color:var(--text-muted);font-size:13px;">Aucune session enregistrée.</div>';
     box.innerHTML = `
@@ -5387,12 +5391,14 @@ async function vintedProxyTest(){
 async function vintedSaveSession(){
   const label=(document.getElementById('vintedSessLabel').value||'').trim();
   const cookie=(document.getElementById('vintedSessCookie').value||'').trim();
+  const csrfEl=document.getElementById('vintedSessCsrf');
+  const csrf=(csrfEl&&csrfEl.value||'').trim();
   if(!label||!cookie){ showDashToast('Nom de compte et cookie requis','warn'); return; }
   try{
-    const r=await (await fetch(`${BACKEND_URL}/vinted/session`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({account_label:label,cookie})})).json();
+    const r=await (await fetch(`${BACKEND_URL}/vinted/session`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({account_label:label,cookie,csrf_token:csrf})})).json();
     if(!r.ok){ showDashToast('Erreur : '+(r.erreur||'?'),'error'); return; }
-    document.getElementById('vintedSessCookie').value=''; document.getElementById('vintedSessLabel').value='';
-    showDashToast(`Session « ${label} » enregistrée ✓`,'success');
+    document.getElementById('vintedSessCookie').value=''; document.getElementById('vintedSessLabel').value=''; if(csrfEl) csrfEl.value='';
+    showDashToast(`Session « ${label} » enregistrée ✓ (anon-id ${r.anon_id_detecte?'ok':'absent'}${r.csrf_detecte?', csrf ok':''})`,'success');
     vintedLoadReship();
   }catch(e){ showDashToast('Erreur réseau','error'); }
 }
