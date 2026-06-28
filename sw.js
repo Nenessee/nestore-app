@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-vinted-suivi-colis';
+const CACHE_VERSION = 'nestore-v2026-06-24-vinted-session-diagnostic';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
