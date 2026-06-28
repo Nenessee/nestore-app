@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-vinted-proxy-https-agent';
+const CACHE_VERSION = 'nestore-v2026-06-24-vinted-scan-proxy-diag';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
