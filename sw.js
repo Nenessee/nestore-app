@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-vinted-sliding-window';
+const CACHE_VERSION = 'nestore-v2026-06-24-vinted-refresh-headers';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
