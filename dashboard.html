@@ -2565,7 +2565,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v186-vinted-proxy-test-detail';
+const DASH_VERSION = '2025-04-25-v187-vinted-proxy-https-agent';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5357,7 +5357,7 @@ async function vintedProxyTest(){
     if(!d.ok){ box.textContent='Erreur : '+fmtErr({message:d.erreur,code:d.code,causeCode:d.causeCode,causeMessage:d.causeMessage})+'\nProxy : '+fmtProxy(d.proxyInfo); return; }
     let out='Proxy configuré : '+(d.proxyConfigured?'oui':'NON')+'\n';
     out+='Proxy : '+fmtProxy(d.proxyInfo)+'\n';
-    out+='IP de sortie : '+(d.egressIp||('—'+(d.ipError?(' ('+fmtErr(d.ipError)+')'):'')))+'\n';
+    out+='IP de sortie (Decodo'+(d.ipStatus!=null?(' HTTP '+d.ipStatus):'')+') : '+(d.egressIp||('—'+(d.ipError?(' ('+fmtErr(d.ipError)+')'):'')))+'\n';
     if(d.vinted){
       if(d.vinted.status!=null){ out+='Vinted HTTP '+d.vinted.status+'\n'+(d.vinted.apercu||''); }
       else out+='Vinted : '+(d.vinted.note||'—');
