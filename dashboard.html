@@ -2565,7 +2565,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v185-vinted-proxy-test-btn';
+const DASH_VERSION = '2025-04-25-v186-vinted-proxy-test-detail';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5352,9 +5352,12 @@ async function vintedProxyTest(){
   const box=document.getElementById('vintedProxyResult'); box.style.display='block'; box.textContent='Test en cours…';
   try{
     const d=await (await fetch(`${BACKEND_URL}/vinted/proxy-test`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
-    if(!d.ok){ box.textContent='Erreur : '+(d.erreur||'')+(d.code?(' (code '+d.code+')'):''); return; }
+    const fmtErr=(e)=>{ if(!e) return ''; if(typeof e==='string') return e; const p=[]; if(e.message) p.push(e.message); if(e.code) p.push('code='+e.code); if(e.causeCode) p.push('cause.code='+e.causeCode); if(e.causeMessage) p.push('cause.message='+e.causeMessage); return p.join(' | '); };
+    const fmtProxy=(pi)=>{ if(!pi) return '—'; if(pi.parseError) return 'parseError: '+pi.parseError; return (pi.protocol||'')+'//'+(pi.host||'')+(pi.port?(':'+pi.port):''); };
+    if(!d.ok){ box.textContent='Erreur : '+fmtErr({message:d.erreur,code:d.code,causeCode:d.causeCode,causeMessage:d.causeMessage})+'\nProxy : '+fmtProxy(d.proxyInfo); return; }
     let out='Proxy configuré : '+(d.proxyConfigured?'oui':'NON')+'\n';
-    out+='IP de sortie : '+(d.egressIp||('—'+(d.ipError?(' ('+d.ipError+')'):'')))+'\n';
+    out+='Proxy : '+fmtProxy(d.proxyInfo)+'\n';
+    out+='IP de sortie : '+(d.egressIp||('—'+(d.ipError?(' ('+fmtErr(d.ipError)+')'):'')))+'\n';
     if(d.vinted){
       if(d.vinted.status!=null){ out+='Vinted HTTP '+d.vinted.status+'\n'+(d.vinted.apercu||''); }
       else out+='Vinted : '+(d.vinted.note||'—');
