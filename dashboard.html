@@ -2565,7 +2565,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v188-vinted-scan-proxy-diag';
+const DASH_VERSION = '2025-04-25-v189-vinted-auto-refresh';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5309,10 +5309,14 @@ async function vintedLoadReship(){
     if(!d.ok){ box.innerHTML='<div style="color:#A32D2D;">Erreur de chargement.</div>'; return; }
     const k=d.compteurs||{};
     const kpi=(n,l,color)=>`<div class="kpi" style="padding:11px 13px;"><div class="kpi-value" ${color?`style="color:${color};"`:''}>${n}</div><div class="kpi-label">${l}</div></div>`;
-    const sess=(d.sessions||[]).map(s=>`<div style="padding:7px 0;border-bottom:1px solid var(--border);">
+    const fmtRefresh=(iso)=>{ if(!iso) return ''; const dt=new Date(iso); if(isNaN(dt)) return ''; const hhmm=dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}); const j=dt.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}); const today=new Date(); const sameDay=dt.toDateString()===today.toDateString(); return (sameDay?hhmm:(j+' '+hhmm)); };
+    const sess=(d.sessions||[]).map(s=>{
+      const rf=fmtRefresh(s.last_refresh_at);
+      return `<div style="padding:7px 0;border-bottom:1px solid var(--border);">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;"><span style="font-weight:600;">${vEsc(s.account_label)}</span><span class="vtag ${s.status==='active'?'encaisse':'fake'}">${s.status==='active'?'active':'expirée'}</span></div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${rf?('🔄 dernier refresh réussi à '+vEsc(rf)):'🔄 aucun refresh encore'}${s.has_refresh?'':' · <span style="color:#BA7517;">pas de refresh_token (recolle le cookie complet)</span>'}</div>
         ${s.last_error?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px;font-family:monospace;word-break:break-all;">${vEsc(String(s.last_error).slice(0,220))}</div>`:''}
-      </div>`).join('') || '<div style="color:var(--text-muted);font-size:13px;">Aucune session enregistrée.</div>';
+      </div>`; }).join('') || '<div style="color:var(--text-muted);font-size:13px;">Aucune session enregistrée.</div>';
     box.innerHTML = `
       <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:8px;">
         ${kpi(k.withTracking||0,'Avec n° de suivi','#3B6D11')}
@@ -5339,6 +5343,9 @@ async function vintedRunScan(){
     if(box && r.ok){
       box.style.display='block';
       let out='Scan — proxy_utilisé : '+(r.proxy_utilise?'true':'false')+'\n';
+      if(Array.isArray(r.refresh)&&r.refresh.length){
+        out+='Refresh token : '+r.refresh.map(x=>x.compte+'='+(x.ok?'ok':'échec')).join(', ')+'\n';
+      }
       out+='Résultat : '+(r.trouves||0)+' trouvé(s), '+(r.introuvables||0)+' introuvable(s), '+(r.traites||0)+' traité(s)\n';
       if(Array.isArray(r.diagnostic)&&r.diagnostic.length){
         out+='Tentatives :\n'+r.diagnostic.map(d=>'  #'+d.tentative+' → HTTP '+(d.statut)+(d.erreur?(' ('+d.erreur+')'):'')+' · proxy='+(d.proxy_utilise?'oui':'non')).join('\n');
