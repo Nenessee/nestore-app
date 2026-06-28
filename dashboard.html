@@ -2565,7 +2565,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v187-vinted-proxy-https-agent';
+const DASH_VERSION = '2025-04-25-v188-vinted-scan-proxy-diag';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5334,6 +5334,18 @@ async function vintedRunScan(){
     const r=await (await fetch(`${BACKEND_URL}/vinted/scan`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
     if(!r.ok){ showDashToast('Erreur scan : '+(r.erreur||'?'),'error'); }
     else showDashToast(`Scan : ${r.trouves||0} trouvé(s), ${r.introuvables||0} introuvable(s)${r.reste?' (reste à faire)':''}`,'success');
+    // Diagnostic temporaire : proxy utilisé + statut HTTP des 3 premières tentatives.
+    const box=document.getElementById('vintedProxyResult');
+    if(box && r.ok){
+      box.style.display='block';
+      let out='Scan — proxy_utilisé : '+(r.proxy_utilise?'true':'false')+'\n';
+      out+='Résultat : '+(r.trouves||0)+' trouvé(s), '+(r.introuvables||0)+' introuvable(s), '+(r.traites||0)+' traité(s)\n';
+      if(Array.isArray(r.diagnostic)&&r.diagnostic.length){
+        out+='Tentatives :\n'+r.diagnostic.map(d=>'  #'+d.tentative+' → HTTP '+(d.statut)+(d.erreur?(' ('+d.erreur+')'):'')+' · proxy='+(d.proxy_utilise?'oui':'non')).join('\n');
+      } else out+='Tentatives : (aucune — pas de candidat à scanner)';
+      if(Array.isArray(r.sessions_expirees)&&r.sessions_expirees.length) out+='\nSessions expirées : '+r.sessions_expirees.join(', ');
+      box.textContent=out;
+    }
     vintedLoadReship();
   }catch(e){ showDashToast('Erreur réseau (scan)','error'); }
   finally{ if(btn){ btn.disabled=false; btn.textContent='▶ Relancer le scan'; } }
