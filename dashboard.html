@@ -2503,7 +2503,9 @@ tbody tr { transition: background .12s; }
     <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;">
       <button class="btn btn-green" id="vintedScanBtn" onclick="vintedRunScan()">▶ Relancer le scan</button>
       <button class="btn" id="vintedReshipSyncBtn" onclick="vintedReshipSync()">↻ Resync Reship</button>
+      <button class="btn" id="vintedProxyTestBtn" onclick="vintedProxyTest()">🔌 Tester le proxy</button>
     </div>
+    <div id="vintedProxyResult" style="display:none;margin-top:10px;font-size:12px;font-family:monospace;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px;white-space:pre-wrap;word-break:break-all;"></div>
     <div style="border-top:1px solid var(--border);margin-top:18px;padding-top:14px;">
       <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:700;margin-bottom:8px;">Recoller un cookie de session (compte expiré)</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;">
@@ -2563,7 +2565,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v184-vinted-session-diagnostic';
+const DASH_VERSION = '2025-04-25-v185-vinted-proxy-test-btn';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5344,6 +5346,22 @@ async function vintedReshipSync(){
     else { showDashToast(`Reship synchronisé : ${r.packages||0} colis`,'success'); vintedLoadReship(); }
   }catch(e){ showDashToast('Erreur réseau (resync)','error'); }
   finally{ if(btn){ btn.disabled=false; btn.textContent='↻ Resync Reship'; } }
+}
+async function vintedProxyTest(){
+  const btn=document.getElementById('vintedProxyTestBtn'); if(btn){ btn.disabled=true; btn.textContent='Test…'; }
+  const box=document.getElementById('vintedProxyResult'); box.style.display='block'; box.textContent='Test en cours…';
+  try{
+    const d=await (await fetch(`${BACKEND_URL}/vinted/proxy-test`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
+    if(!d.ok){ box.textContent='Erreur : '+(d.erreur||'')+(d.code?(' (code '+d.code+')'):''); return; }
+    let out='Proxy configuré : '+(d.proxyConfigured?'oui':'NON')+'\n';
+    out+='IP de sortie : '+(d.egressIp||('—'+(d.ipError?(' ('+d.ipError+')'):'')))+'\n';
+    if(d.vinted){
+      if(d.vinted.status!=null){ out+='Vinted HTTP '+d.vinted.status+'\n'+(d.vinted.apercu||''); }
+      else out+='Vinted : '+(d.vinted.note||'—');
+    }
+    box.textContent=out;
+  }catch(e){ box.textContent='Erreur réseau : '+e.message; }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='🔌 Tester le proxy'; } }
 }
 async function vintedSaveSession(){
   const label=(document.getElementById('vintedSessLabel').value||'').trim();
