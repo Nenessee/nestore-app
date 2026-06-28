@@ -2565,7 +2565,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v190-vinted-403-wrong-account';
+const DASH_VERSION = '2025-04-25-v191-vinted-sliding-window';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5319,14 +5319,13 @@ async function vintedLoadReship(){
       </div>`; }).join('') || '<div style="color:var(--text-muted);font-size:13px;">Aucune session enregistrée.</div>';
     box.innerHTML = `
       <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:8px;">
-        ${kpi(k.withTracking||0,'Avec n° de suivi','#3B6D11')}
+        ${kpi(k.enAttenteFenetre||0,'En attente de tracking (fenêtre)','#BA7517')}
+        ${kpi(k.capturesFenetre||0,'Capturés (fenêtre)','#3B6D11')}
         ${kpi(k.matched||0,'Matchés à un colis','#185FA5')}
-        ${kpi(k.introuvables||0,'Introuvables','#BA7517')}
-        ${kpi((k.tauxPerte||0)+' %','Taux de perte (périmètre)','#A32D2D')}
+        ${kpi((k.tauxPerte||0)+' %','Taux de perte (fenêtre passée)','#A32D2D')}
       </div>
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">
-        ${k.scanned||0} transaction(s) scannée(s) · ${k.perdusDansPerimetre||0} potentiellement perdu(s) dans le périmètre Reship · ${k.horsPerimetreReship||0} hors périmètre
-        ${d.reshipCoverageStart?` · couverture Reship depuis le ${d.reshipCoverageStart}`:''}
+        ${k.withTracking||0} tracking(s) capturé(s) au total · fenêtre de ${d.fenetreJours||15} j · ${k.fenetrePassee||0} achat(s) hors fenêtre dont ${k.perdus||0} sans colis Reship
       </div>
       <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:700;margin-bottom:6px;">Sessions Vinted</div>
       ${sess}`;
@@ -5337,7 +5336,7 @@ async function vintedRunScan(){
   try{
     const r=await (await fetch(`${BACKEND_URL}/vinted/scan`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
     if(!r.ok){ showDashToast('Erreur scan : '+(r.erreur||'?'),'error'); }
-    else showDashToast(`Scan : ${r.trouves||0} trouvé(s), ${r.introuvables||0} introuvable(s)${r.reste?' (reste à faire)':''}`,'success');
+    else showDashToast(`Scan : ${r.trouves||0} capturé(s), ${r.en_attente||0} en attente, ${r.expires_sans_tracking||0} hors fenêtre${r.reste?' (reste à faire)':''}`,'success');
     // Diagnostic temporaire : proxy utilisé + statut HTTP des 3 premières tentatives.
     const box=document.getElementById('vintedProxyResult');
     if(box && r.ok){
@@ -5346,7 +5345,7 @@ async function vintedRunScan(){
       if(Array.isArray(r.refresh)&&r.refresh.length){
         out+='Refresh token : '+r.refresh.map(x=>x.compte+'='+(x.ok?'ok':'échec')).join(', ')+'\n';
       }
-      out+='Résultat : '+(r.trouves||0)+' trouvé(s), '+(r.introuvables||0)+' introuvable(s), '+(r.traites||0)+' traité(s)\n';
+      out+='Résultat : '+(r.trouves||0)+' capturé(s), '+(r.en_attente||0)+' en attente, '+(r.expires_sans_tracking||0)+' hors fenêtre, '+(r.traites||0)+' scanné(s)\n';
       if(Array.isArray(r.diagnostic)&&r.diagnostic.length){
         out+='Tentatives :\n'+r.diagnostic.map(d=>'  #'+d.tentative+' '+(d.compte?('['+d.compte+'] '):'')+'→ HTTP '+(d.statut)+(d.classification?(' · '+d.classification):'')+(d.erreur?(' ('+d.erreur+')'):'')+' · proxy='+(d.proxy_utilise?'oui':'non')).join('\n');
       } else out+='Tentatives : (aucune — pas de candidat à scanner)';
