@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-vinted-bulk-ui-polish';
+const CACHE_VERSION = 'nestore-v2026-06-24-vinted-select-mode';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
