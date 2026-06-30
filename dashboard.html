@@ -2566,7 +2566,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v192-vinted-refresh-headers';
+const DASH_VERSION = '2025-04-25-v193-vinted-search-fuzzy';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -4961,6 +4961,16 @@ function vPriceAnomaly(a){ if(a.prix_eur==null||a.prix_gbp==null) return false; 
 
 /* ----- Suggestion automatique de catégorie (robuste, EN/FR, mots ENTIERS) ----- */
 function vNorm(s){ return (s||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim(); }
+// Compresse en supprimant accents + TOUTE ponctuation/espace \u2192 "c.p company" et "cp company" deviennent identiques.
+function vCompress(s){ return (s||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,''); }
+// Recherche tol\u00e9rante : chaque mot tap\u00e9 (compress\u00e9) doit \u00eatre pr\u00e9sent dans le texte compress\u00e9.
+// Ex. "cp company" matche "C.P. Company", "nike 42" matche "Nike Air 42".
+function vSearchMatch(text, q){
+  const tc = vCompress(text);
+  const toks = (q||'').toString().toLowerCase().split(/\s+/).map(vCompress).filter(Boolean);
+  if(!toks.length) return true;
+  return toks.every(t=>tc.includes(t));
+}
 const VCAT_KW = {
   'Sneakers': {
     ph:['air max','air force','new balance','golden goose','super star','travis scott','sb dunk','dunk low','dunk high','air jordan'],
@@ -5108,8 +5118,8 @@ function vintedCaisseOrdered(){
   let list = vintedAll.filter(a=>vEligibleCaisse(a) && vintedMatchYear(a) && vintedMatchListe(a));
   if(vintedCat==='__none') list=list.filter(a=>!(a.categorie&&a.categorie.trim()));
   else if(vintedCat) list=list.filter(a=>a.categorie===vintedCat);
-  const q=(document.getElementById('vintedCaisseSearch')?.value||'').toLowerCase().trim();
-  if(q) list=list.filter(a=>(a.vendeur+' '+a.titre+' '+a.transaction_id+' '+a.prix_gbp+' '+a.prix_eur+' '+a.date_achat+' '+a.categorie+' '+a.uid).toLowerCase().includes(q));
+  const q=(document.getElementById('vintedCaisseSearch')?.value||'').trim();
+  if(q) list=list.filter(a=>vSearchMatch(a.vendeur+' '+a.titre+' '+a.transaction_id+' '+a.prix_gbp+' '+a.prix_eur+' '+a.date_achat+' '+a.categorie+' '+a.uid, q));
   list.sort((x,y)=> vintedParseDate(x.date_achat)-vintedParseDate(y.date_achat));
   if(!vintedAsc) list.reverse();
   return list;
@@ -5213,7 +5223,7 @@ function vintedHistoFiltered(){
     if(st==='rembourse' && !vIsRefunded(a)) return false;
     if(st==='sansjustif' && vHasJustif(a)) return false;
     if(st==='anomalie' && !vPriceAnomaly(a)) return false;
-    if(q){ const txt=(a.vendeur+' '+a.titre+' '+a.transaction_id+' '+a.prix_gbp+' '+a.prix_eur+' '+a.date_achat+' '+a.categorie+' '+a.uid).toLowerCase(); if(!txt.includes(q)) return false; }
+    if(q){ const txt=a.vendeur+' '+a.titre+' '+a.transaction_id+' '+a.prix_gbp+' '+a.prix_eur+' '+a.date_achat+' '+a.categorie+' '+a.uid; if(!vSearchMatch(txt,q)) return false; }
     return true;
   }).sort((x,y)=> st==='encaisse'
       ? ((Date.parse(y.en_caisse_at)||0)-(Date.parse(x.en_caisse_at)||0))   // En caisse → plus récemment encaissé en 1er (retrouver une erreur)
