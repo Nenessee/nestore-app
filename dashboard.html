@@ -2394,19 +2394,26 @@ tbody tr { transition: background .12s; }
   #tab-vinted .vbtn-caisse.mini { padding:4px 9px; font-size:11px; }
   [data-theme="dark"] #tab-vinted .vbtn-caisse { border-color:#2c5214; background:rgba(59,109,17,.16); color:#8fd05f; }
   [data-theme="dark"] #tab-vinted .vbtn-caisse:hover { background:#3B6D11; color:#fff; }
-  /* Mise en caisse groupée : cases à cocher + barre d'action */
+  /* --- Sélection groupée (style « mode édition » : table propre par défaut) --- */
+  /* La colonne de cases n'apparaît QUE en mode sélection ; sinon table normale + bouton ✓ par ligne. */
+  #vinted-caisse:not(.selecting) th.vchk-th, #vinted-caisse:not(.selecting) td.vchk-cell { display:none; }
+  #vinted-caisse.selecting #vintedRowsCaisse .vbtn-caisse { display:none; } /* en mode sélection, on masque les boutons par ligne */
+  #tab-vinted td.vchk-cell { text-align:center; width:42px; }
   #tab-vinted input.vchk, #tab-vinted #vintedCheckAll { width:18px; height:18px; cursor:pointer; accent-color:#3B6D11; vertical-align:middle; margin:0; }
-  #tab-vinted #vintedRowsCaisse td.vchk-cell { text-align:center; }
-  #tab-vinted #vintedRowsCaisse tr:has(input.vchk:checked) { background:rgba(59,109,17,.07); }
-  #tab-vinted #vintedRowsCaisse tr:has(input.vchk:checked):hover { background:rgba(59,109,17,.11); }
-  #tab-vinted #vintedBulkBar { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:12px; margin:0 0 12px; padding:10px 14px; background:rgba(59,109,17,.07); border:1px solid #bfe0a0; border-radius:10px; box-shadow:0 1px 6px rgba(0,0,0,.05); }
-  [data-theme="dark"] #tab-vinted #vintedBulkBar { background:rgba(59,109,17,.14); border-color:#2c5214; }
-  #tab-vinted #vintedBulkBar .vbulk-count { display:inline-flex; align-items:center; gap:7px; font-weight:700; color:#3B6D11; font-size:13.5px; }
-  [data-theme="dark"] #tab-vinted #vintedBulkBar .vbulk-count { color:#8fd05f; }
-  #tab-vinted #vintedBulkBar .vbulk-num { display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:22px; padding:0 6px; border-radius:999px; background:#3B6D11; color:#fff; font-size:12px; }
-  #tab-vinted #vintedBulkBar .vbulk-spacer { flex:1; }
-  #tab-vinted #vintedBulkBar .vbulk-clear { font-size:12.5px; color:var(--text-muted); background:none; border:none; cursor:pointer; text-decoration:underline; font-family:inherit; padding:4px; }
-  #tab-vinted #vintedBulkBar .vbulk-clear:hover { color:var(--text); }
+  #tab-vinted #vintedRowsCaisse tr:has(input.vchk:checked) { background:rgba(59,109,17,.08); }
+  #tab-vinted #vintedRowsCaisse tr:has(input.vchk:checked):hover { background:rgba(59,109,17,.12); }
+  /* Bouton bascule « Sélectionner » */
+  #tab-vinted #vintedSelectToggle.on { background:#3B6D11; color:#fff; border-color:#3B6D11; }
+  /* Barre d'action flottante (pilule centrée en bas, façon Gmail/Linear) */
+  #tab-vinted #vintedBulkBar { position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:160; display:flex; align-items:center; gap:14px; padding:9px 11px 9px 18px; background:var(--surface); border:1px solid var(--border); border-radius:999px; box-shadow:0 8px 30px rgba(0,0,0,.20); animation:vbulkIn .16s ease; }
+  @keyframes vbulkIn { from{ opacity:0; transform:translate(-50%,8px); } to{ opacity:1; transform:translate(-50%,0); } }
+  #tab-vinted #vintedBulkBar .vbulk-count { display:inline-flex; align-items:center; gap:8px; font-weight:600; font-size:13.5px; color:var(--text); white-space:nowrap; }
+  #tab-vinted #vintedBulkBar .vbulk-num { display:inline-flex; align-items:center; justify-content:center; min-width:23px; height:23px; padding:0 7px; border-radius:999px; background:#3B6D11; color:#fff; font-size:12.5px; font-weight:700; }
+  #tab-vinted #vintedBulkBar .vbulk-go { display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; padding:8px 16px; border-radius:999px; border:none; background:#3B6D11; color:#fff; cursor:pointer; font-family:inherit; transition:.12s; }
+  #tab-vinted #vintedBulkBar .vbulk-go:hover { background:#2f5a0e; box-shadow:0 2px 8px rgba(59,109,17,.4); }
+  #tab-vinted #vintedBulkBar .vbulk-go:disabled { background:var(--surface-alt); color:var(--text-muted); cursor:default; box-shadow:none; }
+  #tab-vinted #vintedBulkBar .vbulk-close { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:999px; border:none; background:none; color:var(--text-muted); font-size:17px; cursor:pointer; font-family:inherit; }
+  #tab-vinted #vintedBulkBar .vbulk-close:hover { background:var(--surface-alt); color:var(--text); }
   /* Tags statut fake / remboursé */
   .vtag.fake { color:#A32D2D; border-color:#e6b3b3; background:rgba(163,45,45,.10); }
   .vtag.rembourse { color:#7c5cd6; border-color:#c9b8f0; background:rgba(124,92,214,.10); }
@@ -2472,17 +2479,17 @@ tbody tr { transition: background .12s; }
       <input class="search-input" id="vintedCaisseSearch" placeholder="Rechercher un article à mettre en caisse (titre, pseudo, transaction…)" style="flex:1;min-width:230px;" oninput="vintedRenderCaisseDebounced()"/>
       <div id="vintedCatChips" class="vchips"></div>
       <button class="btn" style="font-size:12.5px;" title="Catégoriser automatiquement les titres clairs (les ambigus restent à la main)" onclick="vintedBulkSuggest()">✨ Suggérer catégories</button>
+      <button class="btn" id="vintedSelectToggle" style="font-size:12.5px;" title="Cocher plusieurs articles et les mettre en caisse en une fois" onclick="vintedToggleSelectMode()">☑ Sélectionner</button>
       <button class="btn" id="vintedSortBtn" style="margin-left:auto;font-size:12.5px;" onclick="vintedToggleSort()">↑ Plus ancien d'abord</button>
     </div>
     <div id="vintedBulkBar" style="display:none;">
       <span class="vbulk-count"><span class="vbulk-num" id="vintedBulkNum">0</span> <span id="vintedBulkLabel">article sélectionné</span></span>
-      <span class="vbulk-spacer"></span>
-      <button class="vbulk-clear" onclick="vintedClearSelection()">Tout décocher</button>
-      <button class="vbtn-caisse" onclick="vintedBulkEncaisse()">✓ Mettre en caisse</button>
+      <button class="vbulk-go" id="vintedBulkGo" onclick="vintedBulkEncaisse()" disabled>✓ Mettre en caisse</button>
+      <button class="vbulk-close" onclick="vintedToggleSelectMode(false)" title="Quitter la sélection">✕</button>
     </div>
     <div class="table-card">
       <div style="overflow-x:auto;"><table>
-        <thead><tr><th style="width:34px;text-align:center;"><input type="checkbox" id="vintedCheckAll" onclick="vintedToggleAll(this)" title="Tout cocher (visibles)"/></th><th style="width:100px;">Date</th><th>Article / vendeur</th><th style="width:160px;">Prix £ · €</th><th style="width:180px;">Transaction</th><th style="width:170px;">Catégorie</th><th style="width:140px;"></th></tr></thead>
+        <thead><tr><th class="vchk-th" style="text-align:center;"><input type="checkbox" id="vintedCheckAll" onclick="vintedToggleAll(this)" title="Tout cocher (visibles)"/></th><th style="width:100px;">Date</th><th>Article / vendeur</th><th style="width:160px;">Prix £ · €</th><th style="width:180px;">Transaction</th><th style="width:170px;">Catégorie</th><th style="width:140px;"></th></tr></thead>
         <tbody id="vintedRowsCaisse"><tr><td colspan="7" style="text-align:center;padding:34px;color:var(--text-muted);">Chargement…</td></tr></tbody>
       </table></div>
       <div id="vintedPagerCaisse" class="vinted-pager" style="display:none;"></div>
@@ -2534,6 +2541,18 @@ tbody tr { transition: background .12s; }
   </div>
 </div>
 
+<!-- CONFIRMATION GÉNÉRIQUE VINTED (mise en caisse groupée, etc.) -->
+<div class="modal" id="vintedConfirmModal">
+  <div class="modal-box" style="max-width:420px;">
+    <div class="modal-title" id="vintedConfirmTitle">Confirmer</div>
+    <div id="vintedConfirmMsg" style="color:var(--text-muted);font-size:14px;line-height:1.55;"></div>
+    <div class="modal-actions">
+      <button class="btn" style="background:#fff;color:#1a1a18;border-color:#d3d1c7;" onclick="vintedConfirmResolve(false)">Annuler</button>
+      <button class="btn btn-green" id="vintedConfirmOk" onclick="vintedConfirmResolve(true)">Confirmer</button>
+    </div>
+  </div>
+</div>
+
 <!-- FICHE VINTED -->
 <div class="modal" id="vintedFiche">
   <div class="modal-box" style="position:relative;max-width:720px;width:min(720px,94vw);text-align:left;max-height:90vh;overflow-y:auto;">
@@ -2581,7 +2600,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v195-vinted-bulk-ui-polish';
+const DASH_VERSION = '2025-04-25-v196-vinted-select-mode';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5182,7 +5201,8 @@ function vintedRowHtml(a, view){
   const checkCell = view==='caisse'
     ? `<td class="vchk-cell" onclick="event.stopPropagation()"><input type="checkbox" class="vchk" value="${vEsc(a.uid)}" ${vintedSelected.has(a.uid)?'checked':''} onclick="vintedToggleCheck(this)" title="Sélectionner pour la mise en caisse groupée"/></td>`
     : '';
-  return `<tr onclick="openVintedFiche('${vEsc(a.uid)}')">
+  const rowClick = view==='caisse' ? `vintedRowClick(event,'${vEsc(a.uid)}')` : `openVintedFiche('${vEsc(a.uid)}')`;
+  return `<tr onclick="${rowClick}">
     ${checkCell}<td style="white-space:nowrap;color:var(--text-muted);">${vEsc(a.date_achat||'—')}</td>
     <td><div style="font-weight:600;line-height:1.25;">${vEsc(a.titre||'(sans titre)')}</div><div style="color:var(--text-muted);font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${vEsc(a.vendeur||'—')} ${vListePill(a)}${vBundlePill(a)}${(!enc&&!fake&&!refunded)?vLocPill(a):''}</div></td>
     <td style="white-space:nowrap;"><span style="color:var(--text-muted);">${vGbp(a)}</span> · ${eur}</td>
@@ -5210,7 +5230,27 @@ function vintedEncaisseRow(uid){
     .then(r=>r.json()).then(d=>{ if(!d||!d.ok){ showDashToast('Échec écriture Sheet','error'); loadVinted(); } })
     .catch(()=>{ showDashToast('Erreur réseau (Sheet)','error'); loadVinted(); });
 }
-// ---- Sélection groupée (vue « à traiter ») ----
+// ---- Sélection groupée (vue « à traiter », mode « édition ») ----
+// Active/désactive le mode sélection. Par défaut OFF → table propre, sans cases.
+function vintedToggleSelectMode(on){
+  const box=document.getElementById('vinted-caisse'); if(!box) return;
+  const active = (on===undefined) ? !box.classList.contains('selecting') : !!on;
+  box.classList.toggle('selecting', active);
+  const btn=document.getElementById('vintedSelectToggle');
+  if(btn){ btn.textContent = active ? '✕ Terminer' : '☑ Sélectionner'; btn.classList.toggle('on', active); }
+  if(!active){ vintedSelected.clear(); document.querySelectorAll('#vintedRowsCaisse input.vchk').forEach(x=>x.checked=false); const all=document.getElementById('vintedCheckAll'); if(all){ all.checked=false; all.indeterminate=false; } }
+  vintedSyncBulkUI();
+}
+// Clic sur une ligne « à traiter » : en mode sélection → coche/décoche ; sinon → ouvre la fiche.
+function vintedRowClick(ev,uid){
+  const box=document.getElementById('vinted-caisse');
+  if(box && box.classList.contains('selecting')){
+    const tr=ev.currentTarget, cb=tr&&tr.querySelector('input.vchk');
+    if(cb){ cb.checked=!cb.checked; vintedToggleCheck(cb); }
+    return;
+  }
+  openVintedFiche(uid);
+}
 function vintedToggleCheck(cb){ if(cb.checked) vintedSelected.add(cb.value); else vintedSelected.delete(cb.value); vintedSyncBulkUI(); }
 function vintedToggleAll(cb){
   // coche/décoche toutes les lignes visibles (cases présentes dans le DOM)
@@ -5223,9 +5263,12 @@ function vintedSyncBulkUI(){
   const eligibles=new Set(vintedAll.filter(vEligibleCaisse).map(a=>a.uid));
   for(const u of [...vintedSelected]) if(!eligibles.has(u)) vintedSelected.delete(u);
   const n=vintedSelected.size;
-  const bar=document.getElementById('vintedBulkBar'); if(bar) bar.style.display = n>0?'flex':'none';
+  const box=document.getElementById('vinted-caisse');
+  const selecting = !!(box && box.classList.contains('selecting'));
+  const bar=document.getElementById('vintedBulkBar'); if(bar) bar.style.display = selecting ? 'flex' : 'none';
   const num=document.getElementById('vintedBulkNum'); if(num) num.textContent = n;
-  const lab=document.getElementById('vintedBulkLabel'); if(lab) lab.textContent = 'article'+(n>1?'s':'')+' sélectionné'+(n>1?'s':'');
+  const lab=document.getElementById('vintedBulkLabel'); if(lab) lab.textContent = n>0 ? ('article'+(n>1?'s':'')+' sélectionné'+(n>1?'s':'')) : 'Cochez des articles';
+  const go=document.getElementById('vintedBulkGo'); if(go) go.disabled = n===0;
   // état de la case « tout cocher » selon les lignes visibles
   const boxes=[...document.querySelectorAll('#vintedRowsCaisse input.vchk')];
   const all=document.getElementById('vintedCheckAll');
@@ -5236,13 +5279,13 @@ async function vintedBulkEncaisse(){
   const arts=uids.map(u=>vintedAll.find(x=>x.uid===u)).filter(Boolean).filter(vEligibleCaisse);
   if(!arts.length){ showDashToast('Aucun article éligible dans la sélection','warn'); return; }
   const bundlesSansPrix=arts.filter(a=>vIsBundle(a) && a.prix_eur==null).length;
-  let msg=`Mettre en caisse ${arts.length} article${arts.length>1?'s':''} ?`;
-  if(bundlesSansPrix) msg+=`\n\n⚠️ ${bundlesSansPrix} article(s) issus d'un bundle sans prix € — à répartir à la main ensuite.`;
-  if(!confirm(msg)) return;
+  let message=`<strong>${arts.length}</strong> article${arts.length>1?'s':''} ${arts.length>1?'vont':'va'} être marqué${arts.length>1?'s':''} « en caisse ».`;
+  if(bundlesSansPrix) message+=`<div style="margin-top:10px;color:#BA7517;">⚠️ ${bundlesSansPrix} article${bundlesSansPrix>1?'s':''} issu${bundlesSansPrix>1?'s':''} d'un bundle sans prix € — le prix sera à répartir à la main ensuite.</div>`;
+  const ok=await vintedConfirm({ title:'Mettre en caisse la sélection ?', message, confirmLabel:`✓ Mettre en caisse (${arts.length})` });
+  if(!ok) return;
   const okUids=arts.map(a=>a.uid);
-  // maj optimiste
-  arts.forEach(a=>{ a.en_caisse='Oui'; a.en_caisse_at=new Date().toISOString(); });
-  vintedSelected.clear();
+  arts.forEach(a=>{ a.en_caisse='Oui'; a.en_caisse_at=new Date().toISOString(); }); // maj optimiste
+  vintedToggleSelectMode(false); // sort du mode sélection (vide aussi la sélection)
   vintedRenderKpis(); setTimeout(vintedRenderCurrent,0);
   showDashToast(`${arts.length} article(s) mis en caisse ✓`,'success');
   try{
@@ -5251,6 +5294,18 @@ async function vintedBulkEncaisse(){
     else if(d.count<okUids.length){ showDashToast(`${d.count} enregistré(s), ${okUids.length-d.count} ignoré(s)`,'warn'); loadVinted(); }
   }catch(e){ showDashToast('Erreur réseau (Sheet) — rechargement','error'); loadVinted(); }
 }
+// Modale de confirmation réutilisable (remplace le confirm() natif). Renvoie une Promise<boolean>.
+let _vConfirmResolve=null;
+function vintedConfirm({title,message,confirmLabel,danger}){
+  return new Promise(resolve=>{
+    _vConfirmResolve=resolve;
+    const t=document.getElementById('vintedConfirmTitle'); if(t) t.textContent=title||'Confirmer';
+    const m=document.getElementById('vintedConfirmMsg'); if(m) m.innerHTML=message||'';
+    const ok=document.getElementById('vintedConfirmOk'); if(ok){ ok.textContent=confirmLabel||'Confirmer'; ok.className='btn '+(danger?'btn-red':'btn-green'); }
+    document.getElementById('vintedConfirmModal').classList.add('active');
+  });
+}
+function vintedConfirmResolve(v){ const r=_vConfirmResolve; _vConfirmResolve=null; document.getElementById('vintedConfirmModal').classList.remove('active'); if(r) r(v); }
 function vintedDecaisseRow(uid){
   const a=vintedAll.find(x=>x.uid===uid); if(!a) return;
   if(!confirm('Annuler la mise en caisse de cet article ?\nIl repassera dans « à traiter ».')) return;
