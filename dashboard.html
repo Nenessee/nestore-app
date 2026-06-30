@@ -2465,10 +2465,15 @@ tbody tr { transition: background .12s; }
       <button class="btn" style="font-size:12.5px;" title="Catégoriser automatiquement les titres clairs (les ambigus restent à la main)" onclick="vintedBulkSuggest()">✨ Suggérer catégories</button>
       <button class="btn" id="vintedSortBtn" style="margin-left:auto;font-size:12.5px;" onclick="vintedToggleSort()">↑ Plus ancien d'abord</button>
     </div>
+    <div id="vintedBulkBar" style="display:none;align-items:center;gap:10px;margin:0 0 10px;padding:9px 13px;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;flex-wrap:wrap;">
+      <span id="vintedBulkCount" style="font-weight:700;">0 sélectionné(s)</span>
+      <button class="btn btn-green" onclick="vintedBulkEncaisse()">✓ Tout mettre en caisse</button>
+      <button class="btn" onclick="vintedClearSelection()">Effacer la sélection</button>
+    </div>
     <div class="table-card">
       <div style="overflow-x:auto;"><table>
-        <thead><tr><th style="width:100px;">Date</th><th>Article / vendeur</th><th style="width:160px;">Prix £ · €</th><th style="width:180px;">Transaction</th><th style="width:170px;">Catégorie</th><th style="width:140px;"></th></tr></thead>
-        <tbody id="vintedRowsCaisse"><tr><td colspan="6" style="text-align:center;padding:34px;color:var(--text-muted);">Chargement…</td></tr></tbody>
+        <thead><tr><th style="width:34px;text-align:center;"><input type="checkbox" id="vintedCheckAll" onclick="vintedToggleAll(this)" title="Tout cocher (visibles)"/></th><th style="width:100px;">Date</th><th>Article / vendeur</th><th style="width:160px;">Prix £ · €</th><th style="width:180px;">Transaction</th><th style="width:170px;">Catégorie</th><th style="width:140px;"></th></tr></thead>
+        <tbody id="vintedRowsCaisse"><tr><td colspan="7" style="text-align:center;padding:34px;color:var(--text-muted);">Chargement…</td></tr></tbody>
       </table></div>
       <div id="vintedPagerCaisse" class="vinted-pager" style="display:none;"></div>
     </div>
@@ -2566,7 +2571,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v193-vinted-search-fuzzy';
+const DASH_VERSION = '2025-04-25-v194-vinted-bulk-encaisse';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -4890,6 +4895,7 @@ const VINTED_PAGE = 60;
 // nouvelle liste. Les transaction_id Vinted sont séquentiels → comparaison numérique fiable ; repli sur la date.
 const VINTED_NEW_TX = 18649839876;
 const VINTED_NEW_DATE = Date.UTC(2026, 2, 17); // 17/03/2026
+const vintedSelected = new Set(); // uids cochés (vue « à traiter ») pour la mise en caisse groupée
 function vintedListeOf(a){
   const tx=String(a.transaction_id||'').trim();
   if(/^\d+$/.test(tx)) return Number(tx) >= VINTED_NEW_TX ? 'nouvelle' : 'ancienne';
@@ -5039,7 +5045,7 @@ async function loadVinted(){
     vintedRenderStatusLine(); vintedRenderKpis(); vintedRenderYearSeg();
     vintedRenderCurrent();
   } catch(e){
-    document.getElementById('vintedRowsCaisse').innerHTML = `<tr><td colspan="5" style="text-align:center;padding:30px;color:#A32D2D;">Erreur de chargement : ${vEsc(e.message)}</td></tr>`;
+    document.getElementById('vintedRowsCaisse').innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:#A32D2D;">Erreur de chargement : ${vEsc(e.message)}</td></tr>`;
   }
 }
 function vintedRenderStatusLine(){
@@ -5162,8 +5168,12 @@ function vintedRowHtml(a, view){
     // vue « à traiter » : seuls les éligibles y sont, donc bouton direct
     lastCell = `<td><button class="vbtn-caisse" onclick="event.stopPropagation();vintedEncaisseRow('${vEsc(a.uid)}')">✓ En caisse</button></td>`;
   }
+  // Case à cocher (vue « à traiter » uniquement) pour la mise en caisse groupée.
+  const checkCell = view==='caisse'
+    ? `<td style="text-align:center;" onclick="event.stopPropagation()"><input type="checkbox" class="vchk" value="${vEsc(a.uid)}" ${vintedSelected.has(a.uid)?'checked':''} onclick="vintedToggleCheck(this)"/></td>`
+    : '';
   return `<tr onclick="openVintedFiche('${vEsc(a.uid)}')">
-    <td style="white-space:nowrap;color:var(--text-muted);">${vEsc(a.date_achat||'—')}</td>
+    ${checkCell}<td style="white-space:nowrap;color:var(--text-muted);">${vEsc(a.date_achat||'—')}</td>
     <td><div style="font-weight:600;line-height:1.25;">${vEsc(a.titre||'(sans titre)')}</div><div style="color:var(--text-muted);font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${vEsc(a.vendeur||'—')} ${vListePill(a)}${vBundlePill(a)}${(!enc&&!fake&&!refunded)?vLocPill(a):''}</div></td>
     <td style="white-space:nowrap;"><span style="color:var(--text-muted);">${vGbp(a)}</span> · ${eur}</td>
     <td style="white-space:nowrap;">${tx}</td>
@@ -5190,6 +5200,46 @@ function vintedEncaisseRow(uid){
     .then(r=>r.json()).then(d=>{ if(!d||!d.ok){ showDashToast('Échec écriture Sheet','error'); loadVinted(); } })
     .catch(()=>{ showDashToast('Erreur réseau (Sheet)','error'); loadVinted(); });
 }
+// ---- Sélection groupée (vue « à traiter ») ----
+function vintedToggleCheck(cb){ if(cb.checked) vintedSelected.add(cb.value); else vintedSelected.delete(cb.value); vintedSyncBulkUI(); }
+function vintedToggleAll(cb){
+  // coche/décoche toutes les lignes visibles (cases présentes dans le DOM)
+  document.querySelectorAll('#vintedRowsCaisse input.vchk').forEach(x=>{ x.checked=cb.checked; if(cb.checked) vintedSelected.add(x.value); else vintedSelected.delete(x.value); });
+  vintedSyncBulkUI();
+}
+function vintedClearSelection(){ vintedSelected.clear(); document.querySelectorAll('#vintedRowsCaisse input.vchk').forEach(x=>x.checked=false); const all=document.getElementById('vintedCheckAll'); if(all) all.checked=false; vintedSyncBulkUI(); }
+function vintedSyncBulkUI(){
+  // ne garde dans la sélection que des uids encore éligibles (évite les fantômes après re-render/màj)
+  const eligibles=new Set(vintedAll.filter(vEligibleCaisse).map(a=>a.uid));
+  for(const u of [...vintedSelected]) if(!eligibles.has(u)) vintedSelected.delete(u);
+  const n=vintedSelected.size;
+  const bar=document.getElementById('vintedBulkBar'); if(bar) bar.style.display = n>0?'flex':'none';
+  const cnt=document.getElementById('vintedBulkCount'); if(cnt) cnt.textContent = n+' sélectionné'+(n>1?'s':'');
+  // état de la case « tout cocher » selon les lignes visibles
+  const boxes=[...document.querySelectorAll('#vintedRowsCaisse input.vchk')];
+  const all=document.getElementById('vintedCheckAll');
+  if(all){ const checkedVisible=boxes.filter(x=>x.checked).length; all.checked = boxes.length>0 && checkedVisible===boxes.length; all.indeterminate = checkedVisible>0 && checkedVisible<boxes.length; }
+}
+async function vintedBulkEncaisse(){
+  const uids=[...vintedSelected]; if(!uids.length) return;
+  const arts=uids.map(u=>vintedAll.find(x=>x.uid===u)).filter(Boolean).filter(vEligibleCaisse);
+  if(!arts.length){ showDashToast('Aucun article éligible dans la sélection','warn'); return; }
+  const bundlesSansPrix=arts.filter(a=>vIsBundle(a) && a.prix_eur==null).length;
+  let msg=`Mettre en caisse ${arts.length} article${arts.length>1?'s':''} ?`;
+  if(bundlesSansPrix) msg+=`\n\n⚠️ ${bundlesSansPrix} article(s) issus d'un bundle sans prix € — à répartir à la main ensuite.`;
+  if(!confirm(msg)) return;
+  const okUids=arts.map(a=>a.uid);
+  // maj optimiste
+  arts.forEach(a=>{ a.en_caisse='Oui'; a.en_caisse_at=new Date().toISOString(); });
+  vintedSelected.clear();
+  vintedRenderKpis(); setTimeout(vintedRenderCurrent,0);
+  showDashToast(`${arts.length} article(s) mis en caisse ✓`,'success');
+  try{
+    const d=await (await fetch(`${BACKEND_URL}/vinted/encaisse-bulk`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uids:okUids})})).json();
+    if(!d||!d.ok){ showDashToast('Échec écriture Sheet — rechargement','error'); loadVinted(); }
+    else if(d.count<okUids.length){ showDashToast(`${d.count} enregistré(s), ${okUids.length-d.count} ignoré(s)`,'warn'); loadVinted(); }
+  }catch(e){ showDashToast('Erreur réseau (Sheet) — rechargement','error'); loadVinted(); }
+}
 function vintedDecaisseRow(uid){
   const a=vintedAll.find(x=>x.uid===uid); if(!a) return;
   if(!confirm('Annuler la mise en caisse de cet article ?\nIl repassera dans « à traiter ».')) return;
@@ -5204,10 +5254,11 @@ function vintedDecaisseRow(uid){
 function vintedRenderCaisse(){
   const list=vintedCaisseOrdered();
   const tb=document.getElementById('vintedRowsCaisse');
-  if(!list.length){ tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:34px;color:var(--text-muted);">Rien à traiter ici ✓</td></tr>'; vintedPager('vintedPagerCaisse',0,0,''); return; }
+  if(!list.length){ tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:34px;color:var(--text-muted);">Rien à traiter ici ✓</td></tr>'; vintedPager('vintedPagerCaisse',0,0,''); vintedSyncBulkUI(); return; }
   const shown=Math.min(vintedShownCaisse,list.length);
   tb.innerHTML = list.slice(0,shown).map(a=>vintedRowHtml(a,'caisse')).join('');
   vintedPager('vintedPagerCaisse', shown, list.length, 'vintedShownCaisse+=VINTED_PAGE;vintedRenderCaisse()');
+  vintedSyncBulkUI();
 }
 function vintedHistoFiltered(){
   const q=(document.getElementById('vintedSearch').value||'').toLowerCase().trim();

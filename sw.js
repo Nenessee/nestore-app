@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-vinted-search-fuzzy';
+const CACHE_VERSION = 'nestore-v2026-06-24-vinted-bulk-encaisse';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
