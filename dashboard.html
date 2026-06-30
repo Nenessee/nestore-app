@@ -2394,16 +2394,16 @@ tbody tr { transition: background .12s; }
   #tab-vinted .vbtn-caisse.mini { padding:4px 9px; font-size:11px; }
   [data-theme="dark"] #tab-vinted .vbtn-caisse { border-color:#2c5214; background:rgba(59,109,17,.16); color:#8fd05f; }
   [data-theme="dark"] #tab-vinted .vbtn-caisse:hover { background:#3B6D11; color:#fff; }
-  /* --- Sélection groupée (style « mode édition » : table propre par défaut) --- */
-  /* La colonne de cases n'apparaît QUE en mode sélection ; sinon table normale + bouton ✓ par ligne. */
-  #vinted-caisse:not(.selecting) th.vchk-th, #vinted-caisse:not(.selecting) td.vchk-cell { display:none; }
-  #vinted-caisse.selecting #vintedRowsCaisse .vbtn-caisse { display:none; } /* en mode sélection, on masque les boutons par ligne */
-  #tab-vinted td.vchk-cell { text-align:center; width:42px; }
-  #tab-vinted input.vchk, #tab-vinted #vintedCheckAll { width:18px; height:18px; cursor:pointer; accent-color:#3B6D11; vertical-align:middle; margin:0; }
-  #tab-vinted #vintedRowsCaisse tr:has(input.vchk:checked) { background:rgba(59,109,17,.08); }
-  #tab-vinted #vintedRowsCaisse tr:has(input.vchk:checked):hover { background:rgba(59,109,17,.12); }
-  /* Bouton bascule « Sélectionner » */
-  #tab-vinted #vintedSelectToggle.on { background:#3B6D11; color:#fff; border-color:#3B6D11; }
+  /* --- Sélection groupée : cases TOUJOURS visibles, ligne sélectionnée bien marquée --- */
+  #tab-vinted th.vchk-th { width:44px; text-align:center; }
+  #tab-vinted td.vchk-cell { text-align:center; width:44px; }
+  #tab-vinted input.vchk { width:20px; height:20px; cursor:pointer; accent-color:#3B6D11; vertical-align:middle; margin:0; }
+  #tab-vinted #vintedCheckAll { width:17px; height:17px; cursor:pointer; accent-color:#3B6D11; vertical-align:middle; margin:0; }
+  /* Ligne sélectionnée : fond vert net + liseré vert à gauche → repérable au premier coup d'œil */
+  #tab-vinted #vintedRowsCaisse tr:has(input.vchk:checked) > td { background:rgba(59,109,17,.15); }
+  #tab-vinted #vintedRowsCaisse tr:has(input.vchk:checked):hover > td { background:rgba(59,109,17,.21); }
+  #tab-vinted #vintedRowsCaisse tr:has(input.vchk:checked) > td.vchk-cell { box-shadow:inset 4px 0 0 #3B6D11; }
+  [data-theme="dark"] #tab-vinted #vintedRowsCaisse tr:has(input.vchk:checked) > td { background:rgba(59,109,17,.26); }
   /* Barre d'action flottante (pilule centrée en bas, façon Gmail/Linear) */
   #tab-vinted #vintedBulkBar { position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:160; display:flex; align-items:center; gap:14px; padding:9px 11px 9px 18px; background:var(--surface); border:1px solid var(--border); border-radius:999px; box-shadow:0 8px 30px rgba(0,0,0,.20); animation:vbulkIn .16s ease; }
   @keyframes vbulkIn { from{ opacity:0; transform:translate(-50%,8px); } to{ opacity:1; transform:translate(-50%,0); } }
@@ -2479,13 +2479,12 @@ tbody tr { transition: background .12s; }
       <input class="search-input" id="vintedCaisseSearch" placeholder="Rechercher un article à mettre en caisse (titre, pseudo, transaction…)" style="flex:1;min-width:230px;" oninput="vintedRenderCaisseDebounced()"/>
       <div id="vintedCatChips" class="vchips"></div>
       <button class="btn" style="font-size:12.5px;" title="Catégoriser automatiquement les titres clairs (les ambigus restent à la main)" onclick="vintedBulkSuggest()">✨ Suggérer catégories</button>
-      <button class="btn" id="vintedSelectToggle" style="font-size:12.5px;" title="Cocher plusieurs articles et les mettre en caisse en une fois" onclick="vintedToggleSelectMode()">☑ Sélectionner</button>
       <button class="btn" id="vintedSortBtn" style="margin-left:auto;font-size:12.5px;" onclick="vintedToggleSort()">↑ Plus ancien d'abord</button>
     </div>
     <div id="vintedBulkBar" style="display:none;">
       <span class="vbulk-count"><span class="vbulk-num" id="vintedBulkNum">0</span> <span id="vintedBulkLabel">article sélectionné</span></span>
       <button class="vbulk-go" id="vintedBulkGo" onclick="vintedBulkEncaisse()" disabled>✓ Mettre en caisse</button>
-      <button class="vbulk-close" onclick="vintedToggleSelectMode(false)" title="Quitter la sélection">✕</button>
+      <button class="vbulk-close" onclick="vintedClearSelection()" title="Tout décocher">✕</button>
     </div>
     <div class="table-card">
       <div style="overflow-x:auto;"><table>
@@ -2600,7 +2599,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v196-vinted-select-mode';
+const DASH_VERSION = '2025-04-25-v197-vinted-select-visible';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5201,8 +5200,7 @@ function vintedRowHtml(a, view){
   const checkCell = view==='caisse'
     ? `<td class="vchk-cell" onclick="event.stopPropagation()"><input type="checkbox" class="vchk" value="${vEsc(a.uid)}" ${vintedSelected.has(a.uid)?'checked':''} onclick="vintedToggleCheck(this)" title="Sélectionner pour la mise en caisse groupée"/></td>`
     : '';
-  const rowClick = view==='caisse' ? `vintedRowClick(event,'${vEsc(a.uid)}')` : `openVintedFiche('${vEsc(a.uid)}')`;
-  return `<tr onclick="${rowClick}">
+  return `<tr onclick="openVintedFiche('${vEsc(a.uid)}')">
     ${checkCell}<td style="white-space:nowrap;color:var(--text-muted);">${vEsc(a.date_achat||'—')}</td>
     <td><div style="font-weight:600;line-height:1.25;">${vEsc(a.titre||'(sans titre)')}</div><div style="color:var(--text-muted);font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${vEsc(a.vendeur||'—')} ${vListePill(a)}${vBundlePill(a)}${(!enc&&!fake&&!refunded)?vLocPill(a):''}</div></td>
     <td style="white-space:nowrap;"><span style="color:var(--text-muted);">${vGbp(a)}</span> · ${eur}</td>
@@ -5230,27 +5228,7 @@ function vintedEncaisseRow(uid){
     .then(r=>r.json()).then(d=>{ if(!d||!d.ok){ showDashToast('Échec écriture Sheet','error'); loadVinted(); } })
     .catch(()=>{ showDashToast('Erreur réseau (Sheet)','error'); loadVinted(); });
 }
-// ---- Sélection groupée (vue « à traiter », mode « édition ») ----
-// Active/désactive le mode sélection. Par défaut OFF → table propre, sans cases.
-function vintedToggleSelectMode(on){
-  const box=document.getElementById('vinted-caisse'); if(!box) return;
-  const active = (on===undefined) ? !box.classList.contains('selecting') : !!on;
-  box.classList.toggle('selecting', active);
-  const btn=document.getElementById('vintedSelectToggle');
-  if(btn){ btn.textContent = active ? '✕ Terminer' : '☑ Sélectionner'; btn.classList.toggle('on', active); }
-  if(!active){ vintedSelected.clear(); document.querySelectorAll('#vintedRowsCaisse input.vchk').forEach(x=>x.checked=false); const all=document.getElementById('vintedCheckAll'); if(all){ all.checked=false; all.indeterminate=false; } }
-  vintedSyncBulkUI();
-}
-// Clic sur une ligne « à traiter » : en mode sélection → coche/décoche ; sinon → ouvre la fiche.
-function vintedRowClick(ev,uid){
-  const box=document.getElementById('vinted-caisse');
-  if(box && box.classList.contains('selecting')){
-    const tr=ev.currentTarget, cb=tr&&tr.querySelector('input.vchk');
-    if(cb){ cb.checked=!cb.checked; vintedToggleCheck(cb); }
-    return;
-  }
-  openVintedFiche(uid);
-}
+// ---- Sélection groupée (vue « à traiter ») : cases toujours visibles ----
 function vintedToggleCheck(cb){ if(cb.checked) vintedSelected.add(cb.value); else vintedSelected.delete(cb.value); vintedSyncBulkUI(); }
 function vintedToggleAll(cb){
   // coche/décoche toutes les lignes visibles (cases présentes dans le DOM)
@@ -5263,11 +5241,9 @@ function vintedSyncBulkUI(){
   const eligibles=new Set(vintedAll.filter(vEligibleCaisse).map(a=>a.uid));
   for(const u of [...vintedSelected]) if(!eligibles.has(u)) vintedSelected.delete(u);
   const n=vintedSelected.size;
-  const box=document.getElementById('vinted-caisse');
-  const selecting = !!(box && box.classList.contains('selecting'));
-  const bar=document.getElementById('vintedBulkBar'); if(bar) bar.style.display = selecting ? 'flex' : 'none';
+  const bar=document.getElementById('vintedBulkBar'); if(bar) bar.style.display = n>0 ? 'flex' : 'none';
   const num=document.getElementById('vintedBulkNum'); if(num) num.textContent = n;
-  const lab=document.getElementById('vintedBulkLabel'); if(lab) lab.textContent = n>0 ? ('article'+(n>1?'s':'')+' sélectionné'+(n>1?'s':'')) : 'Cochez des articles';
+  const lab=document.getElementById('vintedBulkLabel'); if(lab) lab.textContent = 'article'+(n>1?'s':'')+' sélectionné'+(n>1?'s':'');
   const go=document.getElementById('vintedBulkGo'); if(go) go.disabled = n===0;
   // état de la case « tout cocher » selon les lignes visibles
   const boxes=[...document.querySelectorAll('#vintedRowsCaisse input.vchk')];
@@ -5285,7 +5261,7 @@ async function vintedBulkEncaisse(){
   if(!ok) return;
   const okUids=arts.map(a=>a.uid);
   arts.forEach(a=>{ a.en_caisse='Oui'; a.en_caisse_at=new Date().toISOString(); }); // maj optimiste
-  vintedToggleSelectMode(false); // sort du mode sélection (vide aussi la sélection)
+  vintedSelected.clear();
   vintedRenderKpis(); setTimeout(vintedRenderCurrent,0);
   showDashToast(`${arts.length} article(s) mis en caisse ✓`,'success');
   try{
