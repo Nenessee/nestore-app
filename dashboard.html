@@ -2599,7 +2599,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v199-refresh-post-incident';
+const DASH_VERSION = '2025-04-25-v200-rachats-degrade-gracieux';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -4709,11 +4709,14 @@ async function revMissSave(boutique, date) {
 }
 
 async function loadRachats() {
-  const [stats, data, stockData] = await Promise.all([
+  // stats + purchases viennent de la base (obligatoires) ; le stock Shopify n'est qu'un ENRICHISSEMENT
+  // (statut « posté en ligne ») → s'il échoue (Shopify indispo), on affiche quand même les rachats.
+  const [stats, data] = await Promise.all([
     api('/purchases/stats'),
-    api('/purchases'),
-    allStockData.length > 0 ? Promise.resolve(allStockData) : api('/analytics/stock')
+    api('/purchases')
   ]);
+  let stockData = allStockData;
+  if (!stockData.length) { try { stockData = await api('/analytics/stock'); } catch (_) { stockData = []; } }
 
   // Enrichir avec statut "posté" si barcode présent dans Shopify stock actif
   const shopifyBarcodes = new Set((stockData||[]).map(p => p.barcode).filter(Boolean));
