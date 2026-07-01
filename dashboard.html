@@ -1921,7 +1921,7 @@ tbody tr { transition: background .12s; }
       <!-- Filtre doublons code-barres (piloté par la carte KPI admin, masqué) -->
       <select id="stockDupFilter" onchange="filterStock()" style="display:none;"><option value=""></option><option value="yes">Doublons</option></select>
       <button onclick="exportMissingStock()" style="padding:8px 14px;background:#2C2C2A;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">📋 Exporter non cochés</button>
-      <button onclick="allStockData=[];loadStock(true);" style="padding:8px 14px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:8px;font-size:12px;cursor:pointer;white-space:nowrap;" title="Force un rechargement frais depuis Shopify">↻ Actualiser</button>
+      <button onclick="loadStock(true);" style="padding:8px 14px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:8px;font-size:12px;cursor:pointer;white-space:nowrap;" title="Force un rechargement frais depuis Shopify">↻ Actualiser</button>
     </div>
   </div>
   <div id="stockSummary"></div>
@@ -2599,7 +2599,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v197-vinted-select-visible';
+const DASH_VERSION = '2025-04-25-v198-stock-refresh-robuste';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2939,9 +2939,24 @@ let stockLoadedAt = 0;
 let _stockLoadSeq = 0;
 async function loadStock(force) {
   const _seq = ++_stockLoadSeq;
-  document.getElementById('stockTable').innerHTML = '<tr><td colspan="11" style="text-align:center;padding:40px;color:#888780;">Chargement du stock…</td></tr>';
-  const [data, locMap] = await Promise.all([api('/analytics/stock' + (force ? '?fresh=1' : '')), api('/stock/locations')]);
+  const _prev = allStockData;                 // sauvegarde : on ne vide pas la liste avant d'avoir une réponse valide
+  const hadData = !!(_prev && _prev.length);
+  if (!hadData) document.getElementById('stockTable').innerHTML = '<tr><td colspan="11" style="text-align:center;padding:40px;color:#888780;">Chargement du stock…</td></tr>';
+  let data, locMap;
+  try {
+    [data, locMap] = await Promise.all([api('/analytics/stock' + (force ? '?fresh=1' : '')), api('/stock/locations')]);
+  } catch (e) {
+    if (_seq !== _stockLoadSeq) return;        // un chargement plus récent a démarré
+    if (hadData) { allStockData = _prev; showDashToast('Rafraîchissement échoué — liste précédente conservée', 'warn'); if (typeof filterStock === 'function') filterStock(); }
+    else document.getElementById('stockTable').innerHTML = '<tr><td colspan="11" style="text-align:center;padding:40px;color:#A32D2D;">Erreur de chargement — clique sur ↻ Actualiser pour réessayer</td></tr>';
+    return;
+  }
   if (_seq !== _stockLoadSeq) return; // un chargement plus récent (ex: changement de boutique) a démarré → on abandonne celui-ci
+  // Garde-fou : réponse vide/incohérente alors qu'on avait déjà des articles = probable réponse partielle → on garde l'ancienne liste.
+  if (hadData && (!Array.isArray(data) || data.length === 0)) {
+    allStockData = _prev; showDashToast('Réponse incomplète de Shopify — liste précédente conservée', 'warn'); if (typeof filterStock === 'function') filterStock();
+    return;
+  }
   stockLoadedAt = Date.now();
   allStockData = data.map(p => {
     let loc = locMap[p.barcode] || {};
@@ -6159,7 +6174,7 @@ if (_s?.auth) {
     { group: 'Périodes (onglet actif)', id: 'p-365',   icon: '📅', label: '1 an',         run: () => clickPeriod(365) },
 
     { group: 'Actions',   id: 'a-csv',    icon: '📊', label: 'Exporter toutes les ventes (CSV)', run: () => typeof exportCSV === 'function' && exportCSV() },
-    { group: 'Actions',   id: 'a-refresh',icon: '↻',  label: 'Actualiser le stock Shopify',      run: () => { if (window.allStockData) window.allStockData = []; typeof loadStock === 'function' && loadStock(); clickTab('stock'); } },
+    { group: 'Actions',   id: 'a-refresh',icon: '↻',  label: 'Actualiser le stock Shopify',      run: () => { clickTab('stock'); typeof loadStock === 'function' && loadStock(true); } },
     { group: 'Interface', id: 'i-theme',  icon: '🎨', label: 'Basculer thème clair / sombre',    run: () => typeof toggleTheme === 'function' && toggleTheme() },
     { group: 'Interface', id: 'i-caisse', icon: '🛒', label: 'Retour à l\'app caisse',            run: () => location.href = 'index.html' },
     { group: 'Compte',    id: 'c-logout', icon: '↩',  label: 'Déconnexion',                       run: () => typeof logout === 'function' && logout() },
