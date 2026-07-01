@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-vinted-select-visible';
+const CACHE_VERSION = 'nestore-v2026-06-24-stock-refresh-robuste';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
