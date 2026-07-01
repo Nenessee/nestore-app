@@ -2599,7 +2599,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v200-rachats-degrade-gracieux';
+const DASH_VERSION = '2025-04-25-v201-stock-toujours-frais';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2758,13 +2758,12 @@ function switchTab(name, el) {
   if (name === 'objectif') { loadObjectif(); startObjMusic(); }
   if (name === 'ventes') loadVentes();
   if (name === 'stock') {
-    // À chaque retour : on repart propre (filtres remis à zéro). On ne recharge
-    // les données Shopify que si elles datent de +2 min (sinon réaffichage instantané).
+    // À chaque retour : on repart propre (filtres remis à zéro) et on RECHARGE depuis le serveur.
+    // Le backend répond en cache instantanément → autant toujours récupérer la liste à jour
+    // (évite d'afficher une ancienne liste figée si un article a été ajouté entre-temps).
     if (typeof resetAllStockFilters === 'function') resetAllStockFilters();
     document.querySelectorAll('#stockSummary .qf-card.qf-active, .qa-pill.applied').forEach(c => c.classList.remove('qf-active','applied'));
-    const stale = !allStockData.length || (Date.now() - stockLoadedAt > 120000);
-    if (stale) { allStockData = []; loadStock(); }
-    else if (typeof filterStock === 'function') { filterStock(); } // applique le reset des filtres, instantané
+    loadStock();
     loadVintedPending();
     if (typeof loadForgottenSales === 'function') loadForgottenSales();
   }

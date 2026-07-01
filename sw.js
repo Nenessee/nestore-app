@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-rachats-degrade-gracieux';
+const CACHE_VERSION = 'nestore-v2026-06-24-stock-toujours-frais';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
