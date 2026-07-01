@@ -1913,8 +1913,8 @@ tbody tr { transition: background .12s; }
         <option value="">Tous scores</option>
       </select>
       <select class="filter-select" id="stockSortFilter" onchange="filterStock()">
-        <option value="days_desc">Plus anciens</option>
         <option value="days_asc">Plus récents</option>
+        <option value="days_desc">Plus anciens</option>
         <option value="price_desc">Prix décroissant</option>
         <option value="price_asc">Prix croissant</option>
       </select>
@@ -2599,7 +2599,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v201-stock-toujours-frais';
+const DASH_VERSION = '2025-04-25-v202-tri-date-precise';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -3315,8 +3315,10 @@ function filterStock() {
     if(vintedF==='no'&&p.onVinted) return false;
     return true;
   });
-  if(sort==='days_asc') filtered.sort((a,b)=>a.daysOnline-b.daysOnline);
-  else if(sort==='days_desc') filtered.sort((a,b)=>b.daysOnline-a.daysOnline);
+  // Tri par date de création PRÉCISE (createdAt) pour départager les articles du même jour ; repli sur daysOnline.
+  const _cAt=p=>{ const t=Date.parse(p.createdAt||''); return Number.isNaN(t)?null:t; };
+  if(sort==='days_asc') filtered.sort((a,b)=>{ const x=_cAt(a),y=_cAt(b); if(x!=null&&y!=null) return y-x; return (a.daysOnline||0)-(b.daysOnline||0); }); // plus récents d'abord
+  else if(sort==='days_desc') filtered.sort((a,b)=>{ const x=_cAt(a),y=_cAt(b); if(x!=null&&y!=null) return x-y; return (b.daysOnline||0)-(a.daysOnline||0); }); // plus anciens d'abord
   else if(sort==='price_desc') filtered.sort((a,b)=>parseFloat(b.price)-parseFloat(a.price));
   else if(sort==='price_asc') filtered.sort((a,b)=>parseFloat(a.price)-parseFloat(b.price));
   else if(sort==='score_asc') filtered.sort((a,b)=>(a.score||0)-(b.score||0));
@@ -6624,8 +6626,9 @@ if (_s?.auth) {
         if (vintedF === 'no' && p.onVinted) return false;
         return true;
       });
-      if (sort === 'days_asc') filtered.sort((a,b) => a.daysOnline - b.daysOnline);
-      else if (sort === 'days_desc') filtered.sort((a,b) => b.daysOnline - a.daysOnline);
+      const _cAt2=p=>{ const t=Date.parse(p.createdAt||''); return Number.isNaN(t)?null:t; };
+      if (sort === 'days_asc') filtered.sort((a,b)=>{ const x=_cAt2(a),y=_cAt2(b); if(x!=null&&y!=null) return y-x; return (a.daysOnline||0)-(b.daysOnline||0); });
+      else if (sort === 'days_desc') filtered.sort((a,b)=>{ const x=_cAt2(a),y=_cAt2(b); if(x!=null&&y!=null) return x-y; return (b.daysOnline||0)-(a.daysOnline||0); });
       else if (sort === 'price_desc') filtered.sort((a,b) => parseFloat(b.price) - parseFloat(a.price));
       else if (sort === 'price_asc') filtered.sort((a,b) => parseFloat(a.price) - parseFloat(b.price));
       else if (sort === 'score_asc') filtered.sort((a,b) => (a.score||0) - (b.score||0));
