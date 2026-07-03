@@ -2599,7 +2599,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v203-reship-erreur-detaillee';
+const DASH_VERSION = '2025-04-25-v204-sync-erreur-detaillee';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5417,8 +5417,12 @@ function vintedSave(encaisse){
 
 async function vintedResync(){
   const btn=document.getElementById('vintedResyncBtn'); if(btn){ btn.disabled=true; btn.textContent='Sync…'; }
-  try { const d=await api('/vinted/sync'); showDashToast(`Sheet synchronisé : ${d.upsertees} ligne(s)`,'success'); await loadVinted(); }
-  catch(e){ showDashToast('Erreur sync : '+e.message,'error'); }
+  try {
+    const resp=await fetch(`${BACKEND_URL}/vinted/sync`); const txt=await resp.text(); let d=null; try{ d=JSON.parse(txt); }catch(_){}
+    if(!resp.ok || !d || d.ok===false){ const msg=(d&&d.erreur)||txt||('HTTP '+resp.status); showDashToast('Erreur sync : '+String(msg).slice(0,220),'error'); }
+    else { showDashToast(`Sheet synchronisé : ${d.upsertees} ligne(s)`,'success'); await loadVinted(); }
+  }
+  catch(e){ showDashToast('Erreur sync (réseau) : '+(e&&e.message||''),'error'); }
   finally { if(btn){ btn.disabled=false; btn.textContent='↻ Resync Sheet'; } }
 }
 
