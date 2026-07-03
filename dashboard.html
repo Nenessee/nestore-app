@@ -2599,7 +2599,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v202-tri-date-precise';
+const DASH_VERSION = '2025-04-25-v203-reship-erreur-detaillee';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5485,10 +5485,11 @@ async function vintedRunScan(){
 async function vintedReshipSync(){
   const btn=document.getElementById('vintedReshipSyncBtn'); if(btn){ btn.disabled=true; btn.textContent='Sync…'; }
   try{
-    const r=await (await fetch(`${BACKEND_URL}/vinted/reship/sync`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
-    if(!r.ok){ showDashToast('Erreur resync : '+(r.erreur||'?'),'error'); }
+    const resp=await fetch(`${BACKEND_URL}/vinted/reship/sync`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    let r=null; const txt=await resp.text(); try{ r=JSON.parse(txt); }catch(_){}
+    if(!resp.ok || !r || !r.ok){ const msg=(r&&r.erreur)||txt||('HTTP '+resp.status); showDashToast('Erreur resync : '+String(msg).slice(0,200),'error'); }
     else { showDashToast(`Reship synchronisé : ${r.packages||0} colis`,'success'); vintedLoadReship(); }
-  }catch(e){ showDashToast('Erreur réseau (resync)','error'); }
+  }catch(e){ showDashToast('Erreur réseau (resync) : '+(e&&e.message||''),'error'); }
   finally{ if(btn){ btn.disabled=false; btn.textContent='↻ Resync Reship'; } }
 }
 async function vintedProxyTest(){
