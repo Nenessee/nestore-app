@@ -2606,7 +2606,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v205-reception-cartons';
+const DASH_VERSION = '2025-04-25-v206-carton-vue-caisse';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5507,20 +5507,25 @@ async function vintedOpenCarton(id,readonly){
     const card=a=>{
       const en=a.est_en_caisse;
       const eur=a.prix_eur!=null?(Number(a.prix_eur).toFixed(2)+' €'):(a.prix_gbp!=null?('£'+Number(a.prix_gbp).toFixed(2)):'—');
-      const photo=a.reship_photo_1?`<a href="${vEsc(a.reship_photo_1)}" target="_blank" onclick="event.stopPropagation()"><img src="${vEsc(a.reship_photo_1)}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid var(--border);"></a>`:`<div style="width:52px;height:52px;border-radius:8px;background:var(--surface-alt);display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:20px;">📦</div>`;
-      const btn=(!en && !ro)?`<button class="btn btn-green" style="white-space:nowrap;" onclick="vintedReceptionEncaisse('${vEsc(a.uid)}','${vEsc(String(id))}')">✓ En caisse</button>`
-        : en?`<span class="vtag encaisse" style="white-space:nowrap;">✓ mis en caisse</span>`:'';
-      return `<div style="display:flex;align-items:center;gap:12px;padding:11px 12px;margin-bottom:8px;border:1px solid var(--border);border-radius:11px;background:${en?'var(--surface-alt)':'var(--surface)'};${en?'opacity:.55;':''}">
+      // Photo en LAZY (ne charge que ce qui est à l'écran) → plus de lag quand le carton a beaucoup d'articles.
+      const photo=a.reship_photo_1?`<a href="${vEsc(a.reship_photo_1)}" target="_blank" onclick="event.stopPropagation()"><img loading="lazy" decoding="async" src="${vEsc(a.reship_photo_1)}" style="width:46px;height:46px;object-fit:cover;border-radius:8px;border:1px solid var(--border);background:var(--surface-alt);"></a>`:`<div style="width:46px;height:46px;border-radius:8px;background:var(--surface-alt);display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:18px;">📦</div>`;
+      const btn=(!en && !ro)?`<button class="vbtn-caisse" onclick="vintedReceptionEncaisse('${vEsc(a.uid)}','${vEsc(String(id))}')">✓ En caisse</button>`
+        : en?`<span class="vtag encaisse" style="white-space:nowrap;">✓ en caisse</span>`:'';
+      return `<div style="display:flex;align-items:center;gap:11px;padding:9px 11px;margin-bottom:7px;border:1px solid var(--border);border-radius:10px;background:${en?'var(--surface-alt)':'var(--surface)'};${en?'opacity:.5;':''}">
         ${photo}
         <div style="flex:1;min-width:0;">
-          <div style="font-weight:700;line-height:1.25;">${vEsc(a.titre||'(sans titre)')}</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${vEsc(a.vendeur||'—')} · ${eur}${a.transaction_id?(' · #'+vEsc(a.transaction_id)):''}</div>
+          <div style="font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${vEsc(a.titre||'(sans titre)')}</div>
+          <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${vEsc(a.vendeur||'—')} · <strong style="color:var(--text);">${eur}</strong>${a.transaction_id?(' · #'+vEsc(a.transaction_id)):''}</div>
         </div>
         ${btn}
       </div>`;
     };
     if(!total) h+='<div style="color:var(--text-muted);padding:12px;text-align:center;">Aucun article relié à ce carton.</div>';
-    else h+=arts.map(card).join('');
+    else {
+      const aTraiter=arts.filter(a=>!a.est_en_caisse), dejaEnc=arts.filter(a=>a.est_en_caisse);
+      if(aTraiter.length) h+=`<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#BA7517;font-weight:700;margin:2px 0 7px;">À mettre en caisse (${aTraiter.length})</div>`+aTraiter.map(card).join('');
+      if(dejaEnc.length) h+=`<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:700;margin:12px 0 7px;">Déjà en caisse (${dejaEnc.length})</div>`+dejaEnc.map(card).join('');
+    }
     // colis ajoutés manuellement
     if(man.length){
       h+=`<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:700;margin:14px 0 6px;">Colis ajoutés à la main</div>`;
