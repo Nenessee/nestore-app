@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-carton-copie-cat-btn';
+const CACHE_VERSION = 'nestore-v2026-06-24-carton-tapview-nolag';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
