@@ -2453,7 +2453,7 @@ tbody tr { transition: background .12s; }
       <button class="btn" onclick="document.getElementById('vintedRevolutFile').click()">⬆ Importer relevé Revolut</button>
       <input type="file" id="vintedRevolutFile" accept=".csv,text/csv" style="display:none;" onchange="vintedRevolutFileChosen(this)"/>
       <button class="btn" title="Exporter l'année/liste affichée en CSV (compta)" onclick="vintedExportCsv()">⬇ Export CSV</button>
-      <button class="btn" title="Suivi des colis (tracking Vinted ↔ Reship)" onclick="vintedOpenReship()">📦 Suivi colis</button>
+      <button class="btn" title="Réception des cartons Reship + suivi colis" onclick="vintedOpenReship()">📦 Réception cartons</button>
       <button class="btn" id="vintedResyncBtn" onclick="vintedResync()">↻ Resync</button>
     </div>
   </div>
@@ -2519,7 +2519,13 @@ tbody tr { transition: background .12s; }
   <div class="modal-box" style="position:relative;max-width:640px;width:min(640px,94vw);text-align:left;max-height:90vh;overflow-y:auto;">
     <button onclick="document.getElementById('vintedReshipModal').classList.remove('active')" style="position:relative;float:right;background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-muted);">×</button>
     <div style="font-size:18px;font-weight:800;margin-bottom:4px;">📦 Suivi colis — Vinted ↔ Reship</div>
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">Relie chaque achat à son colis Reship via le numéro de suivi.</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Relie chaque achat à son colis Reship via le numéro de suivi.</div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <button class="btn" id="vintedTabReceptionBtn" onclick="vintedReshipTab('reception')" style="font-weight:700;">📥 Réception cartons</button>
+      <button class="btn" id="vintedTabSupervBtn" onclick="vintedReshipTab('superv')">🛠 Supervision</button>
+    </div>
+    <div id="vintedReceptionWrap"><div class="loading">Chargement…</div></div>
+    <div id="vintedSupervisionWrap" style="display:none;">
     <div id="vintedReshipBody"><div class="loading">Chargement…</div></div>
     <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;">
       <button class="btn btn-green" id="vintedScanBtn" onclick="vintedRunScan()">▶ Relancer le scan</button>
@@ -2537,6 +2543,7 @@ tbody tr { transition: background .12s; }
       </div>
       <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Le cookie est stocké côté serveur, jamais réaffiché. L'anon-id est extrait automatiquement du cookie ; le x-csrf-token est facultatif (depuis l'onglet Network).</div>
     </div>
+    </div><!-- /vintedSupervisionWrap -->
   </div>
 </div>
 
@@ -2599,7 +2606,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v204-sync-erreur-detaillee';
+const DASH_VERSION = '2025-04-25-v205-reception-cartons';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5193,9 +5200,12 @@ function vintedRowHtml(a, view){
   const eur = a.prix_eur!=null
     ? `<span class="veur">${Number(a.prix_eur).toFixed(2)} €</span>${anomalie}${vCopyBtn(Number(a.prix_eur).toFixed(2),'le prix €')}`
     : `<span class="veur miss">—</span>`;
+  // N° de carton Reship, discrètement sous la transaction (rien si non relié).
+  const cartonLine = a.reship_carton_id
+    ? `<div style="font-size:10.5px;color:var(--text-muted);margin-top:2px;">📦 carton ${vEsc(String(a.reship_carton_id))}</div>` : '';
   const tx = a.transaction_id
-    ? `<span class="vtx">${vEsc(a.transaction_id)}</span>${vCopyBtn(vEsc(a.transaction_id),'la transaction')}`
-    : '<span style="color:var(--text-muted);">—</span>';
+    ? `<span class="vtx">${vEsc(a.transaction_id)}</span>${vCopyBtn(vEsc(a.transaction_id),'la transaction')}${cartonLine}`
+    : (a.reship_carton_id ? `<span style="color:var(--text-muted);">—</span>${cartonLine}` : '<span style="color:var(--text-muted);">—</span>');
   const fake=vIsFake(a), refunded=vIsRefunded(a);
   const statusTag = fake ? '<span class="vtag fake">FAKE</span>'
                   : refunded ? '<span class="vtag rembourse">remboursé</span>'
@@ -5427,7 +5437,143 @@ async function vintedResync(){
 }
 
 /* ----- Suivi colis (tracking Vinted ↔ Reship) ----- */
-function vintedOpenReship(){ document.getElementById('vintedReshipModal').classList.add('active'); vintedLoadReship(); }
+function vintedOpenReship(){ document.getElementById('vintedReshipModal').classList.add('active'); vintedReshipTab('reception'); }
+// ===== RÉCEPTION PAR CARTON (couche 3) =====
+function vintedReshipTab(which){
+  const rec=document.getElementById('vintedReceptionWrap'), sup=document.getElementById('vintedSupervisionWrap');
+  const rb=document.getElementById('vintedTabReceptionBtn'), sb=document.getElementById('vintedTabSupervBtn');
+  const on=which==='reception';
+  if(rec) rec.style.display=on?'block':'none';
+  if(sup) sup.style.display=on?'none':'block';
+  if(rb) rb.classList.toggle('btn-green',on);
+  if(sb) sb.classList.toggle('btn-green',!on);
+  if(on) vintedReceptionListe(); else vintedLoadReship();
+}
+function vRecEsc(s){ return vEsc(s); }
+async function vintedReceptionListe(){
+  const box=document.getElementById('vintedReceptionWrap'); box.innerHTML='<div class="loading" style="padding:16px;">Chargement des cartons…</div>';
+  try{
+    const d=await (await fetch(`${BACKEND_URL}/vinted/reship/cartons`)).json();
+    if(!d.ok){ box.innerHTML='<div style="color:#A32D2D;padding:14px;">Erreur : '+vEsc(d.erreur||'?')+'</div>'; return; }
+    const cartons=d.cartons||[];
+    const fmtDate=iso=>{ if(!iso) return '—'; const dt=new Date(iso); return isNaN(dt)?'—':dt.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'}); };
+    let h=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-weight:800;font-size:15px;">Cartons à traiter (${cartons.length})</div>
+        <button class="btn" style="font-size:12.5px;" onclick="vintedReceptionHistorique()">🗄 Historique</button>
+      </div>`;
+    if(!cartons.length){ h+='<div style="color:var(--text-muted);padding:20px;text-align:center;">Aucun carton à traiter ✓</div>'; }
+    else h+=cartons.map(c=>{
+      const tot=Number(c.total_articles||0), enc=Number(c.en_caisse||0);
+      const allEnc=tot>0 && enc>=tot;
+      return `<button onclick="vintedOpenCarton('${vEsc(String(c.carton_id))}',false)" style="display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;padding:14px 16px;margin-bottom:8px;border:1px solid var(--border);border-radius:12px;background:var(--surface);cursor:pointer;">
+        <div>
+          <div style="font-weight:800;font-size:16px;">📦 Carton ${vEsc(String(c.carton_id))}</div>
+          <div style="font-size:12.5px;color:var(--text-muted);margin-top:3px;">${tot} article${tot>1?'s':''} · <span style="color:${allEnc?'#3B6D11':'#BA7517'};font-weight:600;">${enc}/${tot} en caisse</span> · arrivé le ${fmtDate(c.arrived_on)}</div>
+        </div>
+        <div style="font-size:22px;color:var(--text-muted);">›</div>
+      </button>`;
+    }).join('');
+    box.innerHTML=h;
+  }catch(e){ box.innerHTML='<div style="color:#A32D2D;padding:14px;">Erreur réseau</div>'; }
+}
+async function vintedReceptionHistorique(){
+  const box=document.getElementById('vintedReceptionWrap'); box.innerHTML='<div class="loading" style="padding:16px;">Chargement…</div>';
+  try{
+    const d=await (await fetch(`${BACKEND_URL}/vinted/reship/cartons/historique`)).json();
+    const cartons=d.cartons||[];
+    const fmtDT=iso=>{ if(!iso) return '—'; const dt=new Date(iso); return isNaN(dt)?'—':dt.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); };
+    let h=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><button class="btn" onclick="vintedReceptionListe()">← Retour</button><div style="font-weight:800;font-size:15px;">Historique des cartons clôturés</div></div>`;
+    if(!cartons.length) h+='<div style="color:var(--text-muted);padding:20px;text-align:center;">Aucun carton clôturé</div>';
+    else h+=cartons.map(c=>`<button onclick="vintedOpenCarton('${vEsc(String(c.carton_id))}',true)" style="display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;padding:12px 15px;margin-bottom:7px;border:1px solid var(--border);border-radius:10px;background:var(--surface);cursor:pointer;opacity:.85;">
+        <div><div style="font-weight:700;">📦 Carton ${vEsc(String(c.carton_id))}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${Number(c.total_articles||0)} article(s) · clôturé le ${fmtDT(c.cloture_at)}${c.cloture_par?(' par '+vEsc(c.cloture_par)):''}</div></div>
+        <div style="font-size:20px;color:var(--text-muted);">›</div></button>`).join('');
+    box.innerHTML=h;
+  }catch(e){ box.innerHTML='<div style="color:#A32D2D;padding:14px;">Erreur réseau</div>'; }
+}
+async function vintedOpenCarton(id,readonly){
+  const box=document.getElementById('vintedReceptionWrap'); box.innerHTML='<div class="loading" style="padding:16px;">Chargement du carton…</div>';
+  try{
+    const d=await (await fetch(`${BACKEND_URL}/vinted/reship/carton/${encodeURIComponent(id)}`)).json();
+    if(!d.ok){ box.innerHTML='<div style="color:#A32D2D;padding:14px;">Erreur : '+vEsc(d.erreur||'?')+'</div>'; return; }
+    const arts=d.articles||[], man=d.manuels||[], cloture=!!(d.carton&&d.carton.cloture_at);
+    const ro = readonly || cloture;
+    const total=arts.length, enc=arts.filter(a=>a.est_en_caisse).length;
+    const allEnc=total>0 && enc>=total;
+    const backFn = readonly ? 'vintedReceptionHistorique()' : 'vintedReceptionListe()';
+    let h=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;"><button class="btn" onclick="${backFn}">← Retour</button>
+      <div style="font-weight:800;font-size:16px;">📦 Carton ${vEsc(String(id))}</div></div>
+      <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:12px;">${enc}/${total} en caisse${cloture?` · <span style="color:#3B6D11;font-weight:600;">clôturé${d.carton.cloture_par?(' par '+vEsc(d.carton.cloture_par)):''}</span>`:''}</div>`;
+    const card=a=>{
+      const en=a.est_en_caisse;
+      const eur=a.prix_eur!=null?(Number(a.prix_eur).toFixed(2)+' €'):(a.prix_gbp!=null?('£'+Number(a.prix_gbp).toFixed(2)):'—');
+      const photo=a.reship_photo_1?`<a href="${vEsc(a.reship_photo_1)}" target="_blank" onclick="event.stopPropagation()"><img src="${vEsc(a.reship_photo_1)}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid var(--border);"></a>`:`<div style="width:52px;height:52px;border-radius:8px;background:var(--surface-alt);display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:20px;">📦</div>`;
+      const btn=(!en && !ro)?`<button class="btn btn-green" style="white-space:nowrap;" onclick="vintedReceptionEncaisse('${vEsc(a.uid)}','${vEsc(String(id))}')">✓ En caisse</button>`
+        : en?`<span class="vtag encaisse" style="white-space:nowrap;">✓ mis en caisse</span>`:'';
+      return `<div style="display:flex;align-items:center;gap:12px;padding:11px 12px;margin-bottom:8px;border:1px solid var(--border);border-radius:11px;background:${en?'var(--surface-alt)':'var(--surface)'};${en?'opacity:.55;':''}">
+        ${photo}
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;line-height:1.25;">${vEsc(a.titre||'(sans titre)')}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${vEsc(a.vendeur||'—')} · ${eur}${a.transaction_id?(' · #'+vEsc(a.transaction_id)):''}</div>
+        </div>
+        ${btn}
+      </div>`;
+    };
+    if(!total) h+='<div style="color:var(--text-muted);padding:12px;text-align:center;">Aucun article relié à ce carton.</div>';
+    else h+=arts.map(card).join('');
+    // colis ajoutés manuellement
+    if(man.length){
+      h+=`<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:700;margin:14px 0 6px;">Colis ajoutés à la main</div>`;
+      h+=man.map(m=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:7px;border:1px dashed var(--border);border-radius:10px;background:var(--surface);">
+        <div style="font-size:18px;">✍️</div>
+        <div style="flex:1;min-width:0;"><div style="font-weight:600;">${vEsc(m.titre||m.transaction_id||'Colis non listé')}</div>
+        <div style="font-size:12px;color:var(--text-muted);">${vEsc(m.note||'')}${m.transaction_id?(' · #'+vEsc(m.transaction_id)):''} · ajouté par ${vEsc(m.ajoute_par||'?')}</div></div>
+      </div>`).join('');
+    }
+    if(!ro){
+      h+=`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;border-top:1px solid var(--border);padding-top:14px;">
+        <button class="btn" onclick="vintedColisManuel('${vEsc(String(id))}')">➕ Ajouter un colis non listé</button>
+        <button class="btn ${allEnc?'btn-green':''}" style="margin-left:auto;${allEnc?'':'background:var(--surface-alt);'}" onclick="vintedCloturerCarton('${vEsc(String(id))}',${allEnc?0:(total-enc)})">✅ Clôturer le carton${allEnc?' (prêt)':''}</button>
+      </div>`;
+    } else if(cloture){
+      h+=`<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px;"><button class="btn" onclick="vintedReouvrirCarton('${vEsc(String(id))}')">↩ Rouvrir ce carton</button></div>`;
+    }
+    box.innerHTML=h;
+  }catch(e){ box.innerHTML='<div style="color:#A32D2D;padding:14px;">Erreur réseau</div>'; }
+}
+async function vintedReceptionEncaisse(uid,cartonId){
+  try{
+    const d=await (await fetch(`${BACKEND_URL}/vinted/reship/article/${encodeURIComponent(uid)}/encaisse`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
+    if(!d.ok){ showDashToast('Erreur : '+(d.erreur||'?'),'error'); return; }
+    showDashToast('Mis en caisse ✓','success');
+    vintedOpenCarton(cartonId,false); // recharge → l'article passe grisé en bas
+  }catch(e){ showDashToast('Erreur réseau','error'); }
+}
+async function vintedCloturerCarton(id,reste){
+  let msg='Clôturer le carton '+id+' ?';
+  if(reste>0) msg+=`\n\n⚠️ ${reste} article(s) pas encore en caisse. Clôturer quand même ?`;
+  const ok=await vintedConfirm({title:'Clôturer le carton ?',message:msg.replace(/\n/g,'<br>'),confirmLabel:'✅ Clôturer'});
+  if(!ok) return;
+  try{
+    const d=await (await fetch(`${BACKEND_URL}/vinted/reship/carton/${encodeURIComponent(id)}/cloturer`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
+    if(!d.ok){ showDashToast('Erreur clôture : '+(d.erreur||'?'),'error'); return; }
+    showDashToast('Carton clôturé ✓','success'); vintedReceptionListe();
+  }catch(e){ showDashToast('Erreur réseau','error'); }
+}
+async function vintedReouvrirCarton(id){
+  try{ await fetch(`${BACKEND_URL}/vinted/reship/carton/${encodeURIComponent(id)}/rouvrir`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}); showDashToast('Carton rouvert','success'); vintedReceptionListe(); }
+  catch(e){ showDashToast('Erreur réseau','error'); }
+}
+async function vintedColisManuel(id){
+  const titre=prompt('Titre / description du colis non listé (obligatoire) :'); if(titre===null) return;
+  const tx=prompt('Transaction Vinted (optionnel) :')||'';
+  if(!titre.trim() && !tx.trim()){ showDashToast('Titre ou transaction requis','warn'); return; }
+  try{
+    const d=await (await fetch(`${BACKEND_URL}/vinted/reship/carton/${encodeURIComponent(id)}/colis-manuel`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({titre:titre.trim(),transaction_id:tx.trim(),note:''})})).json();
+    if(!d.ok){ showDashToast('Erreur : '+(d.erreur||'?'),'error'); return; }
+    showDashToast('Colis ajouté ✓','success'); vintedOpenCarton(id,false);
+  }catch(e){ showDashToast('Erreur réseau','error'); }
+}
 async function vintedLoadReship(){
   const box=document.getElementById('vintedReshipBody');
   box.innerHTML='<div class="loading">Chargement…</div>';

@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-sync-erreur-detaillee';
+const CACHE_VERSION = 'nestore-v2026-06-24-reception-cartons';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
