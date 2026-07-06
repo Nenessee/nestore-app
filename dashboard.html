@@ -2606,7 +2606,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v206-carton-vue-caisse';
+const DASH_VERSION = '2025-04-25-v207-carton-photo-article';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5507,8 +5507,9 @@ async function vintedOpenCarton(id,readonly){
     const card=a=>{
       const en=a.est_en_caisse;
       const eur=a.prix_eur!=null?(Number(a.prix_eur).toFixed(2)+' €'):(a.prix_gbp!=null?('£'+Number(a.prix_gbp).toFixed(2)):'—');
-      // Photo en LAZY (ne charge que ce qui est à l'écran) → plus de lag quand le carton a beaucoup d'articles.
-      const photo=a.reship_photo_1?`<a href="${vEsc(a.reship_photo_1)}" target="_blank" onclick="event.stopPropagation()"><img loading="lazy" decoding="async" src="${vEsc(a.reship_photo_1)}" style="width:46px;height:46px;object-fit:cover;border-radius:8px;border:1px solid var(--border);background:var(--surface-alt);"></a>`:`<div style="width:46px;height:46px;border-radius:8px;background:var(--surface-alt);display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:18px;">📦</div>`;
+      // Photo LAZY : on montre la photo_2 (l'ARTICLE) plutôt que la photo_1 (le bordereau, inutile) ; repli sur photo_1.
+      const img=a.reship_photo_2||a.reship_photo_1;
+      const photo=img?`<a href="${vEsc(img)}" target="_blank" onclick="event.stopPropagation()"><img loading="lazy" decoding="async" src="${vEsc(img)}" style="width:46px;height:46px;object-fit:cover;border-radius:8px;border:1px solid var(--border);background:var(--surface-alt);"></a>`:`<div style="width:46px;height:46px;border-radius:8px;background:var(--surface-alt);display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:18px;">📦</div>`;
       const btn=(!en && !ro)?`<button class="vbtn-caisse" onclick="vintedReceptionEncaisse('${vEsc(a.uid)}','${vEsc(String(id))}')">✓ En caisse</button>`
         : en?`<span class="vtag encaisse" style="white-space:nowrap;">✓ en caisse</span>`:'';
       return `<div style="display:flex;align-items:center;gap:11px;padding:9px 11px;margin-bottom:7px;border:1px solid var(--border);border-radius:10px;background:${en?'var(--surface-alt)':'var(--surface)'};${en?'opacity:.5;':''}">
