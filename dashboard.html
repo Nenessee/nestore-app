@@ -2414,6 +2414,10 @@ tbody tr { transition: background .12s; }
   #tab-vinted #vintedBulkBar .vbulk-go:disabled { background:var(--surface-alt); color:var(--text-muted); cursor:default; box-shadow:none; }
   #tab-vinted #vintedBulkBar .vbulk-close { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:999px; border:none; background:none; color:var(--text-muted); font-size:17px; cursor:pointer; font-family:inherit; }
   #tab-vinted #vintedBulkBar .vbulk-close:hover { background:var(--surface-alt); color:var(--text); }
+  /* Vue carton (réception) : tableau façon liste principale */
+  #tab-vinted .vcarton-table td { padding:9px 8px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  #tab-vinted .vcarton-table th { padding:6px 8px; border-bottom:2px solid var(--border); }
+  #tab-vinted .vcarton-table tbody tr:last-child td { border-bottom:none; }
   /* Tags statut fake / remboursé */
   .vtag.fake { color:#A32D2D; border-color:#e6b3b3; background:rgba(163,45,45,.10); }
   .vtag.rembourse { color:#7c5cd6; border-color:#c9b8f0; background:rgba(124,92,214,.10); }
@@ -2516,7 +2520,7 @@ tbody tr { transition: background .12s; }
 
 <!-- SUIVI COLIS (RESHIP) -->
 <div class="modal" id="vintedReshipModal">
-  <div class="modal-box" style="position:relative;max-width:640px;width:min(640px,94vw);text-align:left;max-height:90vh;overflow-y:auto;">
+  <div class="modal-box" style="position:relative;max-width:1000px;width:min(1000px,96vw);text-align:left;max-height:92vh;overflow-y:auto;">
     <button onclick="document.getElementById('vintedReshipModal').classList.remove('active')" style="position:relative;float:right;background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-muted);">×</button>
     <div style="font-size:18px;font-weight:800;margin-bottom:4px;">📦 Suivi colis — Vinted ↔ Reship</div>
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Relie chaque achat à son colis Reship via le numéro de suivi.</div>
@@ -2606,7 +2610,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v207-carton-photo-article';
+const DASH_VERSION = '2025-04-25-v208-carton-table-liste';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5504,29 +5508,32 @@ async function vintedOpenCarton(id,readonly){
     let h=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;"><button class="btn" onclick="${backFn}">← Retour</button>
       <div style="font-weight:800;font-size:16px;">📦 Carton ${vEsc(String(id))}</div></div>
       <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:12px;">${enc}/${total} en caisse${cloture?` · <span style="color:#3B6D11;font-weight:600;">clôturé${d.carton.cloture_par?(' par '+vEsc(d.carton.cloture_par)):''}</span>`:''}</div>`;
-    const card=a=>{
+    // Rangée façon liste principale (Date · Article/vendeur · Prix £·€ · Transaction · Catégorie · En caisse).
+    // Photo_2 (l'article, pas le bordereau) en vignette LAZY dans la colonne article ; repli photo_1.
+    const cartonRow=a=>{
       const en=a.est_en_caisse;
-      const eur=a.prix_eur!=null?(Number(a.prix_eur).toFixed(2)+' €'):(a.prix_gbp!=null?('£'+Number(a.prix_gbp).toFixed(2)):'—');
-      // Photo LAZY : on montre la photo_2 (l'ARTICLE) plutôt que la photo_1 (le bordereau, inutile) ; repli sur photo_1.
+      const eur=a.prix_eur!=null?`<span class="veur">${Number(a.prix_eur).toFixed(2)} €</span>`:'<span class="veur miss">—</span>';
       const img=a.reship_photo_2||a.reship_photo_1;
-      const photo=img?`<a href="${vEsc(img)}" target="_blank" onclick="event.stopPropagation()"><img loading="lazy" decoding="async" src="${vEsc(img)}" style="width:46px;height:46px;object-fit:cover;border-radius:8px;border:1px solid var(--border);background:var(--surface-alt);"></a>`:`<div style="width:46px;height:46px;border-radius:8px;background:var(--surface-alt);display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:18px;">📦</div>`;
-      const btn=(!en && !ro)?`<button class="vbtn-caisse" onclick="vintedReceptionEncaisse('${vEsc(a.uid)}','${vEsc(String(id))}')">✓ En caisse</button>`
-        : en?`<span class="vtag encaisse" style="white-space:nowrap;">✓ en caisse</span>`:'';
-      return `<div style="display:flex;align-items:center;gap:11px;padding:9px 11px;margin-bottom:7px;border:1px solid var(--border);border-radius:10px;background:${en?'var(--surface-alt)':'var(--surface)'};${en?'opacity:.5;':''}">
-        ${photo}
-        <div style="flex:1;min-width:0;">
-          <div style="font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${vEsc(a.titre||'(sans titre)')}</div>
-          <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${vEsc(a.vendeur||'—')} · <strong style="color:var(--text);">${eur}</strong>${a.transaction_id?(' · #'+vEsc(a.transaction_id)):''}</div>
-        </div>
-        ${btn}
-      </div>`;
+      const thumb=img?`<a href="${vEsc(img)}" target="_blank" onclick="event.stopPropagation()"><img loading="lazy" decoding="async" src="${vEsc(img)}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;border:1px solid var(--border);background:var(--surface-alt);vertical-align:middle;margin-right:8px;"></a>`:'';
+      const catCls=a.categorie?(VCAT_CLS[a.categorie]||''):'';
+      const catTag=a.categorie?`<span class="vcatsel ${catCls}" style="pointer-events:none;">${vEsc(a.categorie)}</span>`:'<span style="color:var(--text-muted);">—</span>';
+      const act=(!en && !ro)?`<button class="vbtn-caisse" onclick="vintedReceptionEncaisse('${vEsc(a.uid)}','${vEsc(String(id))}')">✓ En caisse</button>`
+        : en?`<span class="vtag encaisse">✓ en caisse</span>`:'';
+      return `<tr style="${en?'opacity:.5;':''}">
+        <td style="white-space:nowrap;color:var(--text-muted);font-size:12px;">${vEsc(a.date_achat||'—')}</td>
+        <td><div style="font-weight:600;line-height:1.25;display:flex;align-items:center;">${thumb}<span>${vEsc(a.titre||'(sans titre)')}</span></div>
+          <div style="color:var(--text-muted);font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${vEsc(a.vendeur||'—')} ${vListePill(a)}</div></td>
+        <td style="white-space:nowrap;font-size:12.5px;"><span style="color:var(--text-muted);">${vGbp(a)}</span> · ${eur}</td>
+        <td style="white-space:nowrap;"><span class="vtx">${vEsc(a.transaction_id||'—')}</span></td>
+        <td>${catTag}</td>
+        <td style="text-align:right;">${act}</td>
+      </tr>`;
     };
     if(!total) h+='<div style="color:var(--text-muted);padding:12px;text-align:center;">Aucun article relié à ce carton.</div>';
-    else {
-      const aTraiter=arts.filter(a=>!a.est_en_caisse), dejaEnc=arts.filter(a=>a.est_en_caisse);
-      if(aTraiter.length) h+=`<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#BA7517;font-weight:700;margin:2px 0 7px;">À mettre en caisse (${aTraiter.length})</div>`+aTraiter.map(card).join('');
-      if(dejaEnc.length) h+=`<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:700;margin:12px 0 7px;">Déjà en caisse (${dejaEnc.length})</div>`+dejaEnc.map(card).join('');
-    }
+    else h+=`<div style="overflow-x:auto;"><table class="vcarton-table" style="width:100%;border-collapse:collapse;">
+        <thead><tr style="text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);">
+          <th style="padding:6px 8px;">Date</th><th style="padding:6px 8px;">Article / vendeur</th><th style="padding:6px 8px;">Prix £ · €</th><th style="padding:6px 8px;">Transaction</th><th style="padding:6px 8px;">Catégorie</th><th></th></tr></thead>
+        <tbody>${arts.map(cartonRow).join('')}</tbody></table></div>`;
     // colis ajoutés manuellement
     if(man.length){
       h+=`<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:700;margin:14px 0 6px;">Colis ajoutés à la main</div>`;
