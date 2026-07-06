@@ -2418,6 +2418,9 @@ tbody tr { transition: background .12s; }
   #tab-vinted .vcarton-table td { padding:9px 8px; border-bottom:1px solid var(--border); vertical-align:middle; }
   #tab-vinted .vcarton-table th { padding:6px 8px; border-bottom:2px solid var(--border); }
   #tab-vinted .vcarton-table tbody tr:last-child td { border-bottom:none; }
+  #tab-vinted .vbtn-recept-caisse { display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; padding:9px 18px; border-radius:9px; border:none; background:#3B6D11; color:#fff; cursor:pointer; white-space:nowrap; font-family:inherit; transition:.12s; }
+  #tab-vinted .vbtn-recept-caisse:hover { background:#2f5a0e; box-shadow:0 2px 8px rgba(59,109,17,.35); }
+  #tab-vinted .vbtn-recept-caisse:active { transform:translateY(1px); }
   /* Tags statut fake / remboursé */
   .vtag.fake { color:#A32D2D; border-color:#e6b3b3; background:rgba(163,45,45,.10); }
   .vtag.rembourse { color:#7c5cd6; border-color:#c9b8f0; background:rgba(124,92,214,.10); }
@@ -2610,7 +2613,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v208-carton-table-liste';
+const DASH_VERSION = '2025-04-25-v209-carton-copie-cat-btn';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5510,21 +5513,27 @@ async function vintedOpenCarton(id,readonly){
       <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:12px;">${enc}/${total} en caisse${cloture?` · <span style="color:#3B6D11;font-weight:600;">clôturé${d.carton.cloture_par?(' par '+vEsc(d.carton.cloture_par)):''}</span>`:''}</div>`;
     // Rangée façon liste principale (Date · Article/vendeur · Prix £·€ · Transaction · Catégorie · En caisse).
     // Photo_2 (l'article, pas le bordereau) en vignette LAZY dans la colonne article ; repli photo_1.
+    const catColors={vet:'#7c5cd6',snk:'#1f86b8',acc:'#b87917'};
     const cartonRow=a=>{
       const en=a.est_en_caisse;
-      const eur=a.prix_eur!=null?`<span class="veur">${Number(a.prix_eur).toFixed(2)} €</span>`:'<span class="veur miss">—</span>';
+      const eurNum=a.prix_eur!=null?Number(a.prix_eur).toFixed(2):null;
+      const eur=eurNum!=null?`<span class="veur">${eurNum} €</span>${vCopyBtn(eurNum,'le prix €')}`:'<span class="veur miss">—</span>';
       const img=a.reship_photo_2||a.reship_photo_1;
-      const thumb=img?`<a href="${vEsc(img)}" target="_blank" onclick="event.stopPropagation()"><img loading="lazy" decoding="async" src="${vEsc(img)}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;border:1px solid var(--border);background:var(--surface-alt);vertical-align:middle;margin-right:8px;"></a>`:'';
+      // width/height en attribut (réserve la place → pas de reflow) + lazy → moins de lag.
+      const thumb=img?`<a href="${vEsc(img)}" target="_blank" onclick="event.stopPropagation()"><img loading="lazy" decoding="async" width="34" height="34" src="${vEsc(img)}" style="width:34px;height:34px;object-fit:cover;border-radius:6px;border:1px solid var(--border);background:var(--surface-alt);vertical-align:middle;margin-right:8px;"></a>`:'';
       const catCls=a.categorie?(VCAT_CLS[a.categorie]||''):'';
-      const catTag=a.categorie?`<span class="vcatsel ${catCls}" style="pointer-events:none;">${vEsc(a.categorie)}</span>`:'<span style="color:var(--text-muted);">—</span>';
-      const act=(!en && !ro)?`<button class="vbtn-caisse" onclick="vintedReceptionEncaisse('${vEsc(a.uid)}','${vEsc(String(id))}')">✓ En caisse</button>`
+      // Catégorie = badge PLEIN coloré (bien visible, comme un tag).
+      const catTag=a.categorie?`<span style="display:inline-block;padding:2px 10px;border-radius:999px;font-size:11.5px;font-weight:700;color:#fff;background:${catColors[catCls]||'#8a8a8a'};white-space:nowrap;">${vEsc(a.categorie)}</span>`:'<span style="color:var(--text-muted);">—</span>';
+      const tx=a.transaction_id?`<span class="vtx">${vEsc(a.transaction_id)}</span>${vCopyBtn(vEsc(a.transaction_id),'la transaction')}`:'<span style="color:var(--text-muted);">—</span>';
+      // Bouton En caisse = gros bouton vert clair ; une fois fait → pastille verte.
+      const act=(!en && !ro)?`<button class="vbtn-recept-caisse" onclick="vintedReceptionEncaisse('${vEsc(a.uid)}','${vEsc(String(id))}')">✓ En caisse</button>`
         : en?`<span class="vtag encaisse">✓ en caisse</span>`:'';
       return `<tr style="${en?'opacity:.5;':''}">
         <td style="white-space:nowrap;color:var(--text-muted);font-size:12px;">${vEsc(a.date_achat||'—')}</td>
         <td><div style="font-weight:600;line-height:1.25;display:flex;align-items:center;">${thumb}<span>${vEsc(a.titre||'(sans titre)')}</span></div>
           <div style="color:var(--text-muted);font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${vEsc(a.vendeur||'—')} ${vListePill(a)}</div></td>
         <td style="white-space:nowrap;font-size:12.5px;"><span style="color:var(--text-muted);">${vGbp(a)}</span> · ${eur}</td>
-        <td style="white-space:nowrap;"><span class="vtx">${vEsc(a.transaction_id||'—')}</span></td>
+        <td style="white-space:nowrap;">${tx}</td>
         <td>${catTag}</td>
         <td style="text-align:right;">${act}</td>
       </tr>`;
