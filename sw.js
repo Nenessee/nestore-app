@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-carton-btn-base';
+const CACHE_VERSION = 'nestore-v2026-06-24-hardreload-cachebust';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

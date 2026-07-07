@@ -2625,7 +2625,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v214-carton-btn-base';
+const DASH_VERSION = '2025-04-25-v215-hardreload-cachebust';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2679,9 +2679,14 @@ function showToast(msg, type = '') {
 }
 
 async function nvHardReload(){
+  // 1) Vide le cache du service worker.
   try{ if('caches' in window){ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); } }catch(_){}
-  try{ if(navigator.serviceWorker){ const rs=await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r=>r.update().catch(()=>{}))); } }catch(_){}
-  location.reload();
+  // 2) DÉSINSCRIT le service worker : sinon un simple reload repasse par son cache/ancienne réponse.
+  try{ if(navigator.serviceWorker){ const rs=await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r=>r.unregister().catch(()=>{}))); } }catch(_){}
+  // 3) Recharge sur une URL CACHE-BUSTÉE : force le HTML frais (contourne cache navigateur + CDN GitHub Pages),
+  //    c'était le vrai bug — location.reload() nu pouvait renvoyer l'ancienne version en cache.
+  try{ const u=new URL(location.href); u.searchParams.set('_v', Date.now().toString()); location.replace(u.toString()); }
+  catch(_){ location.reload(); }
 }
 let _dashUpdateInterval = setInterval(() => {
   fetch(location.href + '?nocache=' + Date.now(), { cache: 'no-store' })
