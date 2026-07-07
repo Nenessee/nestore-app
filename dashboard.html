@@ -2531,9 +2531,8 @@ tbody tr { transition: background .12s; }
     <div id="vintedHistoCount" class="vinted-count"></div>
   </div>
 </div>
-</div>
 
-<!-- SUIVI COLIS (RESHIP) -->
+<!-- SUIVI COLIS (RESHIP) — DOIT rester DANS #tab-vinted pour hériter des styles scopés #tab-vinted .vcarton-*, .vbtn-caisse, etc. -->
 <div class="modal" id="vintedReshipModal">
   <div class="modal-box" style="position:relative;max-width:1000px;width:min(1000px,96vw);text-align:left;max-height:92vh;overflow-y:auto;">
     <button onclick="document.getElementById('vintedReshipModal').classList.remove('active')" style="position:relative;float:right;background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-muted);">×</button>
@@ -2565,6 +2564,7 @@ tbody tr { transition: background .12s; }
     </div><!-- /vintedSupervisionWrap -->
   </div>
 </div>
+</div><!-- /tab-vinted (englobe la modale Reship pour le scope CSS) -->
 
 <!-- CONFIRMATION GÉNÉRIQUE VINTED (mise en caisse groupée, etc.) -->
 <div class="modal" id="vintedConfirmModal">
@@ -2625,7 +2625,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v215-hardreload-cachebust';
+const DASH_VERSION = '2025-04-25-v216-modal-scope-fix';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
