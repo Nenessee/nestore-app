@@ -2422,13 +2422,20 @@ tbody tr { transition: background .12s; }
   #tab-vinted .vcarton-table td { padding:9px 8px; border-bottom:1px solid var(--border); vertical-align:middle; }
   #tab-vinted .vcarton-table th { padding:6px 8px; border-bottom:2px solid var(--border); }
   #tab-vinted .vcarton-table tbody tr:last-child td { border-bottom:none; }
-  /* Vignette tap-to-view : placeholder léger, l'image ne charge qu'au clic */
-  #tab-vinted .vcarton-thumb { display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; width:34px; height:34px; margin-right:8px; border-radius:6px; border:1px solid var(--border); background:var(--surface-alt); cursor:zoom-in; font-size:15px; vertical-align:middle; }
-  #tab-vinted .vcarton-thumb:hover { border-color:var(--accent,#3B6D11); }
-  #tab-vinted .vcarton-thumb-img { flex:0 0 auto; width:34px; height:34px; margin-right:8px; object-fit:cover; border-radius:6px; border:1px solid var(--border); background:var(--surface-alt); vertical-align:middle; cursor:zoom-in; }
-  /* Bouton En caisse : style moderne « pilule contour » (au lieu du bloc plein) — se remplit au tap */
-  #tab-vinted .vbtn-recept-caisse { display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700; padding:7px 15px; border-radius:999px; border:1.5px solid #57a11c; background:transparent; color:#57a11c; cursor:pointer; white-space:nowrap; font-family:inherit; transition:.14s; }
-  #tab-vinted .vbtn-recept-caisse:hover { background:#57a11c; color:#fff; box-shadow:0 2px 10px rgba(87,161,28,.28); }
+  /* Vignette article visible directement (clic = plein écran) */
+  #tab-vinted .vcarton-thumb-img { flex:0 0 auto; width:44px; height:44px; margin-right:9px; object-fit:cover; border-radius:8px; border:1px solid var(--border); background:var(--surface-alt); vertical-align:middle; cursor:zoom-in; }
+  /* Pastille copiable prix € / transaction : grosse zone de tap, plus le mini-coin grisé */
+  #tab-vinted .vcarton-copy { display:inline-flex; align-items:center; gap:7px; max-width:100%; padding:6px 11px; border:1px solid var(--border); border-radius:9px; background:var(--surface-alt); color:var(--text); cursor:pointer; font-family:inherit; font-size:12.5px; font-weight:700; line-height:1.1; transition:.12s; }
+  #tab-vinted .vcarton-copy:hover { border-color:var(--text-muted); background:var(--surface-2); }
+  #tab-vinted .vcarton-copy:active { transform:translateY(1px); }
+  #tab-vinted .vcarton-copy.ok { border-color:#bfe0a0; background:rgba(59,109,17,.14); color:#3B6D11; }
+  #tab-vinted .vcarton-copy .vcc-txt { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:150px; }
+  #tab-vinted .vcarton-copy .vcc-ico { flex:0 0 auto; display:inline-flex; width:15px; height:15px; color:var(--text-muted); }
+  #tab-vinted .vcarton-copy.ok .vcc-ico { color:#3B6D11; }
+  #tab-vinted .vcarton-copy .vcc-ico svg { width:15px; height:15px; }
+  /* Bouton En caisse : pastille verte teintée, nette et distincte — se remplit au tap */
+  #tab-vinted .vbtn-recept-caisse { display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:800; padding:9px 17px; border-radius:10px; border:1.5px solid #57a11c; background:rgba(87,161,28,.15); color:#4e8f18; cursor:pointer; white-space:nowrap; font-family:inherit; transition:.14s; }
+  #tab-vinted .vbtn-recept-caisse:hover { background:#57a11c; color:#fff; box-shadow:0 2px 10px rgba(87,161,28,.3); }
   #tab-vinted .vbtn-recept-caisse:active { background:#4a8a17; color:#fff; transform:translateY(1px); }
   /* Tags statut fake / remboursé */
   .vtag.fake { color:#A32D2D; border-color:#e6b3b3; background:rgba(163,45,45,.10); }
@@ -2622,7 +2629,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v212-carton-nolag-btn';
+const DASH_VERSION = '2025-04-25-v213-carton-photos-copie';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5510,15 +5517,16 @@ async function vintedReceptionHistorique(){
 // Cache du carton ouvert → permet de re-rendre localement (marquage en caisse) SANS refetch
 // ni rechargement des photos, ce qui supprime le gros lag à chaque clic.
 let _vCarton=null; // {id, ro, cloture, cloture_par, arts, man, fromHist}
-// Vignette « tap-to-view » : on ne télécharge PAS les photos au rendu (lourdes, source du lag).
-// Un placeholder 📷 charge l'image seulement au clic. Construction DOM = pas d'injection.
-function vintedThumbLoad(e,el){
-  e.stopPropagation();
-  const src=el.getAttribute('data-src'); if(!src) return;
-  const a=document.createElement('a'); a.href=src; a.target='_blank'; a.rel='noopener';
-  a.onclick=ev=>ev.stopPropagation();
-  const im=document.createElement('img'); im.decoding='async'; im.width=34; im.height=34; im.src=src; im.className='vcarton-thumb-img';
-  a.appendChild(im); el.replaceWith(a);
+// Pastille cliquable pour copier (prix € / transaction) : GROS zone de tap, pas le mini-coin grisé.
+// La valeur brute est en data-copy (lecture sûre, pas d'injection JS). Tap n'importe où = copie.
+function vCartonCopyChip(value, inner, label){
+  return `<button type="button" class="vcarton-copy" data-copy="${vEsc(String(value))}" title="Copier ${label}" onclick="event.stopPropagation();vCopyChip(this)"><span class="vcc-txt">${inner}</span><span class="vcc-ico">${VCOPY_SVG}</span></button>`;
+}
+function vCopyChip(btn){
+  const val=btn.getAttribute('data-copy')||'';
+  try{ navigator.clipboard&&navigator.clipboard.writeText(val); }catch(_){}
+  btn.classList.add('ok'); const ico=btn.querySelector('.vcc-ico'); if(ico) ico.innerHTML=VCHECK_SVG;
+  setTimeout(()=>{ btn.classList.remove('ok'); if(ico) ico.innerHTML=VCOPY_SVG; },1100);
 }
 async function vintedOpenCarton(id,readonly){
   const box=document.getElementById('vintedReceptionWrap'); box.innerHTML='<div class="loading" style="padding:16px;">Chargement du carton…</div>';
@@ -5550,14 +5558,16 @@ function vintedRenderCarton(){
   const cartonRow=a=>{
     const en=a.est_en_caisse;
     const eurNum=a.prix_eur!=null?Number(a.prix_eur).toFixed(2):null;
-    const eur=eurNum!=null?`<span class="veur">${eurNum} €</span>${vCopyBtn(eurNum,'le prix €')}`:'<span class="veur miss">—</span>';
+    // Prix € = grosse pastille cliquable (tap = copie), plus le petit coin grisé introuvable.
+    const eur=eurNum!=null?vCartonCopyChip(eurNum,`${eurNum} €`,'le prix €'):'<span class="veur miss">—</span>';
     const img=a.reship_photo_2||a.reship_photo_1;
-    // placeholder cliquable → l'image ne se télécharge qu'au clic (plus de lag au rendu).
-    const thumb=img?`<span class="vcarton-thumb" data-src="${vEsc(img)}" onclick="vintedThumbLoad(event,this)" title="Voir la photo de l'article">📷</span>`:'';
+    // Vignette article visible directement (photo_2 = l'article, pas le bordereau) ; clic = plein écran.
+    const thumb=img?`<a href="${vEsc(img)}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><img loading="lazy" decoding="async" width="44" height="44" src="${vEsc(img)}" class="vcarton-thumb-img"></a>`:'';
     const catCls=a.categorie?(VCAT_CLS[a.categorie]||''):'';
     // Catégorie = badge PLEIN coloré (bien visible, comme un tag).
     const catTag=a.categorie?`<span style="display:inline-block;padding:2px 10px;border-radius:999px;font-size:11.5px;font-weight:700;color:#fff;background:${catColors[catCls]||'#8a8a8a'};white-space:nowrap;">${vEsc(a.categorie)}</span>`:'<span style="color:var(--text-muted);">—</span>';
-    const tx=a.transaction_id?`<span class="vtx">${vEsc(a.transaction_id)}</span>${vCopyBtn(vEsc(a.transaction_id),'la transaction')}`:'<span style="color:var(--text-muted);">—</span>';
+    // Transaction = grosse pastille cliquable (tap = copie l'ID complet).
+    const tx=a.transaction_id?vCartonCopyChip(String(a.transaction_id),vEsc(a.transaction_id),'la transaction'):'<span style="color:var(--text-muted);">—</span>';
     // Bouton En caisse = gros bouton vert clair ; une fois fait → pastille verte.
     const act=(!en && !ro)?`<button class="vbtn-recept-caisse" onclick="vintedReceptionEncaisse('${vEsc(a.uid)}','${vEsc(String(id))}')">✓ En caisse</button>`
       : en?`<span class="vtag encaisse">✓ en caisse</span>`:'';
