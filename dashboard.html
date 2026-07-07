@@ -2624,7 +2624,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v219-carton-lots';
+const DASH_VERSION = '2025-04-25-v220-carton-bundle-label';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5577,8 +5577,9 @@ function vintedRenderCarton(){
   const cartonRow=a=>{
     const en=a.est_en_caisse;
     const lot=inLot(a); // article issu d'un lot → pastille + liseré à gauche pour visualiser le groupe
-    // Pastille LOT auto-suffisante (détection locale au carton), non cliquable : le lot est déjà regroupé à la suite.
-    const lotPill=lot?(()=>{ const m=vBundleMatch(a.note); const lbl=m?`LOT ${m.x}/${m.y}`:'LOT'; return `<span class="vbundle" style="cursor:default;" title="Article issu d'un lot — même transaction, regroupé à la suite">📦 ${lbl}</span>`; })():'';
+    // Pastille BUNDLE (même terme que la liste principale), auto-suffisante (détection locale au carton),
+    // non cliquable : le bundle est déjà regroupé à la suite.
+    const lotPill=lot?(()=>{ const m=vBundleMatch(a.note); const lbl=m?`BUNDLE ${m.x}/${m.y}`:'BUNDLE'; return `<span class="vbundle" style="cursor:default;" title="Article issu d'un bundle — même transaction, regroupé à la suite">📦 ${lbl}</span>`; })():'';
     const eurNum=a.prix_eur!=null?Number(a.prix_eur).toFixed(2):null;
     // Prix € = grosse pastille cliquable (tap = copie), plus le petit coin grisé introuvable.
     const eur=eurNum!=null?vCartonCopyChip(eurNum,`${eurNum} €`,'le prix €'):'<span class="veur miss">—</span>';
