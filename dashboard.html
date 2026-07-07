@@ -2624,7 +2624,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v218-suivi-operationnel';
+const DASH_VERSION = '2025-04-25-v219-carton-lots';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5549,8 +5549,21 @@ function vintedRenderCarton(){
   const c=_vCarton; if(!c) return;
   const box=document.getElementById('vintedReceptionWrap');
   const id=c.id, ro=c.ro, cloture=c.cloture;
-  // en caisse toujours en bas (comme le tri serveur), le reste par titre
-  const arts=c.arts.slice().sort((a,b)=> ((a.est_en_caisse?1:0)-(b.est_en_caisse?1:0)) || String(a.titre||'').localeCompare(String(b.titre||'')));
+  // Lots (bundles) : les articles d'une même transaction = un même lot → on les garde À LA SUITE.
+  const arts0=c.arts;
+  const txCount={}; arts0.forEach(a=>{ const tx=String(a.transaction_id||'').trim(); if(tx) txCount[tx]=(txCount[tx]||0)+1; });
+  const inLot=a=>{ const tx=String(a.transaction_id||'').trim(); return !!(tx && txCount[tx]>1) || vIsBundle(a); };
+  // Ancre de tri d'un lot = le titre le plus petit du groupe (même transaction) → tout le lot se place au même endroit.
+  const anchorTitre=a=>{ const tx=String(a.transaction_id||'').trim(); if(tx && txCount[tx]>1){ let mn=null; arts0.forEach(x=>{ if(String(x.transaction_id||'').trim()===tx){ const t=String(x.titre||''); if(mn==null||t<mn) mn=t; } }); return mn!=null?mn:String(a.titre||''); } return String(a.titre||''); };
+  // Un lot ne descend en bas que si TOUS ses articles sont en caisse (sinon il reste groupé en haut, à traiter).
+  const groupDone=a=>{ const tx=String(a.transaction_id||'').trim(); if(tx && txCount[tx]>1){ return arts0.every(x=> String(x.transaction_id||'').trim()!==tx || x.est_en_caisse) ? 1 : 0; } return a.est_en_caisse?1:0; };
+  const arts=arts0.slice().sort((a,b)=>{
+    const ga=groupDone(a), gb=groupDone(b); if(ga!==gb) return ga-gb;                       // lots/articles terminés en bas
+    const aa=anchorTitre(a), ab=anchorTitre(b); if(aa!==ab) return aa.localeCompare(ab);      // regroupe par ancre du lot
+    const ta=String(a.transaction_id||''), tb=String(b.transaction_id||''); if(ta!==tb) return ta.localeCompare(tb); // même lot collé
+    const ea=a.est_en_caisse?1:0, eb=b.est_en_caisse?1:0; if(ea!==eb) return ea-eb;           // dans le lot : à traiter d'abord
+    return String(a.titre||'').localeCompare(String(b.titre||''));
+  });
   const man=c.man;
   const total=arts.length, enc=arts.filter(a=>a.est_en_caisse).length;
   const allEnc=total>0 && enc>=total;
@@ -5563,6 +5576,9 @@ function vintedRenderCarton(){
   const catColors={vet:'#7c5cd6',snk:'#1f86b8',acc:'#b87917'};
   const cartonRow=a=>{
     const en=a.est_en_caisse;
+    const lot=inLot(a); // article issu d'un lot → pastille + liseré à gauche pour visualiser le groupe
+    // Pastille LOT auto-suffisante (détection locale au carton), non cliquable : le lot est déjà regroupé à la suite.
+    const lotPill=lot?(()=>{ const m=vBundleMatch(a.note); const lbl=m?`LOT ${m.x}/${m.y}`:'LOT'; return `<span class="vbundle" style="cursor:default;" title="Article issu d'un lot — même transaction, regroupé à la suite">📦 ${lbl}</span>`; })():'';
     const eurNum=a.prix_eur!=null?Number(a.prix_eur).toFixed(2):null;
     // Prix € = grosse pastille cliquable (tap = copie), plus le petit coin grisé introuvable.
     const eur=eurNum!=null?vCartonCopyChip(eurNum,`${eurNum} €`,'le prix €'):'<span class="veur miss">—</span>';
@@ -5577,10 +5593,10 @@ function vintedRenderCarton(){
     // Bouton En caisse = EXACTEMENT le même que la liste de base (.vbtn-caisse) ; fait → pastille verte identique.
     const act=(!en && !ro)?`<button class="vbtn-caisse" onclick="vintedReceptionEncaisse('${vEsc(a.uid)}','${vEsc(String(id))}')">✓ En caisse</button>`
       : en?`<span class="vtag encaisse">En caisse</span>`:'';
-    return `<tr style="${en?'opacity:.5;':''}">
+    return `<tr style="${en?'opacity:.5;':''}${lot?'box-shadow:inset 3px 0 0 #E0A106;':''}">
       <td style="white-space:nowrap;color:var(--text-muted);font-size:12px;">${vEsc(a.date_achat||'—')}</td>
       <td><div style="font-weight:600;line-height:1.25;display:flex;align-items:center;">${thumb}<span>${vEsc(a.titre||'(sans titre)')}</span></div>
-        <div style="color:var(--text-muted);font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${vEsc(a.vendeur||'—')} ${vListePill(a)}</div></td>
+        <div style="color:var(--text-muted);font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${vEsc(a.vendeur||'—')} ${vListePill(a)}${lotPill}</div></td>
       <td style="white-space:nowrap;font-size:12.5px;"><span style="color:var(--text-muted);">${vGbp(a)}</span> · ${eur}</td>
       <td style="white-space:nowrap;">${tx}</td>
       <td>${catTag}</td>
