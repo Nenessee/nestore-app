@@ -2548,19 +2548,18 @@ tbody tr { transition: background .12s; }
     <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;">
       <button class="btn btn-green" id="vintedScanBtn" onclick="vintedRunScan()">▶ Relancer le scan</button>
       <button class="btn" id="vintedReshipSyncBtn" onclick="vintedReshipSync()">↻ Resync Reship</button>
-      <button class="btn" id="vintedProxyTestBtn" onclick="vintedProxyTest()">🔌 Tester le proxy</button>
     </div>
-    <div id="vintedProxyResult" style="display:none;margin-top:10px;font-size:12px;font-family:monospace;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px;white-space:pre-wrap;word-break:break-all;"></div>
-    <div style="border-top:1px solid var(--border);margin-top:18px;padding-top:14px;">
-      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:700;margin-bottom:8px;">Recoller un cookie de session (compte expiré)</div>
+    <!-- Filet de secours manuel, discret et replié par défaut : l'extension Chrome poste le cookie en auto. -->
+    <details style="margin-top:18px;border-top:1px solid var(--border);padding-top:12px;">
+      <summary style="cursor:pointer;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:700;">Filet de secours — recoller un cookie à la main</summary>
+      <div style="font-size:11.5px;color:var(--text-muted);margin:8px 0 10px;">À n'utiliser que pour un compte sans extension. En temps normal l'extension Chrome envoie le cookie automatiquement toutes les 30 min (voir l'historique ci-dessus).</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;">
-        <input id="vintedSessLabel" class="search-input" placeholder="Nom du compte (ex: compte1)" style="width:180px;"/>
+        <input id="vintedSessLabel" class="search-input" placeholder="Pseudo du compte Vinted (ex: vancrluis)" style="width:220px;"/>
         <textarea id="vintedSessCookie" class="search-input" placeholder="Header Cookie complet (collé depuis le navigateur)" style="flex:1;min-width:220px;height:64px;resize:vertical;"></textarea>
         <input id="vintedSessCsrf" class="search-input" placeholder="x-csrf-token (optionnel)" style="width:220px;"/>
         <button class="btn" onclick="vintedSaveSession()">Enregistrer</button>
       </div>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Le cookie est stocké côté serveur, jamais réaffiché. L'anon-id est extrait automatiquement du cookie ; le x-csrf-token est facultatif (depuis l'onglet Network).</div>
-    </div>
+    </details>
     </div><!-- /vintedSupervisionWrap -->
   </div>
 </div>
@@ -2625,7 +2624,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v217-photos-liste-base';
+const DASH_VERSION = '2025-04-25-v218-suivi-operationnel';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5653,33 +5652,46 @@ async function vintedLoadReship(){
   const box=document.getElementById('vintedReshipBody');
   box.innerHTML='<div class="loading">Chargement…</div>';
   try{
-    const d=await api('/vinted/reship/status');
+    const [d, ev] = await Promise.all([
+      api('/vinted/reship/status'),
+      api('/vinted/events?limit=30').catch(()=>({ ok:false, events:[] }))
+    ]);
     if(!d.ok){ box.innerHTML='<div style="color:#A32D2D;">Erreur de chargement.</div>'; return; }
-    const k=d.compteurs||{};
-    const kpi=(n,l,color)=>`<div class="kpi" style="padding:11px 13px;"><div class="kpi-value" ${color?`style="color:${color};"`:''}>${n}</div><div class="kpi-label">${l}</div></div>`;
-    const fmtRefresh=(iso)=>{ if(!iso) return ''; const dt=new Date(iso); if(isNaN(dt)) return ''; const hhmm=dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}); const j=dt.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}); const today=new Date(); const sameDay=dt.toDateString()===today.toDateString(); return (sameDay?hhmm:(j+' '+hhmm)); };
+    const k=d.compteurs||{}, fen=d.fenetreJours||15;
+    // Tuile métier : gros chiffre + libellé clair + sous-titre d'explication en français simple.
+    const kpi=(n,l,sub,color)=>`<div class="kpi" style="padding:12px 13px;">
+      <div class="kpi-value" ${color?`style="color:${color};"`:''}>${n}</div>
+      <div class="kpi-label">${l}</div>
+      <div style="font-size:10.5px;color:var(--text-muted);line-height:1.3;margin-top:4px;">${sub}</div></div>`;
+    // « il y a X min » à partir d'une date ISO.
+    const agoMin=(iso)=>{ if(!iso) return null; const t=new Date(iso).getTime(); return isNaN(t)?null:Math.max(0,Math.round((Date.now()-t)/60000)); };
+    const agoTxt=(m)=>{ if(m==null) return 'jamais'; if(m<1) return "à l'instant"; if(m<60) return 'il y a '+m+' min'; const h=Math.floor(m/60),r=m%60; return 'il y a '+h+' h'+(r?(' '+r+' min'):''); };
+    // État des comptes : pseudo + badge actif/expiré + dernier cookie reçu (updated_at). >35 min ⇒ extension muette.
     const sess=(d.sessions||[]).map(s=>{
-      const rf=fmtRefresh(s.last_refresh_at);
-      const badge=(ok,labelOk,labelKo)=>`<span style="color:${ok?'#3B6D11':'#BA7517'};">${ok?labelOk:labelKo}</span>`;
-      const refTxt=(rf?('refresh '+vEsc(rf)):'aucun refresh')+(s.last_refresh_status?(' · statut '+vEsc(String(s.last_refresh_status))):'');
-      return `<div style="padding:7px 0;border-bottom:1px solid var(--border);">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;"><span style="font-weight:600;">${vEsc(s.account_label)}</span><span class="vtag ${s.status==='active'?'encaisse':'fake'}">${s.status==='active'?'active':'expirée'}</span></div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">🔄 ${refTxt}</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">csrf : ${badge(s.has_csrf,'oui','non')} · anon-id : ${badge(s.has_anon,'oui','non')} · refresh_token : ${badge(s.has_refresh,'oui','non')}</div>
-        ${s.last_error?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px;font-family:monospace;word-break:break-all;">${vEsc(String(s.last_error).slice(0,220))}</div>`:''}
+      const m=agoMin(s.updated_at), active=s.status==='active', stale=m!=null&&m>35;
+      return `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
+        <div style="min-width:0;"><div style="font-weight:600;font-size:13.5px;">${vEsc(s.account_label)}</div>
+          <div style="font-size:11.5px;color:${stale?'#BA7517':'var(--text-muted)'};margin-top:2px;">🍪 dernier cookie ${agoTxt(m)}${stale?' ⚠️ extension muette ?':''}</div></div>
+        <span class="vtag ${active?'encaisse':'fake'}">${active?'actif':'expiré'}</span>
       </div>`; }).join('') || '<div style="color:var(--text-muted);font-size:13px;">Aucune session enregistrée.</div>';
+    // Timeline : cookie reçu / fin de scan, du plus récent au plus ancien.
+    const evFmt=(iso)=>{ const dt=new Date(iso); if(isNaN(dt)) return '—'; const hhmm=dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}); const today=new Date().toDateString()===dt.toDateString(); return today?hhmm:(dt.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' '+hhmm); };
+    const evRow=(e)=>{ const t=evFmt(e.cree_at);
+      if(e.type==='cookie') return `<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;"><span>🍪</span><span><b>${vEsc(e.label||'?')}</b> — cookie reçu à ${t}</span></div>`;
+      if(e.type==='scan'){ const x=e.detail||{}; return `<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;"><span>🔍</span><span>Scan à ${t} → <b>${x.trouves||0}</b> suivi(s) récupéré(s), ${x.en_attente||0} en attente</span></div>`; }
+      return ''; };
+    const timeline=(ev&&ev.events&&ev.events.length) ? ev.events.map(evRow).join('') : '<div style="color:var(--text-muted);font-size:12.5px;">Aucun événement pour l\'instant.</div>';
     box.innerHTML = `
-      <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:8px;">
-        ${kpi(k.enAttenteFenetre||0,'En attente de tracking (fenêtre)','#BA7517')}
-        ${kpi(k.capturesFenetre||0,'Capturés (fenêtre)','#3B6D11')}
-        ${kpi(k.matched||0,'Matchés à un colis','#185FA5')}
-        ${kpi((k.tauxPerte||0)+' %','Taux de perte (fenêtre passée)','#A32D2D')}
+      <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;">
+        ${kpi(k.enAttenteFenetre||0,'Colis en cours de suivi',`Achats récents dont on attend encore le numéro de suivi (fenêtre ${fen} j).`,'#BA7517')}
+        ${kpi(k.capturesFenetre||0,'Numéros de suivi récupérés',`Suivis capturés automatiquement sur les achats récents (fenêtre ${fen} j).`,'#3B6D11')}
+        ${kpi(k.matched||0,'Articles reliés à un colis reçu','Articles rattachés à un colis physiquement arrivé chez Reship.','#185FA5')}
+        ${kpi(k.cartonsAReceptionner||0,'Cartons à réceptionner','Cartons reçus pas encore clôturés — à traiter dans « Réception cartons ».','#7c5cd6')}
       </div>
-      <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">
-        ${k.withTracking||0} tracking(s) capturé(s) au total · fenêtre de ${d.fenetreJours||15} j · ${k.fenetrePassee||0} achat(s) hors fenêtre dont ${k.perdus||0} sans colis Reship
-      </div>
-      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:700;margin-bottom:6px;">Sessions Vinted</div>
-      ${sess}`;
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:700;margin-bottom:6px;">État des comptes</div>
+      ${sess}
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:700;margin:16px 0 6px;">Historique — cookies &amp; scans automatiques</div>
+      <div style="max-height:260px;overflow-y:auto;">${timeline}</div>`;
   }catch(e){ box.innerHTML='<div style="color:#A32D2D;">Erreur : '+vEsc(e.message)+'</div>'; }
 }
 async function vintedRunScan(){
@@ -5687,22 +5699,7 @@ async function vintedRunScan(){
   try{
     const r=await (await fetch(`${BACKEND_URL}/vinted/scan`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
     if(!r.ok){ showDashToast('Erreur scan : '+(r.erreur||'?'),'error'); }
-    else showDashToast(`Scan : ${r.trouves||0} capturé(s), ${r.en_attente||0} en attente, ${r.expires_sans_tracking||0} hors fenêtre${r.reste?' (reste à faire)':''}`,'success');
-    // Diagnostic temporaire : proxy utilisé + statut HTTP des 3 premières tentatives.
-    const box=document.getElementById('vintedProxyResult');
-    if(box && r.ok){
-      box.style.display='block';
-      let out='Scan — proxy_utilisé : '+(r.proxy_utilise?'true':'false')+'\n';
-      if(Array.isArray(r.refresh)&&r.refresh.length){
-        out+='Refresh token : '+r.refresh.map(x=>x.compte+'='+(x.ok?'ok':'échec')).join(', ')+'\n';
-      }
-      out+='Résultat : '+(r.trouves||0)+' capturé(s), '+(r.en_attente||0)+' en attente, '+(r.expires_sans_tracking||0)+' hors fenêtre, '+(r.traites||0)+' scanné(s)\n';
-      if(Array.isArray(r.diagnostic)&&r.diagnostic.length){
-        out+='Tentatives :\n'+r.diagnostic.map(d=>'  #'+d.tentative+' '+(d.compte?('['+d.compte+'] '):'')+'→ HTTP '+(d.statut)+(d.classification?(' · '+d.classification):'')+(d.erreur?(' ('+d.erreur+')'):'')+' · proxy='+(d.proxy_utilise?'oui':'non')).join('\n');
-      } else out+='Tentatives : (aucune — pas de candidat à scanner)';
-      if(Array.isArray(r.sessions_expirees)&&r.sessions_expirees.length) out+='\nSessions expirées : '+r.sessions_expirees.join(', ');
-      box.textContent=out;
-    }
+    else showDashToast(`Scan : ${r.trouves||0} suivi(s) récupéré(s), ${r.en_attente||0} en attente${r.reste?' (reste à faire)':''}`,'success');
     vintedLoadReship();
   }catch(e){ showDashToast('Erreur réseau (scan)','error'); }
   finally{ if(btn){ btn.disabled=false; btn.textContent='▶ Relancer le scan'; } }
@@ -5716,25 +5713,6 @@ async function vintedReshipSync(){
     else { showDashToast(`Reship synchronisé : ${r.packages||0} colis`,'success'); vintedLoadReship(); }
   }catch(e){ showDashToast('Erreur réseau (resync) : '+(e&&e.message||''),'error'); }
   finally{ if(btn){ btn.disabled=false; btn.textContent='↻ Resync Reship'; } }
-}
-async function vintedProxyTest(){
-  const btn=document.getElementById('vintedProxyTestBtn'); if(btn){ btn.disabled=true; btn.textContent='Test…'; }
-  const box=document.getElementById('vintedProxyResult'); box.style.display='block'; box.textContent='Test en cours…';
-  try{
-    const d=await (await fetch(`${BACKEND_URL}/vinted/proxy-test`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
-    const fmtErr=(e)=>{ if(!e) return ''; if(typeof e==='string') return e; const p=[]; if(e.message) p.push(e.message); if(e.code) p.push('code='+e.code); if(e.causeCode) p.push('cause.code='+e.causeCode); if(e.causeMessage) p.push('cause.message='+e.causeMessage); return p.join(' | '); };
-    const fmtProxy=(pi)=>{ if(!pi) return '—'; if(pi.parseError) return 'parseError: '+pi.parseError; return (pi.protocol||'')+'//'+(pi.host||'')+(pi.port?(':'+pi.port):''); };
-    if(!d.ok){ box.textContent='Erreur : '+fmtErr({message:d.erreur,code:d.code,causeCode:d.causeCode,causeMessage:d.causeMessage})+'\nProxy : '+fmtProxy(d.proxyInfo); return; }
-    let out='Proxy configuré : '+(d.proxyConfigured?'oui':'NON')+'\n';
-    out+='Proxy : '+fmtProxy(d.proxyInfo)+'\n';
-    out+='IP de sortie (Decodo'+(d.ipStatus!=null?(' HTTP '+d.ipStatus):'')+') : '+(d.egressIp||('—'+(d.ipError?(' ('+fmtErr(d.ipError)+')'):'')))+'\n';
-    if(d.vinted){
-      if(d.vinted.status!=null){ out+='Vinted HTTP '+d.vinted.status+'\n'+(d.vinted.apercu||''); }
-      else out+='Vinted : '+(d.vinted.note||'—');
-    }
-    box.textContent=out;
-  }catch(e){ box.textContent='Erreur réseau : '+e.message; }
-  finally{ if(btn){ btn.disabled=false; btn.textContent='🔌 Tester le proxy'; } }
 }
 async function vintedSaveSession(){
   const label=(document.getElementById('vintedSessLabel').value||'').trim();
