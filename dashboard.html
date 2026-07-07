@@ -2625,7 +2625,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v216-modal-scope-fix';
+const DASH_VERSION = '2025-04-25-v217-photos-liste-base';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5230,6 +5230,12 @@ function vintedRowHtml(a, view){
   const tx = a.transaction_id
     ? `<span class="vtx">${vEsc(a.transaction_id)}</span>${vCopyBtn(vEsc(a.transaction_id),'la transaction')}${cartonLine}`
     : (a.reship_carton_id ? `<span style="color:var(--text-muted);">—</span>${cartonLine}` : '<span style="color:var(--text-muted);">—</span>');
+  // Vignette article (photo Reship photo_2 = l'article) si le colis a été reçu ; sinon rien.
+  // Style inline auto-suffisant (pas de dépendance à un scope CSS), lazy → aucun impact perf (60/page).
+  const _img = a.reship_photo_2 || a.reship_photo_1;
+  const thumb = _img
+    ? `<a href="${vEsc(_img)}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><img loading="lazy" decoding="async" width="40" height="40" src="${vEsc(_img)}" style="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--border);background:var(--surface-alt);margin-right:9px;flex:0 0 auto;vertical-align:middle;cursor:zoom-in;"></a>`
+    : '';
   const fake=vIsFake(a), refunded=vIsRefunded(a);
   const statusTag = fake ? '<span class="vtag fake">FAKE</span>'
                   : refunded ? '<span class="vtag rembourse">remboursé</span>'
@@ -5255,7 +5261,7 @@ function vintedRowHtml(a, view){
     : '';
   return `<tr onclick="openVintedFiche('${vEsc(a.uid)}')">
     ${checkCell}<td style="white-space:nowrap;color:var(--text-muted);">${vEsc(a.date_achat||'—')}</td>
-    <td><div style="font-weight:600;line-height:1.25;">${vEsc(a.titre||'(sans titre)')}</div><div style="color:var(--text-muted);font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${vEsc(a.vendeur||'—')} ${vListePill(a)}${vBundlePill(a)}${(!enc&&!fake&&!refunded)?vLocPill(a):''}</div></td>
+    <td><div style="display:flex;align-items:center;">${thumb}<div style="min-width:0;"><div style="font-weight:600;line-height:1.25;">${vEsc(a.titre||'(sans titre)')}</div><div style="color:var(--text-muted);font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${vEsc(a.vendeur||'—')} ${vListePill(a)}${vBundlePill(a)}${(!enc&&!fake&&!refunded)?vLocPill(a):''}</div></div></div></td>
     <td style="white-space:nowrap;"><span style="color:var(--text-muted);">${vGbp(a)}</span> · ${eur}</td>
     <td style="white-space:nowrap;">${tx}</td>
     <td>${vintedCatSelect(a)}${vSuggestBtn(a)}</td>
