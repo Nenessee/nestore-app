@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-hardreload-cachebust';
+const CACHE_VERSION = 'nestore-v2026-06-24-modal-scope-fix';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
