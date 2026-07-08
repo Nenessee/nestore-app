@@ -2624,7 +2624,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v220-carton-bundle-label';
+const DASH_VERSION = '2025-04-25-v221-stock-loc-par-produit';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2987,12 +2987,14 @@ async function loadStock(force) {
     return;
   }
   stockLoadedAt = Date.now();
+  // Localisation par PRODUIT : chaque produit a sa propre ligne (clé barcode+product_id côté serveur),
+  // donc deux produits au même code-barres gardent chacun leur état « en boutique ».
+  // Repli byBarcode = lignes historiques (product_id 0) ; compat ancien format (map plate par barcode).
+  const _loc = locMap || {};
+  const locByProduct = _loc.byProduct || {};
+  const locByBarcode = _loc.byBarcode || _loc;
   allStockData = data.map(p => {
-    let loc = locMap[p.barcode] || {};
-    // Code-barres partagé : la ligne stock_locations ne concerne QU'UN article (product_id mémorisé).
-    // Si elle pointe un autre product_id que celui-ci, on n'hérite pas de son état (sinon le jumeau
-    // serait faussement « localisé / sur Vinted »).
-    if (loc.productId != null && Number(loc.productId) !== Number(p.id)) loc = {};
+    const loc = locByProduct[String(p.id)] || locByBarcode[p.barcode] || {};
     const scannedBoutique = loc.scannedBoutique || null;
     return {
       ...p,
