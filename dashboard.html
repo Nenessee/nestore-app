@@ -2624,7 +2624,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v221-stock-loc-par-produit';
+const DASH_VERSION = '2025-04-25-v222-stock-keeppage';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -3311,7 +3311,7 @@ function syncSelectAllCheckbox() {
   master.indeterminate = sel>0 && sel<ids.length;
 }
 
-function filterStock() {
+function filterStock(keepPage) {
   const q=(document.getElementById('stockSearch')?.value||'').toLowerCase();
   const boutique=document.getElementById('stockBoutiqueFilter').value;
   const category=document.getElementById('stockCategoryFilter')?.value||'';
@@ -3358,7 +3358,9 @@ function filterStock() {
   // Filtre doublons actif → on regroupe par code-barres pour voir les paires côte à côte.
   if(dupF==='yes') filtered.sort((a,b)=>(a.barcode||'').localeCompare(b.barcode||''));
   stockFiltered = filtered;
-  stockShown = STOCK_PAGE_SIZE; // un changement de filtre/tri repart de la 1re page
+  // Un changement de filtre/tri repart de la 1re page ; mais un simple re-render (ex : cocher un article
+  // en inventaire) doit GARDER la page courante (« Afficher plus ») → keepPage évite le retour en haut.
+  if (!keepPage) stockShown = STOCK_PAGE_SIZE;
   renderStockPage();
 }
 
@@ -4103,7 +4105,7 @@ function onCheckLocation(barcode, checked, currentLoc, productId) {
     if (window._locFilterRaf) cancelAnimationFrame(window._locFilterRaf);
     const se = document.scrollingElement || document.documentElement;
     const y = se.scrollTop;
-    window._locFilterRaf = requestAnimationFrame(() => { filterStock(); se.scrollTop = y; });
+    window._locFilterRaf = requestAnimationFrame(() => { filterStock(true); se.scrollTop = y; });
   } else {
     // Mise à jour ciblée de la ligne (via data-barcode), sans tout redessiner
     const row = document.querySelector(`#stockTable tr[data-barcode="${String(barcode).replace(/"/g,'\\"')}"]`);
@@ -4132,7 +4134,8 @@ async function onCheckVinted(barcode, checked, productId) {
     const vintedF = document.getElementById('stockVintedFilter')?.value;
     if (vintedF) {
       if (window._vintedFilterRaf) cancelAnimationFrame(window._vintedFilterRaf);
-      window._vintedFilterRaf = requestAnimationFrame(() => filterStock());
+      const se = document.scrollingElement || document.documentElement; const y = se.scrollTop;
+      window._vintedFilterRaf = requestAnimationFrame(() => { filterStock(true); se.scrollTop = y; });
     }
   } catch(e) {
     if (p) p.onVinted = !checked;
