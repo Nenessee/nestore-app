@@ -2624,7 +2624,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v222-stock-keeppage';
+const DASH_VERSION = '2025-04-25-v223-spy-statut';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5848,7 +5848,16 @@ async function veilleRenderOverview(){
       const tracked=cInfo.tracked_now||0;
       const lastScan=cInfo.last_scan?new Date(cInfo.last_scan):null;
       const scanTxt=lastScan?`il y a ${Math.max(0,Math.round((Date.now()-lastScan)/60000))} min`:'jamais';
-      const trackedCell=r.platform==='self'?(tracked>0?`<strong>${tracked}</strong> <span style="font-size:10px;color:var(--text-soft);">en stock</span>`:`<span style="display:inline-block;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;background:var(--success-dim);color:var(--success);">données complètes</span>`):(lastScan?`<strong>${tracked}</strong> <span style="font-size:10px;color:var(--text-soft);">dispo (scan ${scanTxt})</span>`:`<span style="color:var(--accent);">0 — non lu</span>`);
+      // Statut du dernier scan (ok / anti-bot / accès refusé / timeout…) — masqué jusqu'ici, on l'affiche pour diagnostiquer.
+      const lastStatus=cInfo.last_status||null;
+      const statusBad=!!(lastStatus && lastStatus!=='ok');
+      const statusAt=cInfo.last_status_at?new Date(cInfo.last_status_at):null;
+      const statusAgo=statusAt?`il y a ${Math.max(0,Math.round((Date.now()-statusAt)/60000))} min`:'—';
+      const trackedCell=r.platform==='self'
+        ? (tracked>0?`<strong>${tracked}</strong> <span style="font-size:10px;color:var(--text-soft);">en stock</span>`:`<span style="display:inline-block;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;background:var(--success-dim);color:var(--success);">données complètes</span>`)
+        : (statusBad
+            ? `<span title="Dernier scan ${statusAgo}" style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:10.5px;font-weight:600;background:rgba(226,75,74,.12);color:#C0392B;white-space:nowrap;">⚠ ${veilleEsc(lastStatus)}</span>`
+            : (lastScan?`<strong>${tracked}</strong> <span style="font-size:10px;color:var(--text-soft);">dispo (scan ${scanTxt})</span>`:`<span style="color:var(--accent);">0 — non lu</span>`));
       const rankCell=rank<=3?`<span style="font-size:16px;">${medal[rank-1]}</span>`:`<span style="color:var(--text-muted);font-weight:700;">${rank}</span>`;
       const caCell=`${fmt(r._ca)}${r.platform!=='self'?' <span style="font-size:10px;color:var(--text-soft);">est.</span>':''}`;
       const selfBg=r.platform==='self'?'background:var(--success-dim);':'';
