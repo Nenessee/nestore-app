@@ -1574,7 +1574,8 @@ tbody tr { transition: background .12s; }
     <div class="tab" id="tabEquipe" style="display:none;" onclick="switchTab('equipe',this)">Équipe</div>
     <div class="tab" id="tabVeille" style="display:none;" onclick="switchTab('veille',this)">SPY</div>
     <div class="tab" id="tabVinted" style="display:none;" onclick="switchTab('vinted',this)">Vinted</div>
-    <div class="tab" id="tabPdv" style="display:none;" onclick="switchTab('pdv',this)">PDV</div>
+    <div class="tab" id="tabPdvVentes" style="display:none;" onclick="switchTab('pdvventes',this)">PDV Ventes</div>
+    <div class="tab" id="tabPdvStock" style="display:none;" onclick="switchTab('pdvstock',this)">PDV Stock</div>
   </div>
 </div>
 
@@ -2566,37 +2567,67 @@ tbody tr { transition: background .12s; }
 </div>
 </div><!-- /tab-vinted (englobe la modale Reship pour le scope CSS) -->
 
-<!-- TAB PDV (admin only) : import export stock + analyse marge / TVA sur marge -->
-<div id="tab-pdv" class="tab-panel">
+<!-- TAB PDV VENTES (admin) : ventes réelles (Table.xlsx) + règlements (canal/mode) — source de vérité CA -->
+<div id="tab-pdvventes" class="tab-panel">
 <div class="content">
   <div class="section-title" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px;">
-    <span>PDV — Analyse marge &amp; TVA sur marge</span>
-    <span id="pdvImportInfo" style="font-size:12px;color:var(--text-muted);font-weight:600;"></span>
+    <span>PDV — Ventes (CA réel)</span>
+    <span id="pdvvInfo" style="font-size:12px;color:var(--text-muted);font-weight:600;"></span>
     <span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
-      <input type="file" id="pdvFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none;" onchange="pdvImportFileChosen(this)"/>
-      <button class="btn btn-green" id="pdvImportBtn" onclick="document.getElementById('pdvFile').click()">📥 Importer export PDV</button>
-      <button class="btn" onclick="pdvExportCsv()">⬇ Export CSV (filtré)</button>
+      <input type="file" id="pdvvFileVentes" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none;" onchange="pdvImportVentes(this)"/>
+      <button class="btn btn-green" id="pdvvBtnVentes" onclick="document.getElementById('pdvvFileVentes').click()">📥 Importer ventes (Table.xlsx)</button>
+      <input type="file" id="pdvvFileReg" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none;" onchange="pdvImportReglements(this)"/>
+      <button class="btn" id="pdvvBtnReg" onclick="document.getElementById('pdvvFileReg').click()">💳 Importer règlements</button>
+      <button class="btn" onclick="pdvvExportCsv()">⬇ Export CSV</button>
     </span>
   </div>
   <div style="font-size:12px;color:#8a5a00;background:rgba(224,161,6,.12);border:1px solid #efc07a;border-radius:8px;padding:10px 12px;margin-bottom:14px;">
-    ⚠️ « TVA sur marge » = base de travail à <b>valider avec le comptable</b>. Le <b>dépôt-vente</b> est à ventiler séparément (régime différent). Marges calculées <b>à l'achat</b> (définition validée).
+    ⚠️ « TVA sur marge » = telle que <b>calculée par PDV</b> (lue, non recalculée). Le <b>dépôt-vente</b> est à ventiler avec le comptable. Le canal <b>« Bon d'achat »</b> est un avoir client, pas un CA neuf — à ne pas recompter.
   </div>
-  <!-- Filtres combinables -->
   <div class="filters-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;">
-    <select class="filter-select" id="pdvFYear" onchange="pdvRender()"><option value="">Toutes années</option></select>
-    <select class="filter-select" id="pdvFMonth" onchange="pdvRender()"><option value="">Tous mois</option></select>
-    <select class="filter-select" id="pdvFClasse" onchange="pdvRender()"><option value="">Toutes origines</option></select>
-    <select class="filter-select" id="pdvFCat" onchange="pdvRender()"><option value="">Toutes catégories</option></select>
-    <select class="filter-select" id="pdvFStatut" onchange="pdvRender()"><option value="">Vendus + en stock</option><option value="vendu">Vendus</option><option value="stock">En stock</option></select>
-    <input class="search-input" id="pdvFSearch" placeholder="Rechercher (désignation, réf, marque…)" style="flex:1;min-width:200px;" oninput="pdvRenderTableDebounced()"/>
-    <button class="btn" onclick="pdvResetFilters()" style="font-size:12.5px;">Réinitialiser</button>
+    <select class="filter-select" id="pdvvFYear" onchange="pdvvRender()"><option value="">Toutes années</option></select>
+    <select class="filter-select" id="pdvvFMonth" onchange="pdvvRender()"><option value="">Tous mois</option></select>
+    <select class="filter-select" id="pdvvFOrigine" onchange="pdvvRender()"><option value="">Toutes origines</option></select>
+    <select class="filter-select" id="pdvvFCat" onchange="pdvvRender()"><option value="">Toutes catégories</option></select>
+    <select class="filter-select" id="pdvvFCanal" onchange="pdvvRender()"><option value="">Tous canaux</option></select>
+    <select class="filter-select" id="pdvvFMode" onchange="pdvvRender()"><option value="">Tous modes</option></select>
+    <input class="search-input" id="pdvvFSearch" placeholder="Rechercher (libellé, ticket, code…)" style="flex:1;min-width:180px;" oninput="pdvvTableDebounced()"/>
+    <button class="btn" onclick="pdvvReset()" style="font-size:12.5px;">Réinitialiser</button>
   </div>
-  <div id="pdvKpis" class="kpi-grid" style="margin:14px 0;"></div>
-  <div id="pdvByClasse" style="margin-top:8px;"></div>
-  <div id="pdvByCat" style="margin-top:16px;"></div>
-  <div id="pdvByMonth" style="margin-top:16px;"></div>
-  <div id="pdvAnomalies" style="margin-top:16px;"></div>
-  <div id="pdvTable" style="margin-top:16px;"></div>
+  <div id="pdvvKpis" class="kpi-grid" style="margin:14px 0;"></div>
+  <div id="pdvvByMonth" style="margin-top:8px;"></div>
+  <div id="pdvvByCanal" style="margin-top:16px;"></div>
+  <div id="pdvvByCat" style="margin-top:16px;"></div>
+  <div id="pdvvByOrigine" style="margin-top:16px;"></div>
+  <div id="pdvvTable" style="margin-top:16px;"></div>
+</div>
+</div>
+
+<!-- TAB PDV STOCK (admin) : contrôle qualité des données PDV (Produits.xlsx) — PAS le CA -->
+<div id="tab-pdvstock" class="tab-panel">
+<div class="content">
+  <div class="section-title" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px;">
+    <span>PDV — Contrôle stock</span>
+    <span id="pdvsInfo" style="font-size:12px;color:var(--text-muted);font-weight:600;"></span>
+    <span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
+      <input type="file" id="pdvsFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none;" onchange="pdvsImport(this)"/>
+      <button class="btn btn-green" id="pdvsBtn" onclick="document.getElementById('pdvsFile').click()">📥 Importer contrôle stock (Produits.xlsx)</button>
+      <button class="btn" onclick="pdvsExportCsv()">⬇ Export CSV</button>
+    </span>
+  </div>
+  <div style="font-size:12px;color:#185FA5;background:rgba(24,95,165,.10);border:1px solid #b3ccea;border-radius:8px;padding:10px 12px;margin-bottom:14px;">
+    🧹 Page de <b>contrôle qualité</b> — sert à repérer les erreurs de saisie PDV à corriger à la source. Les chiffres de <b>CA / marge réels</b> sont dans l'onglet <b>« PDV Ventes »</b>, pas ici.
+  </div>
+  <div class="filters-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;">
+    <select class="filter-select" id="pdvsFOrigine" onchange="pdvsRender()"><option value="">Toutes origines</option></select>
+    <select class="filter-select" id="pdvsFCat" onchange="pdvsRender()"><option value="">Toutes catégories</option></select>
+    <select class="filter-select" id="pdvsFStatut" onchange="pdvsRender()"><option value="">Tous</option><option value="stock">En stock</option><option value="sorti">Sorti</option></select>
+    <input class="search-input" id="pdvsFSearch" placeholder="Rechercher (désignation, réf…)" style="flex:1;min-width:180px;" oninput="pdvsTableDebounced()"/>
+    <button class="btn" onclick="pdvsReset()" style="font-size:12.5px;">Réinitialiser</button>
+  </div>
+  <div id="pdvsAnomalies" style="margin-top:8px;"></div>
+  <div id="pdvsRepartition" style="margin-top:16px;"></div>
+  <div id="pdvsTable" style="margin-top:16px;"></div>
 </div>
 </div>
 
@@ -2659,7 +2690,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v225-module-pdv';
+const DASH_VERSION = '2025-04-25-v226-pdv-3imports';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2842,7 +2873,8 @@ function switchTab(name, el) {
   if (name === 'equipe') loadEquipeTab();
   if (name === 'veille') loadVeille();
   if (name === 'vinted') loadVinted();
-  if (name === 'pdv') loadPdv();
+  if (name === 'pdvventes') loadPdvVentes();
+  if (name === 'pdvstock') loadPdvStock();
 }
 // Onglet Équipe fusionné : Activité (admin+superadmin) + gestion des comptes (superadmin)
 function loadEquipeTab() {
@@ -5810,265 +5842,288 @@ function vintedRevolutFileChosen(input){
   reader.readAsText(file);
 }
 
-/* ======================= MODULE PDV : import export stock + analyse marge ======================= */
-let pdvAll = [];
-const PDV_PAGE = 100;
-let pdvTableShown = PDV_PAGE;
-let _pdvSearchT = null;
-const pdvEur = (n) => (n == null || isNaN(n)) ? '—' : Number(n).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
-const pdvPct = (x) => (x == null || isNaN(x)) ? '—' : (x * 100).toFixed(1) + ' %';
-const pdvCoef = (x) => (x == null || isNaN(x)) ? '—' : 'x' + Number(x).toFixed(2);
-
-// Charge SheetJS à la demande (comme html5-qrcode), pour parser le .xlsx côté navigateur.
-async function pdvLoadXlsxLib() {
-  if (window.XLSX) return window.XLSX;
-  await new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
-    s.onload = resolve; s.onerror = () => reject(new Error('chargement de la librairie Excel impossible'));
-    document.head.appendChild(s);
-  });
-  return window.XLSX;
+/* ======================= MODULE PDV (3 imports synchronisés par ticket) ======================= */
+const pdvEur = n => (n == null || isNaN(n)) ? '—' : Number(n).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const pdvPct = x => (x == null || isNaN(x)) ? '—' : (x * 100).toFixed(1) + ' %';
+const pdvCoef = x => (x == null || isNaN(x)) ? '—' : 'x' + Number(x).toFixed(2);
+const PDV_MONTHS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+const PDV_CANAUX = ['Boutique', 'Site internet', 'Vinted', "Bon d'achat"];
+const _pdvNorm = s => String(s || '').toLowerCase().replace(/[\s_./-]/g, '').normalize('NFD').replace(/[̀-ͯ]/g, '');
+const pdvToIso = v => { if (v == null || v === '') return null; if (v instanceof Date) return isNaN(v) ? null : v.toISOString(); return String(v); };
+async function pdvLoadXlsxLib() { if (window.XLSX) return window.XLSX; await new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js'; s.onload = res; s.onerror = () => rej(new Error('chargement de la librairie Excel impossible')); document.head.appendChild(s); }); return window.XLSX; }
+async function pdvReadXlsx(file, preferredSheet) {
+  const XLSX = await pdvLoadXlsxLib();
+  const wb = XLSX.read(await file.arrayBuffer(), { cellDates: true });
+  const sheetName = (preferredSheet && wb.SheetNames.includes(preferredSheet)) ? preferredSheet : wb.SheetNames[0];
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: null, raw: true });
+  const headerKeys = rows.length ? Object.keys(rows[0]) : [];
+  const find = (...cands) => { for (const c of cands) { const k = headerKeys.find(h => _pdvNorm(h) === _pdvNorm(c)); if (k) return k; } return null; };
+  return { sheetName, rows, find };
+}
+function pdvVentilTable(title, hint, list, keyLabel, cols) {
+  // cols: [{h, f, color}] where f(g)->value string. Totaux auto sur les colonnes numériques marquées .sum
+  const tot = {}; list.forEach(g => cols.forEach(c => { if (c.sum) tot[c.h] = (tot[c.h] || 0) + (g[c.key] || 0); }));
+  const th = `<th>${keyLabel}</th>` + cols.map(c => `<th style="text-align:right;">${c.h}</th>`).join('');
+  const body = list.map(g => `<tr><td><strong>${vEsc(String(g.k))}</strong></td>` + cols.map(c => `<td style="text-align:right;${c.color ? 'color:' + c.color + ';' : ''}">${c.render(g)}</td>`).join('') + '</tr>').join('') || `<tr><td colspan="${cols.length + 1}" style="color:var(--text-muted);padding:10px;">Aucune donnée.</td></tr>`;
+  const totRow = list.length ? `<tr style="font-weight:800;border-top:2px solid var(--border);"><td>Total</td>` + cols.map(c => `<td style="text-align:right;${c.color ? 'color:' + c.color + ';' : ''}">${c.sum ? (c.fmt ? c.fmt(tot[c.h]) : tot[c.h]) : ''}</td>`).join('') + '</tr>' : '';
+  return `<div class="table-card"><div class="table-header" style="margin-bottom:10px;"><span class="table-title">${title}</span>${hint ? `<span style="font-size:11px;color:var(--text-soft);margin-left:auto;">${hint}</span>` : ''}</div><div style="overflow-x:auto;"><table><thead><tr>${th}</tr></thead><tbody>${body}${totRow}</tbody></table></div></div>`;
 }
 
-async function pdvImportFileChosen(input) {
+/* ---------- IMPORT 1 : VENTES (Table.xlsx) ---------- */
+async function pdvImportVentes(input) {
   const file = input.files && input.files[0]; input.value = ''; if (!file) return;
-  const btn = document.getElementById('pdvImportBtn');
-  const setBtn = (t, d) => { if (btn) { btn.disabled = !!d; btn.textContent = t; } };
-  setBtn('Lecture du fichier…', true);
+  const btn = document.getElementById('pdvvBtnVentes'); const set = (t, d) => { if (btn) { btn.disabled = !!d; btn.textContent = t; } };
+  set('Lecture…', true);
   try {
-    const XLSX = await pdvLoadXlsxLib();
-    const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, { cellDates: true });
-    const sheetName = wb.SheetNames.includes('A') ? 'A' : wb.SheetNames[0];
-    const raw = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: null, raw: true });
-    if (!raw.length) { showDashToast('Onglet « ' + sheetName + ' » vide', 'error'); setBtn('📥 Importer export PDV', false); return; }
-    // Mapping souple des colonnes (tolère espaces/underscores/accents).
-    const headerKeys = Object.keys(raw[0]);
-    const norm = (s) => String(s || '').toLowerCase().replace(/[\s_./-]/g, '').normalize('NFD').replace(/[̀-ͯ]/g, '');
-    const find = (...cands) => { for (const c of cands) { const k = headerKeys.find(h => norm(h) === norm(c)); if (k) return k; } return null; };
-    const kId = find('IDProduit', 'ID Produit'), kRef = find('Référence', 'Reference'), kDes = find('Désignation', 'Designation'),
-      kMarque = find('Fabricant_Marque', 'Fabricant/Marque', 'Marque', 'Fabricant'), kHT = find('PrixHT'), kTVA = find('TVA'),
-      kAchat = find('PrixAchatNet', 'PrixAchat'), kTTC = find('PrixTTC'), kStock = find('Stock'),
-      kDep = find('NomDéposant', 'NomDeposant', 'Nom Déposant'), kContrat = find('Numéro Contrat', 'Numero Contrat', 'Contrat'),
-      kCree = find('Créé Le', 'Cree Le', 'DateCreation', 'Date Creation');
-    const toIso = (v) => { if (v == null || v === '') return null; if (v instanceof Date) return isNaN(v) ? null : v.toISOString(); return String(v); };
-    const rows = raw.map(r => ({
-      id_produit: kId ? r[kId] : null, reference: kRef ? r[kRef] : null, designation: kDes ? r[kDes] : null, marque: kMarque ? r[kMarque] : null,
-      prix_ht: kHT ? r[kHT] : null, tva: kTVA ? r[kTVA] : null, prix_achat: kAchat ? r[kAchat] : null, prix_ttc: kTTC ? r[kTTC] : null,
-      stock: kStock ? r[kStock] : null, nom_deposant: kDep ? r[kDep] : null, contrat: kContrat ? r[kContrat] : null, cree_le: toIso(kCree ? r[kCree] : null)
-    }));
-    if (!kAchat || !kTTC || !kStock) { if (!confirm('⚠️ Colonnes prix/stock non toutes détectées dans l\'onglet « ' + sheetName + ' ». Importer quand même ?')) { setBtn('📥 Importer export PDV', false); return; } }
-    if (!confirm(`Importer ${rows.length} articles depuis « ${file.name} » (onglet ${sheetName}) ?\n\n⚠️ Cela REMPLACE l'état PDV actuel (photo à un instant T). L'historique des imports est conservé.`)) { setBtn('📥 Importer export PDV', false); return; }
-    setBtn('Import en cours…', true);
-    const res = await (await fetch(`${BACKEND_URL}/pdv/import`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows, filename: file.name }) })).json();
-    if (!res.ok) { showDashToast('Erreur import : ' + (res.erreur || '?'), 'error'); setBtn('📥 Importer export PDV', false); return; }
-    const rep = res.repartition || {};
-    showDashToast(`Import OK : ${res.nb_articles} articles`, 'success');
-    setTimeout(() => alert(`Import terminé : ${res.nb_articles} articles.\n\nRépartition par origine :\n` + Object.entries(rep).map(([k, v]) => `• ${k} : ${v}`).join('\n')), 100);
-    await loadPdv();
-  } catch (e) { showDashToast('Erreur import PDV : ' + (e && e.message || ''), 'error'); }
-  finally { setBtn('📥 Importer export PDV', false); }
+    const { rows, find } = await pdvReadXlsx(file);
+    if (!rows.length) { showDashToast('Fichier vide', 'error'); set('📥 Importer ventes (Table.xlsx)', false); return; }
+    const kNum = find('Numéro', 'Numero'), kDate = find('Date'), kCode = find('CodeProduit', 'Code Produit'), kArbo = find('Arborescence'), kLib = find('Libéllé', 'Libellé', 'Libelle'),
+      kQte = find('Quantité', 'Quantite'), kRem = find('Remise'), kPR = find('PrixDeRevient', 'Prix De Revient'), kHT = find('TotalHT'), kTVA = find('TotalTVA'), kTTC = find('TotalTTC'), kMarge = find('Marge'), kDep = find('Deposant', 'Déposant');
+    if (!kNum || !kTTC) { showDashToast('Colonnes Numéro / TotalTTC introuvables', 'error'); set('📥 Importer ventes (Table.xlsx)', false); return; }
+    const mapped = rows.map(r => ({ ticket: kNum ? r[kNum] : null, date: pdvToIso(kDate ? r[kDate] : null), code_produit: kCode ? r[kCode] : null, categorie: kArbo ? r[kArbo] : null, libelle: kLib ? r[kLib] : null, quantite: kQte ? r[kQte] : null, remise: kRem ? r[kRem] : null, prix_revient: kPR ? r[kPR] : null, total_ht: kHT ? r[kHT] : null, total_tva: kTVA ? r[kTVA] : null, total_ttc: kTTC ? r[kTTC] : null, marge: kMarge ? r[kMarge] : null, deposant: kDep ? r[kDep] : null }));
+    if (!confirm(`Importer ${mapped.length} lignes de ventes depuis « ${file.name} » ?\n\n⚠️ Remplace les ventes PDV actuelles.`)) { set('📥 Importer ventes (Table.xlsx)', false); return; }
+    set('Import…', true);
+    const res = await (await fetch(`${BACKEND_URL}/pdv/import/ventes`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: mapped, filename: file.name }) })).json();
+    if (!res.ok) { showDashToast('Erreur : ' + (res.erreur || '?'), 'error'); set('📥 Importer ventes (Table.xlsx)', false); return; }
+    showDashToast(`Ventes importées : ${res.nb_lignes}${res.doublons_ignores ? ` (${res.doublons_ignores} doublons ignorés)` : ''}`, 'success');
+    await loadPdvVentes();
+  } catch (e) { showDashToast('Erreur import ventes : ' + (e && e.message || ''), 'error'); }
+  finally { set('📥 Importer ventes (Table.xlsx)', false); }
+}
+/* ---------- IMPORT 2 : RÈGLEMENTS ---------- */
+async function pdvImportReglements(input) {
+  const file = input.files && input.files[0]; input.value = ''; if (!file) return;
+  const btn = document.getElementById('pdvvBtnReg'); const set = (t, d) => { if (btn) { btn.disabled = !!d; btn.textContent = t; } };
+  set('Lecture…', true);
+  try {
+    const { rows, find } = await pdvReadXlsx(file);
+    if (!rows.length) { showDashToast('Fichier vide', 'error'); set('💳 Importer règlements', false); return; }
+    const kDate = find('Date Règlement', 'Date Reglement'), kMode = find('Mode Règlement', 'Mode Reglement', 'Mode'), kDoc = find('Numéro Doc', 'Numero Doc'), kMont = find('Montant Règlement', 'Montant Reglement', 'Montant');
+    if (!kDoc || !kMode) { showDashToast('Colonnes Numéro Doc / Mode introuvables', 'error'); set('💳 Importer règlements', false); return; }
+    const mapped = rows.map(r => ({ ticket: kDoc ? r[kDoc] : null, mode: kMode ? r[kMode] : null, montant: kMont ? r[kMont] : null, date: pdvToIso(kDate ? r[kDate] : null) }));
+    if (!confirm(`Importer ${mapped.length} règlements depuis « ${file.name} » ?\n\n⚠️ Remplace les règlements PDV actuels.`)) { set('💳 Importer règlements', false); return; }
+    set('Import…', true);
+    const res = await (await fetch(`${BACKEND_URL}/pdv/import/reglements`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: mapped, filename: file.name }) })).json();
+    if (!res.ok) { showDashToast('Erreur : ' + (res.erreur || '?'), 'error'); set('💳 Importer règlements', false); return; }
+    showDashToast(`Règlements importés : ${res.nb_reglements}`, 'success');
+    await loadPdvVentes();
+  } catch (e) { showDashToast('Erreur import règlements : ' + (e && e.message || ''), 'error'); }
+  finally { set('💳 Importer règlements', false); }
 }
 
-async function loadPdv() {
-  const info = document.getElementById('pdvImportInfo');
-  if (info) info.textContent = 'Chargement…';
+/* ================= ONGLET « PDV VENTES » ================= */
+let pdvVentes = [];
+let pdvvTableShown = 100; let _pdvvSearchT = null;
+async function loadPdvVentes() {
+  const info = document.getElementById('pdvvInfo'); if (info) info.textContent = 'Chargement…';
   try {
-    const d = await api('/pdv/products');
-    pdvAll = (d.produits || []).map(p => {
-      const achat = p.prix_achat != null ? Number(p.prix_achat) : null;
-      const ttc = p.prix_vente_ttc != null ? Number(p.prix_vente_ttc) : null;
-      const marge = (achat != null && ttc != null) ? (ttc - achat) : null;           // marge brute (à l'achat)
-      const tvaMarge = (marge != null && marge > 0) ? (marge * 20 / 120) : 0;         // TVA sur marge
-      const margeHt = (marge != null) ? (marge - tvaMarge) : null;                    // marge HT nette
-      const taux = (marge != null && achat > 0) ? (marge / achat) : null;             // taux sur le coût d'achat
-      const coef = (ttc != null && achat > 0) ? (ttc / achat) : null;
-      const dt = p.date_creation ? new Date(p.date_creation) : null;
-      return {
-        ...p, prix_achat: achat, prix_vente_ttc: ttc,
-        prix_ht: p.prix_ht != null ? Number(p.prix_ht) : null, stock: p.stock != null ? Number(p.stock) : null,
-        _marge: marge, _tvaMarge: tvaMarge, _margeHt: margeHt, _taux: taux, _coef: coef,
-        _year: dt ? dt.getFullYear() : null, _month: dt ? dt.getMonth() + 1 : null, _vendu: p.statut === 'Vendu'
-      };
+    const d = await api('/pdv/ventes');
+    const byTicket = new Map();
+    for (const rg of (d.reglements || [])) { const t = String(rg.ticket || ''); if (!t) continue; const g = byTicket.get(t) || { modes: [], total: 0 }; const mnt = rg.montant != null ? Number(rg.montant) : 0; g.modes.push({ mode: rg.mode || 'Inconnu', canal: rg.canal || 'Boutique', montant: mnt }); g.total += mnt; byTicket.set(t, g); }
+    for (const g of byTicket.values()) g.props = g.total > 0 ? g.modes.map(m => ({ mode: m.mode, canal: m.canal, prop: m.montant / g.total })) : (g.modes.length ? g.modes.map(m => ({ mode: m.mode, canal: m.canal, prop: 1 / g.modes.length })) : []);
+    pdvVentes = (d.ventes || []).map(v => {
+      const dt = v.date_vente ? new Date(v.date_vente) : null;
+      const g = byTicket.get(String(v.ticket || ''));
+      const props = (g && g.props && g.props.length) ? g.props : [{ mode: 'Inconnu', canal: 'Inconnu', prop: 1 }];
+      return { ...v, quantite: v.quantite != null ? Number(v.quantite) : null, remise: v.remise != null ? Number(v.remise) : null, prix_revient: v.prix_revient != null ? Number(v.prix_revient) : null, total_ht: v.total_ht != null ? Number(v.total_ht) : null, total_tva: v.total_tva != null ? Number(v.total_tva) : null, total_ttc: v.total_ttc != null ? Number(v.total_ttc) : null, marge: v.marge != null ? Number(v.marge) : null, _year: dt ? dt.getFullYear() : null, _month: dt ? dt.getMonth() + 1 : null, _props: props, _canaux: [...new Set(props.map(p => p.canal))], _modes: [...new Set(props.map(p => p.mode))] };
     });
-    const di = d.dernier_import;
-    if (info) info.textContent = di ? `Dernier import : ${di.nb_articles} art. · ${new Date(di.imported_at).toLocaleDateString('fr-FR')} ${new Date(di.imported_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} · ${vEsc(di.imported_by || '?')}` : 'Aucun import — clique « Importer export PDV »';
-    pdvPopulateFilters();
-    pdvRender();
+    if (info) { const iv = d.import_ventes, ir = d.import_reglements; info.textContent = (iv ? `Ventes : ${iv.nb_articles} lignes · ${new Date(iv.imported_at).toLocaleDateString('fr-FR')}` : 'Aucune vente importée') + (ir ? ` · Règlements : ${ir.nb_articles}` : ' · ⚠ règlements non importés'); }
+    pdvvPopulateFilters(); pdvvRender();
   } catch (e) { if (info) info.textContent = 'Erreur de chargement'; }
 }
-
-function pdvPopulateFilters() {
-  const years = [...new Set(pdvAll.map(p => p._year).filter(Boolean))].sort((a, b) => b - a);
-  const cats = [...new Set(pdvAll.map(p => p.categorie).filter(Boolean))].sort();
-  const classes = [...new Set(pdvAll.map(p => p.classe_origine).filter(Boolean))].sort();
-  const setOpts = (id, arr, allLabel) => {
-    const el = document.getElementById(id); if (!el) return; const cur = el.value;
-    el.innerHTML = `<option value="">${allLabel}</option>` + arr.map(v => `<option value="${vEsc(String(v))}">${vEsc(String(v))}</option>`).join('');
-    if (cur && [...el.options].some(o => o.value === cur)) el.value = cur;
-  };
-  setOpts('pdvFYear', years, 'Toutes années');
-  setOpts('pdvFClasse', classes, 'Toutes origines');
-  setOpts('pdvFCat', cats, 'Toutes catégories');
-  const my = document.getElementById('pdvFMonth');
-  if (my && my.options.length <= 1) { const names = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']; const cur = my.value; my.innerHTML = '<option value="">Tous mois</option>' + names.map((n, i) => `<option value="${i + 1}">${n}</option>`).join(''); my.value = cur; }
+function pdvvPopulateFilters() {
+  const years = [...new Set(pdvVentes.map(v => v._year).filter(Boolean))].sort((a, b) => b - a);
+  const cats = [...new Set(pdvVentes.map(v => v.categorie).filter(Boolean))].sort();
+  const origines = [...new Set(pdvVentes.map(v => v.classe_origine).filter(Boolean))].sort();
+  const modes = [...new Set(pdvVentes.flatMap(v => v._modes).filter(m => m && m !== 'Inconnu'))].sort();
+  const canaux = PDV_CANAUX.filter(c => pdvVentes.some(v => v._canaux.includes(c))).concat(pdvVentes.some(v => v._canaux.includes('Inconnu')) ? ['Inconnu'] : []);
+  const setO = (id, arr, all) => { const el = document.getElementById(id); if (!el) return; const c = el.value; el.innerHTML = `<option value="">${all}</option>` + arr.map(v => `<option value="${vEsc(String(v))}">${vEsc(String(v))}</option>`).join(''); if (c && [...el.options].some(o => o.value === c)) el.value = c; };
+  setO('pdvvFYear', years, 'Toutes années'); setO('pdvvFOrigine', origines, 'Toutes origines'); setO('pdvvFCat', cats, 'Toutes catégories'); setO('pdvvFMode', modes, 'Tous modes'); setO('pdvvFCanal', canaux, 'Tous canaux');
+  const my = document.getElementById('pdvvFMonth'); if (my && my.options.length <= 1) { const c = my.value; my.innerHTML = '<option value="">Tous mois</option>' + PDV_MONTHS.map((n, i) => `<option value="${i + 1}">${n}</option>`).join(''); my.value = c; }
 }
-
-function pdvFiltered() {
+function pdvvBase() {
   const g = id => (document.getElementById(id) || {}).value || '';
-  const y = g('pdvFYear'), m = g('pdvFMonth'), cl = g('pdvFClasse'), ca = g('pdvFCat'), st = g('pdvFStatut');
-  return pdvAll.filter(p => {
-    if (y && String(p._year) !== y) return false;
-    if (m && String(p._month) !== m) return false;
-    if (cl && p.classe_origine !== cl) return false;
-    if (ca && p.categorie !== ca) return false;
-    if (st === 'vendu' && !p._vendu) return false;
-    if (st === 'stock' && p._vendu) return false;
-    return true;
-  });
+  const y = g('pdvvFYear'), m = g('pdvvFMonth'), o = g('pdvvFOrigine'), c = g('pdvvFCat');
+  return pdvVentes.filter(v => { if (y && String(v._year) !== y) return false; if (m && String(v._month) !== m) return false; if (o && v.classe_origine !== o) return false; if (c && v.categorie !== c) return false; return true; });
 }
-
-// Agrégats sur un ensemble (KPIs). CA/coût/TVA/marge = sur les VENDUS ; valeur stock = sur les EN STOCK.
-function pdvAgg(rows) {
-  const vendus = rows.filter(p => p._vendu), stock = rows.filter(p => !p._vendu);
-  const sum = (arr, f) => arr.reduce((a, p) => a + (f(p) || 0), 0);
-  const caTTC = sum(vendus, p => p.prix_vente_ttc), cout = sum(vendus, p => p.prix_achat);
-  const mb = sum(vendus, p => p._marge), tva = sum(vendus, p => p._tvaMarge), mht = sum(vendus, p => p._margeHt);
-  return {
-    nb: rows.length, nbVendus: vendus.length, nbStock: stock.length,
-    caTTC, cout, mb, tva, mht,
-    taux: cout > 0 ? mb / cout : null, coef: cout > 0 ? caTTC / cout : null,
-    valStockAchat: sum(stock, p => p.prix_achat), valStockVente: sum(stock, p => p.prix_vente_ttc)
-  };
+function pdvvWeight(v) {
+  const canalF = (document.getElementById('pdvvFCanal') || {}).value || '', modeF = (document.getElementById('pdvvFMode') || {}).value || '';
+  if (!canalF && !modeF) return 1;
+  let w = 0; for (const p of v._props) { if (canalF && p.canal !== canalF) continue; if (modeF && p.mode !== modeF) continue; w += p.prop; } return w;
 }
-
-function pdvRender() {
-  if (!pdvAll.length) {
-    document.getElementById('pdvKpis').innerHTML = '<div style="grid-column:1/-1;color:var(--text-muted);padding:20px;text-align:center;">Aucune donnée PDV. Importe un export pour commencer.</div>';
-    ['pdvByClasse', 'pdvByCat', 'pdvByMonth', 'pdvAnomalies', 'pdvTable'].forEach(id => { const e = document.getElementById(id); if (e) e.innerHTML = ''; });
-    return;
-  }
-  const rows = pdvFiltered();
-  pdvRenderKpis(rows);
-  pdvRenderByClasse(rows);
-  pdvRenderByCat(rows);
-  pdvRenderByMonth(rows);
-  pdvRenderAnomalies(rows);
-  pdvTableShown = PDV_PAGE;
-  pdvRenderTable(rows);
+function pdvvRender() {
+  if (!pdvVentes.length) { document.getElementById('pdvvKpis').innerHTML = '<div style="grid-column:1/-1;color:var(--text-muted);padding:20px;text-align:center;">Aucune vente. Importe <b>Table.xlsx</b> (ventes) puis <b>Table_ReglementVente.xlsx</b> (règlements).</div>'; ['pdvvByMonth', 'pdvvByCanal', 'pdvvByCat', 'pdvvByOrigine', 'pdvvTable'].forEach(id => { const e = document.getElementById(id); if (e) e.innerHTML = ''; }); return; }
+  const base = pdvvBase();
+  pdvvKpis(base); pdvvByMonth(base); pdvvByCanal(base); pdvvByCat(base); pdvvByOrigine(base);
+  pdvvTableShown = 100; pdvvTable(base);
 }
-
-function pdvKpiCard(val, label, color, sub) {
-  return `<div class="kpi" style="padding:12px 13px;"><div class="kpi-value" ${color ? `style="color:${color};"` : ''}>${val}</div><div class="kpi-label">${label}</div>${sub ? `<div style="font-size:10.5px;color:var(--text-muted);margin-top:3px;">${sub}</div>` : ''}</div>`;
-}
-function pdvRenderKpis(rows) {
-  const a = pdvAgg(rows);
-  document.getElementById('pdvKpis').innerHTML = [
-    pdvKpiCard(a.nb.toLocaleString('fr-FR'), 'Articles (filtre)', null, `${a.nbVendus} vendus · ${a.nbStock} en stock`),
-    pdvKpiCard(pdvEur(a.caTTC), 'CA TTC (vendus)', '#3B6D11'),
-    pdvKpiCard(pdvEur(a.cout), 'Coût d\'achat (vendus)', '#185FA5'),
-    pdvKpiCard(pdvEur(a.mb), 'Marge brute', '#3B6D11'),
-    pdvKpiCard(pdvEur(a.tva), 'TVA sur marge', '#BA7517', '20/120 sur marge > 0'),
-    pdvKpiCard(pdvEur(a.mht), 'Marge HT nette', '#3B6D11'),
-    pdvKpiCard(pdvPct(a.taux), 'Taux de marge moyen', '#7c5cd6', 'à l\'achat (marge/coût)'),
-    pdvKpiCard(pdvCoef(a.coef), 'Coefficient moyen', '#7c5cd6', 'CA / coût'),
-    pdvKpiCard(pdvEur(a.valStockAchat), 'Valeur stock (achat)', '#8a8a8a', `${a.nbStock} articles en stock`),
-    pdvKpiCard(pdvEur(a.valStockVente), 'Valeur stock (vente)', '#8a8a8a')
+function pdvKpiCard(v, l, c, s) { return `<div class="kpi" style="padding:12px 13px;"><div class="kpi-value" ${c ? `style="color:${c};"` : ''}>${v}</div><div class="kpi-label">${l}</div>${s ? `<div style="font-size:10.5px;color:var(--text-muted);margin-top:3px;">${s}</div>` : ''}</div>`; }
+function pdvvKpis(base) {
+  const kept = base.filter(v => pdvvWeight(v) > 0);
+  const sw = f => kept.reduce((a, v) => a + (f(v) || 0) * pdvvWeight(v), 0);
+  const nbArt = kept.reduce((a, v) => a + (v.quantite != null ? v.quantite : 1), 0);
+  const caTTC = sw(v => v.total_ttc), caHT = sw(v => v.total_ht), tva = sw(v => v.total_tva), cout = sw(v => v.prix_revient), marge = sw(v => v.marge), remise = sw(v => v.remise);
+  const tickets = new Set(kept.map(v => v.ticket));
+  document.getElementById('pdvvKpis').innerHTML = [
+    pdvKpiCard(Math.round(nbArt).toLocaleString('fr-FR'), 'Articles vendus', null, `${tickets.size} ticket(s)`),
+    pdvKpiCard(pdvEur(caTTC), 'CA TTC', '#3B6D11'),
+    pdvKpiCard(pdvEur(caHT), 'CA HT', '#3B6D11'),
+    pdvKpiCard(pdvEur(tva), 'TVA sur marge', '#BA7517', 'lue de PDV'),
+    pdvKpiCard(pdvEur(cout), 'Coût de revient', '#185FA5'),
+    pdvKpiCard(pdvEur(marge), 'Marge nette', '#3B6D11'),
+    pdvKpiCard(pdvPct(cout > 0 ? marge / cout : null), 'Taux de marge moyen', '#7c5cd6', 'Marge / coût'),
+    pdvKpiCard(pdvEur(tickets.size ? caTTC / tickets.size : null), 'Panier moyen', '#7c5cd6'),
+    pdvKpiCard(pdvCoef(cout > 0 ? caTTC / cout : null), 'Coefficient moyen', '#7c5cd6', 'CA TTC / coût'),
+    pdvKpiCard(pdvEur(remise), 'Remises accordées', '#8a8a8a')
   ].join('');
 }
-
-// Ventilation générique (sur les VENDUS) : nb, CA TTC, coût, marge brute, TVA sur marge, marge HT, taux.
-function pdvVentil(rows, keyFn) {
+function pdvvByMonth(base) {
   const m = new Map();
-  for (const p of rows) { if (!p._vendu) continue; const k = keyFn(p) || '—'; const g = m.get(k) || { nb: 0, ca: 0, cout: 0, mb: 0, tva: 0, mht: 0 }; g.nb++; g.ca += p.prix_vente_ttc || 0; g.cout += p.prix_achat || 0; g.mb += p._marge || 0; g.tva += p._tvaMarge || 0; g.mht += p._margeHt || 0; m.set(k, g); }
-  return [...m.entries()].map(([k, g]) => ({ k, ...g, taux: g.cout > 0 ? g.mb / g.cout : null })).sort((a, b) => b.ca - a.ca);
+  for (const v of base) { const w = pdvvWeight(v); if (w <= 0) continue; const k = (v._year && v._month) ? `${v._year}-${String(v._month).padStart(2, '0')}` : 'Sans date'; const g = m.get(k) || { ca: 0, tva: 0, marge: 0, nb: 0, remise: 0 }; g.ca += (v.total_ttc || 0) * w; g.tva += (v.total_tva || 0) * w; g.marge += (v.marge || 0) * w; g.nb += (v.quantite != null ? v.quantite : 1); g.remise += (v.remise || 0) * w; m.set(k, g); }
+  const list = [...m.entries()].map(([k, g]) => ({ k, ...g })).sort((a, b) => String(a.k).localeCompare(String(b.k)));
+  document.getElementById('pdvvByMonth').innerHTML = pdvVentilTable('Ventilation par mois (préparation CA3)', 'vue clé pour les déclarations', list, 'Mois', [
+    { h: 'CA TTC', key: 'ca', sum: 1, fmt: pdvEur, render: g => pdvEur(g.ca), color: '#3B6D11' },
+    { h: 'TVA sur marge', key: 'tva', sum: 1, fmt: pdvEur, render: g => pdvEur(g.tva), color: '#BA7517' },
+    { h: 'Marge nette', key: 'marge', sum: 1, fmt: pdvEur, render: g => pdvEur(g.marge) },
+    { h: 'Articles', key: 'nb', sum: 1, fmt: n => Math.round(n), render: g => Math.round(g.nb) },
+    { h: 'Remises', key: 'remise', sum: 1, fmt: pdvEur, render: g => pdvEur(g.remise), color: '#8a8a8a' }
+  ]);
 }
-function pdvVentilTable(title, hint, list, keyLabel) {
-  const total = list.reduce((a, g) => ({ nb: a.nb + g.nb, ca: a.ca + g.ca, cout: a.cout + g.cout, mb: a.mb + g.mb, tva: a.tva + g.tva, mht: a.mht + g.mht }), { nb: 0, ca: 0, cout: 0, mb: 0, tva: 0, mht: 0 });
-  const rowsH = list.map(g => `<tr><td><strong>${vEsc(String(g.k))}</strong></td><td style="text-align:right;">${g.nb}</td><td style="text-align:right;">${pdvEur(g.ca)}</td><td style="text-align:right;">${pdvEur(g.cout)}</td><td style="text-align:right;">${pdvEur(g.mb)}</td><td style="text-align:right;color:#BA7517;">${pdvEur(g.tva)}</td><td style="text-align:right;">${pdvEur(g.mht)}</td><td style="text-align:right;">${pdvPct(g.taux)}</td></tr>`).join('') || '<tr><td colspan="8" style="color:var(--text-muted);padding:10px;">Aucun vendu sur ce filtre.</td></tr>';
-  const totH = `<tr style="font-weight:800;border-top:2px solid var(--border);"><td>Total</td><td style="text-align:right;">${total.nb}</td><td style="text-align:right;">${pdvEur(total.ca)}</td><td style="text-align:right;">${pdvEur(total.cout)}</td><td style="text-align:right;">${pdvEur(total.mb)}</td><td style="text-align:right;color:#BA7517;">${pdvEur(total.tva)}</td><td style="text-align:right;">${pdvEur(total.mht)}</td><td style="text-align:right;">${pdvPct(total.cout > 0 ? total.mb / total.cout : null)}</td></tr>`;
-  return `<div class="table-card"><div class="table-header" style="margin-bottom:10px;"><span class="table-title">${title}</span>${hint ? `<span style="font-size:11px;color:var(--text-soft);margin-left:auto;">${hint}</span>` : ''}</div><div style="overflow-x:auto;"><table><thead><tr><th>${keyLabel}</th><th style="text-align:right;">Vendus</th><th style="text-align:right;">CA TTC</th><th style="text-align:right;">Coût achat</th><th style="text-align:right;">Marge brute</th><th style="text-align:right;">TVA sur marge</th><th style="text-align:right;">Marge HT</th><th style="text-align:right;">Taux</th></tr></thead><tbody>${rowsH}${totH}</tbody></table></div></div>`;
+function pdvvByCanal(base) {
+  const canal = new Map(), mode = new Map();
+  for (const v of base) for (const p of v._props) {
+    const gc = canal.get(p.canal) || { ca: 0, tva: 0, marge: 0 }; gc.ca += (v.total_ttc || 0) * p.prop; gc.tva += (v.total_tva || 0) * p.prop; gc.marge += (v.marge || 0) * p.prop; canal.set(p.canal, gc);
+    const gm = mode.get(p.mode) || { ca: 0, tva: 0, marge: 0, canal: p.canal }; gm.ca += (v.total_ttc || 0) * p.prop; gm.tva += (v.total_tva || 0) * p.prop; gm.marge += (v.marge || 0) * p.prop; mode.set(p.mode, gm);
+  }
+  const lc = [...canal.entries()].map(([k, g]) => ({ k, ...g })).sort((a, b) => b.ca - a.ca);
+  const lm = [...mode.entries()].map(([k, g]) => ({ k: k + (g.canal ? ` (${g.canal})` : ''), ...g })).sort((a, b) => b.ca - a.ca);
+  const colsMon = [{ h: 'CA TTC', key: 'ca', sum: 1, fmt: pdvEur, render: g => pdvEur(g.ca), color: '#3B6D11' }, { h: 'TVA sur marge', key: 'tva', sum: 1, fmt: pdvEur, render: g => pdvEur(g.tva), color: '#BA7517' }, { h: 'Marge nette', key: 'marge', sum: 1, fmt: pdvEur, render: g => pdvEur(g.marge) }];
+  document.getElementById('pdvvByCanal').innerHTML = pdvVentilTable('Ventilation par CANAL', '4 canaux distincts · CA réparti au prorata (tickets mixtes)', lc, 'Canal', colsMon) + '<div style="margin-top:10px;"></div>' + pdvVentilTable('… par mode de paiement détaillé', '', lm, 'Mode', colsMon);
 }
-function pdvRenderByClasse(rows) { document.getElementById('pdvByClasse').innerHTML = pdvVentilTable('Ventilation par origine', 'crucial pour la ventilation comptable', pdvVentil(rows, p => p.classe_origine), 'Origine'); }
-function pdvRenderByCat(rows) { document.getElementById('pdvByCat').innerHTML = pdvVentilTable('Ventilation par catégorie', '', pdvVentil(rows, p => p.categorie), 'Catégorie'); }
-function pdvRenderByMonth(rows) {
-  const list = pdvVentil(rows, p => (p._year && p._month) ? `${p._year}-${String(p._month).padStart(2, '0')}` : 'Sans date').sort((a, b) => String(a.k).localeCompare(String(b.k)));
-  document.getElementById('pdvByMonth').innerHTML = pdvVentilTable('Ventilation par mois (préparation CA3)', 'CA & TVA sur marge par mois', list, 'Mois');
+function pdvvVentilWeighted(base, keyFn, title, hint, keyLabel) {
+  const m = new Map();
+  for (const v of base) { const w = pdvvWeight(v); if (w <= 0) continue; const k = keyFn(v) || '—'; const g = m.get(k) || { ca: 0, cout: 0, marge: 0, tva: 0, nb: 0 }; g.ca += (v.total_ttc || 0) * w; g.cout += (v.prix_revient || 0) * w; g.marge += (v.marge || 0) * w; g.tva += (v.total_tva || 0) * w; g.nb += (v.quantite != null ? v.quantite : 1); m.set(k, g); }
+  const list = [...m.entries()].map(([k, g]) => ({ k, ...g, taux: g.cout > 0 ? g.marge / g.cout : null })).sort((a, b) => b.ca - a.ca);
+  return pdvVentilTable(title, hint, list, keyLabel, [
+    { h: 'Articles', key: 'nb', sum: 1, fmt: n => Math.round(n), render: g => Math.round(g.nb) },
+    { h: 'CA TTC', key: 'ca', sum: 1, fmt: pdvEur, render: g => pdvEur(g.ca), color: '#3B6D11' },
+    { h: 'Marge nette', key: 'marge', sum: 1, fmt: pdvEur, render: g => pdvEur(g.marge) },
+    { h: 'TVA sur marge', key: 'tva', sum: 1, fmt: pdvEur, render: g => pdvEur(g.tva), color: '#BA7517' },
+    { h: 'Taux', render: g => pdvPct(g.taux) }
+  ]);
+}
+function pdvvByCat(base) { document.getElementById('pdvvByCat').innerHTML = pdvvVentilWeighted(base, v => v.categorie, 'Ventilation par catégorie', '', 'Catégorie'); }
+function pdvvByOrigine(base) { document.getElementById('pdvvByOrigine').innerHTML = pdvvVentilWeighted(base, v => v.classe_origine, 'Ventilation par origine', 'Vinted vs Autre', 'Origine'); }
+function pdvvTableDebounced() { clearTimeout(_pdvvSearchT); _pdvvSearchT = setTimeout(() => { pdvvTableShown = 100; pdvvTable(pdvvBase()); }, 200); }
+function pdvvTableRows(base) { const kept = base.filter(v => pdvvWeight(v) > 0); const q = ((document.getElementById('pdvvFSearch') || {}).value || '').toLowerCase().trim(); return q ? kept.filter(v => (`${v.libelle || ''} ${v.ticket || ''} ${v.code_produit || ''}`).toLowerCase().includes(q)) : kept; }
+function pdvvTable(base) {
+  const box = document.getElementById('pdvvTable'); if (!box) return;
+  const rows = pdvvTableRows(base); const total = rows.length; const shown = Math.min(pdvvTableShown, total);
+  const body = rows.slice(0, shown).map(v => {
+    const dt = v.date_vente ? new Date(v.date_vente) : null; const canaux = v._canaux.join(', '); const modes = v._modes.join(', ');
+    return `<tr><td style="white-space:nowrap;color:var(--text-muted);font-size:12px;">${dt ? dt.toLocaleDateString('fr-FR') : '—'}</td><td style="white-space:nowrap;">${vEsc(v.ticket || '—')}</td><td>${vEsc((v.libelle || '—'))}<div style="font-size:11px;color:var(--text-muted);">${vEsc(v.code_produit || '')}</div></td><td>${vEsc(v.categorie || '—')}</td><td>${vEsc(v.classe_origine || '—')}</td><td style="font-size:11.5px;">${vEsc(canaux)}<div style="font-size:10.5px;color:var(--text-muted);">${vEsc(modes)}</div></td><td style="text-align:right;white-space:nowrap;">${pdvEur(v.total_ttc)}</td><td style="text-align:right;white-space:nowrap;color:#BA7517;">${pdvEur(v.total_tva)}</td><td style="text-align:right;white-space:nowrap;">${pdvEur(v.marge)}</td></tr>`;
+  }).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:20px;">Aucune vente sur ce filtre.</td></tr>';
+  const pager = total > shown ? `<div style="text-align:center;padding:14px;"><button class="btn" onclick="pdvvTableShown+=100;pdvvTable(pdvvBase())">Afficher plus (${Math.min(100, total - shown)})</button> <span style="font-size:12px;color:var(--text-muted);">${shown} / ${total}</span></div>` : '';
+  box.innerHTML = `<div class="table-card"><div class="table-header" style="margin-bottom:10px;"><span class="table-title">Détail des ventes</span><span style="font-size:11px;color:var(--text-soft);margin-left:auto;">${total} ligne(s)</span></div><div style="overflow-x:auto;"><table><thead><tr><th>Date</th><th>Ticket</th><th>Libellé / code</th><th>Catégorie</th><th>Origine</th><th>Canal / mode</th><th style="text-align:right;">CA TTC</th><th style="text-align:right;">TVA marge</th><th style="text-align:right;">Marge</th></tr></thead><tbody>${body}</tbody></table></div>${pager}</div>`;
+}
+function pdvvReset() { ['pdvvFYear', 'pdvvFMonth', 'pdvvFOrigine', 'pdvvFCat', 'pdvvFCanal', 'pdvvFMode'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; }); const s = document.getElementById('pdvvFSearch'); if (s) s.value = ''; pdvvRender(); }
+function pdvvExportCsv() {
+  const rows = pdvvTableRows(pdvvBase()); if (!rows.length) { showDashToast('Rien à exporter', 'warn'); return; }
+  const head = ['Date', 'Ticket', 'CodeProduit', 'Libelle', 'Categorie', 'Origine', 'Canaux', 'Modes', 'Quantite', 'Remise', 'PrixRevient', 'TotalHT', 'TVAsurMarge', 'TotalTTC', 'Marge'];
+  const esc = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; const num = v => v == null || isNaN(v) ? '' : String(Number(v).toFixed(2)).replace('.', ',');
+  const lines = [head.join(';')];
+  for (const v of rows) lines.push([esc(v.date_vente ? new Date(v.date_vente).toLocaleDateString('fr-FR') : ''), esc(v.ticket), esc(v.code_produit), esc(v.libelle), esc(v.categorie), esc(v.classe_origine), esc(v._canaux.join('|')), esc(v._modes.join('|')), num(v.quantite), num(v.remise), num(v.prix_revient), num(v.total_ht), num(v.total_tva), num(v.total_ttc), num(v.marge)].join(';'));
+  const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `pdv_ventes_${new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(a.href); showDashToast(`${rows.length} lignes exportées`, 'success');
 }
 
-function pdvRenderAnomalies(rows) {
-  const perte = rows.filter(p => p._vendu && p._marge != null && p._marge < 0);
+/* ================= ONGLET « PDV CONTRÔLE STOCK » ================= */
+let pdvStock = []; let pdvsTableShown = 100; let _pdvsSearchT = null;
+async function pdvsImport(input) {
+  const file = input.files && input.files[0]; input.value = ''; if (!file) return;
+  const btn = document.getElementById('pdvsBtn'); const set = (t, d) => { if (btn) { btn.disabled = !!d; btn.textContent = t; } };
+  set('Lecture…', true);
+  try {
+    const { sheetName, rows, find } = await pdvReadXlsx(file, 'A');
+    if (!rows.length) { showDashToast('Onglet « ' + sheetName + ' » vide', 'error'); set('📥 Importer contrôle stock (Produits.xlsx)', false); return; }
+    const kRef = find('Référence', 'Reference'), kDes = find('Désignation', 'Designation'), kAchat = find('PrixAchatNet', 'PrixAchat'), kTTC = find('PrixTTC'), kStock = find('Stock'), kDep = find('NomDéposant', 'NomDeposant', 'Nom Déposant'), kContrat = find('Numéro Contrat', 'Numero Contrat', 'Contrat');
+    const mapped = rows.map(r => ({ reference: kRef ? r[kRef] : null, designation: kDes ? r[kDes] : null, prix_achat: kAchat ? r[kAchat] : null, prix_ttc: kTTC ? r[kTTC] : null, stock: kStock ? r[kStock] : null, nom_deposant: kDep ? r[kDep] : null, contrat: kContrat ? r[kContrat] : null }));
+    if (!confirm(`Importer ${mapped.length} articles (contrôle stock) depuis « ${file.name} » (onglet ${sheetName}) ?\n\n⚠️ Remplace l'état stock actuel.`)) { set('📥 Importer contrôle stock (Produits.xlsx)', false); return; }
+    set('Import…', true);
+    const res = await (await fetch(`${BACKEND_URL}/pdv/import`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: mapped, filename: file.name }) })).json();
+    if (!res.ok) { showDashToast('Erreur : ' + (res.erreur || '?'), 'error'); set('📥 Importer contrôle stock (Produits.xlsx)', false); return; }
+    showDashToast(`Stock importé : ${res.nb_articles} articles`, 'success');
+    await loadPdvStock();
+  } catch (e) { showDashToast('Erreur import stock : ' + (e && e.message || ''), 'error'); }
+  finally { set('📥 Importer contrôle stock (Produits.xlsx)', false); }
+}
+async function loadPdvStock() {
+  const info = document.getElementById('pdvsInfo'); if (info) info.textContent = 'Chargement…';
+  try {
+    const d = await api('/pdv/products');
+    pdvStock = (d.produits || []).map(p => { const achat = p.prix_achat != null ? Number(p.prix_achat) : null; const ttc = p.prix_vente_ttc != null ? Number(p.prix_vente_ttc) : null; return { ...p, prix_achat: achat, prix_vente_ttc: ttc, stock: p.stock != null ? Number(p.stock) : null, _marge: (achat != null && ttc != null) ? ttc - achat : null, _enstock: p.statut === 'En stock' }; });
+    const di = d.dernier_import; if (info) info.textContent = di ? `Dernier import : ${di.nb_articles} art. · ${new Date(di.imported_at).toLocaleDateString('fr-FR')} · ${vEsc(di.imported_by || '?')}` : 'Aucun import — importe Produits.xlsx';
+    pdvsPopulateFilters(); pdvsRender();
+  } catch (e) { if (info) info.textContent = 'Erreur de chargement'; }
+}
+function pdvsPopulateFilters() {
+  const cats = [...new Set(pdvStock.map(p => p.categorie).filter(Boolean))].sort();
+  const origines = [...new Set(pdvStock.map(p => p.classe_origine).filter(Boolean))].sort();
+  const setO = (id, arr, all) => { const el = document.getElementById(id); if (!el) return; const c = el.value; el.innerHTML = `<option value="">${all}</option>` + arr.map(v => `<option value="${vEsc(String(v))}">${vEsc(String(v))}</option>`).join(''); if (c && [...el.options].some(o => o.value === c)) el.value = c; };
+  setO('pdvsFOrigine', origines, 'Toutes origines'); setO('pdvsFCat', cats, 'Toutes catégories');
+}
+function pdvsFiltered() { const g = id => (document.getElementById(id) || {}).value || ''; const o = g('pdvsFOrigine'), c = g('pdvsFCat'), st = g('pdvsFStatut'); return pdvStock.filter(p => { if (o && p.classe_origine !== o) return false; if (c && p.categorie !== c) return false; if (st === 'stock' && !p._enstock) return false; if (st === 'sorti' && p._enstock) return false; return true; }); }
+function pdvsRender() {
+  if (!pdvStock.length) { document.getElementById('pdvsAnomalies').innerHTML = '<div style="color:var(--text-muted);padding:20px;text-align:center;">Aucune donnée. Importe Produits.xlsx.</div>'; ['pdvsRepartition', 'pdvsTable'].forEach(id => { const e = document.getElementById(id); if (e) e.innerHTML = ''; }); return; }
+  const rows = pdvsFiltered();
+  pdvsAnomalies(rows); pdvsRepartition(rows); pdvsTableShown = 100; pdvsTable(rows);
+}
+function pdvsAnomalies(rows) {
   const achat0 = rows.filter(p => p.prix_achat == null || p.prix_achat === 0);
   const sansRef = rows.filter(p => p.sans_reference);
-  const suspect = rows.filter(p => p._vendu && p.prix_vente_ttc > 0 && p._marge != null && (p._marge / p.prix_vente_ttc) > 0.90);
-  const block = (id, titre, arr, color, desc) => {
-    const list = arr.slice(0, 200).map(p => `<tr><td>${vEsc(p.reference || '—')}</td><td>${vEsc((p.designation || '—').slice(0, 60))}</td><td style="text-align:right;">${pdvEur(p.prix_achat)}</td><td style="text-align:right;">${pdvEur(p.prix_vente_ttc)}</td><td style="text-align:right;">${pdvEur(p._marge)}</td></tr>`).join('');
-    return `<details style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;"><summary style="cursor:pointer;font-weight:700;font-size:13px;color:${color};">${titre} — ${arr.length}</summary><div style="font-size:11.5px;color:var(--text-muted);margin:6px 0 8px;">${desc}</div>${arr.length ? `<div style="overflow-x:auto;max-height:280px;overflow-y:auto;"><table><thead><tr><th>Réf</th><th>Désignation</th><th style="text-align:right;">Achat</th><th style="text-align:right;">Vente</th><th style="text-align:right;">Marge</th></tr></thead><tbody>${list}</tbody></table>${arr.length > 200 ? `<div style="font-size:11px;color:var(--text-soft);padding:6px;">… ${arr.length - 200} de plus (voir export CSV)</div>` : ''}</div>` : '<div style="color:var(--text-muted);font-size:12px;">Aucune.</div>'}</details>`;
+  const nonCat = rows.filter(p => p.categorie === 'Non catégorisé');
+  const perte = rows.filter(p => !p._enstock && p._marge != null && p._marge < 0);
+  const suspect = rows.filter(p => p.prix_vente_ttc > 0 && p._marge != null && (p._marge / p.prix_vente_ttc) > 0.90);
+  const sansContrat = rows.filter(p => p.classe_origine === 'Sans contrat');
+  const block = (titre, arr, color, desc) => `<details style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;"><summary style="cursor:pointer;font-weight:700;font-size:13px;color:${color};">${titre} — ${arr.length}</summary><div style="font-size:11.5px;color:var(--text-muted);margin:6px 0 8px;">${desc}</div>${arr.length ? `<div style="overflow-x:auto;max-height:280px;overflow-y:auto;"><table><thead><tr><th>Réf</th><th>Désignation</th><th>Catégorie</th><th style="text-align:right;">Achat</th><th style="text-align:right;">Vente</th></tr></thead><tbody>${arr.slice(0, 300).map(p => `<tr><td>${vEsc(p.reference || '—')}</td><td>${vEsc((p.designation || '—').slice(0, 70))}</td><td>${vEsc(p.categorie || '—')}</td><td style="text-align:right;">${pdvEur(p.prix_achat)}</td><td style="text-align:right;">${pdvEur(p.prix_vente_ttc)}</td></tr>`).join('')}</tbody></table>${arr.length > 300 ? `<div style="font-size:11px;color:var(--text-soft);padding:6px;">… ${arr.length - 300} de plus (export CSV)</div>` : ''}</div>` : '<div style="color:var(--text-muted);font-size:12px;">Aucune ✓</div>'}</details>`;
+  document.getElementById('pdvsAnomalies').innerHTML = `<div class="table-card"><div class="table-header" style="margin-bottom:10px;"><span class="table-title">Anomalies à corriger dans PDV</span><span style="font-size:11px;color:var(--text-soft);margin-left:auto;">à corriger à la source</span></div>` +
+    block('⚪ Prix d\'achat à 0', achat0, '#8a5a00', 'Coût d\'achat manquant/nul → marge faussée.') +
+    block('🏷️ Sans référence', sansRef, '#185FA5', 'Article sans référence (traçabilité).') +
+    block('❓ Non catégorisé', nonCat, '#7c5cd6', 'Titre non reconnu par les règles de catégorie.') +
+    block('🔴 Vendus à perte', perte, '#A32D2D', 'Article sorti avec prix de vente < prix d\'achat.') +
+    block('⚠️ Marge > 90% du prix (achat suspect)', suspect, '#BA7517', 'Prix d\'achat < 10% du prix de vente → coût probablement mal saisi.') +
+    block('📄 Sans contrat', sansContrat, '#8a8a8a', 'Ni Vinted, ni ACHD, ni DV — origine à vérifier.') + '</div>';
+}
+function pdvsRepartition(rows) {
+  const ventil = (keyFn, keyLabel, title) => {
+    const m = new Map();
+    for (const p of rows) { const k = keyFn(p) || '—'; const g = m.get(k) || { nb: 0, achat: 0, etiq: 0, enstock: 0 }; g.nb++; g.achat += p.prix_achat || 0; g.etiq += p.prix_vente_ttc || 0; if (p._enstock) g.enstock++; m.set(k, g); }
+    const list = [...m.entries()].map(([k, g]) => ({ k, ...g })).sort((a, b) => b.etiq - a.etiq);
+    return pdvVentilTable(title, 'valeur achat & étiquette', list, keyLabel, [
+      { h: 'Articles', key: 'nb', sum: 1, fmt: n => n, render: g => g.nb },
+      { h: 'En stock', key: 'enstock', sum: 1, fmt: n => n, render: g => g.enstock },
+      { h: 'Valeur achat', key: 'achat', sum: 1, fmt: pdvEur, render: g => pdvEur(g.achat), color: '#185FA5' },
+      { h: 'Valeur étiquette', key: 'etiq', sum: 1, fmt: pdvEur, render: g => pdvEur(g.etiq), color: '#3B6D11' }
+    ]);
   };
-  document.getElementById('pdvAnomalies').innerHTML =
-    `<div class="table-card"><div class="table-header" style="margin-bottom:10px;"><span class="table-title">Anomalies</span></div>` +
-    block('perte', '🔴 Vendus à perte', perte, '#A32D2D', 'Marge négative : prix de vente TTC inférieur au coût d\'achat.') +
-    block('achat0', '⚪ Prix d\'achat à 0', achat0, '#8a5a00', 'Coût d\'achat manquant/nul → marge non fiable (fausse le taux).') +
-    block('sansref', '🏷️ Sans référence', sansRef, '#185FA5', 'Article sans référence — traçabilité incomplète.') +
-    block('suspect', '⚠️ Marge > 90% du prix (achat suspect)', suspect, '#BA7517', 'Prix d\'achat inférieur à 10% du prix de vente → coût d\'achat probablement mal saisi.') +
-    `</div>`;
+  document.getElementById('pdvsRepartition').innerHTML = ventil(p => p.classe_origine, 'Origine', 'Répartition du stock par origine') + '<div style="margin-top:16px;"></div>' + ventil(p => p.categorie, 'Catégorie', 'Répartition du stock par catégorie');
 }
-
-function pdvRenderTableDebounced() { clearTimeout(_pdvSearchT); _pdvSearchT = setTimeout(() => { pdvTableShown = PDV_PAGE; pdvRenderTable(pdvFiltered()); }, 200); }
-function pdvTableRows(rows) {
-  const q = ((document.getElementById('pdvFSearch') || {}).value || '').toLowerCase().trim();
-  if (!q) return rows;
-  return rows.filter(p => (`${p.designation || ''} ${p.reference || ''} ${p.marque || ''} ${p.id_produit || ''}`).toLowerCase().includes(q));
+function pdvsTableDebounced() { clearTimeout(_pdvsSearchT); _pdvsSearchT = setTimeout(() => { pdvsTableShown = 100; pdvsTable(pdvsFiltered()); }, 200); }
+function pdvsTableRows(rows) { const q = ((document.getElementById('pdvsFSearch') || {}).value || '').toLowerCase().trim(); return q ? rows.filter(p => (`${p.designation || ''} ${p.reference || ''}`).toLowerCase().includes(q)) : rows; }
+function pdvsTable(rows) {
+  const box = document.getElementById('pdvsTable'); if (!box) return;
+  const filt = pdvsTableRows(rows); const total = filt.length; const shown = Math.min(pdvsTableShown, total);
+  const body = filt.slice(0, shown).map(p => `<tr><td style="white-space:nowrap;">${vEsc(p.reference || '—')}</td><td>${vEsc(p.designation || '—')}</td><td>${vEsc(p.categorie || '—')}</td><td>${vEsc(p.classe_origine || '—')}</td><td><span class="badge ${p._enstock ? 'badge-ok' : 'badge-danger'}" style="font-size:10px;">${vEsc(p.statut || '—')}</span></td><td style="text-align:right;">${pdvEur(p.prix_achat)}</td><td style="text-align:right;">${pdvEur(p.prix_vente_ttc)}</td><td style="text-align:right;">${p.stock != null ? p.stock : '—'}</td></tr>`).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:20px;">Aucun article.</td></tr>';
+  const pager = total > shown ? `<div style="text-align:center;padding:14px;"><button class="btn" onclick="pdvsTableShown+=100;pdvsTable(pdvsFiltered())">Afficher plus (${Math.min(100, total - shown)})</button> <span style="font-size:12px;color:var(--text-muted);">${shown} / ${total}</span></div>` : '';
+  box.innerHTML = `<div class="table-card"><div class="table-header" style="margin-bottom:10px;"><span class="table-title">Détail stock</span><span style="font-size:11px;color:var(--text-soft);margin-left:auto;">${total} article(s)</span></div><div style="overflow-x:auto;"><table><thead><tr><th>Réf</th><th>Désignation</th><th>Catégorie</th><th>Origine</th><th>Statut</th><th style="text-align:right;">Achat</th><th style="text-align:right;">Étiquette</th><th style="text-align:right;">Stock</th></tr></thead><tbody>${body}</tbody></table></div>${pager}</div>`;
 }
-function pdvRenderTable(rows) {
-  const box = document.getElementById('pdvTable'); if (!box) return;
-  const filt = pdvTableRows(rows);
-  const total = filt.length;
-  const shown = Math.min(pdvTableShown, total);
-  const rowsH = filt.slice(0, shown).map(p => {
-    const dt = p.date_creation ? new Date(p.date_creation) : null;
-    const perte = p._vendu && p._marge != null && p._marge < 0;
-    return `<tr${perte ? ' style="background:rgba(163,45,45,.06);"' : ''}>
-      <td style="white-space:nowrap;">${vEsc(p.reference || '—')}</td>
-      <td>${vEsc((p.designation || '—'))}<div style="font-size:11px;color:var(--text-muted);">${vEsc(p.marque || '')}</div></td>
-      <td>${vEsc(p.categorie || '—')}</td>
-      <td>${vEsc(p.classe_origine || '—')}</td>
-      <td><span class="badge ${p._vendu ? 'badge-danger' : 'badge-ok'}" style="font-size:10px;">${vEsc(p.statut || '—')}</span></td>
-      <td style="text-align:right;white-space:nowrap;">${pdvEur(p.prix_achat)}</td>
-      <td style="text-align:right;white-space:nowrap;">${pdvEur(p.prix_vente_ttc)}</td>
-      <td style="text-align:right;white-space:nowrap;${perte ? 'color:#A32D2D;font-weight:700;' : ''}">${pdvEur(p._marge)}</td>
-      <td style="text-align:right;">${pdvPct(p._taux)}</td>
-      <td style="text-align:right;color:#BA7517;white-space:nowrap;">${pdvEur(p._tvaMarge)}</td>
-      <td style="white-space:nowrap;color:var(--text-muted);font-size:12px;">${dt ? dt.toLocaleDateString('fr-FR') : '—'}</td>
-    </tr>`;
-  }).join('') || '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:20px;">Aucun article sur ce filtre.</td></tr>';
-  const pager = total > shown ? `<div style="text-align:center;padding:14px;"><button class="btn" onclick="pdvTableShown+=${PDV_PAGE};pdvRenderTable(pdvFiltered())">Afficher plus (${Math.min(PDV_PAGE, total - shown)})</button> <span style="font-size:12px;color:var(--text-muted);">${shown} / ${total}</span></div>` : (total > PDV_PAGE ? `<div style="text-align:center;padding:10px;font-size:12px;color:var(--text-muted);">${total} articles</div>` : '');
-  box.innerHTML = `<div class="table-card"><div class="table-header" style="margin-bottom:10px;"><span class="table-title">Détail des articles</span><span style="font-size:11px;color:var(--text-soft);margin-left:auto;">${total} article(s) — filtre courant</span></div><div style="overflow-x:auto;"><table><thead><tr><th>Réf</th><th>Désignation / marque</th><th>Catégorie</th><th>Origine</th><th>Statut</th><th style="text-align:right;">Achat</th><th style="text-align:right;">Vente TTC</th><th style="text-align:right;">Marge</th><th style="text-align:right;">Taux</th><th style="text-align:right;">TVA marge</th><th>Créé le</th></tr></thead><tbody>${rowsH}</tbody></table></div>${pager}</div>`;
-}
-
-function pdvResetFilters() {
-  ['pdvFYear', 'pdvFMonth', 'pdvFClasse', 'pdvFCat', 'pdvFStatut'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
-  const s = document.getElementById('pdvFSearch'); if (s) s.value = '';
-  pdvRender();
-}
-
-function pdvExportCsv() {
-  const rows = pdvTableRows(pdvFiltered());
-  if (!rows.length) { showDashToast('Rien à exporter', 'warn'); return; }
-  const head = ['Reference', 'Designation', 'Marque', 'Categorie', 'Origine', 'Statut', 'PrixAchat', 'PrixVenteTTC', 'MargeBrute', 'TauxMarge', 'Coefficient', 'TVAsurMarge', 'MargeHTnette', 'CreeLe'];
-  const esc = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-  const num = (v) => v == null || isNaN(v) ? '' : String(Number(v).toFixed(2)).replace('.', ',');
+function pdvsReset() { ['pdvsFOrigine', 'pdvsFCat', 'pdvsFStatut'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; }); const s = document.getElementById('pdvsFSearch'); if (s) s.value = ''; pdvsRender(); }
+function pdvsExportCsv() {
+  const rows = pdvsTableRows(pdvsFiltered()); if (!rows.length) { showDashToast('Rien à exporter', 'warn'); return; }
+  const head = ['Reference', 'Designation', 'Categorie', 'Origine', 'Statut', 'PrixAchat', 'PrixEtiquette', 'Stock'];
+  const esc = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; const num = v => v == null || isNaN(v) ? '' : String(Number(v).toFixed(2)).replace('.', ',');
   const lines = [head.join(';')];
-  for (const p of rows) {
-    lines.push([esc(p.reference), esc(p.designation), esc(p.marque), esc(p.categorie), esc(p.classe_origine), esc(p.statut),
-      num(p.prix_achat), num(p.prix_vente_ttc), num(p._marge), (p._taux != null ? num(p._taux * 100) : ''), (p._coef != null ? num(p._coef) : ''), num(p._tvaMarge), num(p._margeHt),
-      esc(p.date_creation ? new Date(p.date_creation).toLocaleDateString('fr-FR') : '')].join(';'));
-  }
-  const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = `pdv_export_${new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(a.href);
-  showDashToast(`${rows.length} lignes exportées`, 'success');
+  for (const p of rows) lines.push([esc(p.reference), esc(p.designation), esc(p.categorie), esc(p.classe_origine), esc(p.statut), num(p.prix_achat), num(p.prix_vente_ttc), (p.stock != null ? p.stock : '')].join(';'));
+  const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `pdv_stock_${new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(a.href); showDashToast(`${rows.length} lignes exportées`, 'success');
 }
 
 // Raccourcis clavier dans la fiche : Entrée = mettre en caisse + suivant, Échap = fermer.
@@ -6574,15 +6629,12 @@ function initDashboard(boutique, employee) {
     if (tabVinted) tabVinted.remove();
     if (panelVinted) panelVinted.remove();
   }
-  // Onglet PDV : strictement admin — retiré du DOM pour les non-admin.
-  const tabPdv = document.getElementById('tabPdv');
-  const panelPdv = document.getElementById('tab-pdv');
-  if (boutique === 'admin') {
-    if (tabPdv) tabPdv.style.display = 'block';
-  } else {
-    if (tabPdv) tabPdv.remove();
-    if (panelPdv) panelPdv.remove();
-  }
+  // Onglets PDV (Ventes + Contrôle stock) : strictement admin — retirés du DOM pour les non-admin.
+  ['Ventes', 'Stock'].forEach(suf => {
+    const t = document.getElementById('tabPdv' + suf), p = document.getElementById('tab-pdv' + suf.toLowerCase());
+    if (boutique === 'admin') { if (t) t.style.display = 'block'; }
+    else { if (t) t.remove(); if (p) p.remove(); }
+  });
   // KPIs + graphiques Scan & Ventes : admin/superadmin uniquement.
   // Les employés ne voient que l'historique des ventes (table « Toutes les ventes »).
   const ventesAdmin = document.getElementById('ventesAdminOnly');
