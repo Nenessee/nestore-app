@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-spy-historique';
+const CACHE_VERSION = 'nestore-v2026-06-24-module-pdv';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
