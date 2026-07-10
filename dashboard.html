@@ -1574,6 +1574,7 @@ tbody tr { transition: background .12s; }
     <div class="tab" id="tabEquipe" style="display:none;" onclick="switchTab('equipe',this)">Équipe</div>
     <div class="tab" id="tabVeille" style="display:none;" onclick="switchTab('veille',this)">SPY</div>
     <div class="tab" id="tabVinted" style="display:none;" onclick="switchTab('vinted',this)">Vinted</div>
+    <div class="tab" id="tabPdv" style="display:none;" onclick="switchTab('pdv',this)">PDV</div>
   </div>
 </div>
 
@@ -2565,6 +2566,40 @@ tbody tr { transition: background .12s; }
 </div>
 </div><!-- /tab-vinted (englobe la modale Reship pour le scope CSS) -->
 
+<!-- TAB PDV (admin only) : import export stock + analyse marge / TVA sur marge -->
+<div id="tab-pdv" class="tab-panel">
+<div class="content">
+  <div class="section-title" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px;">
+    <span>PDV — Analyse marge &amp; TVA sur marge</span>
+    <span id="pdvImportInfo" style="font-size:12px;color:var(--text-muted);font-weight:600;"></span>
+    <span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
+      <input type="file" id="pdvFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none;" onchange="pdvImportFileChosen(this)"/>
+      <button class="btn btn-green" id="pdvImportBtn" onclick="document.getElementById('pdvFile').click()">📥 Importer export PDV</button>
+      <button class="btn" onclick="pdvExportCsv()">⬇ Export CSV (filtré)</button>
+    </span>
+  </div>
+  <div style="font-size:12px;color:#8a5a00;background:rgba(224,161,6,.12);border:1px solid #efc07a;border-radius:8px;padding:10px 12px;margin-bottom:14px;">
+    ⚠️ « TVA sur marge » = base de travail à <b>valider avec le comptable</b>. Le <b>dépôt-vente</b> est à ventiler séparément (régime différent). Marges calculées <b>à l'achat</b> (définition validée).
+  </div>
+  <!-- Filtres combinables -->
+  <div class="filters-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;">
+    <select class="filter-select" id="pdvFYear" onchange="pdvRender()"><option value="">Toutes années</option></select>
+    <select class="filter-select" id="pdvFMonth" onchange="pdvRender()"><option value="">Tous mois</option></select>
+    <select class="filter-select" id="pdvFClasse" onchange="pdvRender()"><option value="">Toutes origines</option></select>
+    <select class="filter-select" id="pdvFCat" onchange="pdvRender()"><option value="">Toutes catégories</option></select>
+    <select class="filter-select" id="pdvFStatut" onchange="pdvRender()"><option value="">Vendus + en stock</option><option value="vendu">Vendus</option><option value="stock">En stock</option></select>
+    <input class="search-input" id="pdvFSearch" placeholder="Rechercher (désignation, réf, marque…)" style="flex:1;min-width:200px;" oninput="pdvRenderTableDebounced()"/>
+    <button class="btn" onclick="pdvResetFilters()" style="font-size:12.5px;">Réinitialiser</button>
+  </div>
+  <div id="pdvKpis" class="kpi-grid" style="margin:14px 0;"></div>
+  <div id="pdvByClasse" style="margin-top:8px;"></div>
+  <div id="pdvByCat" style="margin-top:16px;"></div>
+  <div id="pdvByMonth" style="margin-top:16px;"></div>
+  <div id="pdvAnomalies" style="margin-top:16px;"></div>
+  <div id="pdvTable" style="margin-top:16px;"></div>
+</div>
+</div>
+
 <!-- CONFIRMATION GÉNÉRIQUE VINTED (mise en caisse groupée, etc.) -->
 <div class="modal" id="vintedConfirmModal">
   <div class="modal-box" style="max-width:420px;">
@@ -2624,7 +2659,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v224-spy-historique';
+const DASH_VERSION = '2025-04-25-v225-module-pdv';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2807,6 +2842,7 @@ function switchTab(name, el) {
   if (name === 'equipe') loadEquipeTab();
   if (name === 'veille') loadVeille();
   if (name === 'vinted') loadVinted();
+  if (name === 'pdv') loadPdv();
 }
 // Onglet Équipe fusionné : Activité (admin+superadmin) + gestion des comptes (superadmin)
 function loadEquipeTab() {
@@ -5774,6 +5810,267 @@ function vintedRevolutFileChosen(input){
   reader.readAsText(file);
 }
 
+/* ======================= MODULE PDV : import export stock + analyse marge ======================= */
+let pdvAll = [];
+const PDV_PAGE = 100;
+let pdvTableShown = PDV_PAGE;
+let _pdvSearchT = null;
+const pdvEur = (n) => (n == null || isNaN(n)) ? '—' : Number(n).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const pdvPct = (x) => (x == null || isNaN(x)) ? '—' : (x * 100).toFixed(1) + ' %';
+const pdvCoef = (x) => (x == null || isNaN(x)) ? '—' : 'x' + Number(x).toFixed(2);
+
+// Charge SheetJS à la demande (comme html5-qrcode), pour parser le .xlsx côté navigateur.
+async function pdvLoadXlsxLib() {
+  if (window.XLSX) return window.XLSX;
+  await new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+    s.onload = resolve; s.onerror = () => reject(new Error('chargement de la librairie Excel impossible'));
+    document.head.appendChild(s);
+  });
+  return window.XLSX;
+}
+
+async function pdvImportFileChosen(input) {
+  const file = input.files && input.files[0]; input.value = ''; if (!file) return;
+  const btn = document.getElementById('pdvImportBtn');
+  const setBtn = (t, d) => { if (btn) { btn.disabled = !!d; btn.textContent = t; } };
+  setBtn('Lecture du fichier…', true);
+  try {
+    const XLSX = await pdvLoadXlsxLib();
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { cellDates: true });
+    const sheetName = wb.SheetNames.includes('A') ? 'A' : wb.SheetNames[0];
+    const raw = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: null, raw: true });
+    if (!raw.length) { showDashToast('Onglet « ' + sheetName + ' » vide', 'error'); setBtn('📥 Importer export PDV', false); return; }
+    // Mapping souple des colonnes (tolère espaces/underscores/accents).
+    const headerKeys = Object.keys(raw[0]);
+    const norm = (s) => String(s || '').toLowerCase().replace(/[\s_./-]/g, '').normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const find = (...cands) => { for (const c of cands) { const k = headerKeys.find(h => norm(h) === norm(c)); if (k) return k; } return null; };
+    const kId = find('IDProduit', 'ID Produit'), kRef = find('Référence', 'Reference'), kDes = find('Désignation', 'Designation'),
+      kMarque = find('Fabricant_Marque', 'Fabricant/Marque', 'Marque', 'Fabricant'), kHT = find('PrixHT'), kTVA = find('TVA'),
+      kAchat = find('PrixAchatNet', 'PrixAchat'), kTTC = find('PrixTTC'), kStock = find('Stock'),
+      kDep = find('NomDéposant', 'NomDeposant', 'Nom Déposant'), kContrat = find('Numéro Contrat', 'Numero Contrat', 'Contrat'),
+      kCree = find('Créé Le', 'Cree Le', 'DateCreation', 'Date Creation');
+    const toIso = (v) => { if (v == null || v === '') return null; if (v instanceof Date) return isNaN(v) ? null : v.toISOString(); return String(v); };
+    const rows = raw.map(r => ({
+      id_produit: kId ? r[kId] : null, reference: kRef ? r[kRef] : null, designation: kDes ? r[kDes] : null, marque: kMarque ? r[kMarque] : null,
+      prix_ht: kHT ? r[kHT] : null, tva: kTVA ? r[kTVA] : null, prix_achat: kAchat ? r[kAchat] : null, prix_ttc: kTTC ? r[kTTC] : null,
+      stock: kStock ? r[kStock] : null, nom_deposant: kDep ? r[kDep] : null, contrat: kContrat ? r[kContrat] : null, cree_le: toIso(kCree ? r[kCree] : null)
+    }));
+    if (!kAchat || !kTTC || !kStock) { if (!confirm('⚠️ Colonnes prix/stock non toutes détectées dans l\'onglet « ' + sheetName + ' ». Importer quand même ?')) { setBtn('📥 Importer export PDV', false); return; } }
+    if (!confirm(`Importer ${rows.length} articles depuis « ${file.name} » (onglet ${sheetName}) ?\n\n⚠️ Cela REMPLACE l'état PDV actuel (photo à un instant T). L'historique des imports est conservé.`)) { setBtn('📥 Importer export PDV', false); return; }
+    setBtn('Import en cours…', true);
+    const res = await (await fetch(`${BACKEND_URL}/pdv/import`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows, filename: file.name }) })).json();
+    if (!res.ok) { showDashToast('Erreur import : ' + (res.erreur || '?'), 'error'); setBtn('📥 Importer export PDV', false); return; }
+    const rep = res.repartition || {};
+    showDashToast(`Import OK : ${res.nb_articles} articles`, 'success');
+    setTimeout(() => alert(`Import terminé : ${res.nb_articles} articles.\n\nRépartition par origine :\n` + Object.entries(rep).map(([k, v]) => `• ${k} : ${v}`).join('\n')), 100);
+    await loadPdv();
+  } catch (e) { showDashToast('Erreur import PDV : ' + (e && e.message || ''), 'error'); }
+  finally { setBtn('📥 Importer export PDV', false); }
+}
+
+async function loadPdv() {
+  const info = document.getElementById('pdvImportInfo');
+  if (info) info.textContent = 'Chargement…';
+  try {
+    const d = await api('/pdv/products');
+    pdvAll = (d.produits || []).map(p => {
+      const achat = p.prix_achat != null ? Number(p.prix_achat) : null;
+      const ttc = p.prix_vente_ttc != null ? Number(p.prix_vente_ttc) : null;
+      const marge = (achat != null && ttc != null) ? (ttc - achat) : null;           // marge brute (à l'achat)
+      const tvaMarge = (marge != null && marge > 0) ? (marge * 20 / 120) : 0;         // TVA sur marge
+      const margeHt = (marge != null) ? (marge - tvaMarge) : null;                    // marge HT nette
+      const taux = (marge != null && achat > 0) ? (marge / achat) : null;             // taux sur le coût d'achat
+      const coef = (ttc != null && achat > 0) ? (ttc / achat) : null;
+      const dt = p.date_creation ? new Date(p.date_creation) : null;
+      return {
+        ...p, prix_achat: achat, prix_vente_ttc: ttc,
+        prix_ht: p.prix_ht != null ? Number(p.prix_ht) : null, stock: p.stock != null ? Number(p.stock) : null,
+        _marge: marge, _tvaMarge: tvaMarge, _margeHt: margeHt, _taux: taux, _coef: coef,
+        _year: dt ? dt.getFullYear() : null, _month: dt ? dt.getMonth() + 1 : null, _vendu: p.statut === 'Vendu'
+      };
+    });
+    const di = d.dernier_import;
+    if (info) info.textContent = di ? `Dernier import : ${di.nb_articles} art. · ${new Date(di.imported_at).toLocaleDateString('fr-FR')} ${new Date(di.imported_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} · ${vEsc(di.imported_by || '?')}` : 'Aucun import — clique « Importer export PDV »';
+    pdvPopulateFilters();
+    pdvRender();
+  } catch (e) { if (info) info.textContent = 'Erreur de chargement'; }
+}
+
+function pdvPopulateFilters() {
+  const years = [...new Set(pdvAll.map(p => p._year).filter(Boolean))].sort((a, b) => b - a);
+  const cats = [...new Set(pdvAll.map(p => p.categorie).filter(Boolean))].sort();
+  const classes = [...new Set(pdvAll.map(p => p.classe_origine).filter(Boolean))].sort();
+  const setOpts = (id, arr, allLabel) => {
+    const el = document.getElementById(id); if (!el) return; const cur = el.value;
+    el.innerHTML = `<option value="">${allLabel}</option>` + arr.map(v => `<option value="${vEsc(String(v))}">${vEsc(String(v))}</option>`).join('');
+    if (cur && [...el.options].some(o => o.value === cur)) el.value = cur;
+  };
+  setOpts('pdvFYear', years, 'Toutes années');
+  setOpts('pdvFClasse', classes, 'Toutes origines');
+  setOpts('pdvFCat', cats, 'Toutes catégories');
+  const my = document.getElementById('pdvFMonth');
+  if (my && my.options.length <= 1) { const names = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']; const cur = my.value; my.innerHTML = '<option value="">Tous mois</option>' + names.map((n, i) => `<option value="${i + 1}">${n}</option>`).join(''); my.value = cur; }
+}
+
+function pdvFiltered() {
+  const g = id => (document.getElementById(id) || {}).value || '';
+  const y = g('pdvFYear'), m = g('pdvFMonth'), cl = g('pdvFClasse'), ca = g('pdvFCat'), st = g('pdvFStatut');
+  return pdvAll.filter(p => {
+    if (y && String(p._year) !== y) return false;
+    if (m && String(p._month) !== m) return false;
+    if (cl && p.classe_origine !== cl) return false;
+    if (ca && p.categorie !== ca) return false;
+    if (st === 'vendu' && !p._vendu) return false;
+    if (st === 'stock' && p._vendu) return false;
+    return true;
+  });
+}
+
+// Agrégats sur un ensemble (KPIs). CA/coût/TVA/marge = sur les VENDUS ; valeur stock = sur les EN STOCK.
+function pdvAgg(rows) {
+  const vendus = rows.filter(p => p._vendu), stock = rows.filter(p => !p._vendu);
+  const sum = (arr, f) => arr.reduce((a, p) => a + (f(p) || 0), 0);
+  const caTTC = sum(vendus, p => p.prix_vente_ttc), cout = sum(vendus, p => p.prix_achat);
+  const mb = sum(vendus, p => p._marge), tva = sum(vendus, p => p._tvaMarge), mht = sum(vendus, p => p._margeHt);
+  return {
+    nb: rows.length, nbVendus: vendus.length, nbStock: stock.length,
+    caTTC, cout, mb, tva, mht,
+    taux: cout > 0 ? mb / cout : null, coef: cout > 0 ? caTTC / cout : null,
+    valStockAchat: sum(stock, p => p.prix_achat), valStockVente: sum(stock, p => p.prix_vente_ttc)
+  };
+}
+
+function pdvRender() {
+  if (!pdvAll.length) {
+    document.getElementById('pdvKpis').innerHTML = '<div style="grid-column:1/-1;color:var(--text-muted);padding:20px;text-align:center;">Aucune donnée PDV. Importe un export pour commencer.</div>';
+    ['pdvByClasse', 'pdvByCat', 'pdvByMonth', 'pdvAnomalies', 'pdvTable'].forEach(id => { const e = document.getElementById(id); if (e) e.innerHTML = ''; });
+    return;
+  }
+  const rows = pdvFiltered();
+  pdvRenderKpis(rows);
+  pdvRenderByClasse(rows);
+  pdvRenderByCat(rows);
+  pdvRenderByMonth(rows);
+  pdvRenderAnomalies(rows);
+  pdvTableShown = PDV_PAGE;
+  pdvRenderTable(rows);
+}
+
+function pdvKpiCard(val, label, color, sub) {
+  return `<div class="kpi" style="padding:12px 13px;"><div class="kpi-value" ${color ? `style="color:${color};"` : ''}>${val}</div><div class="kpi-label">${label}</div>${sub ? `<div style="font-size:10.5px;color:var(--text-muted);margin-top:3px;">${sub}</div>` : ''}</div>`;
+}
+function pdvRenderKpis(rows) {
+  const a = pdvAgg(rows);
+  document.getElementById('pdvKpis').innerHTML = [
+    pdvKpiCard(a.nb.toLocaleString('fr-FR'), 'Articles (filtre)', null, `${a.nbVendus} vendus · ${a.nbStock} en stock`),
+    pdvKpiCard(pdvEur(a.caTTC), 'CA TTC (vendus)', '#3B6D11'),
+    pdvKpiCard(pdvEur(a.cout), 'Coût d\'achat (vendus)', '#185FA5'),
+    pdvKpiCard(pdvEur(a.mb), 'Marge brute', '#3B6D11'),
+    pdvKpiCard(pdvEur(a.tva), 'TVA sur marge', '#BA7517', '20/120 sur marge > 0'),
+    pdvKpiCard(pdvEur(a.mht), 'Marge HT nette', '#3B6D11'),
+    pdvKpiCard(pdvPct(a.taux), 'Taux de marge moyen', '#7c5cd6', 'à l\'achat (marge/coût)'),
+    pdvKpiCard(pdvCoef(a.coef), 'Coefficient moyen', '#7c5cd6', 'CA / coût'),
+    pdvKpiCard(pdvEur(a.valStockAchat), 'Valeur stock (achat)', '#8a8a8a', `${a.nbStock} articles en stock`),
+    pdvKpiCard(pdvEur(a.valStockVente), 'Valeur stock (vente)', '#8a8a8a')
+  ].join('');
+}
+
+// Ventilation générique (sur les VENDUS) : nb, CA TTC, coût, marge brute, TVA sur marge, marge HT, taux.
+function pdvVentil(rows, keyFn) {
+  const m = new Map();
+  for (const p of rows) { if (!p._vendu) continue; const k = keyFn(p) || '—'; const g = m.get(k) || { nb: 0, ca: 0, cout: 0, mb: 0, tva: 0, mht: 0 }; g.nb++; g.ca += p.prix_vente_ttc || 0; g.cout += p.prix_achat || 0; g.mb += p._marge || 0; g.tva += p._tvaMarge || 0; g.mht += p._margeHt || 0; m.set(k, g); }
+  return [...m.entries()].map(([k, g]) => ({ k, ...g, taux: g.cout > 0 ? g.mb / g.cout : null })).sort((a, b) => b.ca - a.ca);
+}
+function pdvVentilTable(title, hint, list, keyLabel) {
+  const total = list.reduce((a, g) => ({ nb: a.nb + g.nb, ca: a.ca + g.ca, cout: a.cout + g.cout, mb: a.mb + g.mb, tva: a.tva + g.tva, mht: a.mht + g.mht }), { nb: 0, ca: 0, cout: 0, mb: 0, tva: 0, mht: 0 });
+  const rowsH = list.map(g => `<tr><td><strong>${vEsc(String(g.k))}</strong></td><td style="text-align:right;">${g.nb}</td><td style="text-align:right;">${pdvEur(g.ca)}</td><td style="text-align:right;">${pdvEur(g.cout)}</td><td style="text-align:right;">${pdvEur(g.mb)}</td><td style="text-align:right;color:#BA7517;">${pdvEur(g.tva)}</td><td style="text-align:right;">${pdvEur(g.mht)}</td><td style="text-align:right;">${pdvPct(g.taux)}</td></tr>`).join('') || '<tr><td colspan="8" style="color:var(--text-muted);padding:10px;">Aucun vendu sur ce filtre.</td></tr>';
+  const totH = `<tr style="font-weight:800;border-top:2px solid var(--border);"><td>Total</td><td style="text-align:right;">${total.nb}</td><td style="text-align:right;">${pdvEur(total.ca)}</td><td style="text-align:right;">${pdvEur(total.cout)}</td><td style="text-align:right;">${pdvEur(total.mb)}</td><td style="text-align:right;color:#BA7517;">${pdvEur(total.tva)}</td><td style="text-align:right;">${pdvEur(total.mht)}</td><td style="text-align:right;">${pdvPct(total.cout > 0 ? total.mb / total.cout : null)}</td></tr>`;
+  return `<div class="table-card"><div class="table-header" style="margin-bottom:10px;"><span class="table-title">${title}</span>${hint ? `<span style="font-size:11px;color:var(--text-soft);margin-left:auto;">${hint}</span>` : ''}</div><div style="overflow-x:auto;"><table><thead><tr><th>${keyLabel}</th><th style="text-align:right;">Vendus</th><th style="text-align:right;">CA TTC</th><th style="text-align:right;">Coût achat</th><th style="text-align:right;">Marge brute</th><th style="text-align:right;">TVA sur marge</th><th style="text-align:right;">Marge HT</th><th style="text-align:right;">Taux</th></tr></thead><tbody>${rowsH}${totH}</tbody></table></div></div>`;
+}
+function pdvRenderByClasse(rows) { document.getElementById('pdvByClasse').innerHTML = pdvVentilTable('Ventilation par origine', 'crucial pour la ventilation comptable', pdvVentil(rows, p => p.classe_origine), 'Origine'); }
+function pdvRenderByCat(rows) { document.getElementById('pdvByCat').innerHTML = pdvVentilTable('Ventilation par catégorie', '', pdvVentil(rows, p => p.categorie), 'Catégorie'); }
+function pdvRenderByMonth(rows) {
+  const list = pdvVentil(rows, p => (p._year && p._month) ? `${p._year}-${String(p._month).padStart(2, '0')}` : 'Sans date').sort((a, b) => String(a.k).localeCompare(String(b.k)));
+  document.getElementById('pdvByMonth').innerHTML = pdvVentilTable('Ventilation par mois (préparation CA3)', 'CA & TVA sur marge par mois', list, 'Mois');
+}
+
+function pdvRenderAnomalies(rows) {
+  const perte = rows.filter(p => p._vendu && p._marge != null && p._marge < 0);
+  const achat0 = rows.filter(p => p.prix_achat == null || p.prix_achat === 0);
+  const sansRef = rows.filter(p => p.sans_reference);
+  const suspect = rows.filter(p => p._vendu && p.prix_vente_ttc > 0 && p._marge != null && (p._marge / p.prix_vente_ttc) > 0.90);
+  const block = (id, titre, arr, color, desc) => {
+    const list = arr.slice(0, 200).map(p => `<tr><td>${vEsc(p.reference || '—')}</td><td>${vEsc((p.designation || '—').slice(0, 60))}</td><td style="text-align:right;">${pdvEur(p.prix_achat)}</td><td style="text-align:right;">${pdvEur(p.prix_vente_ttc)}</td><td style="text-align:right;">${pdvEur(p._marge)}</td></tr>`).join('');
+    return `<details style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;"><summary style="cursor:pointer;font-weight:700;font-size:13px;color:${color};">${titre} — ${arr.length}</summary><div style="font-size:11.5px;color:var(--text-muted);margin:6px 0 8px;">${desc}</div>${arr.length ? `<div style="overflow-x:auto;max-height:280px;overflow-y:auto;"><table><thead><tr><th>Réf</th><th>Désignation</th><th style="text-align:right;">Achat</th><th style="text-align:right;">Vente</th><th style="text-align:right;">Marge</th></tr></thead><tbody>${list}</tbody></table>${arr.length > 200 ? `<div style="font-size:11px;color:var(--text-soft);padding:6px;">… ${arr.length - 200} de plus (voir export CSV)</div>` : ''}</div>` : '<div style="color:var(--text-muted);font-size:12px;">Aucune.</div>'}</details>`;
+  };
+  document.getElementById('pdvAnomalies').innerHTML =
+    `<div class="table-card"><div class="table-header" style="margin-bottom:10px;"><span class="table-title">Anomalies</span></div>` +
+    block('perte', '🔴 Vendus à perte', perte, '#A32D2D', 'Marge négative : prix de vente TTC inférieur au coût d\'achat.') +
+    block('achat0', '⚪ Prix d\'achat à 0', achat0, '#8a5a00', 'Coût d\'achat manquant/nul → marge non fiable (fausse le taux).') +
+    block('sansref', '🏷️ Sans référence', sansRef, '#185FA5', 'Article sans référence — traçabilité incomplète.') +
+    block('suspect', '⚠️ Marge > 90% du prix (achat suspect)', suspect, '#BA7517', 'Prix d\'achat inférieur à 10% du prix de vente → coût d\'achat probablement mal saisi.') +
+    `</div>`;
+}
+
+function pdvRenderTableDebounced() { clearTimeout(_pdvSearchT); _pdvSearchT = setTimeout(() => { pdvTableShown = PDV_PAGE; pdvRenderTable(pdvFiltered()); }, 200); }
+function pdvTableRows(rows) {
+  const q = ((document.getElementById('pdvFSearch') || {}).value || '').toLowerCase().trim();
+  if (!q) return rows;
+  return rows.filter(p => (`${p.designation || ''} ${p.reference || ''} ${p.marque || ''} ${p.id_produit || ''}`).toLowerCase().includes(q));
+}
+function pdvRenderTable(rows) {
+  const box = document.getElementById('pdvTable'); if (!box) return;
+  const filt = pdvTableRows(rows);
+  const total = filt.length;
+  const shown = Math.min(pdvTableShown, total);
+  const rowsH = filt.slice(0, shown).map(p => {
+    const dt = p.date_creation ? new Date(p.date_creation) : null;
+    const perte = p._vendu && p._marge != null && p._marge < 0;
+    return `<tr${perte ? ' style="background:rgba(163,45,45,.06);"' : ''}>
+      <td style="white-space:nowrap;">${vEsc(p.reference || '—')}</td>
+      <td>${vEsc((p.designation || '—'))}<div style="font-size:11px;color:var(--text-muted);">${vEsc(p.marque || '')}</div></td>
+      <td>${vEsc(p.categorie || '—')}</td>
+      <td>${vEsc(p.classe_origine || '—')}</td>
+      <td><span class="badge ${p._vendu ? 'badge-danger' : 'badge-ok'}" style="font-size:10px;">${vEsc(p.statut || '—')}</span></td>
+      <td style="text-align:right;white-space:nowrap;">${pdvEur(p.prix_achat)}</td>
+      <td style="text-align:right;white-space:nowrap;">${pdvEur(p.prix_vente_ttc)}</td>
+      <td style="text-align:right;white-space:nowrap;${perte ? 'color:#A32D2D;font-weight:700;' : ''}">${pdvEur(p._marge)}</td>
+      <td style="text-align:right;">${pdvPct(p._taux)}</td>
+      <td style="text-align:right;color:#BA7517;white-space:nowrap;">${pdvEur(p._tvaMarge)}</td>
+      <td style="white-space:nowrap;color:var(--text-muted);font-size:12px;">${dt ? dt.toLocaleDateString('fr-FR') : '—'}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:20px;">Aucun article sur ce filtre.</td></tr>';
+  const pager = total > shown ? `<div style="text-align:center;padding:14px;"><button class="btn" onclick="pdvTableShown+=${PDV_PAGE};pdvRenderTable(pdvFiltered())">Afficher plus (${Math.min(PDV_PAGE, total - shown)})</button> <span style="font-size:12px;color:var(--text-muted);">${shown} / ${total}</span></div>` : (total > PDV_PAGE ? `<div style="text-align:center;padding:10px;font-size:12px;color:var(--text-muted);">${total} articles</div>` : '');
+  box.innerHTML = `<div class="table-card"><div class="table-header" style="margin-bottom:10px;"><span class="table-title">Détail des articles</span><span style="font-size:11px;color:var(--text-soft);margin-left:auto;">${total} article(s) — filtre courant</span></div><div style="overflow-x:auto;"><table><thead><tr><th>Réf</th><th>Désignation / marque</th><th>Catégorie</th><th>Origine</th><th>Statut</th><th style="text-align:right;">Achat</th><th style="text-align:right;">Vente TTC</th><th style="text-align:right;">Marge</th><th style="text-align:right;">Taux</th><th style="text-align:right;">TVA marge</th><th>Créé le</th></tr></thead><tbody>${rowsH}</tbody></table></div>${pager}</div>`;
+}
+
+function pdvResetFilters() {
+  ['pdvFYear', 'pdvFMonth', 'pdvFClasse', 'pdvFCat', 'pdvFStatut'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+  const s = document.getElementById('pdvFSearch'); if (s) s.value = '';
+  pdvRender();
+}
+
+function pdvExportCsv() {
+  const rows = pdvTableRows(pdvFiltered());
+  if (!rows.length) { showDashToast('Rien à exporter', 'warn'); return; }
+  const head = ['Reference', 'Designation', 'Marque', 'Categorie', 'Origine', 'Statut', 'PrixAchat', 'PrixVenteTTC', 'MargeBrute', 'TauxMarge', 'Coefficient', 'TVAsurMarge', 'MargeHTnette', 'CreeLe'];
+  const esc = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const num = (v) => v == null || isNaN(v) ? '' : String(Number(v).toFixed(2)).replace('.', ',');
+  const lines = [head.join(';')];
+  for (const p of rows) {
+    lines.push([esc(p.reference), esc(p.designation), esc(p.marque), esc(p.categorie), esc(p.classe_origine), esc(p.statut),
+      num(p.prix_achat), num(p.prix_vente_ttc), num(p._marge), (p._taux != null ? num(p._taux * 100) : ''), (p._coef != null ? num(p._coef) : ''), num(p._tvaMarge), num(p._margeHt),
+      esc(p.date_creation ? new Date(p.date_creation).toLocaleDateString('fr-FR') : '')].join(';'));
+  }
+  const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `pdv_export_${new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(a.href);
+  showDashToast(`${rows.length} lignes exportées`, 'success');
+}
+
 // Raccourcis clavier dans la fiche : Entrée = mettre en caisse + suivant, Échap = fermer.
 document.addEventListener('keydown', (e)=>{
   const fiche=document.getElementById('vintedFiche');
@@ -6276,6 +6573,15 @@ function initDashboard(boutique, employee) {
   } else {
     if (tabVinted) tabVinted.remove();
     if (panelVinted) panelVinted.remove();
+  }
+  // Onglet PDV : strictement admin — retiré du DOM pour les non-admin.
+  const tabPdv = document.getElementById('tabPdv');
+  const panelPdv = document.getElementById('tab-pdv');
+  if (boutique === 'admin') {
+    if (tabPdv) tabPdv.style.display = 'block';
+  } else {
+    if (tabPdv) tabPdv.remove();
+    if (panelPdv) panelPdv.remove();
   }
   // KPIs + graphiques Scan & Ventes : admin/superadmin uniquement.
   // Les employés ne voient que l'historique des ventes (table « Toutes les ventes »).
