@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-v2026-06-24-pdv-3imports';
+const CACHE_VERSION = 'nestore-v2026-06-24-pdv-cat-graph';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

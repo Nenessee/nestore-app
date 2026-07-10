@@ -2595,6 +2595,7 @@ tbody tr { transition: background .12s; }
     <button class="btn" onclick="pdvvReset()" style="font-size:12.5px;">Réinitialiser</button>
   </div>
   <div id="pdvvKpis" class="kpi-grid" style="margin:14px 0;"></div>
+  <div id="pdvvKpiChart" style="margin:10px 0;"></div>
   <div id="pdvvByMonth" style="margin-top:8px;"></div>
   <div id="pdvvByCanal" style="margin-top:16px;"></div>
   <div id="pdvvByCat" style="margin-top:16px;"></div>
@@ -2690,7 +2691,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v226-pdv-3imports';
+const DASH_VERSION = '2025-04-25-v227-pdv-cat-graph';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -5860,13 +5861,65 @@ async function pdvReadXlsx(file, preferredSheet) {
   const find = (...cands) => { for (const c of cands) { const k = headerKeys.find(h => _pdvNorm(h) === _pdvNorm(c)); if (k) return k; } return null; };
   return { sheetName, rows, find };
 }
-function pdvVentilTable(title, hint, list, keyLabel, cols) {
-  // cols: [{h, f, color}] where f(g)->value string. Totaux auto sur les colonnes numériques marquées .sum
+function pdvVentilBody(list, keyLabel, cols) {
   const tot = {}; list.forEach(g => cols.forEach(c => { if (c.sum) tot[c.h] = (tot[c.h] || 0) + (g[c.key] || 0); }));
   const th = `<th>${keyLabel}</th>` + cols.map(c => `<th style="text-align:right;">${c.h}</th>`).join('');
   const body = list.map(g => `<tr><td><strong>${vEsc(String(g.k))}</strong></td>` + cols.map(c => `<td style="text-align:right;${c.color ? 'color:' + c.color + ';' : ''}">${c.render(g)}</td>`).join('') + '</tr>').join('') || `<tr><td colspan="${cols.length + 1}" style="color:var(--text-muted);padding:10px;">Aucune donnée.</td></tr>`;
   const totRow = list.length ? `<tr style="font-weight:800;border-top:2px solid var(--border);"><td>Total</td>` + cols.map(c => `<td style="text-align:right;${c.color ? 'color:' + c.color + ';' : ''}">${c.sum ? (c.fmt ? c.fmt(tot[c.h]) : tot[c.h]) : ''}</td>`).join('') + '</tr>' : '';
-  return `<div class="table-card"><div class="table-header" style="margin-bottom:10px;"><span class="table-title">${title}</span>${hint ? `<span style="font-size:11px;color:var(--text-soft);margin-left:auto;">${hint}</span>` : ''}</div><div style="overflow-x:auto;"><table><thead><tr>${th}</tr></thead><tbody>${body}${totRow}</tbody></table></div></div>`;
+  return `<div style="overflow-x:auto;"><table><thead><tr>${th}</tr></thead><tbody>${body}${totRow}</tbody></table></div>`;
+}
+function pdvVentilTable(title, hint, list, keyLabel, cols) {
+  return `<div class="table-card"><div class="table-header" style="margin-bottom:10px;"><span class="table-title">${title}</span>${hint ? `<span style="font-size:11px;color:var(--text-soft);margin-left:auto;">${hint}</span>` : ''}</div>${pdvVentilBody(list, keyLabel, cols)}</div>`;
+}
+// Barres horizontales pures CSS (pas de dépendance externe).
+function pdvBarChart(rows, valueFmt, color) {
+  if (!rows.length) return '<div style="color:var(--text-muted);padding:14px;">Aucune donnée.</div>';
+  const max = Math.max(1, ...rows.map(r => Math.abs(r.value || 0)));
+  return `<div style="display:flex;flex-direction:column;gap:7px;padding:8px 2px;">` + rows.map(r => {
+    const val = r.value || 0, pct = Math.max(0, (Math.abs(val) / max) * 100), neg = val < 0;
+    return `<div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+      <div style="width:150px;flex:0 0 150px;text-align:right;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${vEsc(r.label)}">${vEsc(r.label)}</div>
+      <div style="flex:1;background:var(--surface-alt);border-radius:5px;height:22px;"><div style="width:${pct}%;background:${neg ? '#A32D2D' : (color || '#3B6D11')};height:100%;border-radius:5px;min-width:2px;"></div></div>
+      <div style="width:110px;flex:0 0 110px;text-align:right;font-weight:600;">${valueFmt ? valueFmt(val) : val}</div>
+    </div>`;
+  }).join('') + `</div>`;
+}
+// Bloc ventilation avec bascule Tableau / Graphique (le graphique montre la métrique principale).
+const pdvvChartMode = {};
+function pdvvToggleChart(id) { pdvvChartMode[id] = !pdvvChartMode[id]; pdvvRender(); }
+function pdvvBlock(id, title, hint, list, keyLabel, cols, chartVal, chartFmt, chartColor) {
+  const isChart = !!pdvvChartMode[id];
+  const toggle = `<button class="btn" style="font-size:11px;padding:3px 9px;margin-left:auto;white-space:nowrap;" onclick="pdvvToggleChart('${id}')">${isChart ? '📋 Tableau' : '📊 Graphique'}</button>`;
+  const header = `<div class="table-header" style="margin-bottom:10px;align-items:center;gap:10px;"><span class="table-title">${title}</span>${hint ? `<span style="font-size:11px;color:var(--text-soft);">${hint}</span>` : ''}${toggle}</div>`;
+  const inner = isChart ? pdvBarChart(list.map(g => ({ label: String(g.k), value: chartVal(g) })), chartFmt, chartColor) : pdvVentilBody(list, keyLabel, cols);
+  return `<div class="table-card">${header}${inner}</div>`;
+}
+// Catégorie déduite du TITRE (mêmes règles que le stock) — utilisée aussi pour les ventes. Mots-clés tunables.
+const PDV_SNEAKER_KW = ['AIR MAX', 'AIR FORCE', 'JORDAN', 'DUNK', 'ARENA', 'GOLDEN GOOSE', 'YEEZY', 'NEW BALANCE', 'SAMBA', 'GAZELLE', 'LOUBOUTIN', 'PHILIPPE MODEL', 'B22', 'PRADA CUP', 'NIKE SB', 'TRAINER', 'SHOX', 'CORTEZ', 'BLAZER', 'MULE', 'SLIDE', 'VAPORMAX', 'BAPESTA', 'TRACK', 'RYTHON', 'DK SB', 'VANS', 'CONVERSE', 'ASICS', 'SALOMON', 'CURB', 'FORUM'];
+const PDV_GARMENT_RULES = [
+  { cat: 'Sweat', kw: ['SWEAT', 'SWAET', 'SWE', 'HOODIE', 'CREWNECK', 'SOFTSHELL', 'SHELL-R'] },
+  { cat: 'T-shirt', kw: ['T-SHIRT', 'TSHIRT', 'TSHURT', 'BSHIRT', 'TEE', 'POLO'] },
+  { cat: 'Pull/Maille', kw: ['PULL', 'KNIT', 'MAILLE', 'CARDIGAN'] },
+  { cat: 'Chemise', kw: ['CHEMISE'] },
+  { cat: 'Manteau/Doudoune', kw: ['DOUDOUNE', 'MANTEAU', 'PARKA', 'PARAJUMPERS', 'PJS'] },
+  { cat: 'Veste', kw: ['VESTE', 'JACKET', 'BLOUSON', 'GILET'] },
+  { cat: 'Bas (jean/jogging)', kw: ['JEAN', 'JORT', 'PANTALON', 'JOGGING', 'SHORT', 'CARGO'] },
+  { cat: 'Sac/Maroquinerie', kw: ['SAC', 'POCHETTE', 'WALLET', 'PORTEFEUILLE'] },
+  { cat: 'Ceinture', kw: ['CEINTURE', 'BELT'] },
+  { cat: 'Accessoire', kw: ['CASQUETTE', 'BONNET', 'CAP', 'ECHARPE', 'LUNETTE', 'BRACELET', 'GANT', 'CHAUSSETTE', 'BEANIE', 'SCARF'] }
+];
+const PDV_GARMENT_KW = PDV_GARMENT_RULES.flatMap(r => r.kw);
+function pdvGuessCat(title) {
+  const t = String(title || '').toUpperCase().trim();
+  if (!t) return 'Non catégorisé';
+  const has = arr => arr.some(k => t.includes(k));
+  if (has(['NETTOYAGE', 'PRESTATION', 'CADEAU', 'PACK'])) return 'Service/Autre';
+  // Vêtements AVANT sneakers : un mot de vêtement (SWEAT, HOODIE, VESTE…) prime sur une marque de sneaker
+  // (ex : « JORDAN HOODIE » = Sweat). Les vraies sneakers n'ont pas de mot de vêtement dans le titre.
+  for (const r of PDV_GARMENT_RULES) if (has(r.kw)) return r.cat;
+  if (has(PDV_SNEAKER_KW)) return 'Sneakers';
+  if (/\(\s*\d{2}\s*(?:EU)?\s*\)/.test(t)) return 'Sneakers'; // format taille chaussure « (42EU) »/« (38) »
+  return 'Autre vêtement';
 }
 
 /* ---------- IMPORT 1 : VENTES (Table.xlsx) ---------- */
@@ -5925,7 +5978,7 @@ async function loadPdvVentes() {
       const dt = v.date_vente ? new Date(v.date_vente) : null;
       const g = byTicket.get(String(v.ticket || ''));
       const props = (g && g.props && g.props.length) ? g.props : [{ mode: 'Inconnu', canal: 'Inconnu', prop: 1 }];
-      return { ...v, quantite: v.quantite != null ? Number(v.quantite) : null, remise: v.remise != null ? Number(v.remise) : null, prix_revient: v.prix_revient != null ? Number(v.prix_revient) : null, total_ht: v.total_ht != null ? Number(v.total_ht) : null, total_tva: v.total_tva != null ? Number(v.total_tva) : null, total_ttc: v.total_ttc != null ? Number(v.total_ttc) : null, marge: v.marge != null ? Number(v.marge) : null, _year: dt ? dt.getFullYear() : null, _month: dt ? dt.getMonth() + 1 : null, _props: props, _canaux: [...new Set(props.map(p => p.canal))], _modes: [...new Set(props.map(p => p.mode))] };
+      return { ...v, categorie: pdvGuessCat(v.libelle), _arbo: v.categorie, quantite: v.quantite != null ? Number(v.quantite) : null, remise: v.remise != null ? Number(v.remise) : null, prix_revient: v.prix_revient != null ? Number(v.prix_revient) : null, total_ht: v.total_ht != null ? Number(v.total_ht) : null, total_tva: v.total_tva != null ? Number(v.total_tva) : null, total_ttc: v.total_ttc != null ? Number(v.total_ttc) : null, marge: v.marge != null ? Number(v.marge) : null, _year: dt ? dt.getFullYear() : null, _month: dt ? dt.getMonth() + 1 : null, _props: props, _canaux: [...new Set(props.map(p => p.canal))], _modes: [...new Set(props.map(p => p.mode))] };
     });
     if (info) { const iv = d.import_ventes, ir = d.import_reglements; info.textContent = (iv ? `Ventes : ${iv.nb_articles} lignes · ${new Date(iv.imported_at).toLocaleDateString('fr-FR')}` : 'Aucune vente importée') + (ir ? ` · Règlements : ${ir.nb_articles}` : ' · ⚠ règlements non importés'); }
     pdvvPopulateFilters(); pdvvRender();
@@ -5957,7 +6010,22 @@ function pdvvRender() {
   pdvvKpis(base); pdvvByMonth(base); pdvvByCanal(base); pdvvByCat(base); pdvvByOrigine(base);
   pdvvTableShown = 100; pdvvTable(base);
 }
-function pdvKpiCard(v, l, c, s) { return `<div class="kpi" style="padding:12px 13px;"><div class="kpi-value" ${c ? `style="color:${c};"` : ''}>${v}</div><div class="kpi-label">${l}</div>${s ? `<div style="font-size:10.5px;color:var(--text-muted);margin-top:3px;">${s}</div>` : ''}</div>`; }
+function pdvKpiCard(v, l, c, s, metric) {
+  const clk = metric ? ` onclick="pdvvShowKpiChart('${metric}')" title="Voir l'évolution par mois" style="padding:12px 13px;cursor:pointer;"` : ' style="padding:12px 13px;"';
+  const arrow = metric ? '<span style="float:right;font-size:11px;color:var(--text-soft);">📊</span>' : '';
+  return `<div class="kpi"${clk}>${arrow}<div class="kpi-value" ${c ? `style="color:${c};"` : ''}>${v}</div><div class="kpi-label">${l}</div>${s ? `<div style="font-size:10.5px;color:var(--text-muted);margin-top:3px;">${s}</div>` : ''}</div>`;
+}
+let pdvvKpiMetric = null;
+function pdvvShowKpiChart(metric) { pdvvKpiMetric = (pdvvKpiMetric === metric) ? null : metric; pdvvRenderKpiChart(); }
+function pdvvRenderKpiChart() {
+  const box = document.getElementById('pdvvKpiChart'); if (!box) return;
+  const defs = { ca: { f: v => v.total_ttc, label: 'CA TTC', fmt: pdvEur, color: '#3B6D11' }, ht: { f: v => v.total_ht, label: 'CA HT', fmt: pdvEur, color: '#3B6D11' }, tva: { f: v => v.total_tva, label: 'TVA sur marge', fmt: pdvEur, color: '#BA7517' }, cout: { f: v => v.prix_revient, label: 'Coût de revient', fmt: pdvEur, color: '#185FA5' }, marge: { f: v => v.marge, label: 'Marge nette', fmt: pdvEur, color: '#3B6D11' }, remise: { f: v => v.remise, label: 'Remises', fmt: pdvEur, color: '#8a8a8a' }, nb: { f: () => 1, label: 'Articles vendus', fmt: n => Math.round(n), color: '#7c5cd6' } };
+  const d = pdvvKpiMetric && defs[pdvvKpiMetric]; if (!d) { box.innerHTML = ''; return; }
+  const base = pdvvBase(); const m = new Map();
+  for (const v of base) { const w = pdvvWeight(v); if (w <= 0) continue; const k = (v._year && v._month) ? `${v._year}-${String(v._month).padStart(2, '0')}` : 'Sans date'; m.set(k, (m.get(k) || 0) + (d.f(v) || 0) * (pdvvKpiMetric === 'nb' ? (v.quantite != null ? v.quantite : 1) : w)); }
+  const list = [...m.entries()].map(([k, val]) => ({ label: k, value: val })).sort((a, b) => String(a.label).localeCompare(String(b.label)));
+  box.innerHTML = `<div class="table-card"><div class="table-header" style="margin-bottom:10px;align-items:center;"><span class="table-title">${d.label} — évolution par mois</span><button class="btn" style="font-size:11px;padding:3px 9px;margin-left:auto;" onclick="pdvvShowKpiChart(null)">✕ Fermer</button></div>${pdvBarChart(list, d.fmt, d.color)}</div>`;
+}
 function pdvvKpis(base) {
   const kept = base.filter(v => pdvvWeight(v) > 0);
   const sw = f => kept.reduce((a, v) => a + (f(v) || 0) * pdvvWeight(v), 0);
@@ -5965,29 +6033,30 @@ function pdvvKpis(base) {
   const caTTC = sw(v => v.total_ttc), caHT = sw(v => v.total_ht), tva = sw(v => v.total_tva), cout = sw(v => v.prix_revient), marge = sw(v => v.marge), remise = sw(v => v.remise);
   const tickets = new Set(kept.map(v => v.ticket));
   document.getElementById('pdvvKpis').innerHTML = [
-    pdvKpiCard(Math.round(nbArt).toLocaleString('fr-FR'), 'Articles vendus', null, `${tickets.size} ticket(s)`),
-    pdvKpiCard(pdvEur(caTTC), 'CA TTC', '#3B6D11'),
-    pdvKpiCard(pdvEur(caHT), 'CA HT', '#3B6D11'),
-    pdvKpiCard(pdvEur(tva), 'TVA sur marge', '#BA7517', 'lue de PDV'),
-    pdvKpiCard(pdvEur(cout), 'Coût de revient', '#185FA5'),
-    pdvKpiCard(pdvEur(marge), 'Marge nette', '#3B6D11'),
+    pdvKpiCard(Math.round(nbArt).toLocaleString('fr-FR'), 'Articles vendus', null, `${tickets.size} ticket(s)`, 'nb'),
+    pdvKpiCard(pdvEur(caTTC), 'CA TTC', '#3B6D11', null, 'ca'),
+    pdvKpiCard(pdvEur(caHT), 'CA HT', '#3B6D11', null, 'ht'),
+    pdvKpiCard(pdvEur(tva), 'TVA sur marge', '#BA7517', 'lue de PDV', 'tva'),
+    pdvKpiCard(pdvEur(cout), 'Coût de revient', '#185FA5', null, 'cout'),
+    pdvKpiCard(pdvEur(marge), 'Marge nette', '#3B6D11', null, 'marge'),
     pdvKpiCard(pdvPct(cout > 0 ? marge / cout : null), 'Taux de marge moyen', '#7c5cd6', 'Marge / coût'),
     pdvKpiCard(pdvEur(tickets.size ? caTTC / tickets.size : null), 'Panier moyen', '#7c5cd6'),
     pdvKpiCard(pdvCoef(cout > 0 ? caTTC / cout : null), 'Coefficient moyen', '#7c5cd6', 'CA TTC / coût'),
-    pdvKpiCard(pdvEur(remise), 'Remises accordées', '#8a8a8a')
+    pdvKpiCard(pdvEur(remise), 'Remises accordées', '#8a8a8a', null, 'remise')
   ].join('');
+  pdvvRenderKpiChart();
 }
 function pdvvByMonth(base) {
   const m = new Map();
   for (const v of base) { const w = pdvvWeight(v); if (w <= 0) continue; const k = (v._year && v._month) ? `${v._year}-${String(v._month).padStart(2, '0')}` : 'Sans date'; const g = m.get(k) || { ca: 0, tva: 0, marge: 0, nb: 0, remise: 0 }; g.ca += (v.total_ttc || 0) * w; g.tva += (v.total_tva || 0) * w; g.marge += (v.marge || 0) * w; g.nb += (v.quantite != null ? v.quantite : 1); g.remise += (v.remise || 0) * w; m.set(k, g); }
   const list = [...m.entries()].map(([k, g]) => ({ k, ...g })).sort((a, b) => String(a.k).localeCompare(String(b.k)));
-  document.getElementById('pdvvByMonth').innerHTML = pdvVentilTable('Ventilation par mois (préparation CA3)', 'vue clé pour les déclarations', list, 'Mois', [
+  document.getElementById('pdvvByMonth').innerHTML = pdvvBlock('mois', 'Ventilation par mois (préparation CA3)', 'vue clé pour les déclarations', list, 'Mois', [
     { h: 'CA TTC', key: 'ca', sum: 1, fmt: pdvEur, render: g => pdvEur(g.ca), color: '#3B6D11' },
     { h: 'TVA sur marge', key: 'tva', sum: 1, fmt: pdvEur, render: g => pdvEur(g.tva), color: '#BA7517' },
     { h: 'Marge nette', key: 'marge', sum: 1, fmt: pdvEur, render: g => pdvEur(g.marge) },
     { h: 'Articles', key: 'nb', sum: 1, fmt: n => Math.round(n), render: g => Math.round(g.nb) },
     { h: 'Remises', key: 'remise', sum: 1, fmt: pdvEur, render: g => pdvEur(g.remise), color: '#8a8a8a' }
-  ]);
+  ], g => g.ca, pdvEur, '#3B6D11');
 }
 function pdvvByCanal(base) {
   const canal = new Map(), mode = new Map();
@@ -5998,22 +6067,22 @@ function pdvvByCanal(base) {
   const lc = [...canal.entries()].map(([k, g]) => ({ k, ...g })).sort((a, b) => b.ca - a.ca);
   const lm = [...mode.entries()].map(([k, g]) => ({ k: k + (g.canal ? ` (${g.canal})` : ''), ...g })).sort((a, b) => b.ca - a.ca);
   const colsMon = [{ h: 'CA TTC', key: 'ca', sum: 1, fmt: pdvEur, render: g => pdvEur(g.ca), color: '#3B6D11' }, { h: 'TVA sur marge', key: 'tva', sum: 1, fmt: pdvEur, render: g => pdvEur(g.tva), color: '#BA7517' }, { h: 'Marge nette', key: 'marge', sum: 1, fmt: pdvEur, render: g => pdvEur(g.marge) }];
-  document.getElementById('pdvvByCanal').innerHTML = pdvVentilTable('Ventilation par CANAL', '4 canaux distincts · CA réparti au prorata (tickets mixtes)', lc, 'Canal', colsMon) + '<div style="margin-top:10px;"></div>' + pdvVentilTable('… par mode de paiement détaillé', '', lm, 'Mode', colsMon);
+  document.getElementById('pdvvByCanal').innerHTML = pdvvBlock('canal', 'Ventilation par CANAL', '4 canaux distincts · CA au prorata (tickets mixtes)', lc, 'Canal', colsMon, g => g.ca, pdvEur, '#3B6D11') + '<div style="margin-top:10px;"></div>' + pdvvBlock('mode', '… par mode de paiement détaillé', '', lm, 'Mode', colsMon, g => g.ca, pdvEur, '#185FA5');
 }
-function pdvvVentilWeighted(base, keyFn, title, hint, keyLabel) {
+function pdvvVentilWeighted(id, base, keyFn, title, hint, keyLabel) {
   const m = new Map();
   for (const v of base) { const w = pdvvWeight(v); if (w <= 0) continue; const k = keyFn(v) || '—'; const g = m.get(k) || { ca: 0, cout: 0, marge: 0, tva: 0, nb: 0 }; g.ca += (v.total_ttc || 0) * w; g.cout += (v.prix_revient || 0) * w; g.marge += (v.marge || 0) * w; g.tva += (v.total_tva || 0) * w; g.nb += (v.quantite != null ? v.quantite : 1); m.set(k, g); }
   const list = [...m.entries()].map(([k, g]) => ({ k, ...g, taux: g.cout > 0 ? g.marge / g.cout : null })).sort((a, b) => b.ca - a.ca);
-  return pdvVentilTable(title, hint, list, keyLabel, [
+  return pdvvBlock(id, title, hint, list, keyLabel, [
     { h: 'Articles', key: 'nb', sum: 1, fmt: n => Math.round(n), render: g => Math.round(g.nb) },
     { h: 'CA TTC', key: 'ca', sum: 1, fmt: pdvEur, render: g => pdvEur(g.ca), color: '#3B6D11' },
     { h: 'Marge nette', key: 'marge', sum: 1, fmt: pdvEur, render: g => pdvEur(g.marge) },
     { h: 'TVA sur marge', key: 'tva', sum: 1, fmt: pdvEur, render: g => pdvEur(g.tva), color: '#BA7517' },
     { h: 'Taux', render: g => pdvPct(g.taux) }
-  ]);
+  ], g => g.ca, pdvEur, '#3B6D11');
 }
-function pdvvByCat(base) { document.getElementById('pdvvByCat').innerHTML = pdvvVentilWeighted(base, v => v.categorie, 'Ventilation par catégorie', '', 'Catégorie'); }
-function pdvvByOrigine(base) { document.getElementById('pdvvByOrigine').innerHTML = pdvvVentilWeighted(base, v => v.classe_origine, 'Ventilation par origine', 'Vinted vs Autre', 'Origine'); }
+function pdvvByCat(base) { document.getElementById('pdvvByCat').innerHTML = pdvvVentilWeighted('cat', base, v => v.categorie, 'Ventilation par catégorie', '', 'Catégorie'); }
+function pdvvByOrigine(base) { document.getElementById('pdvvByOrigine').innerHTML = pdvvVentilWeighted('origine', base, v => v.classe_origine, 'Ventilation par origine', 'Vinted vs Autre', 'Origine'); }
 function pdvvTableDebounced() { clearTimeout(_pdvvSearchT); _pdvvSearchT = setTimeout(() => { pdvvTableShown = 100; pdvvTable(pdvvBase()); }, 200); }
 function pdvvTableRows(base) { const kept = base.filter(v => pdvvWeight(v) > 0); const q = ((document.getElementById('pdvvFSearch') || {}).value || '').toLowerCase().trim(); return q ? kept.filter(v => (`${v.libelle || ''} ${v.ticket || ''} ${v.code_produit || ''}`).toLowerCase().includes(q)) : kept; }
 function pdvvTable(base) {
