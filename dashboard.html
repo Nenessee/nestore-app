@@ -2696,19 +2696,17 @@ function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ 
 // escJs neutralise \ et ' côté JS, puis esc() neutralise le HTML de l'attribut → esc(escJs(v)).
 function escJs(s) { return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
 
+// Rôle du compte connecté (nv_user est confirmé par le serveur via /auth/me au chargement).
+// Les gardes UI s'appuient dessus — l'enforcement réel reste côté serveur (requireAdmin/requireSuperadmin).
+function nvUserRole() { try { return (JSON.parse(localStorage.getItem('nv_user') || '{}').role) || null; } catch (_) { return null; } }
+function nvIsAdmin() { const r = nvUserRole(); return r === 'admin' || r === 'superadmin'; }
+
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
 // Demande (et mémorise) la clé admin pour les actions réservées à l'admin.
-function ensureAdminKey() {
-  let k = localStorage.getItem('nv_admin_key');
-  if (!k) {
-    k = prompt('Clé admin requise pour cette action (variable ADMIN_API_KEY du serveur Railway) :');
-    if (!k || !k.trim()) return null;
-    k = k.trim();
-    localStorage.setItem('nv_admin_key', k);
-  }
-  return k;
-}
+// Actions admin : la session (rôle admin/superadmin) suffit — la clé maître ADMIN_API_KEY n'est
+// PLUS stockée ni demandée côté front (elle reste un secours serveur, hors app).
+function ensureAdminKey() { return nvIsAdmin() ? 'session' : null; }
 // Injecte l'en-tête employé sur tout appel backend, + l'en-tête admin si une
 // clé admin est connue. Les routes admin (requireAdmin) exigent ce dernier.
 (function () {
@@ -2887,7 +2885,7 @@ function switchTab(name, el) {
 function loadEquipeTab() {
   loadActivite();
   let role = null; try { role = (JSON.parse(localStorage.getItem('nv_user') || '{}').role) || null; } catch(_) {}
-  const isSuper = (role === 'superadmin') || !!localStorage.getItem('nv_admin_key');
+  const isSuper = (role === 'superadmin');
   const mng = document.getElementById('equipeManageSection');
   const locked = document.getElementById('equipeManageLocked');
   if (mng) mng.style.display = isSuper ? '' : 'none';
@@ -3096,7 +3094,7 @@ async function loadStock(force) {
   const avgScore = allStockData.length ? Math.round(allStockData.reduce((a,b)=>a+(b.score||0),0)/allStockData.length) : 0;
   // Valeurs de stock (€) = donnée sensible → visible par tous les comptes admin/superadmin
   // (vue « admin » = toutes boutiques) ou via la clé admin maître.
-  const _isAdmin = (DASH_BOUTIQUE === 'admin') || !!localStorage.getItem('nv_admin_key');
+  const _isAdmin = (DASH_BOUTIQUE === 'admin') || nvIsAdmin();
   let _valuesHtml = '';
   if (_isAdmin) {
     const _sumPrice = (arr)=>arr.reduce((a,b)=>a+(Number(b.price)||0),0);
@@ -3607,7 +3605,7 @@ async function applySolde() {
         method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({productIds:batch.map(p=>p.id),variantIds:batch.map(p=>p.variantId),discountPercent:discount,tagName,addToCollection:addCollection})
       });
-      if (res.status === 403) { localStorage.removeItem('nv_admin_key'); throw new Error('Clé admin invalide — ressaisis-la'); }
+      if (res.status === 403) throw new Error('Accès admin requis — connecte-toi avec un compte admin');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
     } catch(e) {
       document.getElementById('progressText').textContent = `⚠️ Erreur batch ${i/BATCH+1} : ${e.message}`;
@@ -4265,12 +4263,11 @@ async function correctBoutique(barcode) {
 }
 
 async function exportCSV() {
-  const k = ensureAdminKey();
-  if (!k) { showToast('Clé admin requise pour l\'export', 'warn'); return; }
+  if (!nvIsAdmin()) { showToast('Export réservé aux comptes admin', 'warn'); return; }
   try {
-    // En-tête (pas de jeton admin dans l'URL) → on récupère le CSV en blob puis on télécharge.
-    const res = await fetch(`${BACKEND_URL}/analytics/export`, { headers: { 'X-NV-Admin-Token': k } });
-    if (!res.ok) { if (res.status === 403) localStorage.removeItem('nv_admin_key'); throw new Error('HTTP ' + res.status); }
+    // La session admin (X-NV-Token via le wrapper fetch) suffit → CSV en blob puis téléchargement.
+    const res = await fetch(`${BACKEND_URL}/analytics/export`);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -4977,11 +4974,8 @@ function logEvent(type, metadata) {
       type,
       metadata: metadata || {}
     });
-    if (navigator.sendBeacon) {
-      const blob = new Blob([body], { type: 'application/json' });
-      // sendBeacon ne porte pas d'en-tête → jeton passé en query (requireAuth l'accepte)
-      if (navigator.sendBeacon(`${BACKEND_URL}/log/event?token=${encodeURIComponent(localStorage.getItem('nv_auth')||'')}`, blob)) return;
-    }
+    // fetch keepalive survit au pagehide comme un beacon MAIS porte les en-têtes :
+    // le jeton reste dans X-NV-Token (via le wrapper), plus jamais dans l'URL.
     fetch(`${BACKEND_URL}/log/event`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -7805,7 +7799,7 @@ async function soldesAdminClearAtLocal(id) {
 window.loadForgottenSales = async function() {
   const banner = document.getElementById('forgottenSalesBanner');
   if (!banner) return;
-  if (!localStorage.getItem('nv_admin_key')) { banner.style.display = 'none'; return; } // admin only
+  if (!nvIsAdmin()) { banner.style.display = 'none'; return; } // admin only
   try {
     const list = await api('/stock/forgotten-sales');
     if (!Array.isArray(list) || !list.length) { banner.style.display = 'none'; return; }
@@ -7922,11 +7916,9 @@ window.markVintedRemoved = async function(barcode, btn) {
 /* ================= SEO ADMIN (admin only) ================= */
 (function(){
   function getAdminToken() {
-    try {
-      const session = JSON.parse(localStorage.getItem('nv_session') || '{}');
-      if (session.boutique !== 'admin' && session.employee !== 'admin') return null;
-      return localStorage.getItem('nv_admin_key') || '';
-    } catch(e) { return null; }
+    // La clé maître n'est plus stockée côté front : une session admin/superadmin suffit
+    // (le wrapper fetch envoie X-NV-Token). Marqueur non vide pour les gardes `if (!token)`.
+    return nvIsAdmin() ? 'session' : null;
   }
 
   // Guard: vérifie la clé AVANT de switcher vers l'onglet SEO.
@@ -7934,20 +7926,9 @@ window.markVintedRemoved = async function(barcode, btn) {
   // Rôle du compte connecté (employee / admin / superadmin)
   function nvRole(){ try { return (JSON.parse(localStorage.getItem('nv_user')||'{}').role)||null; } catch(_){ return null; } }
   window.guardSeoTab = function(el) {
-    // Session admin ou superadmin → accès direct (le serveur accepte la session)
-    const role = nvRole();
-    if (role === 'admin' || role === 'superadmin') { if (typeof switchTab==='function') switchTab('seo', el); return; }
-    // Secours : clé admin maître
-    let token = localStorage.getItem('nv_admin_key');
-    if (!token) {
-      const entered = prompt('Entre la clé admin (ADMIN_API_KEY du serveur) :');
-      if (!entered || !entered.trim()) {
-        if (typeof showDashToast === 'function') showDashToast('Accès SEO refusé — clé requise', 'warn');
-        return;
-      }
-      localStorage.setItem('nv_admin_key', entered.trim());
-    }
-    if (typeof switchTab === 'function') switchTab('seo', el);
+    // Session admin ou superadmin uniquement — plus de saisie de clé maître dans le navigateur.
+    if (nvIsAdmin()) { if (typeof switchTab==='function') switchTab('seo', el); return; }
+    if (typeof showDashToast === 'function') showDashToast('Accès SEO réservé aux comptes admin', 'warn');
   };
 
   // ===== Onglet Équipe (superadmin) =====
@@ -7982,19 +7963,12 @@ window.markVintedRemoved = async function(barcode, btn) {
     inp.click();
   };
   window.guardEquipeTab = function(el) {
-    // Gestion des comptes & sécurité = superadmin uniquement
+    // Gestion des comptes & sécurité = superadmin uniquement — plus de saisie de clé maître.
     if (nvRole() === 'superadmin') { if (typeof switchTab==='function') switchTab('equipe', el); return; }
-    // Secours : clé admin maître
-    let token = localStorage.getItem('nv_admin_key');
-    if (!token) {
-      const entered = prompt('Accès réservé au superadmin. Entre la clé admin (ADMIN_API_KEY) :');
-      if (!entered || !entered.trim()) { if (typeof showDashToast==='function') showDashToast('Accès superadmin requis', 'warn'); return; }
-      localStorage.setItem('nv_admin_key', entered.trim());
-    }
-    if (typeof switchTab === 'function') switchTab('equipe', el);
+    if (typeof showDashToast==='function') showDashToast('Accès réservé au superadmin', 'warn');
   };
   window.loadTeam = async function() {
-    const token = localStorage.getItem('nv_admin_key'); // facultatif : la session superadmin suffit
+    const token = ''; // la session superadmin (X-NV-Token via le wrapper) porte l'auth
     const cfgBox = document.getElementById('equipeConfig');
     const listBox = document.getElementById('equipeList');
     try {
@@ -8044,7 +8018,7 @@ window.markVintedRemoved = async function(barcode, btn) {
     } catch(e){ if(out) out.innerHTML='<span style="color:var(--accent);">Erreur réseau</span>'; }
   };
   window.equipeAddUser = async function() {
-    const token = localStorage.getItem('nv_admin_key');
+    const token = ''; // session superadmin via le wrapper fetch
     const name=(document.getElementById('euName').value||'').trim();
     const pin=(document.getElementById('euPin').value||'').trim();
     const boutique=document.getElementById('euBoutique').value;
@@ -8062,7 +8036,7 @@ window.markVintedRemoved = async function(barcode, btn) {
     } catch(e){ out.innerHTML='<span style="color:var(--accent);">Erreur réseau</span>'; }
   };
   window.equipeUpdateUser = async function(id, patch) {
-    const token = localStorage.getItem('nv_admin_key');
+    const token = ''; // session superadmin via le wrapper fetch
     try { await fetch(`${BACKEND_URL}/auth/users/${id}`,{method:'PATCH',headers:{'X-NV-Admin-Token':token,'Content-Type':'application/json'},body:JSON.stringify(patch)}); loadTeam(); }
     catch(e){ showDashToast('Erreur','error'); }
   };
@@ -8073,13 +8047,13 @@ window.markVintedRemoved = async function(barcode, btn) {
   };
   window.equipeDeleteUser = async function(id) {
     if(!confirm('Supprimer ce compte ? Ses sessions seront fermées.')) return;
-    const token = localStorage.getItem('nv_admin_key');
+    const token = ''; // session superadmin via le wrapper fetch
     try { await fetch(`${BACKEND_URL}/auth/users/${id}`,{method:'DELETE',headers:{'X-NV-Admin-Token':token}}); loadTeam(); }
     catch(e){ showDashToast('Erreur','error'); }
   };
   window.equipeToggleRequireLogin = async function(on) {
     if(on && !confirm('Activer le login obligatoire ?\n\nÀ partir de maintenant, l\'ancien accès sans compte ne fonctionnera plus : chaque personne devra se connecter avec son prénom + code. Assure-toi que tout le monde a un compte et a testé sa connexion.')) return;
-    const token = localStorage.getItem('nv_admin_key');
+    const token = ''; // session superadmin via le wrapper fetch
     try {
       const res=await fetch(`${BACKEND_URL}/auth/config`,{method:'POST',headers:{'X-NV-Admin-Token':token,'Content-Type':'application/json'},body:JSON.stringify({require_login:on})});
       const dd=await res.json().catch(()=>({}));
@@ -8092,7 +8066,7 @@ window.markVintedRemoved = async function(barcode, btn) {
   window.initSeoTab = function() {
     const badge = document.getElementById('seoAuthBadge');
     if (badge) {
-      badge.innerHTML = '✓ Clé admin configurée · <a href="#" onclick="event.preventDefault();localStorage.removeItem(\'nv_admin_key\');const v=document.querySelector(\'.tab[onclick*=ventes]\');if(v)v.click();" style="color:var(--accent);">changer</a>';
+      badge.textContent = '✓ Accès admin (session)';
     }
     loadSeoLog();
   };
@@ -8135,7 +8109,7 @@ window.markVintedRemoved = async function(barcode, btn) {
     try {
       const res = await fetch(`${BACKEND_URL}/seo/regenerate-pending`, { method:'POST', headers:{ 'X-NV-Admin-Token': token, 'Content-Type':'application/json' } });
       const d = await res.json();
-      if (!res.ok) { if(res.status===403) localStorage.removeItem('nv_admin_key'); throw new Error(d.error||'Erreur serveur'); }
+      if (!res.ok) throw new Error(d.error||'Erreur serveur');
       const n = d.queued!=null?d.queued:(d.count!=null?d.count:'—');
       out.innerHTML = `<div style="padding:10px;background:var(--success-dim);border-left:3px solid var(--success);border-radius:8px;color:var(--success);font-size:13px;">🔁 ${n===0?'Rien à rattraper — tout est déjà à jour ✓':'Lancé : '+n+' produit(s) non traité(s) (SEO + URL). Suis l\'avancement dans l\'historique ci-dessus.'}</div>`;
       showDashToast(n===0?'Déjà à jour ✓':'Rattrapage lancé ✓', 'success');
@@ -8154,7 +8128,6 @@ window.markVintedRemoved = async function(barcode, btn) {
     const call = (path) => fetch(`${BACKEND_URL}${path}`, { method:'POST', headers:hdr }).then(r=>r.json().then(d=>({ok:r.ok,status:r.status,d}))).catch(e=>({ok:false,d:{error:e.message}}));
     try {
       const [seo, url] = await Promise.all([ call('/seo/regenerate-pending'), call('/seo/fix-handles') ]);
-      if ((seo.status===403)||(url.status===403)) localStorage.removeItem('nv_admin_key');
       const seoTxt = seo.ok ? `SEO : ${seo.d.queued!=null?seo.d.queued:(seo.d.count!=null?seo.d.count:'lancé')} produit(s)` : `SEO : erreur (${seo.d.error||''})`;
       const urlTxt = url.ok ? `URLs : ${url.d.queued!=null?url.d.queued:'lancé'} sur ${url.d.scanned!=null?url.d.scanned:'?'} scannés` : `URLs : erreur (${url.d.error||''})`;
       const okAll = seo.ok && url.ok;
@@ -8186,10 +8159,7 @@ window.markVintedRemoved = async function(barcode, btn) {
       });
       const data = await res.json();
       if (!res.ok) {
-        if (res.status === 403) {
-          localStorage.removeItem('nv_admin_key');
-          throw new Error('Clé admin refusée — re-saisir');
-        }
+        if (res.status === 403) throw new Error('Accès admin requis — connecte-toi avec un compte admin');
         throw new Error(data.error || 'Erreur serveur');
       }
       out.innerHTML = `
@@ -8219,7 +8189,6 @@ window.markVintedRemoved = async function(barcode, btn) {
       });
       const data = await res.json();
       if (!res.ok) {
-        if (res.status === 403) localStorage.removeItem('nv_admin_key');
         throw new Error(data.error || 'Erreur serveur');
       }
       out.innerHTML = `
@@ -8247,7 +8216,6 @@ window.markVintedRemoved = async function(barcode, btn) {
       });
       const data = await res.json();
       if (!res.ok) {
-        if (res.status === 403) localStorage.removeItem('nv_admin_key');
         throw new Error(data.error || 'Erreur serveur');
       }
       const items = data.products || [];
@@ -8292,7 +8260,6 @@ window.markVintedRemoved = async function(barcode, btn) {
       });
       const data = await res.json();
       if (!res.ok) {
-        if (res.status === 403) localStorage.removeItem('nv_admin_key');
         throw new Error(data.error || 'Erreur serveur');
       }
       const running = document.getElementById('seoPendingRunning');
@@ -8327,7 +8294,6 @@ window.markVintedRemoved = async function(barcode, btn) {
       });
       const data = await res.json();
       if (!res.ok) {
-        if (res.status === 403) localStorage.removeItem('nv_admin_key');
         throw new Error(data.error || 'Erreur serveur');
       }
       out.innerHTML = `
