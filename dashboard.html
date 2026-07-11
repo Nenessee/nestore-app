@@ -2625,7 +2625,7 @@ tbody tr { transition: background .12s; }
     <select class="filter-select" id="pdvsFOrigine" onchange="pdvsRender()"><option value="">Toutes origines</option></select>
     <select class="filter-select" id="pdvsFCat" onchange="pdvsRender()"><option value="">Toutes catégories</option></select>
     <select class="filter-select" id="pdvsFStatut" onchange="pdvsRender()"><option value="">Tous</option><option value="stock">En stock</option><option value="sorti">Sorti</option></select>
-    <input class="search-input" id="pdvsFSearch" placeholder="Rechercher (désignation, réf…)" style="flex:1;min-width:180px;" oninput="pdvsTableDebounced()"/>
+    <input class="search-input" id="pdvsFSearch" placeholder="Rechercher (code-barres, réf, désignation…)" style="flex:1;min-width:180px;" oninput="pdvsTableDebounced()"/>
     <button class="btn" onclick="pdvsReset()" style="font-size:12.5px;">Réinitialiser</button>
   </div>
   <div id="pdvsAnomalies" style="margin-top:8px;"></div>
@@ -2693,7 +2693,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v230-comptable-hardening';
+const DASH_VERSION = '2025-04-25-v231-pdv-recherche';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -6040,6 +6040,7 @@ function pdvvRender() {
   _pdvChartQueue = [];
   pdvvKpis(base); pdvvByMonth(base); pdvvByCanal(base); pdvvByCat(base); pdvvByOrigine(base);
   pdvvTableShown = 100; pdvvTable(base);
+  pdvvLayoutForSearch();
   pdvFlushCharts();
 }
 function pdvKpiCard(v, l, c, s, metric) {
@@ -6116,8 +6117,19 @@ function pdvvVentilWeighted(id, base, keyFn, title, hint, keyLabel, chartType) {
 }
 function pdvvByCat(base) { document.getElementById('pdvvByCat').innerHTML = pdvvVentilWeighted('cat', base, v => v.categorie, 'Ventilation par catégorie', '', 'Catégorie', 'bar'); }
 function pdvvByOrigine(base) { document.getElementById('pdvvByOrigine').innerHTML = pdvvVentilWeighted('origine', base, v => v.classe_origine, 'Ventilation par origine', 'Vinted vs Autre', 'Origine', 'doughnut'); }
-function pdvvTableDebounced() { clearTimeout(_pdvvSearchT); _pdvvSearchT = setTimeout(() => { pdvvTableShown = 100; pdvvTable(pdvvBase()); }, 200); }
-function pdvvTableRows(base) { const kept = base.filter(v => pdvvWeight(v) > 0); const q = ((document.getElementById('pdvvFSearch') || {}).value || '').toLowerCase().trim(); return q ? kept.filter(v => (`${v.libelle || ''} ${v.ticket || ''} ${v.code_produit || ''}`).toLowerCase().includes(q)) : kept; }
+function pdvvTableDebounced() { clearTimeout(_pdvvSearchT); _pdvvSearchT = setTimeout(() => { pdvvTableShown = 100; pdvvLayoutForSearch(); pdvvTable(pdvvBase()); }, 180); }
+// Mode recherche : on masque KPIs/ventilations/graphes pour que le tableau soit juste sous la barre (plus de scroll).
+function pdvvLayoutForSearch() {
+  const searching = !!((document.getElementById('pdvvFSearch') || {}).value || '').trim();
+  ['pdvvKpis', 'pdvvKpiChart', 'pdvvByMonth', 'pdvvByCanal', 'pdvvByCat', 'pdvvByOrigine'].forEach(id => { const e = document.getElementById(id); if (e) e.style.display = searching ? 'none' : ''; });
+}
+function pdvvTableRows(base) {
+  const kept = base.filter(v => pdvvWeight(v) > 0);
+  const raw = ((document.getElementById('pdvvFSearch') || {}).value || '').toLowerCase().trim();
+  if (!raw) return kept;
+  const q = raw.replace(/\s+/g, ''); // recherche « collée » : code produit / ticket avec ou sans espaces
+  return kept.filter(v => { const hay = `${v.libelle || ''} ${v.ticket || ''} ${v.code_produit || ''} ${v.categorie || ''} ${v.classe_origine || ''}`.toLowerCase(); return hay.includes(raw) || hay.replace(/\s+/g, '').includes(q); });
+}
 function pdvvTable(base) {
   const box = document.getElementById('pdvvTable'); if (!box) return;
   const rows = pdvvTableRows(base); const total = rows.length; const shown = Math.min(pdvvTableShown, total);
@@ -6148,7 +6160,10 @@ async function pdvsImport(input) {
     const { sheetName, rows, find } = await pdvReadXlsx(file, 'A');
     if (!rows.length) { showDashToast('Onglet « ' + sheetName + ' » vide', 'error'); set('📥 Importer contrôle stock (Produits.xlsx)', false); return; }
     const kRef = find('Référence', 'Reference'), kDes = find('Désignation', 'Designation'), kAchat = find('PrixAchatNet', 'PrixAchat'), kTTC = find('PrixTTC'), kStock = find('Stock'), kDep = find('NomDéposant', 'NomDeposant', 'Nom Déposant'), kContrat = find('Numéro Contrat', 'Numero Contrat', 'Contrat');
-    const mapped = rows.map(r => ({ reference: kRef ? r[kRef] : null, designation: kDes ? r[kDes] : null, prix_achat: kAchat ? r[kAchat] : null, prix_ttc: kTTC ? r[kTTC] : null, stock: kStock ? r[kStock] : null, nom_deposant: kDep ? r[kDep] : null, contrat: kContrat ? r[kContrat] : null }));
+    // Code-barres : colonne séparée de la Référence dans certains exports POS. On teste les entêtes courantes (l'accent/espace/tiret est déjà normalisé par find()).
+    const kCB = find('Code-barres', 'Code-barre', 'Codebarres', 'Codebarre', 'CodeBarre', 'Code Barre', 'EAN', 'EAN13', 'Gencod', 'Gencode', 'Code EAN', 'CodeEAN');
+    const mapped = rows.map(r => ({ reference: kRef ? r[kRef] : null, code_barre: kCB ? r[kCB] : null, designation: kDes ? r[kDes] : null, prix_achat: kAchat ? r[kAchat] : null, prix_ttc: kTTC ? r[kTTC] : null, stock: kStock ? r[kStock] : null, nom_deposant: kDep ? r[kDep] : null, contrat: kContrat ? r[kContrat] : null }));
+    if (!kCB) console.info('[PDV stock] aucune colonne code-barres détectée dans', file.name, '— entêtes:', Object.keys(rows[0] || {}).join(' | '));
     if (!confirm(`Importer ${mapped.length} articles (contrôle stock) depuis « ${file.name} » (onglet ${sheetName}) ?\n\n⚠️ Remplace l'état stock actuel.`)) { set('📥 Importer contrôle stock (Produits.xlsx)', false); return; }
     set('Import…', true);
     const res = await (await fetch(`${BACKEND_URL}/pdv/import`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: mapped, filename: file.name }) })).json();
@@ -6178,6 +6193,7 @@ function pdvsRender() {
   if (!pdvStock.length) { document.getElementById('pdvsAnomalies').innerHTML = '<div style="color:var(--text-muted);padding:20px;text-align:center;">Aucune donnée. Importe Produits.xlsx.</div>'; ['pdvsRepartition', 'pdvsTable'].forEach(id => { const e = document.getElementById(id); if (e) e.innerHTML = ''; }); return; }
   const rows = pdvsFiltered();
   pdvsAnomalies(rows); pdvsRepartition(rows); pdvsTableShown = 100; pdvsTable(rows);
+  pdvsLayoutForSearch();
 }
 function pdvsAnomalies(rows) {
   const achat0 = rows.filter(p => p.prix_achat == null || p.prix_achat === 0);
@@ -6209,14 +6225,26 @@ function pdvsRepartition(rows) {
   };
   document.getElementById('pdvsRepartition').innerHTML = ventil(p => p.classe_origine, 'Origine', 'Répartition du stock par origine') + '<div style="margin-top:16px;"></div>' + ventil(p => p.categorie, 'Catégorie', 'Répartition du stock par catégorie');
 }
-function pdvsTableDebounced() { clearTimeout(_pdvsSearchT); _pdvsSearchT = setTimeout(() => { pdvsTableShown = 100; pdvsTable(pdvsFiltered()); }, 200); }
-function pdvsTableRows(rows) { const q = ((document.getElementById('pdvsFSearch') || {}).value || '').toLowerCase().trim(); return q ? rows.filter(p => (`${p.designation || ''} ${p.reference || ''}`).toLowerCase().includes(q)) : rows; }
+function pdvsTableDebounced() { clearTimeout(_pdvsSearchT); _pdvsSearchT = setTimeout(() => { pdvsTableShown = 100; pdvsLayoutForSearch(); pdvsTable(pdvsFiltered()); }, 180); }
+function pdvsLayoutForSearch() {
+  const searching = !!((document.getElementById('pdvsFSearch') || {}).value || '').trim();
+  ['pdvsAnomalies', 'pdvsRepartition'].forEach(id => { const e = document.getElementById(id); if (e) e.style.display = searching ? 'none' : ''; });
+}
+function pdvsTableRows(rows) {
+  const raw = ((document.getElementById('pdvsFSearch') || {}).value || '').toLowerCase().trim();
+  if (!raw) return rows;
+  const q = raw.replace(/\s+/g, ''); // recherche « collée » : code-barre / référence avec ou sans espaces
+  return rows.filter(p => { const hay = `${p.reference || ''} ${p.code_barre || ''} ${p.designation || ''} ${p.categorie || ''} ${p.classe_origine || ''}`.toLowerCase(); return hay.includes(raw) || hay.replace(/\s+/g, '').includes(q); });
+}
 function pdvsTable(rows) {
   const box = document.getElementById('pdvsTable'); if (!box) return;
   const filt = pdvsTableRows(rows); const total = filt.length; const shown = Math.min(pdvsTableShown, total);
-  const body = filt.slice(0, shown).map(p => `<tr><td style="white-space:nowrap;">${vEsc(p.reference || '—')}</td><td>${vEsc(p.designation || '—')}</td><td>${vEsc(p.categorie || '—')}</td><td>${vEsc(p.classe_origine || '—')}</td><td><span class="badge ${p._enstock ? 'badge-ok' : 'badge-danger'}" style="font-size:10px;">${vEsc(p.statut || '—')}</span></td><td style="text-align:right;">${pdvEur(p.prix_achat)}</td><td style="text-align:right;">${pdvEur(p.prix_vente_ttc)}</td><td style="text-align:right;">${p.stock != null ? p.stock : '—'}</td></tr>`).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:20px;">Aucun article.</td></tr>';
+  const hasCB = pdvStock.some(p => p.code_barre); // colonne code-barres affichée seulement si l'import en contient
+  const cbHead = hasCB ? '<th>Code-barres</th>' : '';
+  const ncols = hasCB ? 9 : 8;
+  const body = filt.slice(0, shown).map(p => `<tr><td style="white-space:nowrap;">${vEsc(p.reference || '—')}</td>${hasCB ? `<td style="white-space:nowrap;font-variant-numeric:tabular-nums;">${vEsc(p.code_barre || '—')}</td>` : ''}<td>${vEsc(p.designation || '—')}</td><td>${vEsc(p.categorie || '—')}</td><td>${vEsc(p.classe_origine || '—')}</td><td><span class="badge ${p._enstock ? 'badge-ok' : 'badge-danger'}" style="font-size:10px;">${vEsc(p.statut || '—')}</span></td><td style="text-align:right;">${pdvEur(p.prix_achat)}</td><td style="text-align:right;">${pdvEur(p.prix_vente_ttc)}</td><td style="text-align:right;">${p.stock != null ? p.stock : '—'}</td></tr>`).join('') || `<tr><td colspan="${ncols}" style="text-align:center;color:var(--text-muted);padding:20px;">Aucun article.</td></tr>`;
   const pager = total > shown ? `<div style="text-align:center;padding:14px;"><button class="btn" onclick="pdvsTableShown+=100;pdvsTable(pdvsFiltered())">Afficher plus (${Math.min(100, total - shown)})</button> <span style="font-size:12px;color:var(--text-muted);">${shown} / ${total}</span></div>` : '';
-  box.innerHTML = `<div class="table-card"><div class="table-header" style="margin-bottom:10px;"><span class="table-title">Détail stock</span><span style="font-size:11px;color:var(--text-soft);margin-left:auto;">${total} article(s)</span></div><div style="overflow-x:auto;"><table><thead><tr><th>Réf</th><th>Désignation</th><th>Catégorie</th><th>Origine</th><th>Statut</th><th style="text-align:right;">Achat</th><th style="text-align:right;">Étiquette</th><th style="text-align:right;">Stock</th></tr></thead><tbody>${body}</tbody></table></div>${pager}</div>`;
+  box.innerHTML = `<div class="table-card"><div class="table-header" style="margin-bottom:10px;"><span class="table-title">Détail stock</span><span style="font-size:11px;color:var(--text-soft);margin-left:auto;">${total} article(s)</span></div><div style="overflow-x:auto;"><table><thead><tr><th>Réf</th>${cbHead}<th>Désignation</th><th>Catégorie</th><th>Origine</th><th>Statut</th><th style="text-align:right;">Achat</th><th style="text-align:right;">Étiquette</th><th style="text-align:right;">Stock</th></tr></thead><tbody>${body}</tbody></table></div>${pager}</div>`;
 }
 function pdvsReset() { ['pdvsFOrigine', 'pdvsFCat', 'pdvsFStatut'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; }); const s = document.getElementById('pdvsFSearch'); if (s) s.value = ''; pdvsRender(); }
 function pdvsExportCsv() {
@@ -6820,7 +6848,7 @@ function pdvvExportXlsx() {
 }
 function pdvsExportXlsx() {
   const rows = pdvsTableRows(pdvsFiltered()).map(p => ({
-    Reference: p.reference || '', Designation: p.designation || '', Categorie: p.categorie || '', Origine: p.classe_origine || '', Statut: p.statut || '',
+    Reference: p.reference || '', CodeBarres: p.code_barre || '', Designation: p.designation || '', Categorie: p.categorie || '', Origine: p.classe_origine || '', Statut: p.statut || '',
     PrixAchat: p.prix_achat, PrixEtiquette: p.prix_vente_ttc, Stock: p.stock
   }));
   pdvExportXlsx(rows, 'Stock', `pdv_stock_${new Date().toISOString().slice(0, 10)}.xlsx`);
