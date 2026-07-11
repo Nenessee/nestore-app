@@ -1054,6 +1054,12 @@ async function nvHardReload(){
 <script>
   const APP_VERSION = '2025-06-15-v118-audit-coherence';
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
+
+  // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
+  // (Shopify, saisies clients/employés, code-barres scannés) interpolée dans du HTML.
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+  // Pour une valeur injectée DANS une chaîne JS d'un attribut inline (onclick="f('${v}')") : esc(escJs(v)).
+  function escJs(s) { return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
   // Jeton employé envoyé au backend sur chaque appel (doit correspondre à
   // EMPLOYEE_API_KEY sur Railway). Bloque les accès directs à l'API par URL.
   const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -1199,7 +1205,7 @@ async function nvHardReload(){
           data = cached; res = { ok: true };
           showToast('Hors-ligne : fiche produit en cache ✓', 'warn');
         } else {
-          area.innerHTML = `<div class="product-card error"><div class="pname">Hors-ligne</div><div class="pcode">${barcode}</div><div class="error-msg">Article pas encore en cache local — connecte-toi une fois à cet article pour pouvoir le vendre hors-ligne.</div></div>`;
+          area.innerHTML = `<div class="product-card error"><div class="pname">Hors-ligne</div><div class="pcode">${esc(barcode)}</div><div class="error-msg">Article pas encore en cache local — connecte-toi une fois à cet article pour pouvoir le vendre hors-ligne.</div></div>`;
           showToast('Hors-ligne : article non disponible en cache', 'warn');
           return;
         }
@@ -1226,17 +1232,17 @@ async function nvHardReload(){
                 <div style="width:80px;height:80px;border-radius:10px;background:#EAF3DE;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;">🛍</div>
                 <div style="flex:1;">
                   <div style="font-size:11px;color:#3B6D11;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Article racheté — hors Shopify</div>
-                  <div class="pname">${purchase.product_name}</div>
-                  <div class="pcode">${barcode}${purchase.brand ? ' · ' + purchase.brand : ''}</div>
+                  <div class="pname">${esc(purchase.product_name)}</div>
+                  <div class="pcode">${esc(barcode)}${purchase.brand ? ' · ' + esc(purchase.brand) : ''}</div>
                   <div class="pprice">${parseFloat(purchase.estimated_price||0).toFixed(2)} €</div>
                 </div>
               </div>
               <div class="pdetails" style="margin-bottom:12px;">
                 <span>Acheté ${parseFloat(purchase.purchase_price).toFixed(2)} €</span>
-                <span>Par ${purchase.employee}</span>
+                <span>Par ${esc(purchase.employee)}</span>
                 <span>Le ${new Date(purchase.purchased_at).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}</span>
               </div>
-              <button class="btn-sell" id="sellBtn" onclick="markPurchaseAsSold('${purchase.id}', '${purchase.product_name.replace(/'/g,"\\'")}', '${purchase.brand||''}', '${purchase.estimated_price||0}', '${barcode}')">
+              <button class="btn-sell" id="sellBtn" onclick="markPurchaseAsSold('${esc(escJs(purchase.id))}', '${esc(escJs(purchase.product_name))}', '${esc(escJs(purchase.brand||''))}', '${esc(escJs(purchase.estimated_price||0))}', '${esc(escJs(barcode))}')">
                 Marquer vendu — sans mise à jour Shopify
               </button>
             </div>`;
@@ -1245,7 +1251,7 @@ async function nvHardReload(){
         } catch(e) {}
         area.innerHTML = `<div class="product-card error">
           <div class="pname">Produit introuvable</div>
-          <div class="pcode">${barcode}</div>
+          <div class="pcode">${esc(barcode)}</div>
           <div class="error-msg">Aucun article avec ce code-barres dans Shopify.</div>
         </div>`;
         showToast('Code-barres introuvable', 'error');
@@ -1292,15 +1298,15 @@ async function nvHardReload(){
         </div>
       </div>` : ''}
       <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;">
-        ${data.image ? `<img src="${data.image}" style="width:80px;height:80px;object-fit:cover;border-radius:10px;flex-shrink:0;">` : ''}
+        ${data.image ? `<img src="${esc(data.image)}" style="width:80px;height:80px;object-fit:cover;border-radius:10px;flex-shrink:0;">` : ''}
         <div style="flex:1;">
           <div class="card-top">
             <div>
-              <div class="pname">${data.name}</div>
-              <div class="pcode">${barcode}${data.brand ? ' · ' + data.brand : ''}</div>
+              <div class="pname">${esc(data.name)}</div>
+              <div class="pcode">${esc(barcode)}${data.brand ? ' · ' + esc(data.brand) : ''}</div>
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
-              <span class="badge ${badgeClass}">${data.boutique}</span>
+              <span class="badge ${badgeClass}">${esc(data.boutique)}</span>
               ${data.onVinted ? '<span class="badge" style="background:#09B1BA;color:#fff;">VINTED</span>' : ''}
               ${isSold ? `<span class="badge badge-stock0">Stock 0</span>` : ''}
             </div>
@@ -1310,7 +1316,7 @@ async function nvHardReload(){
       </div>
       <div class="pdetails">
         <span>Stock total : ${data.totalStock}</span>
-        ${data.tags && data.tags.length ? `<span>Tags : ${data.tags.slice(0,3).join(', ')}</span>` : ''}
+        ${data.tags && data.tags.length ? `<span>Tags : ${esc(data.tags.slice(0,3).join(', '))}</span>` : ''}
       </div>
       ${!isSold
         ? `<button class="btn-sell" id="sellBtn" onclick="markAsSold()">
@@ -1339,12 +1345,12 @@ async function nvHardReload(){
       const isSold = m.totalStock === 0;
       return `<div class="product-card" style="margin-bottom:10px;">
         <div style="display:flex;gap:12px;align-items:flex-start;">
-          ${m.image ? `<img src="${m.image}" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex-shrink:0;">` : '<div style="width:64px;height:64px;border-radius:10px;background:#EAF3DE;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">👕</div>'}
+          ${m.image ? `<img src="${esc(m.image)}" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex-shrink:0;">` : '<div style="width:64px;height:64px;border-radius:10px;background:#EAF3DE;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">👕</div>'}
           <div style="flex:1;min-width:0;">
-            <div class="pname">${m.name}</div>
-            <div class="pcode">${m.brand ? m.brand + ' · ' : ''}${parseFloat(m.price).toFixed(2)} €${m.sku ? ' · ' + m.sku : ''}</div>
+            <div class="pname">${esc(m.name)}</div>
+            <div class="pcode">${m.brand ? esc(m.brand) + ' · ' : ''}${parseFloat(m.price).toFixed(2)} €${m.sku ? ' · ' + esc(m.sku) : ''}</div>
             <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
-              <span class="badge ${badgeClass}">${m.boutique}</span>
+              <span class="badge ${badgeClass}">${esc(m.boutique)}</span>
               <span class="badge ${isSold ? 'badge-stock0' : ''}">Stock ${m.totalStock}</span>
             </div>
           </div>
@@ -1355,7 +1361,7 @@ async function nvHardReload(){
     area.innerHTML = `
       <div style="background:rgba(186,117,23,0.12);border:1px solid rgba(186,117,23,0.4);border-radius:12px;padding:12px 14px;margin-bottom:12px;">
         <div style="font-weight:700;font-size:14px;color:#BA7517;">⚠️ ${data.matches.length} articles ont ce code-barres</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:3px;">Code-barres ${barcode} — choisis lequel tu veux vendre / gérer.</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:3px;">Code-barres ${esc(barcode)} — choisis lequel tu veux vendre / gérer.</div>
       </div>
       ${cards}`;
   }
@@ -1598,14 +1604,14 @@ async function nvHardReload(){
           <div style="font-size:18px;font-weight:800;letter-spacing:-0.02em;margin-top:6px;color:var(--text);">Article encore sur Vinted</div>
         </div>
         <div style="background:rgba(232,80,78,0.1);padding:14px;border-radius:12px;border-left:3px solid var(--accent);margin-bottom:16px;">
-          <div style="font-weight:700;font-size:14px;color:var(--text);">${(productName || '').substring(0, 80)}</div>
-          ${barcode ? `<div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-family:monospace;">${barcode}</div>` : ''}
+          <div style="font-weight:700;font-size:14px;color:var(--text);">${esc((productName || '').substring(0, 80))}</div>
+          ${barcode ? `<div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-family:monospace;">${esc(barcode)}</div>` : ''}
         </div>
         <div style="font-size:14px;color:var(--text);line-height:1.55;margin-bottom:18px;">
           <strong>Retire l'annonce Vinted maintenant</strong> pour éviter qu'un client achète un article déjà vendu et devoir annuler sa commande.
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;">
-          <button onclick="confirmVintedRemoved('${(barcode||'').replace(/'/g,'')}',this)" style="padding:15px;background:#3B6D11;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;min-height:50px;">
+          <button onclick="confirmVintedRemoved('${esc(escJs(barcode||''))}',this)" style="padding:15px;background:#3B6D11;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;min-height:50px;">
             ✓ J'ai retiré de Vinted
           </button>
           <button onclick="document.getElementById('vintedReminderModal').remove()" style="padding:13px;background:transparent;color:var(--text-muted);border:none;font-size:13px;cursor:pointer;min-height:44px;">
@@ -1657,7 +1663,7 @@ async function nvHardReload(){
     const badgeClass = (data.boutique || boutique) === 'DK' ? 'badge-dk' : 'badge-lille';
     const img = data.image || data.image_url;
     const imgHtml = img
-      ? `<img src="${img}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;">`
+      ? `<img src="${esc(img)}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;">`
       : `<div style="width:44px;height:44px;border-radius:8px;background:#f1efe8;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">👕</div>`;
 
     const item = document.createElement('div');
@@ -1665,13 +1671,13 @@ async function nvHardReload(){
     item.innerHTML = `
       ${imgHtml}
       <div style="flex:1;min-width:0;">
-        <div class="h-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${data.name || data.product_name}</div>
-        <div class="h-code">${data.barcode || data.sku || ''}</div>
+        <div class="h-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(data.name || data.product_name)}</div>
+        <div class="h-code">${esc(data.barcode || data.sku || '')}</div>
       </div>
       <div class="h-meta">
-        <span class="badge ${badgeClass}" style="font-size:10px;">${boutique}</span>
+        <span class="badge ${badgeClass}" style="font-size:10px;">${esc(boutique)}</span>
         <div>${parseFloat(data.price).toFixed(2)} €</div>
-        <div>${employee} · ${time}</div>
+        <div>${esc(employee)} · ${time}</div>
       </div>`;
 
     list.insertBefore(item, list.firstChild);
@@ -1963,10 +1969,10 @@ async function nvHardReload(){
     if (empty) empty.remove();
     const alert = warning || wrongBoutique; // ligne mise en avant
     const img = image
-      ? `<img src="${image}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex-shrink:0;">`
+      ? `<img src="${esc(image)}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex-shrink:0;">`
       : `<div style="width:44px;height:44px;border-radius:8px;background:${alert?'#FFF3E0':'#EAF3DE'};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">${alert?'⚠️':'✓'}</div>`;
     const statusHtml = wrongBoutique
-      ? `<span style="color:#A32D2D;font-weight:700;font-size:11px;">⚠️ En ${artBoutique} (ici ${scanB})</span>`
+      ? `<span style="color:#A32D2D;font-weight:700;font-size:11px;">⚠️ En ${esc(artBoutique)} (ici ${esc(scanB)})</span>`
       : warning
         ? `<span style="color:#BA7517;font-weight:600;font-size:11px;">⚠️ Hors Shopify</span>`
         : `<span style="color:#3B6D11;font-weight:600;">✓ Coché</span>`;
@@ -1976,12 +1982,12 @@ async function nvHardReload(){
     item.innerHTML = `
       ${img}
       <div style="flex:1;min-width:0;">
-        <div class="h-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${wrongBoutique?'color:#A32D2D;':(warning?'color:#BA7517;':'')}">${name}${multi>1?` <span style="font-size:10px;color:#BA7517;font-weight:700;">×${multi} même code</span>`:''}</div>
-        <div class="h-code">${barcode}</div>
+        <div class="h-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${wrongBoutique?'color:#A32D2D;':(warning?'color:#BA7517;':'')}">${esc(name)}${multi>1?` <span style="font-size:10px;color:#BA7517;font-weight:700;">×${multi} même code</span>`:''}</div>
+        <div class="h-code">${esc(barcode)}</div>
       </div>
       <div class="h-meta">
         ${statusHtml}
-        <div style="font-size:11px;">${employee || ''}</div>
+        <div style="font-size:11px;">${esc(employee || '')}</div>
         <div style="font-size:11px;">${time || ''}</div>
       </div>`;
     list.insertBefore(item, list.firstChild);
@@ -2070,23 +2076,23 @@ async function nvHardReload(){
 
       area.innerHTML = items.map(({ order, item, itemBoutique }) => {
         const badge = itemBoutique === 'DK' ? 'badge-dk' : 'badge-lille';
-        const img = item.image ? `<img src="${item.image}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;">` : `<div style="width:52px;height:52px;border-radius:8px;background:#f1efe8;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">👕</div>`;
+        const img = item.image ? `<img src="${esc(item.image)}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;">` : `<div style="width:52px;height:52px;border-radius:8px;background:#f1efe8;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">👕</div>`;
         const orderDate = new Date(order.created_at).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' });
         return `<div class="history-item" id="order-${order.id}-${item.id}" style="flex-direction:column;align-items:flex-start;gap:8px;padding:12px;">
           <div style="display:flex;gap:10px;align-items:center;width:100%;">
             ${img}
             <div style="flex:1;min-width:0;">
-              <div class="h-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.name}</div>
-              <div class="h-code">Commande #${order.order_number} · ${order.customer?.first_name||''} ${order.customer?.last_name||''}</div>
+              <div class="h-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(item.name)}</div>
+              <div class="h-code">Commande #${esc(order.order_number)} · ${esc(order.customer?.first_name||'')} ${esc(order.customer?.last_name||'')}</div>
               <div style="font-size:11px;color:#888780;">${orderDate} · ${parseFloat(item.price).toFixed(2)}€</div>
             </div>
-            <span class="badge ${badge}">${itemBoutique}</span>
+            <span class="badge ${badge}">${esc(itemBoutique)}</span>
           </div>
           <div style="display:flex;gap:8px;width:100%;flex-wrap:wrap;">
-            <button onclick="markAside('${order.id}', '${item.id}', this)" style="flex:1;min-width:180px;padding:10px;background:#3B6D11;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">📦 Mis de côté — prêt à expédier</button>
-            <button onclick="generateReturnPDF('${order.id}')" style="padding:10px 12px;background:#185FA5;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;" title="Générer le PDF retour">📄 Retour</button>
-            <button onclick="markNotFound('${order.id}', '${item.id}', this)" style="padding:10px 12px;background:#FCEBEB;border:0.5px solid #f7c1c1;border-radius:8px;font-size:13px;color:#A32D2D;cursor:pointer;font-weight:600;">❌</button>
-            <a href="https://admin.shopify.com/store/nestore-io/orders/${order.id}" target="_blank" style="padding:10px 12px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:8px;font-size:13px;color:#1a1a18;text-decoration:none;">↗</a>
+            <button onclick="markAside('${esc(escJs(order.id))}', '${esc(escJs(item.id))}', this)" style="flex:1;min-width:180px;padding:10px;background:#3B6D11;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">📦 Mis de côté — prêt à expédier</button>
+            <button onclick="generateReturnPDF('${esc(escJs(order.id))}')" style="padding:10px 12px;background:#185FA5;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;" title="Générer le PDF retour">📄 Retour</button>
+            <button onclick="markNotFound('${esc(escJs(order.id))}', '${esc(escJs(item.id))}', this)" style="padding:10px 12px;background:#FCEBEB;border:0.5px solid #f7c1c1;border-radius:8px;font-size:13px;color:#A32D2D;cursor:pointer;font-weight:600;">❌</button>
+            <a href="https://admin.shopify.com/store/nestore-io/orders/${esc(encodeURIComponent(order.id))}" target="_blank" style="padding:10px 12px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:8px;font-size:13px;color:#1a1a18;text-decoration:none;">↗</a>
           </div>
         </div>`;
       }).join('');
@@ -2768,12 +2774,12 @@ async function nvHardReload(){
     item.innerHTML = `
       <div style="width:36px;height:36px;border-radius:8px;background:#EAF3DE;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🛍</div>
       <div style="flex:1;min-width:0;">
-        <div class="h-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${productName}</div>
-        <div class="h-code">${brand||''}${barcode?' · '+barcode:''}</div>
+        <div class="h-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(productName)}</div>
+        <div class="h-code">${esc(brand||'')}${barcode?' · '+esc(barcode):''}</div>
       </div>
       <div class="h-meta">
         <div style="font-weight:600;color:#3B6D11;">${parseFloat(purchasePrice).toFixed(2)}€${margin}</div>
-        <div>${employee} · ${now}</div>
+        <div>${esc(employee)} · ${now}</div>
       </div>`;
     list.insertBefore(item, list.firstChild);
     const count = list.querySelectorAll('.history-item').length;
@@ -2939,7 +2945,7 @@ async function nvHardReload(){
     const photos = c.photos ? (typeof c.photos === 'string' ? JSON.parse(c.photos) : c.photos) : [];
     const firstPhoto = photos.length > 0 ? (photos[0].url || photos[0]) : null;
     const imgHtml = firstPhoto
-      ? `<img src="${firstPhoto}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;">`
+      ? `<img src="${esc(firstPhoto)}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;">`
       : `<div style="width:52px;height:52px;border-radius:8px;background:#f1efe8;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">👟</div>`;
     const item = document.createElement('div');
     item.className = 'history-item';
@@ -2947,9 +2953,9 @@ async function nvHardReload(){
     item.innerHTML = `
       ${imgHtml}
       <div style="flex:1;min-width:0;">
-        <div class="h-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.pair_name}</div>
-        <div class="h-code">${c.client_name}${c.client_phone?' · '+c.client_phone:''}</div>
-        <div style="font-size:11px;color:#888780;">${c.service} · ${parseFloat(c.price)===0?'Gratuit':parseFloat(c.price).toFixed(0)+'€'}</div>
+        <div class="h-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(c.pair_name)}</div>
+        <div class="h-code">${esc(c.client_name)}${c.client_phone?' · '+esc(c.client_phone):''}</div>
+        <div style="font-size:11px;color:#888780;">${esc(c.service)} · ${parseFloat(c.price)===0?'Gratuit':parseFloat(c.price).toFixed(0)+'€'}</div>
       </div>
       <div class="h-meta">
         <select onchange="updateCleanStatus(${c.id}, this.value)" style="font-size:11px;padding:3px 6px;border:0.5px solid #d3d1c7;border-radius:6px;background:#fff;">
@@ -2958,7 +2964,7 @@ async function nvHardReload(){
           <option value="a_regler" ${c.status==='a_regler'?'selected':''}>🟠 À régler</option>
           <option value="recupere" ${c.status==='recupere'?'selected':''}>⚪ Récupéré</option>
         </select>
-        <div style="margin-top:3px;">${c.employee} · ${date}</div>
+        <div style="margin-top:3px;">${esc(c.employee)} · ${date}</div>
       </div>`;
     list.insertBefore(item, list.firstChild);
     const count = list.querySelectorAll('.history-item').length;
@@ -3016,7 +3022,7 @@ async function nvHardReload(){
   function setCaisseAvatar(fallbackText, bg) {
     const avatar = document.getElementById('sessionAvatar'); if (!avatar) return;
     let photo = null; try { photo = (JSON.parse(localStorage.getItem('nv_user') || '{}').photo) || null; } catch(_) {}
-    if (photo) { avatar.textContent = ''; avatar.style.background = 'transparent'; avatar.style.overflow = 'hidden'; avatar.innerHTML = `<img src="${photo}" style="width:100%;height:100%;border-radius:inherit;object-fit:cover;display:block;"/>`; }
+    if (photo) { avatar.textContent = ''; avatar.style.background = 'transparent'; avatar.style.overflow = 'hidden'; avatar.innerHTML = `<img src="${esc(photo)}" style="width:100%;height:100%;border-radius:inherit;object-fit:cover;display:block;"/>`; }
     else { avatar.innerHTML = ''; avatar.textContent = fallbackText; if (bg) avatar.style.background = bg; }
   }
   function refreshCaisseAvatar() {
@@ -3208,7 +3214,7 @@ async function nvHardReload(){
     try{
       const r=await fetch(`${BACKEND_URL}/auth/names`).then(x=>x.json());
       const sel=document.getElementById('nvLoginName');
-      if(sel && r && r.rows && r.rows.length){ sel.innerHTML=r.rows.map(u=>`<option value="${(u.name||'').replace(/"/g,'&quot;')}">${u.name}${u.boutique?' ('+u.boutique+')':''}</option>`).join(''); }
+      if(sel && r && r.rows && r.rows.length){ sel.innerHTML=r.rows.map(u=>`<option value="${esc(u.name||'')}">${esc(u.name)}${u.boutique?' ('+esc(u.boutique)+')':''}</option>`).join(''); }
       else if(sel){ sel.innerHTML='<option value="">(aucun compte)</option>'; }
     }catch(_){}
   };

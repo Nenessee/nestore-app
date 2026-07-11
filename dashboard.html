@@ -2688,6 +2688,14 @@ tbody tr { transition: background .12s; }
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
 const DASH_VERSION = '2025-04-25-v231-pdv-recherche';
 
+// Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
+// (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
+// Échappe & < > " ' — les autres helpers historiques (vEsc, _invEsc, veilleEsc, _escD) délèguent ici.
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+// Pour une valeur injectée DANS une chaîne JS d'un attribut inline (onclick="f('${v}')") :
+// escJs neutralise \ et ' côté JS, puis esc() neutralise le HTML de l'attribut → esc(escJs(v)).
+function escJs(s) { return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
 // Demande (et mémorise) la clé admin pour les actions réservées à l'admin.
@@ -2919,7 +2927,7 @@ function channelBadge(b) {
   if(b==='Site web') return '<span class="badge badge-web">Site web</span>';
   if(b==='Vinted') return '<span class="badge badge-vinted">Vinted</span>';
   if(b==='Depop') return '<span class="badge badge-vinted">Depop</span>';
-  return `<span class="badge" style="background:#f1efe8;color:#5f5e5a;">${b}</span>`;
+  return `<span class="badge" style="background:#f1efe8;color:#5f5e5a;">${esc(b)}</span>`;
 }
 
 async function loadSummary() {
@@ -2929,7 +2937,7 @@ async function loadSummary() {
     <div class="kpi"><div class="kpi-label">Cette semaine</div><div class="kpi-value">${fmt(data.week.revenue)}</div><div class="kpi-sub">${data.week.count} ventes</div><div class="kpi-trend">${trendHtml(data.week.revenue,data.prevWeek.revenue)} vs S-1</div></div>
     <div class="kpi"><div class="kpi-label">Ce mois</div><div class="kpi-value">${fmt(data.month.revenue)}</div><div class="kpi-sub">${data.month.count} ventes</div><div class="kpi-trend">${trendHtml(data.month.revenue,data.prevMonth.revenue)} vs M-1</div></div>
     <div class="kpi"><div class="kpi-label">Total général</div><div class="kpi-value">${fmt(data.total.revenue)}</div><div class="kpi-sub">${data.total.count} ventes · moy. ${fmt(data.total.avg_price)}</div></div>
-    ${data.bestEmployeeToday?`<div class="kpi"><div class="kpi-label">Meilleur aujourd'hui</div><div class="kpi-value" style="font-size:20px;">${data.bestEmployeeToday.employee}</div><div class="kpi-sub">${data.bestEmployeeToday.count} vente${data.bestEmployeeToday.count>1?'s':''} · ${fmt(data.bestEmployeeToday.revenue)}</div></div>`:''}
+    ${data.bestEmployeeToday?`<div class="kpi"><div class="kpi-label">Meilleur aujourd'hui</div><div class="kpi-value" style="font-size:20px;">${esc(data.bestEmployeeToday.employee)}</div><div class="kpi-sub">${data.bestEmployeeToday.count} vente${data.bestEmployeeToday.count>1?'s':''} · ${fmt(data.bestEmployeeToday.revenue)}</div></div>`:''}
   `;
 }
 
@@ -3006,17 +3014,17 @@ function renderSalesTable(data, keepPage) {
   if(!data.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Aucune vente</td></tr>';return;}
   const shown = Math.min(salesShown, data.length);
   let _rowsHtml = data.slice(0, shown).map(s => {
-    const img = s.image_url?`<img src="${s.image_url}" class="product-img"/>`:`<span class="no-img">👕</span>`;
+    const img = s.image_url?`<img src="${esc(s.image_url)}" class="product-img"/>`:`<span class="no-img">👕</span>`;
     const date = new Date(s.sold_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-    const initials = s.employee?s.employee.substring(0,2).toUpperCase():'?';
+    const initials = s.employee?esc(s.employee.substring(0,2).toUpperCase()):'?';
     const storeName = 'nestore-io';
     const barcodeHtml = s.barcode
-      ? `<span style="font-family:monospace;font-size:11px;background:#f1efe8;padding:2px 6px;border-radius:4px;">${s.barcode}</span>`
+      ? `<span style="font-family:monospace;font-size:11px;background:#f1efe8;padding:2px 6px;border-radius:4px;">${esc(s.barcode)}</span>`
       : '<span style="color:#b4b2a9;font-size:12px;">—</span>';
     const shopifyLink = s.barcode && s.boutique !== 'Site web' && s.boutique !== 'Vinted'
-      ? `<a href="https://admin.shopify.com/store/${storeName}/products?query=${s.barcode}" target="_blank" style="font-size:11px;padding:2px 7px;border:0.5px solid #d3d1c7;border-radius:5px;background:#fff;color:#1a1a18;text-decoration:none;white-space:nowrap;">↗ Shopify</a>`
+      ? `<a href="https://admin.shopify.com/store/${storeName}/products?query=${esc(encodeURIComponent(s.barcode))}" target="_blank" style="font-size:11px;padding:2px 7px;border:0.5px solid #d3d1c7;border-radius:5px;background:#fff;color:#1a1a18;text-decoration:none;white-space:nowrap;">↗ Shopify</a>`
       : '';
-    return `<tr><td style="display:flex;align-items:center;gap:8px;">${img}<span>${s.product_name}</span></td><td style="color:#888780;font-size:12px;">${s.brand||'—'}</td><td style="display:flex;gap:4px;align-items:center;">${barcodeHtml}${shopifyLink}</td><td style="font-weight:600;">${parseFloat(s.price).toFixed(2)} €</td><td>${channelBadge(s.boutique)}</td><td><span class="avatar">${initials}</span>${s.employee}</td><td style="color:#888780;">${date}</td></tr>`;
+    return `<tr><td style="display:flex;align-items:center;gap:8px;">${img}<span>${esc(s.product_name)}</span></td><td style="color:#888780;font-size:12px;">${esc(s.brand)||'—'}</td><td style="display:flex;gap:4px;align-items:center;">${barcodeHtml}${shopifyLink}</td><td style="font-weight:600;">${parseFloat(s.price).toFixed(2)} €</td><td>${channelBadge(s.boutique)}</td><td><span class="avatar">${initials}</span>${esc(s.employee)}</td><td style="color:#888780;">${date}</td></tr>`;
   }).join('');
   if (shown < data.length) {
     _rowsHtml += `<tr><td colspan="7" style="text-align:center;padding:14px;">
@@ -3132,7 +3140,7 @@ async function loadStock(force) {
     const existing = document.getElementById('syncStatsBanner');
     if (existing) existing.remove();
     if (!stats.today?.length) return;
-    const lines = stats.today.map(e => `<span style="font-size:12px;background:#EAF3DE;color:#3B6D11;padding:3px 10px;border-radius:20px;font-weight:500;">${e.updated_by} — ${e.count} article${e.count>1?'s':''}</span>`).join('');
+    const lines = stats.today.map(e => `<span style="font-size:12px;background:#EAF3DE;color:#3B6D11;padding:3px 10px;border-radius:20px;font-weight:500;">${esc(e.updated_by)} — ${e.count} article${e.count>1?'s':''}</span>`).join('');
     const banner = document.createElement('div');
     banner.id = 'syncStatsBanner';
     banner.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 14px;background:#f5faf0;border:0.5px solid #b5d4a0;border-radius:10px;margin-bottom:12px;';
@@ -3185,7 +3193,7 @@ async function resetInventaireBoutique() {
 }
 
 // ===== Rapport d'inventaire (couverture, manquants, mal rangés, codes-barres en double) =====
-function _invEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function _invEsc(s){ return esc(s); } // délègue au helper canonique (ajoute l'échappement de ')
 function openInventaireReport() {
   const bq = document.getElementById('stockBoutiqueFilter')?.value || '';
   const scope = bq ? allStockData.filter(p => p.boutique === bq) : allStockData;
@@ -3272,7 +3280,7 @@ async function loadInvDuplicates() {
       <div style="max-height:240px;overflow:auto;">${data.groups.map(g=>`
         <div style="border:1px solid var(--border);border-radius:10px;padding:8px 10px;margin-bottom:8px;">
           <div style="font-family:monospace;font-weight:700;font-size:12px;margin-bottom:4px;">${_invEsc(g.barcode)} <span style="color:#A32D2D;">×${g.count}</span></div>
-          ${g.items.map(it=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px;"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_invEsc(it.title)} <span style="color:var(--text-muted);">· ${_invEsc(it.boutique)}</span></span><a href="${it.shopifyAdminUrl}" target="_blank" class="link-btn" style="white-space:nowrap;">Shopify ↗</a></div>`).join('')}
+          ${g.items.map(it=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px;"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_invEsc(it.title)} <span style="color:var(--text-muted);">· ${_invEsc(it.boutique)}</span></span><a href="${esc(it.shopifyAdminUrl)}" target="_blank" class="link-btn" style="white-space:nowrap;">Shopify ↗</a></div>`).join('')}
         </div>`).join('')}</div>`;
   } catch(e) {
     body.innerHTML = '<span style="color:#A32D2D;">Erreur de chargement.</span> <button class="btn" style="font-size:11px;" onclick="loadInvDuplicates()">Réessayer</button>';
@@ -3288,14 +3296,14 @@ const LOC_COLORS = { en_magasin:'#3B6D11', reserve:'#185FA5', local:'#7B4FBA', p
 function stockRowHtml(p) {
   const badge = p.boutique==='DK'?'badge-dk':'badge-lille';
   const catIcon = {Sneakers:'👟',Sapes:'👕',Accessoires:'👜',Autre:'📦'}[p.category]||'';
-  const img = p.image?`<img src="${p.image}" class="product-img" loading="lazy" decoding="async"/>`:`<span class="no-img">👕</span>`;
+  const img = p.image?`<img src="${esc(p.image)}" class="product-img" loading="lazy" decoding="async"/>`:`<span class="no-img">👕</span>`;
   const fillPct = Math.min((p.daysOnline/90)*100,100);
   const fillColor = p.daysOnline>=60?'#E24B4A':p.daysOnline>=30?'#EF9F27':'#5DCAA5';
   const statusBadge = p.daysOnline>=60?'<span class="badge badge-danger">À brader</span>':p.daysOnline>=30?'<span class="badge badge-warning">À surveiller</span>':'<span class="badge badge-ok">OK</span>';
   const score = p.score||0;
   const scoreFill = score>=70?'#5DCAA5':score>=40?'#EF9F27':'#E24B4A';
   const barcodeHtml = p.barcode
-    ? `<span style="font-family:monospace;font-size:11px;background:#f1efe8;padding:2px 6px;border-radius:4px;">${p.barcode}</span>`
+    ? `<span style="font-family:monospace;font-size:11px;background:#f1efe8;padding:2px 6px;border-radius:4px;">${esc(p.barcode)}</span>`
     : `<span onclick="openBarcodeInput(${p.variantId}, this)" style="cursor:pointer;" title="Cliquer pour ajouter un code-barres"><span class="badge badge-danger">Manquant — scanner</span></span>`;
   const isSelected = selectedProducts.has(p.id);
   const comparePrice = p.compareAtPrice ? `<span style="text-decoration:line-through;color:#888780;font-size:11px;margin-right:4px;">${parseFloat(p.compareAtPrice).toFixed(0)}€</span>` : '';
@@ -3303,13 +3311,13 @@ function stockRowHtml(p) {
   const rawLoc = p.location || '';
   const loc = rawLoc === 'en_boutique' ? 'en_magasin' : rawLoc; // compat ancienne valeur
   const checkCell = p.barcode
-    ? `<input type="checkbox" class="cb-loc" ${inBoutique?'checked':''} onchange="onCheckLocation('${p.barcode}', this.checked, '${loc}', ${p.id})" style="width:18px;height:18px;cursor:pointer;accent-color:#3B6D11;"/>`
+    ? `<input type="checkbox" class="cb-loc" ${inBoutique?'checked':''} onchange="onCheckLocation('${esc(escJs(p.barcode))}', this.checked, '${esc(escJs(loc))}', ${p.id})" style="width:18px;height:18px;cursor:pointer;accent-color:#3B6D11;"/>`
     : `<span style="color:#b4b2a9;font-size:11px;">—</span>`;
   const vintedCell = p.barcode
-    ? `<input type="checkbox" class="cb-vinted" ${p.onVinted?'checked':''} onchange="onCheckVinted('${p.barcode}', this.checked, ${p.id})" style="width:18px;height:18px;cursor:pointer;accent-color:#09B1BA;"/>`
+    ? `<input type="checkbox" class="cb-vinted" ${p.onVinted?'checked':''} onchange="onCheckVinted('${esc(escJs(p.barcode))}', this.checked, ${p.id})" style="width:18px;height:18px;cursor:pointer;accent-color:#09B1BA;"/>`
     : `<span style="color:#b4b2a9;font-size:11px;">—</span>`;
   const locCell = p.barcode
-    ? `<select onchange="updateStockLocation('${p.barcode}', ${inBoutique}, this.value, ${p.id})" style="font-size:11px;padding:4px 6px;border:0.5px solid #d3d1c7;border-radius:6px;color:${LOC_COLORS[loc]||'#888780'};max-width:130px;">
+    ? `<select onchange="updateStockLocation('${esc(escJs(p.barcode))}', ${inBoutique}, this.value, ${p.id})" style="font-size:11px;padding:4px 6px;border:0.5px solid #d3d1c7;border-radius:6px;color:${LOC_COLORS[loc]||'#888780'};max-width:130px;">
         <option value="" ${!loc?'selected':''}>— Choisir —</option>
         <option value="en_magasin" ${loc==='en_magasin'?'selected':''}>🏪 En magasin</option>
         <option value="reserve" ${loc==='reserve'?'selected':''}>📦 Réserve</option>
@@ -3320,21 +3328,21 @@ function stockRowHtml(p) {
   const etatVal = p.etat || '';
   const hasDisc = !!(p.disclosures && p.disclosures.trim());
   const etatCell = etatVal
-    ? `<button class="etat-btn" onclick="openEtatModal(${p.id})" title="Modifier l'état${hasDisc?' — détails renseignés':''}" style="border:0.5px solid ${ETAT_COLORS[etatVal]||'#d3d1c7'};color:${ETAT_COLORS[etatVal]||'#555'};background:#fff;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;">✓ ${etatVal}${hasDisc?' 📝':''} <span style="opacity:.6;">✏️</span></button>`
+    ? `<button class="etat-btn" onclick="openEtatModal(${p.id})" title="Modifier l'état${hasDisc?' — détails renseignés':''}" style="border:0.5px solid ${ETAT_COLORS[etatVal]||'#d3d1c7'};color:${ETAT_COLORS[etatVal]||'#555'};background:#fff;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;">✓ ${esc(etatVal)}${hasDisc?' 📝':''} <span style="opacity:.6;">✏️</span></button>`
     : `<button class="etat-btn" onclick="openEtatModal(${p.id})" title="Définir l'état" style="border:0.5px dashed #d3d1c7;color:#888780;background:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;white-space:nowrap;">+ État</button>`;
   const rowCls = (!inBoutique && p.barcode) ? 'stock-row row-unlocated' : 'stock-row';
-  return `<tr class="${rowCls}" data-pid="${p.id}" data-barcode="${p.barcode||''}">
+  return `<tr class="${rowCls}" data-pid="${p.id}" data-barcode="${esc(p.barcode||'')}">
     <td class="cell-select"><input type="checkbox" class="cb product-cb" data-id="${p.id}" data-varid="${p.variantId}" ${isSelected?'checked':''} onchange="toggleProduct(this)"/></td>
-    <td class="cell-article"><div class="stock-art">${img}<div class="meta"><div class="t">${p.title}</div><div class="v">${catIcon} ${p.vendor||'—'}</div></div></div></td>
+    <td class="cell-article"><div class="stock-art">${img}<div class="meta"><div class="t">${esc(p.title)}</div><div class="v">${catIcon} ${esc(p.vendor)||'—'}</div></div></div></td>
     <td data-label="Code-barres">${barcodeHtml}</td>
     <td data-label="Prix">${comparePrice}<span style="font-weight:600;">${parseFloat(p.price).toFixed(2)}€</span></td>
-    <td data-label="Boutique"><span class="badge ${badge}">${p.boutique}</span>${p.misplaced?` <span class="badge badge-danger" title="Scanné à ${p.scannedBoutique}, mais rangé en ${p.boutique} sur Shopify">⚠️ vu à ${p.scannedBoutique}</span> <button class="btn" style="font-size:10px;padding:3px 7px;background:rgba(24,95,165,0.12);border-color:#185FA5;color:#185FA5;" title="Corriger : transférer vers ${p.scannedBoutique}" onclick="correctBoutique('${p.barcode}')">→ ${p.scannedBoutique}</button>`:''}</td>
+    <td data-label="Boutique"><span class="badge ${badge}">${esc(p.boutique)}</span>${p.misplaced?` <span class="badge badge-danger" title="Scanné à ${esc(p.scannedBoutique)}, mais rangé en ${esc(p.boutique)} sur Shopify">⚠️ vu à ${esc(p.scannedBoutique)}</span> <button class="btn" style="font-size:10px;padding:3px 7px;background:rgba(24,95,165,0.12);border-color:#185FA5;color:#185FA5;" title="Corriger : transférer vers ${esc(p.scannedBoutique)}" onclick="correctBoutique('${esc(escJs(p.barcode))}')">→ ${esc(p.scannedBoutique)}</button>`:''}</td>
     <td data-label="Ancienneté"><div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;"><div class="stock-age"><span style="font-size:13px;font-weight:600;">${p.daysOnline}j</span>${statusBadge}</div><div class="days-bar" style="width:90px;"><div class="days-bar-fill" style="width:${fillPct}%;background:${fillColor};"></div></div></div></td>
     <td class="cell-loc" data-label="En boutique">${checkCell}</td>
     <td data-label="Localisation">${locCell}</td>
     <td class="cell-vinted" data-label="Vinted">${vintedCell}</td>
     <td data-label="État">${etatCell}</td>
-    <td data-label="Fiche"><a href="${p.shopifyAdminUrl}" target="_blank" class="link-btn">Shopify ↗</a></td>
+    <td data-label="Fiche"><a href="${esc(p.shopifyAdminUrl)}" target="_blank" class="link-btn">Shopify ↗</a></td>
   </tr>`;
 }
 
@@ -3709,7 +3717,7 @@ function renderCommandesTable(data) {
   document.getElementById('cmdTable').innerHTML = data.map(o => {
     const date = new Date(o.created_at).toLocaleDateString('fr-FR', {day:'2-digit',month:'2-digit',year:'2-digit',timeZone:'Europe/Paris'});
     const badge = o.boutique==='DK' ? 'badge-dk' : 'badge-lille';
-    const img = o.image ? `<img src="${o.image}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;margin-right:8px;vertical-align:middle;">` : '';
+    const img = o.image ? `<img src="${esc(o.image)}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;margin-right:8px;vertical-align:middle;">` : '';
 
     // Statut mis de côté
     const asideCell = o.isNotFound
@@ -3727,9 +3735,9 @@ function renderCommandesTable(data) {
 
     return `<tr style="${rowBg}">
       <td style="font-weight:600;font-size:13px;">#${o.order_number}</td>
-      <td style="font-size:12px;">${o.customer}</td>
-      <td style="font-size:12px;">${img}${o.product_name}</td>
-      <td><span class="badge ${badge}">${o.boutique}</span></td>
+      <td style="font-size:12px;">${esc(o.customer)}</td>
+      <td style="font-size:12px;">${img}${esc(o.product_name)}</td>
+      <td><span class="badge ${badge}">${esc(o.boutique)}</span></td>
       <td style="font-weight:600;">${parseFloat(o.price).toFixed(2)}€</td>
       <td style="color:#888780;font-size:12px;">${date}</td>
       <td>${asideCell}</td>
@@ -3856,14 +3864,14 @@ function renderTransferts() {
   document.getElementById('trfTable').innerHTML = total ? filtered.map(t => {
     const d = new Date(t.transferred_at);
     const dateStr = d.toLocaleDateString('fr-FR', { timeZone:'Europe/Paris' }) + ' ' + d.toLocaleTimeString('fr-FR', { timeZone:'Europe/Paris', hour:'2-digit', minute:'2-digit' });
-    const img = t.image_url ? `<img src="${t.image_url}" style="width:32px;height:32px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:8px;">` : '';
+    const img = t.image_url ? `<img src="${esc(t.image_url)}" style="width:32px;height:32px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:8px;">` : '';
     return `<tr>
       <td style="font-size:12px;color:#888780;white-space:nowrap;">${dateStr}</td>
-      <td><strong>${t.employee||'—'}</strong></td>
-      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${img}${t.product_name||t.barcode||'—'}</td>
-      <td style="color:#888780;">${t.brand||'—'}</td>
-      <td><span class="badge ${t.from_boutique==='DK'?'badge-dk':'badge-lille'}">${t.from_boutique}</span></td>
-      <td><span class="badge ${t.to_boutique==='DK'?'badge-dk':'badge-lille'}">${t.to_boutique}</span></td>
+      <td><strong>${esc(t.employee)||'—'}</strong></td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${img}${esc(t.product_name||t.barcode)||'—'}</td>
+      <td style="color:#888780;">${esc(t.brand)||'—'}</td>
+      <td><span class="badge ${t.from_boutique==='DK'?'badge-dk':'badge-lille'}">${esc(t.from_boutique)}</span></td>
+      <td><span class="badge ${t.to_boutique==='DK'?'badge-dk':'badge-lille'}">${esc(t.to_boutique)}</span></td>
     </tr>`;
   }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;color:#888780;">Aucun transfert sur cette période</td></tr>';
 }
@@ -3990,7 +3998,7 @@ function filterActivite() {
     .sort(([,a],[,b]) => b.caVente - a.caVente)
     .map(([emp, c]) =>
       `<div class="kpi">
-        <div class="kpi-label">${emp||'—'}</div>
+        <div class="kpi-label">${esc(emp)||'—'}</div>
         <div class="kpi-value" style="color:#3B6D11;">${c.caVente.toFixed(0)}€</div>
         <div class="kpi-sub">CA ventes · ${c.vente} ventes</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">
@@ -4014,10 +4022,10 @@ function filterActivite() {
     return `<tr>
       <td style="font-size:12px;color:var(--text-muted);white-space:nowrap;">${dateStr}</td>
       <td style="font-family:monospace;font-size:12px;font-weight:600;color:var(--text-muted);">${heureStr}</td>
-      <td><strong>${a.employee||'—'}</strong></td>
-      <td><span class="badge ${badge||''}" style="${a.type==='transfert'?'background:#dbeafe;color:#185FA5;':(!badge?'background:#f1efe8;color:#5f5e5a;':'')}">${typeLabels[a.type]||a.type}</span></td>
-      <td style="font-size:13px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${a.label||'—'}</td>
-      <td>${a.boutique?`<span class="badge ${a.boutique==='DK'?'badge-dk':'badge-lille'}">${a.boutique}</span>`:'—'}</td>
+      <td><strong>${esc(a.employee)||'—'}</strong></td>
+      <td><span class="badge ${badge||''}" style="${a.type==='transfert'?'background:#dbeafe;color:#185FA5;':(!badge?'background:#f1efe8;color:#5f5e5a;':'')}">${typeLabels[a.type]||esc(a.type)}</span></td>
+      <td style="font-size:13px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(a.label)||'—'}</td>
+      <td>${a.boutique?`<span class="badge ${a.boutique==='DK'?'badge-dk':'badge-lille'}">${esc(a.boutique)}</span>`:'—'}</td>
       <td style="font-weight:600;text-align:right;">${parseFloat(a.amount||0)>0?parseFloat(a.amount).toFixed(2)+'€':'—'}</td>
     </tr>`;
   }).join('') + (filtered.length > 500 ? `<tr><td colspan="7" style="text-align:center;padding:14px;color:#888780;font-size:12px;">… ${filtered.length - 500} actions supplémentaires (utilise les filtres ou l'export CSV pour tout voir)</td></tr>` : '') : '<tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Aucune activité</td></tr>';
@@ -4308,25 +4316,25 @@ function renderCleaningsTable(data) {
     const photos = c.photos ? (typeof c.photos === 'string' ? JSON.parse(c.photos) : c.photos) : [];
     const photoUrls = JSON.stringify(photos.map(p => p.url||p));
     const photosHtml = photos.length > 0
-      ? `<div style="display:flex;gap:4px;flex-wrap:wrap;">${photos.map((p,i) => `<img src="${p.url||p}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;cursor:pointer;border:0.5px solid #e0dfd8;" onclick="openLightbox(${c.id}, ${i})">`).join('')}</div>`
+      ? `<div style="display:flex;gap:4px;flex-wrap:wrap;">${photos.map((p,i) => `<img src="${esc(p.url||p)}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;cursor:pointer;border:0.5px solid #e0dfd8;" onclick="openLightbox(${c.id}, ${i})">`).join('')}</div>`
       : '<span style="color:#b4b2a9;font-size:12px;">—</span>';
     const price = parseFloat(c.price) === 0 ? 'Gratuit' : parseFloat(c.price).toFixed(2) + '€';
     return `<tr>
-      <td style="font-weight:500;">${c.pair_name}</td>
-      <td>${c.client_name}</td>
-      <td style="font-family:monospace;font-size:12px;">${c.client_phone||'—'}</td>
-      <td style="font-size:12px;">${c.service}</td>
+      <td style="font-weight:500;">${esc(c.pair_name)}</td>
+      <td>${esc(c.client_name)}</td>
+      <td style="font-family:monospace;font-size:12px;">${esc(c.client_phone)||'—'}</td>
+      <td style="font-size:12px;">${esc(c.service)}</td>
       <td style="font-weight:600;">${price}</td>
-      <td>${c.employee}</td>
-      <td><span class="badge ${c.boutique==='DK'?'badge-dk':'badge-lille'}">${c.boutique}</span></td>
+      <td>${esc(c.employee)}</td>
+      <td><span class="badge ${c.boutique==='DK'?'badge-dk':'badge-lille'}">${esc(c.boutique)}</span></td>
       <td style="color:#888780;font-size:12px;">${date}</td>
-      <td style="font-size:12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${c.remarks||''}">${c.remarks||'—'}</td>
+      <td style="font-size:12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(c.remarks||'')}">${esc(c.remarks)||'—'}</td>
       <td style="display:flex;gap:3px;flex-wrap:wrap;align-items:center;">
         ${photosHtml}
         <button onclick="triggerPhotoUpload(${c.id})" style="width:32px;height:32px;border:0.5px dashed #d3d1c7;border-radius:4px;background:#f5f5f3;cursor:pointer;font-size:16px;flex-shrink:0;">+</button>
       </td>
       <td>
-        <input type="text" value="${c.notes||''}" placeholder="Ajouter une note..."
+        <input type="text" value="${esc(c.notes||'')}" placeholder="Ajouter une note..."
           onblur="saveCleaningNote(${c.id}, this.value)"
           onkeydown="if(event.key==='Enter') this.blur()"
           style="width:140px;padding:4px 8px;border:0.5px solid #d3d1c7;border-radius:6px;font-size:12px;background:#fff;"/>
@@ -4442,7 +4450,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.body.appendChild(inp);
 });
 
-function _escD(x){ return String(x==null?'':x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function _escD(x){ return esc(x); } // délègue au helper canonique
 async function loadDepots() {
   const tbody = document.getElementById('depotsTable');
   const summary = document.getElementById('depotsSummary');
@@ -4660,7 +4668,7 @@ function renderObjEntries(d) {
   if (!actual.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#888780;">Aucune saisie ce mois</td></tr>'; return; }
   tb.innerHTML = actual.map(r => {
     const act = adm ? `<td><button class="btn" style="font-size:11px;padding:4px 8px;" onclick="objEditEntry('${r.boutique}','${r.date}', ${Number(r.amount_ttc)})">Modifier</button></td>` : '';
-    return `<tr><td>${objDayShort(r.date)}</td><td>${objBoutiqueLabel(r.boutique)}</td><td>${fmtEur(r.amount_ttc)}</td><td style="color:var(--text-muted);font-size:12px;">${(r.updated_by || r.entered_by || '')}</td>${act}</tr>`;
+    return `<tr><td>${objDayShort(r.date)}</td><td>${objBoutiqueLabel(r.boutique)}</td><td>${fmtEur(r.amount_ttc)}</td><td style="color:var(--text-muted);font-size:12px;">${esc(r.updated_by || r.entered_by || '')}</td>${act}</tr>`;
   }).join('');
 }
 // Admin/superadmin : charge une saisie existante (n'importe quelle boutique/date) dans la carte de saisie.
@@ -4862,7 +4870,7 @@ function renderRachatsTable(data) {
     const margin = r.margin != null ? `<span style="font-weight:600;color:${r.margin>=0?'#3B6D11':'#A32D2D'}">${r.margin>=0?'+':''}${parseFloat(r.margin).toFixed(2)}€ ${r.margin_pct!=null?`(${r.margin_pct}%)`:''}</span>` : '—';
     const soldPrice = r.sold_price ? `${parseFloat(r.sold_price).toFixed(2)}€` : '—';
     const date = new Date(r.purchased_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'});
-    const barcodeHtml = r.barcode ? `<span style="font-family:monospace;font-size:11px;background:#f1efe8;padding:2px 6px;border-radius:4px;">${r.barcode}</span>` : '—';
+    const barcodeHtml = r.barcode ? `<span style="font-family:monospace;font-size:11px;background:#f1efe8;padding:2px 6px;border-radius:4px;">${esc(r.barcode)}</span>` : '—';
 
     // Authentification
     const auth = r.authenticated || 'pending';
@@ -4895,8 +4903,8 @@ function renderRachatsTable(data) {
     </div>`;
 
     return `<tr style="${pay==='non_regle'?'background:#FFF8F8;':''}">
-      <td style="font-weight:500;">${r.product_name}</td>
-      <td style="color:#888780;font-size:12px;">${r.brand||'—'}</td>
+      <td style="font-weight:500;">${esc(r.product_name)}</td>
+      <td style="color:#888780;font-size:12px;">${esc(r.brand)||'—'}</td>
       <td>${barcodeHtml}</td>
       <td style="font-weight:600;">${parseFloat(r.purchase_price).toFixed(2)}€</td>
       <td style="color:#888780;">${r.estimated_price?parseFloat(r.estimated_price).toFixed(2)+'€':'—'}</td>
@@ -4905,7 +4913,7 @@ function renderRachatsTable(data) {
       <td>${status}</td>
       <td>${authCell}</td>
       <td>${payCell}</td>
-      <td>${r.employee}</td>
+      <td>${esc(r.employee)}</td>
       <td style="color:#888780;">${date}</td>
     </tr>`;
   }).join('');
@@ -5022,7 +5030,7 @@ function logout() {
 /* ════════ VEILLE CONCURRENTIELLE (admin only) ════════ */
 let veilleState = { competitorId:'all', days:30, mode:'sales', brand:'', competitors:[], salesPage:1, salesSort:'date', salesDir:'desc', lastTotalPages:1, prodPage:1, prodSort:'value', prodDir:'desc', prodQ:'', prodCategory:'' };
 let _veilleBrandTimer = null;
-function veilleEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function veilleEsc(s){ return esc(s); } // délègue au helper canonique
 function veilleErr(e){ return `<div style="padding:30px;text-align:center;color:var(--accent);">Erreur de chargement : ${veilleEsc(e&&e.message||e)}</div>`; }
 function veilleRangeParams(){
   const q=[];
@@ -5054,7 +5062,7 @@ function setVintedListe(l){ vintedListeFilter=l; vintedShownCaisse=VINTED_PAGE; 
 function vListePill(a){ const l=vintedListeOf(a); return `<span class="vlist vlist-${l}">${l}</span>`; }
 const VINTED_CATS = ['Vêtements', 'Sneakers', 'Accessoires'];
 const VCAT_CLS = { 'Vêtements': 'vet', 'Sneakers': 'snk', 'Accessoires': 'acc' };
-function vEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function vEsc(s){ return esc(s); } // délègue au helper canonique
 function vintedParseDate(s){ if(!s) return 0; let m=/^(\d{2})\/(\d{2})\/(\d{4})/.exec(s); if(m) return Date.UTC(+m[3],+m[2]-1,+m[1]); m=/^(\d{4})-(\d{2})-(\d{2})/.exec(s); if(m) return Date.UTC(+m[1],+m[2]-1,+m[3]); const t=Date.parse(s); return Number.isNaN(t)?0:t; }
 function vEur(a){ return a.prix_eur!=null ? (Number(a.prix_eur).toFixed(2)+' €') : '—'; }
 function vGbp(a){ return a.prix_gbp!=null ? ('£'+Number(a.prix_gbp).toFixed(2)) : '—'; }
@@ -5314,10 +5322,10 @@ function vintedRowHtml(a, view){
   let lastCell;
   if(view==='histo'){
     const canCaisse = !enc && !fake && !refunded;
-    const justif = vHasJustif(a) ? `<a class="vjustif" href="${a.justificatif}" target="_blank" title="Justificatif d'achat" onclick="event.stopPropagation()">🧾</a>` : `<span class="vjustif off" title="Sans justificatif d'achat">🧾</span>`;
+    const justif = vHasJustif(a) ? `<a class="vjustif" href="${esc(a.justificatif)}" target="_blank" title="Justificatif d'achat" onclick="event.stopPropagation()">🧾</a>` : `<span class="vjustif off" title="Sans justificatif d'achat">🧾</span>`;
     // Pour les remboursés : indicateur du justificatif de remboursement (col R).
     const justifR = refunded ? (vHasRefundJustif(a)
-      ? `<a class="vjustif" href="${a.justificatif_remboursement}" target="_blank" title="Justificatif de remboursement" onclick="event.stopPropagation()" style="color:#7c5cd6;">↩🧾</a>`
+      ? `<a class="vjustif" href="${esc(a.justificatif_remboursement)}" target="_blank" title="Justificatif de remboursement" onclick="event.stopPropagation()" style="color:#7c5cd6;">↩🧾</a>`
       : `<span class="vjustif off" title="Sans justificatif de remboursement">↩🧾</span>`) : '';
     const undo = enc ? ` <button class="vbtn-undo" title="Annuler la mise en caisse" onclick="event.stopPropagation();vintedDecaisseRow('${vEsc(a.uid)}')">↩ annuler</button>` : '';
     lastCell = `<td style="white-space:nowrap;">${statusTag}${canCaisse?` <button class="vbtn-caisse mini" title="Mettre en caisse" onclick="event.stopPropagation();vintedEncaisseRow('${vEsc(a.uid)}')">✓</button>`:''}${undo}${justif}${justifR}</td>`;
@@ -5712,7 +5720,7 @@ async function vintedReceptionEncaisse(uid,cartonId){
   }catch(e){ showDashToast('Erreur réseau','error'); }
 }
 async function vintedCloturerCarton(id,reste){
-  let msg='Clôturer le carton '+id+' ?';
+  let msg='Clôturer le carton '+esc(String(id))+' ?';
   if(reste>0) msg+=`\n\n⚠️ ${reste} article(s) pas encore en caisse. Clôturer quand même ?`;
   const ok=await vintedConfirm({title:'Clôturer le carton ?',message:msg.replace(/\n/g,'<br>'),confirmLabel:'✅ Clôturer'});
   if(!ok) return;
@@ -6593,7 +6601,7 @@ function veilleDetailHTML(stats,sales,catalog,diag){
     const cells=catalog.categories.map(c=>{
       const pct=Math.round(Number(c.pieces||0)/totP*100);
       const active=veilleState.prodCategory===c.category;
-      return `<div class="kpi" style="cursor:pointer;${active?'border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);':''}" onclick="veilleFilterCategory('${c.category.replace(/'/g,"\\\\'")}')"><div class="kpi-label">${icon[c.category]||''} ${c.category} →</div><div class="kpi-value">${c.pieces} <span style="font-size:12px;color:var(--text-soft);">pièces</span></div><div class="kpi-sub">${eur(c.value)} · ${pct}%</div></div>`;
+      return `<div class="kpi" style="cursor:pointer;${active?'border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);':''}" onclick="veilleFilterCategory('${esc(escJs(c.category))}')"><div class="kpi-label">${icon[c.category]||''} ${esc(c.category)} →</div><div class="kpi-value">${c.pieces} <span style="font-size:12px;color:var(--text-soft);">pièces</span></div><div class="kpi-sub">${eur(c.value)} · ${pct}%</div></div>`;
     }).join('');
     html+=`<div class="table-card" style="padding:16px;margin-bottom:20px;"><div class="table-title" style="margin-bottom:12px;">Répartition par catégorie</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;">${cells}</div><div style="font-size:11px;color:var(--text-soft);margin-top:10px;">Clique une catégorie pour voir les articles dedans (et repérer les erreurs). Classement automatique (affinable).</div></div>`;
   }
@@ -6689,7 +6697,7 @@ function refreshHeaderAvatar() {
   let photo = null; try { photo = (JSON.parse(localStorage.getItem('nv_user') || '{}').photo) || null; } catch(_) {}
   const av = document.getElementById('employeePillAvatar'); if (!av || !photo) return;
   av.textContent = ''; av.style.background = 'transparent'; av.style.overflow = 'hidden';
-  av.innerHTML = `<img src="${photo}" style="width:100%;height:100%;border-radius:inherit;object-fit:cover;display:block;"/>`;
+  av.innerHTML = `<img src="${esc(photo)}" style="width:100%;height:100%;border-radius:inherit;object-fit:cover;display:block;"/>`;
 }
 function initDashboard(boutique, employee) {
   DASH_BOUTIQUE = boutique;
@@ -6767,7 +6775,7 @@ function initDashboard(boutique, employee) {
   let _photo = null; try { _photo = (JSON.parse(localStorage.getItem('nv_user') || '{}').photo) || null; } catch(_) {}
   const _setPillAvatar = (txt, bg) => {
     const av = document.getElementById('employeePillAvatar');
-    if (_photo) { av.textContent = ''; av.style.background = 'transparent'; av.style.overflow = 'hidden'; av.innerHTML = `<img src="${_photo}" style="width:100%;height:100%;border-radius:inherit;object-fit:cover;display:block;"/>`; }
+    if (_photo) { av.textContent = ''; av.style.background = 'transparent'; av.style.overflow = 'hidden'; av.innerHTML = `<img src="${esc(_photo)}" style="width:100%;height:100%;border-radius:inherit;object-fit:cover;display:block;"/>`; }
     else { av.innerHTML = ''; av.textContent = txt; if (bg) av.style.background = bg; }
   };
   if (employee && employee !== 'admin') {
@@ -7040,7 +7048,7 @@ if (_s?.auth) {
     filtered = query ? base.filter(c => (c.label + ' ' + c.group).toLowerCase().includes(query)) : base;
     const list = document.getElementById('cmdkList');
     if (!filtered.length) {
-      list.innerHTML = `<div class="cmdk-empty">Aucune commande ne correspond à "${query}"</div>`;
+      list.innerHTML = `<div class="cmdk-empty">Aucune commande ne correspond à "${esc(query)}"</div>`;
       return;
     }
     selectedIdx = Math.min(selectedIdx, filtered.length - 1);
@@ -7560,7 +7568,7 @@ function soldesFiltered() {
 }
 
 function soldesRowHtml(p) {
-  const img=p.image?`<img src="${p.image}" class="product-img" loading="lazy"/>`:`<span class="no-img">👕</span>`;
+  const img=p.image?`<img src="${esc(p.image)}" class="product-img" loading="lazy"/>`:`<span class="no-img">👕</span>`;
   const catIcon={Sneakers:'👟',Sapes:'👕',Accessoires:'👜',Autre:'📦'}[p.category]||'';
   const price=Number(p.price||0), sale=(p.salePrice!=null?Number(p.salePrice):null);
   const disc=(sale!=null && price>0)?Math.round((1-sale/price)*100):null;
@@ -7579,13 +7587,13 @@ function soldesRowHtml(p) {
   else if(p.atLocal) etiq=` <span class="badge" style="background:rgba(24,95,165,0.15);color:#185FA5;">📦 au local</span> <button class="btn" style="font-size:10px;padding:3px 6px;color:var(--text-muted);" title="Retirer le statut au local" onclick="soldesAdminClearAtLocal(${p.id})">✕</button>`;
   else if(p.relabeled) etiq=' <span class="badge badge-ok">✓ étiqueté</span>';
   return `<tr data-pid="${p.id}">
-    <td data-label="Article" class="cell-article"><div class="stock-art">${img}<div class="meta"><div class="t">${p.title||''}</div><div class="v">${catIcon} ${p.brand||'—'}${p.barcode?(' · '+p.barcode):''}</div></div></div></td>
+    <td data-label="Article" class="cell-article"><div class="stock-art">${img}<div class="meta"><div class="t">${esc(p.title||'')}</div><div class="v">${catIcon} ${esc(p.brand)||'—'}${p.barcode?(' · '+esc(p.barcode)):''}</div></div></div></td>
     <td data-label="Boutique">${channelBadge(p.boutique)}</td>
     <td data-label="Prix actuel" style="font-weight:600;">${price.toFixed(2)}€</td>
     <td data-label="Prix soldé"><input type="number" min="0" step="0.5" value="${sale!=null?sale:''}" onchange="soldesSetPrice(${p.id}, this.value)" style="width:90px;padding:5px 7px;border:0.5px solid var(--border-strong);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;" placeholder="€"/></td>
     <td data-label="Remise">${remise}</td>
     <td data-label="Statut">${badge}${etiq}</td>
-    <td data-label="Fiche" style="white-space:nowrap;"><a href="${p.shopifyAdminUrl}" target="_blank" class="link-btn">Shopify ↗</a>${sale!=null?` <button class="btn" style="font-size:11px;padding:4px 8px;color:var(--accent);" onclick="soldesRemove(${p.id})">Retirer</button>`:''}</td>
+    <td data-label="Fiche" style="white-space:nowrap;"><a href="${esc(p.shopifyAdminUrl)}" target="_blank" class="link-btn">Shopify ↗</a>${sale!=null?` <button class="btn" style="font-size:11px;padding:4px 8px;color:var(--accent);" onclick="soldesRemove(${p.id})">Retirer</button>`:''}</td>
   </tr>`;
 }
 // Met à jour UNE ligne sans redessiner toute la table (garde le focus / permet d'enchaîner les saisies)
@@ -7722,7 +7730,7 @@ function soldesEmpRender() {
   if(!total){ list.innerHTML='<div style="padding:16px;color:var(--text-muted);">Aucun article soldé pour ta boutique pour l\'instant.</div>'; return; }
   if(!data.length){ list.innerHTML='<div style="padding:16px;color:var(--text-muted);">Rien avec ce filtre.</div>'; return; }
   list.innerHTML=data.map(x=>{
-    const img=x.image?`<img src="${x.image}" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex-shrink:0;"/>`:`<div style="width:64px;height:64px;border-radius:10px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">👕</div>`;
+    const img=x.image?`<img src="${esc(x.image)}" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex-shrink:0;"/>`:`<div style="width:64px;height:64px;border-radius:10px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">👕</div>`;
     const disc=x.original_price>0?Math.round((1-x.sale_price/x.original_price)*100):0;
     const cardStyle = x.relabeled ? 'opacity:.55;' : (x.not_found ? 'border-color:#BA7517;' : (x.at_local ? 'border-color:#185FA5;' : ''));
     let actions;
@@ -7743,8 +7751,8 @@ function soldesEmpRender() {
     return `<div class="table-card" style="padding:12px;margin-bottom:10px;display:flex;gap:12px;align-items:center;${cardStyle}">
       ${img}
       <div style="flex:1;min-width:0;">
-        <div style="font-weight:600;font-size:14px;">${x.title||''}${tag}</div>
-        <div style="font-size:12px;color:var(--text-muted);">${x.brand||'—'}${x.barcode?(' · '+x.barcode):''}</div>
+        <div style="font-weight:600;font-size:14px;">${esc(x.title||'')}${tag}</div>
+        <div style="font-size:12px;color:var(--text-muted);">${esc(x.brand)||'—'}${x.barcode?(' · '+esc(x.barcode)):''}</div>
         <div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <span style="text-decoration:line-through;color:var(--text-muted);font-size:14px;">${x.original_price.toFixed(2)}€</span>
           <span style="font-size:20px;font-weight:800;color:#A32D2D;">${x.sale_price.toFixed(2)}€</span>
@@ -7803,10 +7811,10 @@ window.loadForgottenSales = async function() {
     if (!Array.isArray(list) || !list.length) { banner.style.display = 'none'; return; }
     const rows = list.slice(0, 100).map(s => `
       <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--border);font-size:13px;">
-        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.title || '(sans titre)'}</span>
-        <span style="font-family:monospace;font-size:11px;color:var(--text-muted);">${s.barcode || ''}</span>
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.title) || '(sans titre)'}</span>
+        <span style="font-family:monospace;font-size:11px;color:var(--text-muted);">${esc(s.barcode || '')}</span>
         <span style="color:var(--text-muted);white-space:nowrap;">${s.daysOnline}j</span>
-        <a href="${s.shopifyAdminUrl}" target="_blank" class="link-btn">Shopify ↗</a>
+        <a href="${esc(s.shopifyAdminUrl)}" target="_blank" class="link-btn">Shopify ↗</a>
       </div>`).join('');
     banner.style.display = 'block';
     banner.innerHTML = `
@@ -7860,17 +7868,17 @@ window.loadVintedPending = async function() {
             const date = it.sold_at ? it.sold_at.match(/T(\d{2}:\d{2})/)?.[1] || '' : '';
             const day = it.sold_at ? it.sold_at.substring(0,10).split('-').reverse().join('/') : '';
             const img = it.image_url
-              ? `<img src="${it.image_url}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0;">`
+              ? `<img src="${esc(it.image_url)}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0;">`
               : `<div style="width:40px;height:40px;border-radius:6px;background:var(--surface-alt);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">👕</div>`;
             return `
-              <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);" data-barcode="${it.barcode || ''}">
+              <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);" data-barcode="${esc(it.barcode || '')}">
                 ${img}
                 <div style="flex:1;min-width:0;">
-                  <div style="font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${it.product_name || '—'}</div>
-                  <div style="font-size:11px;color:var(--text-muted);font-family:monospace;margin-top:2px;">${it.barcode || '—'}${it.brand ? ' · ' + it.brand : ''}</div>
-                  <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Vendu ${day} à ${date} · ${it.employee || '?'} · ${it.boutique || '?'}</div>
+                  <div style="font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(it.product_name) || '—'}</div>
+                  <div style="font-size:11px;color:var(--text-muted);font-family:monospace;margin-top:2px;">${esc(it.barcode) || '—'}${it.brand ? ' · ' + esc(it.brand) : ''}</div>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Vendu ${day} à ${date} · ${esc(it.employee) || '?'} · ${esc(it.boutique) || '?'}</div>
                 </div>
-                <button onclick="markVintedRemoved('${it.barcode}',this)" style="padding:8px 14px;background:var(--success);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;min-height:36px;flex-shrink:0;white-space:nowrap;">✓ Retiré</button>
+                <button onclick="markVintedRemoved('${esc(escJs(it.barcode))}',this)" style="padding:8px 14px;background:var(--success);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;min-height:36px;flex-shrink:0;white-space:nowrap;">✓ Retiré</button>
               </div>`;
           }).join('')}
         </div>
@@ -7943,11 +7951,11 @@ window.markVintedRemoved = async function(barcode, btn) {
   };
 
   // ===== Onglet Équipe (superadmin) =====
-  const _esc = (x)=>String(x==null?'':x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const _esc = esc; // délègue au helper canonique
   const _avatar = (u)=>{
-    if (u && u.photo) return `<img src="${u.photo}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid var(--border);flex:none;"/>`;
+    if (u && u.photo) return `<img src="${esc(u.photo)}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid var(--border);flex:none;"/>`;
     const ini = (u && u.name ? u.name.trim().substring(0,2).toUpperCase() : '?');
-    return `<span style="width:34px;height:34px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--surface-2,#e9e7e0);color:var(--text);font-size:12px;font-weight:700;flex:none;">${ini}</span>`;
+    return `<span style="width:34px;height:34px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--surface-2,#e9e7e0);color:var(--text);font-size:12px;font-weight:700;flex:none;">${esc(ini)}</span>`;
   };
   // Upload photo de profil : redimensionne en 128px JPEG côté client puis enregistre.
   window.equipePhoto = function(id){
@@ -8005,7 +8013,7 @@ window.markVintedRemoved = async function(barcode, btn) {
         h+=`<tr style="${u.active?'':'opacity:.5;'}"><td><div style="display:flex;align-items:center;gap:10px;">${_avatar(u)}<strong>${_esc(u.name)}</strong></div></td>`+
           `<td><select onchange="equipeUpdateUser(${u.id},{boutique:this.value})" style="font-size:12px;padding:3px;"><option value="" ${!u.boutique?'selected':''}>—</option><option value="Lille" ${u.boutique==='Lille'?'selected':''}>Lille</option><option value="DK" ${u.boutique==='DK'?'selected':''}>DK</option></select></td>`+
           `<td><select onchange="equipeUpdateUser(${u.id},{role:this.value})" style="font-size:12px;padding:3px;"><option value="employee" ${u.role==='employee'?'selected':''}>Employé</option><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option><option value="superadmin" ${u.role==='superadmin'?'selected':''}>Superadmin</option><option value="accountant" ${u.role==='accountant'?'selected':''}>Comptable</option></select></td>`+
-          `<td style="font-size:12px;color:var(--text-muted);">${u.last_login||'jamais'}</td>`+
+          `<td style="font-size:12px;color:var(--text-muted);">${esc(u.last_login)||'jamais'}</td>`+
           `<td style="text-align:center;"><input type="checkbox" ${u.active?'checked':''} onchange="equipeUpdateUser(${u.id},{active:this.checked})"></td>`+
           `<td style="white-space:nowrap;"><button class="btn" style="font-size:11px;padding:4px 8px;" onclick="equipePhoto(${u.id})">Photo</button> <button class="btn" style="font-size:11px;padding:4px 8px;" onclick="equipeResetPin(${u.id})">Code</button> <button class="btn" style="font-size:11px;padding:4px 8px;color:var(--accent);" onclick="equipeDeleteUser(${u.id})">Suppr</button></td></tr>`;
       }
@@ -8188,9 +8196,9 @@ window.markVintedRemoved = async function(barcode, btn) {
         <div style="padding:10px;background:var(--success-dim);border-left:3px solid var(--success);border-radius:8px;margin-top:8px;">
           <div style="font-weight:600;color:var(--success);margin-bottom:6px;">✓ SEO mis à jour sur Shopify</div>
           <div style="font-size:12px;color:var(--text-muted);margin-bottom:2px;">TITLE</div>
-          <div style="font-family:monospace;font-size:12px;margin-bottom:8px;">${data.metaTitle || ''}</div>
+          <div style="font-family:monospace;font-size:12px;margin-bottom:8px;">${esc(data.metaTitle || '')}</div>
           <div style="font-size:12px;color:var(--text-muted);margin-bottom:2px;">DESCRIPTION</div>
-          <div style="font-family:monospace;font-size:12px;">${data.metaDesc || ''}</div>
+          <div style="font-family:monospace;font-size:12px;">${esc(data.metaDesc || '')}</div>
         </div>`;
       showDashToast('SEO régénéré ✓', 'success');
     } catch(e) {
@@ -8251,7 +8259,7 @@ window.markVintedRemoved = async function(barcode, btn) {
       const rows = items.slice(0, 80).map(p => {
         const date = p.created_at ? new Date(p.created_at).toLocaleDateString('fr-FR') : '';
         return `<div style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:12px;display:flex;justify-content:space-between;gap:10px;">
-          <span style="color:var(--text);">${p.title || p.id}</span>
+          <span style="color:var(--text);">${esc(p.title || p.id)}</span>
           <span style="color:var(--text-muted);font-size:11px;flex-shrink:0;">${date}</span>
         </div>`;
       }).join('');
@@ -8356,7 +8364,7 @@ window.markVintedRemoved = async function(barcode, btn) {
     try{
       const r=await fetch(`${BACKEND_URL}/auth/names`).then(x=>x.json());
       const sel=document.getElementById('nvLoginName');
-      if(sel && r && r.rows && r.rows.length){ sel.innerHTML=r.rows.map(u=>`<option value="${(u.name||'').replace(/"/g,'&quot;')}">${u.name}${u.boutique?' ('+u.boutique+')':''}</option>`).join(''); }
+      if(sel && r && r.rows && r.rows.length){ sel.innerHTML=r.rows.map(u=>`<option value="${esc(u.name||'')}">${esc(u.name)}${u.boutique?' ('+esc(u.boutique)+')':''}</option>`).join(''); }
       else if(sel){ sel.innerHTML='<option value="">(aucun compte — crée-les dans Équipe)</option>'; }
     }catch(_){}
   };
