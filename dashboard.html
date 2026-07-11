@@ -2575,10 +2575,11 @@ tbody tr { transition: background .12s; }
     <span id="pdvvInfo" style="font-size:12px;color:var(--text-muted);font-weight:600;"></span>
     <span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
       <input type="file" id="pdvvFileVentes" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none;" onchange="pdvImportVentes(this)"/>
-      <button class="btn btn-green" id="pdvvBtnVentes" onclick="document.getElementById('pdvvFileVentes').click()">📥 Importer ventes (Table.xlsx)</button>
+      <button class="btn btn-green pdv-import-btn" id="pdvvBtnVentes" onclick="document.getElementById('pdvvFileVentes').click()">📥 Importer ventes (Table.xlsx)</button>
       <input type="file" id="pdvvFileReg" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none;" onchange="pdvImportReglements(this)"/>
-      <button class="btn" id="pdvvBtnReg" onclick="document.getElementById('pdvvFileReg').click()">💳 Importer règlements</button>
-      <button class="btn" onclick="pdvvExportCsv()">⬇ Export CSV</button>
+      <button class="btn pdv-import-btn" id="pdvvBtnReg" onclick="document.getElementById('pdvvFileReg').click()">💳 Importer règlements</button>
+      <button class="btn" onclick="pdvvExportXlsx()">📊 Exporter en Excel</button>
+      <button class="btn" onclick="pdvvExportCsv()">⬇ CSV</button>
     </span>
   </div>
   <div style="font-size:12px;color:#8a5a00;background:rgba(224,161,6,.12);border:1px solid #efc07a;border-radius:8px;padding:10px 12px;margin-bottom:14px;">
@@ -2612,8 +2613,9 @@ tbody tr { transition: background .12s; }
     <span id="pdvsInfo" style="font-size:12px;color:var(--text-muted);font-weight:600;"></span>
     <span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
       <input type="file" id="pdvsFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none;" onchange="pdvsImport(this)"/>
-      <button class="btn btn-green" id="pdvsBtn" onclick="document.getElementById('pdvsFile').click()">📥 Importer contrôle stock (Produits.xlsx)</button>
-      <button class="btn" onclick="pdvsExportCsv()">⬇ Export CSV</button>
+      <button class="btn btn-green pdv-import-btn" id="pdvsBtn" onclick="document.getElementById('pdvsFile').click()">📥 Importer contrôle stock (Produits.xlsx)</button>
+      <button class="btn" onclick="pdvsExportXlsx()">📊 Exporter en Excel</button>
+      <button class="btn" onclick="pdvsExportCsv()">⬇ CSV</button>
     </span>
   </div>
   <div style="font-size:12px;color:#185FA5;background:rgba(24,95,165,.10);border:1px solid #b3ccea;border-radius:8px;padding:10px 12px;margin-bottom:14px;">
@@ -2691,7 +2693,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v228-pdv-chartjs';
+const DASH_VERSION = '2025-04-25-v229-role-comptable';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -6769,10 +6771,56 @@ function initDashboard(boutique, employee) {
     el.style.display = boutique === 'admin' ? '' : 'none';
   });
 
+  // Rôle COMPTABLE : verrouillage lecture seule — ne garder QUE PDV Ventes + PDV Stock, aucune action.
+  let _role = null; try { _role = (JSON.parse(localStorage.getItem('nv_user') || '{}').role) || null; } catch (_) {}
+  if (_role === 'accountant') { pdvAccountantLockdown(); return; }
+
   // Charge les données de l'onglet restauré (Ventes par défaut)
   switchTab(window._initSavedTab || 'ventes');
   // Rappel de saisie CA manquante (veille ouvrée) + badge sur l'onglet Objectif
   setTimeout(() => { try { checkRevenueMissing(); } catch (_) {} }, 900);
+}
+
+// Verrouillage LECTURE SEULE pour le rôle comptable : ne garde que les 2 onglets PDV, sans aucune action.
+// (La sécurité réelle est côté serveur — ici on n'affiche simplement rien d'autre.)
+function pdvAccountantLockdown() {
+  const keepTabs = new Set(['tabPdvVentes', 'tabPdvStock']);
+  const keepPanels = new Set(['tab-pdvventes', 'tab-pdvstock']);
+  document.querySelectorAll('.tab').forEach(t => { if (!keepTabs.has(t.id)) t.remove(); });
+  document.querySelectorAll('.tab-panel').forEach(p => { if (!keepPanels.has(p.id)) p.remove(); });
+  // Masquer : switcher boutique, recherche/navigation, bouton Caisse, actions admin, boutons d'import PDV.
+  const sw = document.getElementById('boutiqueSwitch'); if (sw) sw.style.display = 'none';
+  document.querySelectorAll('.js-admin-only, .topbar-switch, .cmdk-btn, .cmdk-btn-icon, .pdv-import-btn').forEach(e => e.style.display = 'none');
+  const sub = document.getElementById('dashSubtitle'); if (sub) sub.textContent = 'Comptable — lecture seule';
+  const pill = document.getElementById('employeePill'); if (pill) { pill.style.display = 'flex'; const nm = document.getElementById('employeePillName'); if (nm) nm.textContent = 'Comptable'; }
+  window._pdvAccountant = true; // lu par les onglets pour n'afficher que l'export
+  switchTab('pdvventes');
+}
+// Export .xlsx (vraie feuille Excel) — via SheetJS déjà chargé pour l'import.
+async function pdvExportXlsx(rows, sheetName, filename) {
+  if (!rows || !rows.length) { showDashToast('Rien à exporter', 'warn'); return; }
+  try {
+    const XLSX = await pdvLoadXlsxLib();
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    XLSX.writeFile(wb, filename);
+    showDashToast(`${rows.length} lignes exportées`, 'success');
+  } catch (e) { showDashToast('Export Excel impossible : ' + (e && e.message || ''), 'error'); }
+}
+function pdvvExportXlsx() {
+  const rows = pdvvTableRows(pdvvBase()).map(v => ({
+    Date: v.date_vente ? new Date(v.date_vente).toLocaleDateString('fr-FR') : '', Ticket: v.ticket || '', CodeProduit: v.code_produit || '',
+    Libelle: v.libelle || '', Categorie: v.categorie || '', Origine: v.classe_origine || '', Canaux: v._canaux.join(' | '), Modes: v._modes.join(' | '),
+    Quantite: v.quantite, Remise: v.remise, PrixRevient: v.prix_revient, TotalHT: v.total_ht, TVAsurMarge: v.total_tva, TotalTTC: v.total_ttc, Marge: v.marge
+  }));
+  pdvExportXlsx(rows, 'Ventes', `pdv_ventes_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+function pdvsExportXlsx() {
+  const rows = pdvsTableRows(pdvsFiltered()).map(p => ({
+    Reference: p.reference || '', Designation: p.designation || '', Categorie: p.categorie || '', Origine: p.classe_origine || '', Statut: p.statut || '',
+    PrixAchat: p.prix_achat, PrixEtiquette: p.prix_vente_ttc, Stock: p.stock
+  }));
+  pdvExportXlsx(rows, 'Stock', `pdv_stock_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
 function checkDashPwd() {
@@ -7965,7 +8013,7 @@ window.markVintedRemoved = async function(barcode, btn) {
       for (const u of d.rows) {
         h+=`<tr style="${u.active?'':'opacity:.5;'}"><td><div style="display:flex;align-items:center;gap:10px;">${_avatar(u)}<strong>${_esc(u.name)}</strong></div></td>`+
           `<td><select onchange="equipeUpdateUser(${u.id},{boutique:this.value})" style="font-size:12px;padding:3px;"><option value="" ${!u.boutique?'selected':''}>—</option><option value="Lille" ${u.boutique==='Lille'?'selected':''}>Lille</option><option value="DK" ${u.boutique==='DK'?'selected':''}>DK</option></select></td>`+
-          `<td><select onchange="equipeUpdateUser(${u.id},{role:this.value})" style="font-size:12px;padding:3px;"><option value="employee" ${u.role==='employee'?'selected':''}>Employé</option><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option><option value="superadmin" ${u.role==='superadmin'?'selected':''}>Superadmin</option></select></td>`+
+          `<td><select onchange="equipeUpdateUser(${u.id},{role:this.value})" style="font-size:12px;padding:3px;"><option value="employee" ${u.role==='employee'?'selected':''}>Employé</option><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option><option value="superadmin" ${u.role==='superadmin'?'selected':''}>Superadmin</option><option value="accountant" ${u.role==='accountant'?'selected':''}>Comptable</option></select></td>`+
           `<td style="font-size:12px;color:var(--text-muted);">${u.last_login||'jamais'}</td>`+
           `<td style="text-align:center;"><input type="checkbox" ${u.active?'checked':''} onchange="equipeUpdateUser(${u.id},{active:this.checked})"></td>`+
           `<td style="white-space:nowrap;"><button class="btn" style="font-size:11px;padding:4px 8px;" onclick="equipePhoto(${u.id})">Photo</button> <button class="btn" style="font-size:11px;padding:4px 8px;" onclick="equipeResetPin(${u.id})">Code</button> <button class="btn" style="font-size:11px;padding:4px 8px;color:var(--accent);" onclick="equipeDeleteUser(${u.id})">Suppr</button></td></tr>`;
@@ -8340,7 +8388,7 @@ window.markVintedRemoved = async function(barcode, btn) {
   // Entre dans le dashboard après une connexion réussie (réutilise le flux existant)
   window.nvEnterApp=function(u){
     try {
-      const bq = (u && (u.role==='admin' || u.role==='superadmin')) ? 'admin' : ((u && u.boutique) || 'Lille');
+      const bq = (u && (u.role==='admin' || u.role==='superadmin' || u.role==='accountant')) ? 'admin' : ((u && u.boutique) || 'Lille');
       if (typeof initDashboard === 'function') initDashboard(bq, u.name);
       else location.reload();
     } catch(_) { location.reload(); }
