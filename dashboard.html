@@ -2686,7 +2686,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v231-pdv-recherche';
+const DASH_VERSION = '2026-07-11-v232-securite'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -2701,8 +2701,6 @@ function escJs(s) { return String(s == null ? '' : s).replace(/\\/g, '\\\\').rep
 function nvUserRole() { try { return (JSON.parse(localStorage.getItem('nv_user') || '{}').role) || null; } catch (_) { return null; } }
 function nvIsAdmin() { const r = nvUserRole(); return r === 'admin' || r === 'superadmin'; }
 
-// Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
-const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
 // Demande (et mémorise) la clé admin pour les actions réservées à l'admin.
 // Actions admin : la session (rôle admin/superadmin) suffit — la clé maître ADMIN_API_KEY n'est
 // PLUS stockée ni demandée côté front (elle reste un secours serveur, hors app).
