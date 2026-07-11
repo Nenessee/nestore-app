@@ -739,19 +739,10 @@
     <div class="logo">NV</div>
     <h1>Nestore</h1>
 
-    <!-- Étape 1 : mot de passe -->
-    <div id="stepPwd">
-      <p>Accès réservé à l'équipe</p>
-      <input type="password" id="pwdInput" placeholder="Mot de passe" autocomplete="off" autocapitalize="off" onkeydown="if(event.key==='Enter')checkPwd()"/>
-      <button onclick="checkPwd()">Continuer →</button>
-      <div class="error" id="pwdError">Mot de passe incorrect</div>
-    </div>
-
-    <!-- Étape 2 : choix employé -->
-    <div id="stepEmployee" style="display:none;">
-      <p id="stepEmployeeLabel">Qui es-tu ?</p>
-      <div id="employeeBtns" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>
-    </div>
+    <!-- Le login par mot de passe boutique (PIN en dur) a été supprimé : la connexion
+         se fait uniquement par compte (prénom + code) via l'overlay #nvLoginOverlay,
+         affiché par le gate /auth/me. Cet écran ne sert que d'attente. -->
+    <p>Connexion…</p>
   </div>
 </div>
 
@@ -2999,12 +2990,7 @@ async function nvHardReload(){
 </div><!-- fin mainApp -->
 
 <script>
-  const CODES = { '3322': 'Lille', '2727': 'DK', 'Hyperx3933': 'admin' };
-  const EMPLOYEES = {
-    'Lille': ['Sacha', 'Mathys', 'Noa', 'Celeste', 'Louis'],
-    'DK': ['Romane'],
-    'admin': ['Sacha', 'Mathys', 'Romane', 'Noa', 'Celeste', 'Louis']
-  };
+  // Les PIN boutique en dur (CODES/EMPLOYEES) ont été supprimés : connexion par compte uniquement (nv_auth).
   let currentBoutique = null;
   let currentEmployee = null;
 
@@ -3019,8 +3005,7 @@ async function nvHardReload(){
     currentEmployee = null;
     try { stopInventaireScan(); } catch(_) {}
     try { stopVenteScan(); } catch(_) {}
-    // Révoque la session serveur puis recharge → le gate ré-affiche le bon écran
-    // (écran prénom + code si le login est obligatoire, sinon ancien mot de passe).
+    // Révoque la session serveur puis recharge → le gate ré-affiche l'écran de connexion par compte.
     (async () => {
       try { if (_tok) await fetch(`${BACKEND_URL}/auth/logout`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token:_tok }) }).catch(()=>{}); } catch(_) {}
       location.reload();
@@ -3095,32 +3080,6 @@ async function nvHardReload(){
       const sel = document.getElementById(id);
       if (sel) sel.classList.add('admin-visible');
     });
-  }
-
-  function checkPwd() {
-    const val = document.getElementById('pwdInput').value;
-    const boutique = CODES[val];
-    if (!boutique) {
-      document.getElementById('pwdError').style.display = 'block';
-      document.getElementById('pwdInput').value = '';
-      document.getElementById('pwdInput').focus();
-      return;
-    }
-    currentBoutique = boutique;
-    if (boutique === 'admin') {
-      connectEmployee('admin', boutique);
-      return;
-    }
-    // Étape 2 - choisir l'employé
-    document.getElementById('stepPwd').style.display = 'none';
-    document.getElementById('stepEmployee').style.display = 'block';
-    const employees = EMPLOYEES[boutique] || [];
-    document.getElementById('employeeBtns').innerHTML = employees.map(e =>
-      `<button class="btn-employee" onclick="connectEmployee('${e}', '${boutique}')"
-        style="padding:12px;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;width:100%;">
-        ${e}
-      </button>`
-    ).join('');
   }
 
   // Logger d'événements — envoie au backend /log/event pour le journal admin
@@ -3282,7 +3241,9 @@ async function nvHardReload(){
     try{ localStorage.removeItem('nv_auth'); localStorage.removeItem('nv_user'); localStorage.removeItem('nv_admin_key'); }catch(_){}
     location.reload();
   };
-  // Gate proactif au chargement : décide quoi afficher selon l'état d'authentification serveur
+  // Gate proactif au chargement : décide quoi afficher selon l'état d'authentification serveur.
+  // L'écran mot de passe legacy a été supprimé : hors session valide, on affiche TOUJOURS l'overlay compte.
+  const _nvHasLocalSession = () => { try { const s = JSON.parse(localStorage.getItem('nv_session')||'null'); return !!(s && s.auth); } catch(_) { return false; } };
   (async function(){
     try {
       const r = await fetch(`${BACKEND_URL}/auth/me`);
@@ -3292,11 +3253,14 @@ async function nvHardReload(){
       if (u && u.name && u.name !== 'legacy' && u.id) {                   // déjà connecté par compte
         try { const cur = JSON.parse(localStorage.getItem('nv_user') || '{}'); cur.name = u.name; cur.role = u.role; cur.boutique = u.boutique; cur.photo = u.photo || null; localStorage.setItem('nv_user', JSON.stringify(cur)); } catch(_) {}
         if (typeof refreshCaisseAvatar === 'function') refreshCaisseAvatar();
-        let s=null; try{ s=JSON.parse(localStorage.getItem('nv_session')||'null'); }catch(_){}
-        if (!(s && s.auth)) nvEnterApp(u);                               // entre dans l'app si pas déjà repris via session locale
+        if (!_nvHasLocalSession()) nvEnterApp(u);                        // entre dans l'app si pas déjà repris via session locale
+      } else if (!_nvHasLocalSession()) {
+        nvShowLogin();                                                   // pas de compte reconnu → écran de connexion
       }
-      // sinon (jeton legacy, login non obligatoire) → on laisse l'ancien écran mot de passe
-    } catch(_){}
+    } catch(_){
+      // Réseau indisponible : si la session locale a déjà repris l'app on ne bloque pas, sinon écran de connexion.
+      if (!_nvHasLocalSession()) nvShowLogin();
+    }
   })();
 })();
 </script>

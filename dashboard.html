@@ -1501,16 +1501,9 @@ tbody tr { transition: background .12s; }
   <div class="login-box">
     <div class="logo" style="margin:0 auto 1.5rem;width:56px;height:56px;border-radius:16px;font-size:16px;box-shadow:var(--shadow-md);">NV</div>
     <h1>Nestore</h1>
-    <div id="dashStepPwd">
-      <p>Dashboard — accès équipe</p>
-      <input type="password" id="dashPwd" placeholder="Mot de passe" autocomplete="off" autocapitalize="off" onkeydown="if(event.key==='Enter')checkDashPwd()"/>
-      <button onclick="checkDashPwd()">Continuer →</button>
-      <div class="login-error" id="dashPwdError">Mot de passe incorrect</div>
-    </div>
-    <div id="dashStepEmployee" style="display:none;">
-      <p>Qui es-tu ?</p>
-      <div id="dashEmployeeBtns" style="display:flex;flex-direction:column;gap:8px;"></div>
-    </div>
+    <!-- Le login par mot de passe (PIN en dur) a été supprimé : la connexion se fait
+         uniquement par compte via l'overlay #nvLoginOverlay, affiché par le gate /auth/me. -->
+    <p>Connexion…</p>
   </div>
 </div>
 
@@ -4963,8 +4956,7 @@ function filterRachats() {
 </div><!-- fin dashApp -->
 
 <script>
-const DASH_CODES = { 'Hyperx3933': 'admin', '3322': 'Lille', '2727': 'DK' };
-const DASH_EMPLOYEES = { 'Lille': ['Sacha', 'Mathys', 'Noa', 'Celeste', 'Louis'], 'DK': ['Romane'], 'admin': [] };
+// Les PIN en dur (DASH_CODES/DASH_EMPLOYEES) ont été supprimés : connexion par compte uniquement (nv_auth).
 let DASH_EMPLOYEE = null;
 
 // Logger d'événements — journal audit admin
@@ -6854,42 +6846,8 @@ function pdvsExportXlsx() {
   pdvExportXlsx(rows, 'Stock', `pdv_stock_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
-function checkDashPwd() {
-  const val = document.getElementById('dashPwd').value;
-  const boutique = DASH_CODES[val];
-  if (!boutique) {
-    document.getElementById('dashPwdError').style.display = 'block';
-    document.getElementById('dashPwd').value = '';
-    document.getElementById('dashPwd').focus();
-    return;
-  }
-  if (boutique === 'admin') {
-    // initDashboard écrit déjà nv_session
-    initDashboard(boutique, 'admin');
-    setTimeout(() => logEvent('login'), 0);
-    return;
-  }
-  // Étape 2 — choisir l'employé
-  document.getElementById('dashStepPwd').style.display = 'none';
-  document.getElementById('dashStepEmployee').style.display = 'block';
-  const container = document.getElementById('dashEmployeeBtns');
-  container.innerHTML = '';
-  const employees = DASH_EMPLOYEES[boutique] || [];
-  employees.forEach(e => {
-    const btn = document.createElement('button');
-    btn.className = 'btn-employee';
-    btn.style.cssText = 'padding:12px;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;width:100%;';
-    btn.textContent = e;
-    btn.addEventListener('click', () => connectDashEmployee(e, boutique));
-    container.appendChild(btn);
-  });
-}
-
-function connectDashEmployee(employee, boutique) {
-  initDashboard(boutique, employee);
-  // log l'event après que initDashboard ait écrit nv_session
-  setTimeout(() => logEvent('login'), 0);
-}
+// Le chemin de login legacy (checkDashPwd/connectDashEmployee + DASH_CODES en dur) a été supprimé :
+// la connexion passe uniquement par compte (overlay #nvLoginOverlay → POST /auth/login → nvEnterApp).
 
 const _s = JSON.parse(localStorage.getItem('nv_session') || 'null');
 if (_s?.auth) {
@@ -8431,7 +8389,9 @@ window.markVintedRemoved = async function(barcode, btn) {
     try{ localStorage.removeItem('nv_auth'); localStorage.removeItem('nv_user'); localStorage.removeItem('nv_session'); localStorage.removeItem('nv_admin_key'); }catch(_){}
     location.reload();
   };
-  // Gate proactif au chargement : décide quoi afficher selon l'état d'authentification serveur
+  // Gate proactif au chargement : décide quoi afficher selon l'état d'authentification serveur.
+  // L'écran mot de passe legacy a été supprimé : hors session valide, on affiche TOUJOURS l'overlay compte.
+  const _nvHasLocalSession = () => { try { const s = JSON.parse(localStorage.getItem('nv_session')||'null'); return !!(s && s.auth); } catch(_) { return false; } };
   (async function(){
     try {
       const r = await fetch(`${BACKEND_URL}/auth/me`);
@@ -8442,13 +8402,17 @@ window.markVintedRemoved = async function(barcode, btn) {
         // Rafraîchit le profil local (photo, rôle…) sans avoir à se reconnecter
         try { const cur = JSON.parse(localStorage.getItem('nv_user') || '{}'); cur.name = u.name; cur.role = u.role; cur.boutique = u.boutique; cur.photo = u.photo || null; localStorage.setItem('nv_user', JSON.stringify(cur)); } catch(_) {}
         if (typeof refreshHeaderAvatar === 'function') refreshHeaderAvatar();
-        let s=null; try{ s=JSON.parse(localStorage.getItem('nv_session')||'null'); }catch(_){}
-        if (!(s && s.auth)) nvEnterApp(u);
+        if (!_nvHasLocalSession()) nvEnterApp(u);
         // Rôle comptable CONFIRMÉ PAR LE SERVEUR → on (ré)applique le verrou lecture seule, quel que soit l'état
         // local (URL trafiquée, session restaurée avant le refresh du rôle…). Le serveur bloque déjà les données.
         if (u.role === 'accountant' && typeof pdvAccountantLockdown === 'function') { try { pdvAccountantLockdown(); } catch(_) {} }
+      } else if (!_nvHasLocalSession()) {
+        nvShowLogin(); // pas de compte reconnu → écran de connexion
       }
-    } catch(_){}
+    } catch(_){
+      // Réseau indisponible : si la session locale a déjà repris l'app on ne bloque pas, sinon écran de connexion.
+      if (!_nvHasLocalSession()) nvShowLogin();
+    }
   })();
 })();
 </script>
