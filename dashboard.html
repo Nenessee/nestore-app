@@ -2693,7 +2693,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2025-04-25-v229-role-comptable';
+const DASH_VERSION = '2025-04-25-v230-comptable-hardening';
 
 // Jeton employé envoyé au backend sur chaque appel (= EMPLOYEE_API_KEY Railway).
 const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
@@ -2775,7 +2775,10 @@ let _dashUpdateInterval = setInterval(() => {
     }).catch(() => {});
 }, 30000);
 const urlParams = new URLSearchParams(window.location.search);
-let DASH_BOUTIQUE = urlParams.get('b') || 'admin';
+// Le paramètre ?b= (bascule de boutique) est réservé aux admins — un rôle comptable/employé ne peut PAS
+// s'octroyer la vue admin via l'URL. (La sécurité réelle reste côté serveur ; ceci évite juste d'afficher des onglets.)
+let _bootRole = null; try { _bootRole = (JSON.parse(localStorage.getItem('nv_user') || '{}').role) || null; } catch (_) {}
+let DASH_BOUTIQUE = (((_bootRole === 'admin' || _bootRole === 'superadmin') ? urlParams.get('b') : null)) || 'admin';
 
 function switchDashBoutique(boutique, btn) {
   DASH_BOUTIQUE = boutique;
@@ -6862,7 +6865,9 @@ function connectDashEmployee(employee, boutique) {
 
 const _s = JSON.parse(localStorage.getItem('nv_session') || 'null');
 if (_s?.auth) {
-  initDashboard(_s.boutique || urlParams.get('b') || 'admin', _s.employee);
+  let _rr = null; try { _rr = (JSON.parse(localStorage.getItem('nv_user') || '{}').role) || null; } catch (_) {}
+  const _urlB = (_rr === 'admin' || _rr === 'superadmin') ? urlParams.get('b') : null; // ?b= réservé aux admins
+  initDashboard(_s.boutique || _urlB || 'admin', _s.employee);
 }
 </script>
 
@@ -8411,6 +8416,9 @@ window.markVintedRemoved = async function(barcode, btn) {
         if (typeof refreshHeaderAvatar === 'function') refreshHeaderAvatar();
         let s=null; try{ s=JSON.parse(localStorage.getItem('nv_session')||'null'); }catch(_){}
         if (!(s && s.auth)) nvEnterApp(u);
+        // Rôle comptable CONFIRMÉ PAR LE SERVEUR → on (ré)applique le verrou lecture seule, quel que soit l'état
+        // local (URL trafiquée, session restaurée avant le refresh du rôle…). Le serveur bloque déjà les données.
+        if (u.role === 'accountant' && typeof pdvAccountantLockdown === 'function') { try { pdvAccountantLockdown(); } catch(_) {} }
       }
     } catch(_){}
   })();
