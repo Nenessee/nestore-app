@@ -1052,7 +1052,7 @@ async function nvHardReload(){
 </script>
 
 <script>
-  const APP_VERSION = '2025-06-15-v118-audit-coherence';
+  const APP_VERSION = '2026-07-11-v232-securite'; // version unifiée (dashboard, sw.js, serveur)
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
 
   // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
@@ -1060,9 +1060,6 @@ async function nvHardReload(){
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
   // Pour une valeur injectée DANS une chaîne JS d'un attribut inline (onclick="f('${v}')") : esc(escJs(v)).
   function escJs(s) { return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
-  // Jeton employé envoyé au backend sur chaque appel (doit correspondre à
-  // EMPLOYEE_API_KEY sur Railway). Bloque les accès directs à l'API par URL.
-  const NV_TOKEN = ''; // jeton public supprimé — l'app n'utilise plus que la session (nv_auth)
   // Injecte l'en-tête d'auth sur toute requête vers le backend (laisse les
   // appels externes — CDN, version-check — intacts).
   (function () {
