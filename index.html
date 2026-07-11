@@ -3098,13 +3098,8 @@ async function nvHardReload(){
         type,
         metadata: metadata || {}
       });
-      // Pendant pagehide/visibilitychange, fetch peut être tué — on utilise sendBeacon
-      // qui est conçu pour les events de lifecycle (livraison garantie par le browser)
-      if (navigator.sendBeacon) {
-        const blob = new Blob([body], { type: 'application/json' });
-        // sendBeacon ne porte pas d'en-tête → jeton passé en query (requireAuth l'accepte)
-        if (navigator.sendBeacon(`${BACKEND_URL}/log/event?token=${encodeURIComponent(localStorage.getItem('nv_auth')||'')}`, blob)) return;
-      }
+      // fetch keepalive survit au pagehide comme un beacon MAIS porte les en-têtes :
+      // le jeton reste dans X-NV-Token (via le wrapper), plus jamais dans l'URL.
       fetch(`${BACKEND_URL}/log/event`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
