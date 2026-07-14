@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-2026-07-14-v233-vinted-diag'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
+const CACHE_VERSION = 'nestore-2026-07-14-v234-vinted-listes'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
 const STATIC_ASSETS = [
   '/',
   '/index.html',
