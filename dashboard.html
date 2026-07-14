@@ -2469,6 +2469,7 @@ tbody tr { transition: background .12s; }
       <button class="btn" title="Exporter l'année/liste affichée en CSV (compta)" onclick="vintedExportCsv()">⬇ Export CSV</button>
       <button class="btn" title="Réception des cartons Reship + suivi colis" onclick="vintedOpenReship()">📦 Réception cartons</button>
       <button class="btn" id="vintedResyncBtn" onclick="vintedResync()">↻ Resync</button>
+      <button class="btn" id="vintedVerifBtn" onclick="vintedVerif()" title="Compare ligne à ligne le Google Sheet et l'app, et explique chaque écart">✓ Vérifier Sheet ↔ app</button>
     </div>
   </div>
 
@@ -2528,6 +2529,14 @@ tbody tr { transition: background .12s; }
 </div>
 
 <!-- SUIVI COLIS (RESHIP) — DOIT rester DANS #tab-vinted pour hériter des styles scopés #tab-vinted .vcarton-*, .vbtn-caisse, etc. -->
+<div class="modal" id="vintedVerifModal">
+  <div class="modal-box" style="position:relative;max-width:760px;width:min(760px,96vw);text-align:left;max-height:90vh;overflow-y:auto;">
+    <button onclick="document.getElementById('vintedVerifModal').classList.remove('active')" style="position:relative;float:right;background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-muted);">×</button>
+    <div style="font-size:18px;font-weight:800;margin-bottom:4px;">✓ Vérification Sheet ↔ app</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Comparaison ligne à ligne du Google Sheet et du miroir de l'app (après resynchronisation).</div>
+    <div id="vintedVerifBody"></div>
+  </div>
+</div>
 <div class="modal" id="vintedReshipModal">
   <div class="modal-box" style="position:relative;max-width:1000px;width:min(1000px,96vw);text-align:left;max-height:92vh;overflow-y:auto;">
     <button onclick="document.getElementById('vintedReshipModal').classList.remove('active')" style="position:relative;float:right;background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-muted);">×</button>
@@ -2686,7 +2695,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-07-14-v235-vinted-recherche'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-07-14-v236-vinted-verif'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -5551,6 +5560,34 @@ async function vintedResync(){
   }
   catch(e){ showDashToast('Erreur sync (réseau) : '+(e&&e.message||''),'error'); }
   finally { if(btn){ btn.disabled=false; btn.textContent='↻ Resync Sheet'; } }
+}
+
+// Vérification complète Sheet ↔ app : appelle /vinted/verif (qui resynchronise d'abord)
+// et affiche un rapport lisible de chaque écart, avec la marche à suivre.
+async function vintedVerif(){
+  const btn=document.getElementById('vintedVerifBtn'); if(btn){ btn.disabled=true; btn.textContent='Vérification…'; }
+  try{
+    const d=await api('/vinted/verif');
+    const t=d.totaux||{}; const p=d.problemes||{};
+    const rien=!t.sansVendeur && !t.sansUid && !t.uidDoubles && !t.manquantes && !t.ongletsIgnores;
+    const bloc=(titre,arr,tot,expl,color)=>{ if(!tot) return '';
+      return `<div style="margin:12px 0;"><b style="color:${color||'#A32D2D'};">${titre} (${tot})</b>`+
+        `<div style="font-size:12px;color:var(--text-muted);margin:2px 0 6px;">${expl}</div>`+
+        (arr||[]).map(x=>`<div style="font-size:12.5px;padding:2px 0;">• ${vEsc(x)}</div>`).join('')+
+        (tot>(arr||[]).length?`<div style="font-size:12px;color:var(--text-muted);">… et ${tot-(arr||[]).length} autre(s)</div>`:'')+`</div>`; };
+    let html=`<div style="margin-bottom:8px;">Sheet : <b>${Number(d.sheet.lignes)}</b> ligne(s) lue(s) dont <b>${Number(d.sheet.importables)}</b> importable(s) · App : <b>${Number(d.app.lignes)}</b> ligne(s)</div>`;
+    if(rien) html+=`<div style="color:#3B6D11;font-weight:700;margin:10px 0;">✓ Toutes les lignes du Sheet sont bien dans l'app.</div>`;
+    html+=bloc('Lignes sans UID (colonne P)',p.sansUid,t.sansUid,'Non importables : il manque l’UID en colonne P (normalement rempli par le script du Sheet). Le remettre puis resynchroniser.');
+    html+=bloc('UID en double (colonne P)',p.uidDoubles,t.uidDoubles,'Deux lignes partagent le même UID (ligne dupliquée à la main ?) : une seule apparaît dans l’app. Donner un UID différent à chaque ligne.');
+    html+=bloc('Lignes sans vendeur (colonne A)',p.sansVendeur,t.sansVendeur,'Non importables : renseigner le vendeur en colonne A puis resynchroniser.');
+    html+=bloc('Onglets du classeur NON lus',(p.ongletsIgnores||[]).map(o=>`${o.onglet}${o.lignes!=null?` — ${o.lignes} ligne(s) de données`:''}`),t.ongletsIgnores,'Seuls les onglets nommés « VINTED … AAAA » ou « À vérifier » sont importés. Renommer l’onglet pour l’inclure.');
+    html+=bloc('Avec UID mais absentes de l’app',p.manquantes,t.manquantes,'Présentes dans le Sheet avec un UID mais absentes malgré la synchro — anomalie, me la signaler.');
+    if(t.orphelines) html+=bloc('Dans l’app mais plus dans le Sheet',(p.orphelines&&p.orphelines.detail)||[],t.orphelines,'Lignes supprimées du Sheet ou dont l’UID a changé — elles restent affichées dans l’app.', '#BA7517');
+    document.getElementById('vintedVerifBody').innerHTML=html;
+    document.getElementById('vintedVerifModal').classList.add('active');
+    await loadVinted(); // la vérification a aussi resynchronisé le miroir
+  } catch(e){ showDashToast('Erreur vérification : '+(e&&e.message||''),'error'); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='✓ Vérifier Sheet ↔ app'; } }
 }
 
 /* ----- Suivi colis (tracking Vinted ↔ Reship) ----- */
