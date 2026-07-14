@@ -2695,7 +2695,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-07-14-v236-vinted-verif'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-07-14-v237-valeur-stock'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -3110,8 +3110,15 @@ async function loadStock(force) {
     if (_srvVal && _srvVal.total!=null) { valTotal=_srvVal.total; valLille=_srvVal.lille; valDK=_srvVal.dk; }
     const eur=(n)=>Math.round(n).toLocaleString('fr-FR')+' €';
     window._nestoreStock={ total:valTotal, lille:valLille, dk:valDK, at:Date.now() };
+    // Valeur figée ? On le DIT au lieu d'afficher un chiffre faux en silence : calcul tronqué
+    // (catalogue incomplet) ou périmé (rafraîchissement Shopify en échec → vieux cache resservi).
+    let _valNote='';
+    if (_srvVal && _srvVal.total!=null) {
+      if (_srvVal.truncated) _valNote='⚠️ Valeur incomplète : catalogue Shopify tronqué';
+      else if (_srvVal.ageMinutes!=null && _srvVal.ageMinutes>120) _valNote=`⚠️ Valeur figée : calculée il y a ${Math.round(_srvVal.ageMinutes/60)} h`+(_srvVal.refreshError?` (rafraîchissement en échec : ${esc(_srvVal.refreshError.message)})`:'');
+    }
     _valuesHtml = `
-      <div class="kpi"><div class="kpi-label">💰 Valeur stock (total)</div><div class="kpi-value" style="color:#3B6D11;">${eur(valTotal)}</div><div class="kpi-sub">${total} articles en ligne</div></div>
+      <div class="kpi"><div class="kpi-label">💰 Valeur stock (total)</div><div class="kpi-value" style="color:#3B6D11;">${eur(valTotal)}</div><div class="kpi-sub">${total} articles en ligne${_srvVal&&_srvVal.products?` · ${_srvVal.products} produits valorisés`:''}</div>${_valNote?`<div class="kpi-sub" style="color:#A32D2D;font-weight:600;">${_valNote}</div>`:''}</div>
       <div class="kpi"><div class="kpi-label">Valeur stock Lille</div><div class="kpi-value">${eur(valLille)}</div></div>
       <div class="kpi"><div class="kpi-label">Valeur stock Dunkerque</div><div class="kpi-value">${eur(valDK)}</div></div>`;
   }
