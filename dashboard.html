@@ -2686,7 +2686,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-07-11-v232-securite'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-07-14-v233-vinted-diag'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -5202,9 +5202,21 @@ function vintedRenderStatusLine(){
   const ageDot=(d)=>{ if(!d) return 'never'; return (Date.now()-new Date(d).getTime() > 36e5*24) ? 'old' : ''; };
   const sync = s&&s.lastSync ? fmtD(s.lastSync) : null;
   const rev = s&&s.lastRevolutImport ? fmtD(s.lastRevolutImport) : null;
+  // Lignes du Sheet NON importées (sans vendeur / sans UID / UID en double) : sans ce bandeau,
+  // elles disparaissent en silence et on croit à des lignes « perdues » dans l'app.
+  const d=s&&s.syncDiag; let warn='';
+  if(d && ((d.totaux&&(d.totaux.sansUid||d.totaux.sansVendeur||d.totaux.uidDoubles)) || (d.sansUid&&d.sansUid.length) || (d.sansVendeur&&d.sansVendeur.length) || (d.uidDoubles&&d.uidDoubles.length))){
+    const t=d.totaux||{sansUid:(d.sansUid||[]).length,sansVendeur:(d.sansVendeur||[]).length,uidDoubles:(d.uidDoubles||[]).length};
+    const parts=[];
+    const list=(arr,n)=>arr.slice(0,n).map(vEsc).join(' · ')+(arr.length>n?' …':'');
+    if(t.sansUid) parts.push(`<b>${t.sansUid} sans UID (col. P)</b> : ${list(d.sansUid||[],3)}`);
+    if(t.uidDoubles) parts.push(`<b>${t.uidDoubles} UID en double (col. P)</b> : ${list(d.uidDoubles||[],2)}`);
+    if(t.sansVendeur) parts.push(`<b>${t.sansVendeur} sans vendeur (col. A)</b> : ${list(d.sansVendeur||[],3)}`);
+    warn=`<span style="flex-basis:100%;color:#A32D2D;">⚠️ Lignes du Sheet non importées dans l'app — corriger dans le Google Sheet puis resynchroniser. ${parts.join(' — ')}</span>`;
+  }
   el.innerHTML =
     `<span><span class="vdot ${ageDot(s&&s.lastSync)}"></span><b style="color:var(--text);">Sheet</b> — ${sync||'jamais synchronisé'}</span>`+
-    `<span><span class="vdot ${ageDot(s&&s.lastRevolutImport)}"></span><b style="color:var(--text);">Revolut</b> — ${rev?('importé le '+rev):'jamais importé'}</span>`;
+    `<span><span class="vdot ${ageDot(s&&s.lastRevolutImport)}"></span><b style="color:var(--text);">Revolut</b> — ${rev?('importé le '+rev):'jamais importé'}</span>`+warn;
 }
 function vintedYears(){ return [...new Set(vintedAll.map(vYear).filter(Boolean))].sort().reverse(); }
 function vintedRenderYearSeg(){
@@ -5269,10 +5281,12 @@ function vintedPager(boxId, shown, total, moreFn){
 }
 
 function vintedCaisseOrdered(){
-  let list = vintedAll.filter(a=>vEligibleCaisse(a) && vintedMatchYear(a) && vintedMatchListe(a));
+  const q=(document.getElementById('vintedCaisseSearch')?.value||'').trim();
+  // Recherche GLOBALE : une requête tapée outrepasse les filtres liste (nouvelle/ancienne) et année,
+  // sinon une ligne existante mais hors filtre semble « manquante ».
+  let list = vintedAll.filter(a=>vEligibleCaisse(a) && (q ? true : (vintedMatchYear(a) && vintedMatchListe(a))));
   if(vintedCat==='__none') list=list.filter(a=>!(a.categorie&&a.categorie.trim()));
   else if(vintedCat) list=list.filter(a=>a.categorie===vintedCat);
-  const q=(document.getElementById('vintedCaisseSearch')?.value||'').trim();
   if(q) list=list.filter(a=>vSearchMatch(a.vendeur+' '+a.titre+' '+a.transaction_id+' '+a.prix_gbp+' '+a.prix_eur+' '+a.date_achat+' '+a.categorie+' '+a.uid, q));
   list.sort((x,y)=> vintedParseDate(x.date_achat)-vintedParseDate(y.date_achat));
   if(!vintedAsc) list.reverse();
@@ -5435,8 +5449,9 @@ function vintedHistoFiltered(){
   const q=(document.getElementById('vintedSearch').value||'').toLowerCase().trim();
   const ca=document.getElementById('vintedFCat').value, st=document.getElementById('vintedFStatut').value;
   return vintedAll.filter(a=>{
-    if(!vintedMatchYear(a)) return false;
-    if(!vintedMatchListe(a)) return false;
+    // Recherche GLOBALE : elle outrepasse liste + année (les seuls filtres « invisibles » par défaut).
+    if(!q && !vintedMatchYear(a)) return false;
+    if(!q && !vintedMatchListe(a)) return false;
     if(ca && a.categorie!==ca) return false;
     if(st==='encaisse' && !vIsEnCaisse(a)) return false;
     if(st==='acaisse' && !vEligibleCaisse(a)) return false; // « à traiter » = éligible (ni en caisse, ni fake, ni remboursé)
@@ -5458,7 +5473,10 @@ function vintedRenderHisto(){
   const shown=Math.min(vintedShownHisto,list.length);
   tb.innerHTML = list.slice(0,shown).map(a=>vintedRowHtml(a,'histo')).join('');
   vintedPager('vintedPagerHisto', shown, list.length, 'vintedShownHisto+=VINTED_PAGE;vintedRenderHisto()');
-  document.getElementById('vintedHistoCount').textContent = `${list.length} ligne(s)${vintedYear?(' · '+vintedYear):''} sur ${vintedAll.length} au total`;
+  const qActive=(document.getElementById('vintedSearch').value||'').trim();
+  document.getElementById('vintedHistoCount').textContent = qActive
+    ? `${list.length} ligne(s) sur ${vintedAll.length} au total · recherche sur TOUTES les listes et années`
+    : `${list.length} ligne(s)${vintedYear?(' · '+vintedYear):''} sur ${vintedAll.length} au total`;
 }
 function vintedRenderHistoDebounced(){ clearTimeout(_vintedSearchT); _vintedSearchT=setTimeout(()=>{ vintedShownHisto=VINTED_PAGE; vintedRenderHisto(); },180); }
 
