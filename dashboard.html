@@ -2695,7 +2695,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-07-14-v237-valeur-stock'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-07-15-v238-carton-colis'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -5626,10 +5626,14 @@ async function vintedReceptionListe(){
     else h+=cartons.map(c=>{
       const tot=Number(c.total_articles||0), enc=Number(c.en_caisse||0);
       const allEnc=tot>0 && enc>=tot;
+      // Compteur RÉEL de colis (carton_contenu) — les colis non reliés à un article sont comptés et signalés.
+      const nbColis=Number(c.nb_colis||0), relies=Number(c.colis_relies!=null?c.colis_relies:nbColis);
+      const nonRelies=Math.max(0,nbColis-relies);
+      const nrTxt=nonRelies>0?` · <span style="color:#A32D2D;font-weight:600;">${nonRelies} colis non relié${nonRelies>1?'s':''}</span>`:'';
       return `<button onclick="vintedOpenCarton('${vEsc(String(c.carton_id))}',false)" style="display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;padding:14px 16px;margin-bottom:8px;border:1px solid var(--border);border-radius:12px;background:var(--surface);cursor:pointer;">
         <div>
           <div style="font-weight:800;font-size:16px;">📦 Carton ${vEsc(String(c.carton_id))}</div>
-          <div style="font-size:12.5px;color:var(--text-muted);margin-top:3px;">${tot} article${tot>1?'s':''} · <span style="color:${allEnc?'#3B6D11':'#BA7517'};font-weight:600;">${enc}/${tot} en caisse</span> · arrivé le ${fmtDate(c.arrived_on)}</div>
+          <div style="font-size:12.5px;color:var(--text-muted);margin-top:3px;">${nbColis} colis · ${tot} article${tot>1?'s':''} relié${tot>1?'s':''} · <span style="color:${allEnc?'#3B6D11':'#BA7517'};font-weight:600;">${enc}/${tot} en caisse</span>${nrTxt} · arrivé le ${fmtDate(c.arrived_on)}</div>
         </div>
         <div style="font-size:22px;color:var(--text-muted);">›</div>
       </button>`;
@@ -5647,7 +5651,7 @@ async function vintedReceptionHistorique(){
     if(!cartons.length) h+='<div style="color:var(--text-muted);padding:20px;text-align:center;">Aucun carton clôturé</div>';
     else h+=cartons.map(c=>`<button onclick="vintedOpenCarton('${vEsc(String(c.carton_id))}',true)" style="display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;padding:12px 15px;margin-bottom:7px;border:1px solid var(--border);border-radius:10px;background:var(--surface);cursor:pointer;opacity:.85;">
         <div><div style="font-weight:700;">📦 Carton ${vEsc(String(c.carton_id))}</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${Number(c.total_articles||0)} article(s) · clôturé le ${fmtDT(c.cloture_at)}${c.cloture_par?(' par '+vEsc(c.cloture_par)):''}</div></div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${c.nb_colis!=null?(Number(c.nb_colis)+' colis · '):''}${Number(c.total_articles||0)} article(s) relié(s) · clôturé le ${fmtDT(c.cloture_at)}${c.cloture_par?(' par '+vEsc(c.cloture_par)):''}</div></div>
         <div style="font-size:20px;color:var(--text-muted);">›</div></button>`).join('');
     box.innerHTML=h;
   }catch(e){ box.innerHTML='<div style="color:#A32D2D;padding:14px;">Erreur réseau</div>'; }
@@ -5673,7 +5677,7 @@ async function vintedOpenCarton(id,readonly){
     if(!d.ok){ box.innerHTML='<div style="color:#A32D2D;padding:14px;">Erreur : '+vEsc(d.erreur||'?')+'</div>'; return; }
     const cloture=!!(d.carton&&d.carton.cloture_at);
     _vCarton={ id:String(id), ro:(readonly||cloture), cloture, cloture_par:(d.carton&&d.carton.cloture_par)||'',
-      arts:(d.articles||[]), man:(d.manuels||[]), fromHist:!!readonly };
+      arts:(d.articles||[]), nonRelies:(d.colis_non_relies||[]), man:(d.manuels||[]), fromHist:!!readonly };
     vintedRenderCarton();
   }catch(e){ box.innerHTML='<div style="color:#A32D2D;padding:14px;">Erreur réseau</div>'; }
 }
@@ -5696,13 +5700,14 @@ function vintedRenderCarton(){
     const ea=a.est_en_caisse?1:0, eb=b.est_en_caisse?1:0; if(ea!==eb) return ea-eb;           // dans le lot : à traiter d'abord
     return String(a.titre||'').localeCompare(String(b.titre||''));
   });
-  const man=c.man;
+  const man=c.man, nonRelies=c.nonRelies||[];
   const total=arts.length, enc=arts.filter(a=>a.est_en_caisse).length;
   const allEnc=total>0 && enc>=total;
   const backFn = c.fromHist ? 'vintedReceptionHistorique()' : 'vintedReceptionListe()';
+  const nrHead=nonRelies.length?` · <span style="color:#A32D2D;font-weight:600;">${nonRelies.length} colis non relié${nonRelies.length>1?'s':''}</span>`:'';
   let h=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;"><button class="btn" onclick="${backFn}">← Retour</button>
     <div style="font-weight:800;font-size:16px;">📦 Carton ${vEsc(String(id))}</div></div>
-    <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:12px;">${enc}/${total} en caisse${cloture?` · <span style="color:#3B6D11;font-weight:600;">clôturé${c.cloture_par?(' par '+vEsc(c.cloture_par)):''}</span>`:''}</div>`;
+    <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:12px;">${enc}/${total} en caisse${nrHead}${cloture?` · <span style="color:#3B6D11;font-weight:600;">clôturé${c.cloture_par?(' par '+vEsc(c.cloture_par)):''}</span>`:''}</div>`;
   // Rangée façon liste principale (Date · Article/vendeur · Prix £·€ · Transaction · Catégorie · En caisse).
   // Vignette photo_2 (l'article, pas le bordereau) en TAP-TO-VIEW ; repli photo_1.
   const catColors={vet:'#7c5cd6',snk:'#1f86b8',acc:'#b87917'};
@@ -5741,6 +5746,24 @@ function vintedRenderCarton(){
       <thead><tr style="text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);">
         <th style="padding:6px 8px;">Date</th><th style="padding:6px 8px;">Article / vendeur</th><th style="padding:6px 8px;">Prix £ · €</th><th style="padding:6px 8px;">Transaction</th><th style="padding:6px 8px;">Catégorie</th><th></th></tr></thead>
       <tbody>${arts.map(cartonRow).join('')}</tbody></table></div>`;
+  // Colis du carton NON reliés à un article : affichés avec leurs infos (au lieu d'être masqués),
+  // pour que la réception couvre TOUS les colis de carton_contenu, peu importe leur « source ».
+  if(nonRelies.length){
+    h+=`<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#A32D2D;font-weight:700;margin:14px 0 6px;">Colis non reliés à un article (${nonRelies.length})</div>`;
+    h+=nonRelies.map(p=>{
+      const img=p.photo_2||p.photo_1;
+      const thumb=img?`<a href="${vEsc(img)}" target="_blank" rel="noopener"><img loading="lazy" decoding="async" width="44" height="44" src="${vEsc(img)}" class="vcarton-thumb-img"></a>`:'<div style="font-size:18px;">📦</div>';
+      const trk=p.tracking_code?vCartonCopyChip(String(p.tracking_code),vEsc(p.tracking_code),'le tracking'):'<span style="color:var(--text-muted);">sans tracking</span>';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:7px;border:1px dashed #A32D2D55;border-radius:10px;background:var(--surface);">
+        ${thumb}
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${vCartonCopyChip(String(p.reship_package_id||''),vEsc(p.reship_package_id||'?'),"l'id du colis")}<span style="font-size:12px;color:var(--text-muted);">${vEsc(p.source||'source inconnue')}</span></div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:3px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${p.carrier?vEsc(p.carrier)+' · ':''}${trk}</div>
+          <div style="font-size:12px;color:#BA7517;margin-top:3px;">⏳ Colis non encore relié à un article (le scan tracking le rattachera dès que possible)</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
   // colis ajoutés manuellement
   if(man.length){
     h+=`<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:700;margin:14px 0 6px;">Colis ajoutés à la main</div>`;
