@@ -1052,7 +1052,7 @@ async function nvHardReload(){
 </script>
 
 <script>
-  const APP_VERSION = '2026-07-15-v238-carton-colis'; // version unifiée (dashboard, sw.js, serveur)
+  const APP_VERSION = '2026-07-16-v239-caisse-stock'; // version unifiée (dashboard, sw.js, serveur)
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
 
   // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
@@ -1443,9 +1443,17 @@ async function nvHardReload(){
   window.addEventListener('online', nvFlushSales);
   window.addEventListener('load', () => { nvUpdateOfflineBadge(); nvFlushSales(); });
 
+  // Employé d'une vente : la personne connectée (plus de sélection manuelle, même en admin).
+  // Repli : nom du compte nv_user, puis 'Admin'.
+  function resolveSaleEmployee() {
+    let employee = document.getElementById('employeeSelect')?.value || '';
+    if (!employee) employee = (currentEmployee && currentEmployee !== 'admin') ? currentEmployee : '';
+    if (!employee) { try { const u = JSON.parse(localStorage.getItem('nv_user') || '{}'); if (u && u.name) employee = u.name; } catch(_) {} }
+    return employee || 'Admin';
+  }
   async function markAsSold() {
-    const employee = document.getElementById('employeeSelect').value;
-    if (!employee) { showToast('Sélectionne un employé avant de valider la vente', 'warn'); return; }
+    const employee = resolveSaleEmployee();
+    if (currentBoutique === 'admin' && !document.getElementById('boutiqueSelect').value) { showToast('Choisis la boutique (Lille/DK) avant de valider la vente', 'warn'); return; }
     if (!currentData) { showToast('Aucun produit chargé', 'error'); return; }
     if (!currentData.selectedLocationId) { showToast('Emplacement Shopify introuvable', 'error'); return; }
 
@@ -1663,6 +1671,9 @@ async function nvHardReload(){
       ? `<img src="${esc(img)}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;">`
       : `<div style="width:44px;height:44px;border-radius:8px;background:#f1efe8;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">👕</div>`;
 
+    // Bouton « ouvrir sur Shopify » : recherche admin par code-barres (l'historique ne porte pas l'id produit).
+    const shopQ = data.barcode || data.sku || data.name || data.product_name || '';
+    const shopA = shopQ ? `<a href="https://admin.shopify.com/store/nestore-io/products?query=${esc(encodeURIComponent(shopQ))}" target="_blank" rel="noopener" title="Ouvrir le produit sur Shopify" style="padding:8px 10px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:8px;font-size:13px;color:#1a1a18;text-decoration:none;flex-shrink:0;align-self:center;">↗</a>` : '';
     const item = document.createElement('div');
     item.className = 'history-item';
     item.innerHTML = `
@@ -1675,7 +1686,8 @@ async function nvHardReload(){
         <span class="badge ${badgeClass}" style="font-size:10px;">${esc(boutique)}</span>
         <div>${parseFloat(data.price).toFixed(2)} €</div>
         <div>${esc(employee)} · ${time}</div>
-      </div>`;
+      </div>
+      ${shopA}`;
 
     list.insertBefore(item, list.firstChild);
 
@@ -2711,8 +2723,7 @@ async function nvHardReload(){
   }
 
   async function markPurchaseAsSold(purchaseId, productName, brand, price, barcode) {
-    const employee = document.getElementById('employeeSelect').value;
-    if (!employee) { showToast('Sélectionne un employé avant de valider la vente', 'warn'); return; }
+    const employee = resolveSaleEmployee(); // plus de sélection manuelle, même en admin
 
     const btn = document.getElementById('sellBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'Envoi en cours...'; }
@@ -3069,10 +3080,10 @@ async function nvHardReload(){
     setCaisseAvatar('★', '#BA7517');
     if (nameEl) { nameEl.textContent = 'Admin'; nameEl.style.color = '#fff'; }
     if (subtitle) subtitle.textContent = 'Toutes boutiques';
-    // Admin a besoin de choisir manuellement employé + boutique
+    // Admin choisit la boutique ; l'employé n'est PLUS demandé pour la vente (la personne
+    // connectée fait foi — cf. resolveSaleEmployee). Seul le nettoyage garde son choix manuel.
     const allEmployees = ['Sacha', 'Mathys', 'Romane', 'Noa', 'Celeste', 'Louis'];
-    // purchaseEmployee retiré : en rachat/dépôt, l'employé = la personne connectée (pas de choix manuel).
-    [['employeeSelect','— Choisir vendeur —'], ['cleanEmployee','— Choisir nettoyeur —']].forEach(([id, ph]) => {
+    [['cleanEmployee','— Choisir nettoyeur —']].forEach(([id, ph]) => {
       const sel = document.getElementById(id);
       if (!sel) return;
       sel.innerHTML = `<option value="">${ph}</option>` + allEmployees.map(e => `<option value="${e}">${e}</option>`).join('');
