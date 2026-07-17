@@ -2695,7 +2695,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-07-16-v239-caisse-stock'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-07-16-v240-carton-fiche'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -5306,7 +5306,7 @@ function vintedCaisseOrdered(){
   let list = vintedAll.filter(a=>vEligibleCaisse(a) && vintedMatchYear(a) && vintedMatchListe(a));
   if(vintedCat==='__none') list=list.filter(a=>!(a.categorie&&a.categorie.trim()));
   else if(vintedCat) list=list.filter(a=>a.categorie===vintedCat);
-  if(q) list=list.filter(a=>vSearchMatch(a.vendeur+' '+a.titre+' '+a.transaction_id+' '+a.prix_gbp+' '+a.prix_eur+' '+a.date_achat+' '+a.categorie+' '+a.uid, q));
+  if(q) list=list.filter(a=>vSearchMatch(a.vendeur+' '+a.titre+' '+a.transaction_id+' '+a.prix_gbp+' '+a.prix_eur+' '+a.date_achat+' '+a.categorie+' '+a.uid+' '+(a.reship_carton_id||''), q));
   list.sort((x,y)=> vintedParseDate(x.date_achat)-vintedParseDate(y.date_achat));
   if(!vintedAsc) list.reverse();
   return list;
@@ -5478,7 +5478,7 @@ function vintedHistoFiltered(){
     if(st==='rembourse' && !vIsRefunded(a)) return false;
     if(st==='sansjustif' && vHasJustif(a)) return false;
     if(st==='anomalie' && !vPriceAnomaly(a)) return false;
-    if(q){ const txt=a.vendeur+' '+a.titre+' '+a.transaction_id+' '+a.prix_gbp+' '+a.prix_eur+' '+a.date_achat+' '+a.categorie+' '+a.uid; if(!vSearchMatch(txt,q)) return false; }
+    if(q){ const txt=a.vendeur+' '+a.titre+' '+a.transaction_id+' '+a.prix_gbp+' '+a.prix_eur+' '+a.date_achat+' '+a.categorie+' '+a.uid+' '+(a.reship_carton_id||''); if(!vSearchMatch(txt,q)) return false; }
     return true;
   }).sort((x,y)=> st==='encaisse'
       ? ((Date.parse(y.en_caisse_at)||0)-(Date.parse(x.en_caisse_at)||0))   // En caisse → plus récemment encaissé en 1er (retrouver une erreur)
@@ -5630,10 +5630,12 @@ async function vintedReceptionListe(){
       const nbColis=Number(c.nb_colis||0), relies=Number(c.colis_relies!=null?c.colis_relies:nbColis);
       const nonRelies=Math.max(0,nbColis-relies);
       const nrTxt=nonRelies>0?` · <span style="color:#A32D2D;font-weight:600;">${nonRelies} colis non relié${nonRelies>1?'s':''}</span>`:'';
+      const nbFake=Number(c.nb_fake||0);
+      const fakeTxt=nbFake>0?` · <span style="color:#A32D2D;font-weight:600;">🚫 ${nbFake} FAKE</span>`:'';
       return `<button onclick="vintedOpenCarton('${vEsc(String(c.carton_id))}',false)" style="display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;padding:14px 16px;margin-bottom:8px;border:1px solid var(--border);border-radius:12px;background:var(--surface);cursor:pointer;">
         <div>
           <div style="font-weight:800;font-size:16px;">📦 Carton ${vEsc(String(c.carton_id))}</div>
-          <div style="font-size:12.5px;color:var(--text-muted);margin-top:3px;">${nbColis} colis · ${tot} article${tot>1?'s':''} relié${tot>1?'s':''} · <span style="color:${allEnc?'#3B6D11':'#BA7517'};font-weight:600;">${enc}/${tot} en caisse</span>${nrTxt} · arrivé le ${fmtDate(c.arrived_on)}</div>
+          <div style="font-size:12.5px;color:var(--text-muted);margin-top:3px;">${nbColis} colis · ${tot} article${tot>1?'s':''} relié${tot>1?'s':''} · <span style="color:${allEnc?'#3B6D11':'#BA7517'};font-weight:600;">${enc}/${tot} en caisse</span>${nrTxt}${fakeTxt} · arrivé le ${fmtDate(c.arrived_on)}</div>
         </div>
         <div style="font-size:22px;color:var(--text-muted);">›</div>
       </button>`;
@@ -5685,8 +5687,11 @@ function vintedRenderCarton(){
   const c=_vCarton; if(!c) return;
   const box=document.getElementById('vintedReceptionWrap');
   const id=c.id, ro=c.ro, cloture=c.cloture;
+  // Articles passés en FAKE : sortis du tableau et des compteurs, mais SIGNALÉS dans une
+  // section dédiée en bas (on doit voir qu'ils ont été reçus puis basculés en fake).
+  const fakes=(c.arts||[]).filter(a=>vIsFake(a));
   // Lots (bundles) : les articles d'une même transaction = un même lot → on les garde À LA SUITE.
-  const arts0=c.arts;
+  const arts0=(c.arts||[]).filter(a=>!vIsFake(a));
   const txCount={}; arts0.forEach(a=>{ const tx=String(a.transaction_id||'').trim(); if(tx) txCount[tx]=(txCount[tx]||0)+1; });
   const inLot=a=>{ const tx=String(a.transaction_id||'').trim(); return !!(tx && txCount[tx]>1) || vIsBundle(a); };
   // Ancre de tri d'un lot = le titre le plus petit du groupe (même transaction) → tout le lot se place au même endroit.
@@ -5705,9 +5710,10 @@ function vintedRenderCarton(){
   const allEnc=total>0 && enc>=total;
   const backFn = c.fromHist ? 'vintedReceptionHistorique()' : 'vintedReceptionListe()';
   const nrHead=nonRelies.length?` · <span style="color:#A32D2D;font-weight:600;">${nonRelies.length} colis non relié${nonRelies.length>1?'s':''}</span>`:'';
+  const fkHead=fakes.length?` · <span style="color:#A32D2D;font-weight:600;">🚫 ${fakes.length} FAKE</span>`:'';
   let h=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;"><button class="btn" onclick="${backFn}">← Retour</button>
     <div style="font-weight:800;font-size:16px;">📦 Carton ${vEsc(String(id))}</div></div>
-    <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:12px;">${enc}/${total} en caisse${nrHead}${cloture?` · <span style="color:#3B6D11;font-weight:600;">clôturé${c.cloture_par?(' par '+vEsc(c.cloture_par)):''}</span>`:''}</div>`;
+    <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:12px;">${enc}/${total} en caisse${nrHead}${fkHead}${cloture?` · <span style="color:#3B6D11;font-weight:600;">clôturé${c.cloture_par?(' par '+vEsc(c.cloture_par)):''}</span>`:''}</div>`;
   // Rangée façon liste principale (Date · Article/vendeur · Prix £·€ · Transaction · Catégorie · En caisse).
   // Vignette photo_2 (l'article, pas le bordereau) en TAP-TO-VIEW ; repli photo_1.
   const catColors={vet:'#7c5cd6',snk:'#1f86b8',acc:'#b87917'};
@@ -5729,9 +5735,10 @@ function vintedRenderCarton(){
     // Transaction = grosse pastille cliquable (tap = copie l'ID complet).
     const tx=a.transaction_id?vCartonCopyChip(String(a.transaction_id),vEsc(a.transaction_id),'la transaction'):'<span style="color:var(--text-muted);">—</span>';
     // Bouton En caisse = EXACTEMENT le même que la liste de base (.vbtn-caisse) ; fait → pastille verte identique.
-    const act=(!en && !ro)?`<button class="vbtn-caisse" onclick="vintedReceptionEncaisse('${vEsc(a.uid)}','${vEsc(String(id))}')">✓ En caisse</button>`
+    const act=(!en && !ro)?`<button class="vbtn-caisse" onclick="event.stopPropagation();vintedReceptionEncaisse('${vEsc(a.uid)}','${vEsc(String(id))}')">✓ En caisse</button>`
       : en?`<span class="vtag encaisse">En caisse</span>`:'';
-    return `<tr style="${en?'opacity:.5;':''}${lot?'box-shadow:inset 3px 0 0 #E0A106;':''}">
+    // Ligne cliquable → fiche article complète (mêmes infos que la liste de l'onglet Vinted).
+    return `<tr onclick="openVintedFiche('${vEsc(escJs(a.uid))}')" style="cursor:pointer;${en?'opacity:.5;':''}${lot?'box-shadow:inset 3px 0 0 #E0A106;':''}">
       <td style="white-space:nowrap;color:var(--text-muted);font-size:12px;">${vEsc(a.date_achat||'—')}</td>
       <td><div style="font-weight:600;line-height:1.25;display:flex;align-items:center;">${thumb}<span>${vEsc(a.titre||'(sans titre)')}</span></div>
         <div style="color:var(--text-muted);font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${vEsc(a.vendeur||'—')} ${vListePill(a)}${lotPill}</div></td>
@@ -5746,6 +5753,15 @@ function vintedRenderCarton(){
       <thead><tr style="text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);">
         <th style="padding:6px 8px;">Date</th><th style="padding:6px 8px;">Article / vendeur</th><th style="padding:6px 8px;">Prix £ · €</th><th style="padding:6px 8px;">Transaction</th><th style="padding:6px 8px;">Catégorie</th><th></th></tr></thead>
       <tbody>${arts.map(cartonRow).join('')}</tbody></table></div>`;
+  // Articles passés en FAKE : signalés à part, sortis du flux de réception (jamais mis en caisse).
+  if(fakes.length){
+    h+=`<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#A32D2D;font-weight:700;margin:14px 0 6px;">🚫 Passés en FAKE (${fakes.length})</div>`;
+    h+=fakes.map(a=>`<div onclick="openVintedFiche('${vEsc(escJs(a.uid))}')" style="display:flex;align-items:center;gap:10px;padding:8px 12px;margin-bottom:6px;border:1px solid var(--border);border-radius:10px;background:var(--surface);opacity:.65;cursor:pointer;">
+      <div style="font-size:16px;">🚫</div>
+      <div style="flex:1;min-width:0;"><div style="font-weight:600;text-decoration:line-through;">${vEsc(a.titre||'(sans titre)')}</div>
+      <div style="font-size:12px;color:var(--text-muted);">${vEsc(a.vendeur||'—')}${a.transaction_id?(' · #'+vEsc(a.transaction_id)):''} · reçu puis marqué FAKE — pas de mise en caisse</div></div>
+    </div>`).join('');
+  }
   // Colis du carton NON reliés à un article : affichés avec leurs infos (au lieu d'être masqués),
   // pour que la réception couvre TOUS les colis de carton_contenu, peu importe leur « source ».
   if(nonRelies.length){
