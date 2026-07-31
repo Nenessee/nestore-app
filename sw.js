@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-2026-07-31-v243-encaisse-rapide'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
+const CACHE_VERSION = 'nestore-2026-07-31-v244-tracking-verif'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
 const STATIC_ASSETS = [
   '/',
   '/index.html',
