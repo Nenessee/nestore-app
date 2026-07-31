@@ -2470,6 +2470,7 @@ tbody tr { transition: background .12s; }
       <button class="btn" title="Réception des cartons Reship + suivi colis" onclick="vintedOpenReship()">📦 Réception cartons</button>
       <button class="btn" id="vintedResyncBtn" onclick="vintedResync()">↻ Resync</button>
       <button class="btn" id="vintedVerifBtn" onclick="vintedVerif()" title="Compare ligne à ligne le Google Sheet et l'app, et explique chaque écart">✓ Vérifier Sheet ↔ app</button>
+      <button class="btn" id="vintedAuditBtn" onclick="vintedAuditEncaisse()" title="Pour chaque article encore à traiter : où en est-il physiquement (carton reçu, arrivé chez Reship, jamais arrivé…) ?">🕵️ Audit à traiter</button>
     </div>
   </div>
 
@@ -2535,6 +2536,14 @@ tbody tr { transition: background .12s; }
     <div style="font-size:18px;font-weight:800;margin-bottom:4px;">✓ Vérification Sheet ↔ app</div>
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Comparaison ligne à ligne du Google Sheet et du miroir de l'app (après resynchronisation).</div>
     <div id="vintedVerifBody"></div>
+  </div>
+</div>
+<div class="modal" id="vintedAuditModal">
+  <div class="modal-box" style="position:relative;max-width:860px;width:min(860px,96vw);text-align:left;max-height:90vh;overflow-y:auto;">
+    <button onclick="document.getElementById('vintedAuditModal').classList.remove('active')" style="position:relative;float:right;background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-muted);">×</button>
+    <div style="font-size:18px;font-weight:800;margin-bottom:4px;">🕵️ Audit « à mettre en caisse »</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Chaque article encore à traiter, croisé avec le tracking Vinted, les colis Reship et les cartons : où en est-il physiquement ?</div>
+    <div id="vintedAuditBody"></div>
   </div>
 </div>
 <div class="modal" id="vintedReshipModal">
@@ -2695,7 +2704,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-07-17-v241-encaisse-fiable'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-07-31-v242-audit-encaisse'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -5617,6 +5626,51 @@ async function vintedVerif(){
     await loadVinted(); // la vérification a aussi resynchronisé le miroir
   } catch(e){ showDashToast('Erreur vérification : '+(e&&e.message||''),'error'); }
   finally{ if(btn){ btn.disabled=false; btn.textContent='✓ Vérifier Sheet ↔ app'; } }
+}
+
+// Audit « à mettre en caisse » : affiche, par liste, la situation physique de chaque article
+// encore à traiter — sépare une erreur de comptage d'un colis réellement perdu/volé.
+const VAUDIT_BUCKETS = [
+  ['en_carton',           '📦 Dans un carton reçu',                 'L’article est physiquement là : il reste à le mettre en caisse via la réception carton.'],
+  ['arrive_sans_carton',  '🏭 Arrivé chez Reship, dans aucun carton','Le colis a été reçu par le reshipper mais n’apparaît dans aucun carton expédié — à réclamer chez Reship si ancien.'],
+  ['jamais_arrive',       '🚚 Tracking connu, jamais arrivé chez Reship','Le suivi existe mais Reship n’a jamais scanné ce colis — perdu/volé en amont ou en cours de route.'],
+  ['tracking_expire',     '⌛ Fenêtre tracking expirée, rien capturé','Vinted a effacé le suivi avant qu’on le capture : impossible de savoir où est le colis par l’app.'],
+  ['sans_info',           '❓ Aucun tracking connu',                 'Le scan tracking n’a rien pour cette transaction (achat très récent ou hors fenêtre).']
+];
+async function vintedAuditEncaisse(){
+  const btn=document.getElementById('vintedAuditBtn'); if(btn){ btn.disabled=true; btn.textContent='Audit…'; }
+  try{
+    const d=await api('/vinted/audit-encaisse');
+    const listes=d.listes||{};
+    let html='';
+    // L'app affiche son propre compteur : on met les deux côte à côte pour détecter un écart de comptage.
+    const kpiApp=(vintedAll||[]).filter(a=>vEligibleCaisse(a)&&vintedMatchListe(a)&&vintedMatchYear(a)).length;
+    html+=`<div style="margin-bottom:10px;font-size:13px;">Compteur affiché par l'app (filtres actuels) : <b>${kpiApp}</b></div>`;
+    for(const [liste,L] of Object.entries(listes).sort()){
+      const annees=Object.entries(L.annees||{}).sort().map(([a,n])=>`${a} : ${n}`).join(' · ');
+      html+=`<div style="margin:14px 0 6px;font-weight:800;font-size:15px;">Liste ${vEsc(liste)} — ${L.total} article(s) à traiter <span style="font-weight:400;font-size:12px;color:var(--text-muted);">(${annees})</span></div>`;
+      if(L.marquesPerdus) html+=`<div style="font-size:12.5px;color:#A32D2D;margin-bottom:6px;">dont ${L.marquesPerdus} marqué(s) en caisse dans l'app puis démarqué(s) — bouton 🔧 Réparer de la ligne de statut.</div>`;
+      for(const [key,label,expl] of VAUDIT_BUCKETS){
+        const B=(L.buckets||{})[key]; if(!B||!B.n) continue;
+        const rows=(B.items||[]).map(it=>{
+          const st=it.carton_id?`carton ${vEsc(String(it.carton_id))}${it.carton_cloture?' (clôturé)':''}`:
+            it.arrived_on?('arrivé le '+vEsc(String(it.arrived_on)) ):
+            it.tracking_code?('tracking '+vEsc(it.tracking_code)+(it.tstatus?(' · '+vEsc(it.tstatus)):'')):
+            (it.tstatus?vEsc(it.tstatus):'—');
+          return `<div style="display:flex;gap:8px;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:12.5px;">
+            <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;" onclick="openVintedFiche('${vEsc(escJs(it.uid))}')">${it.marque_puis_perdu?'⚠️ ':''}${vEsc(it.titre||'(sans titre)')} <span style="color:var(--text-muted);">· ${vEsc(it.vendeur||'—')} · ${vEsc(it.date_achat||'')}</span></span>
+            <span style="color:var(--text-muted);white-space:nowrap;">${it.transaction_id?('#'+vEsc(it.transaction_id)+' · '):''}${st}</span>
+          </div>`;
+        }).join('');
+        html+=`<details style="margin:6px 0;"><summary style="cursor:pointer;font-weight:700;">${label} — ${B.n} article(s)${B.valeur?` · ~${Number(B.valeur).toLocaleString('fr-FR')} €`:''}</summary>
+          <div style="font-size:12px;color:var(--text-muted);margin:4px 0 6px;">${expl}</div>${rows}${B.n>(B.items||[]).length?`<div style="font-size:12px;color:var(--text-muted);padding:4px 0;">… et ${B.n-(B.items||[]).length} autre(s)</div>`:''}</details>`;
+      }
+    }
+    if(!Object.keys(listes).length) html+='<div style="color:#3B6D11;font-weight:700;">✓ Aucun article à traiter.</div>';
+    document.getElementById('vintedAuditBody').innerHTML=html;
+    document.getElementById('vintedAuditModal').classList.add('active');
+  }catch(e){ showDashToast('Erreur audit : '+(e&&e.message||''),'error'); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='🕵️ Audit à traiter'; } }
 }
 
 /* ----- Suivi colis (tracking Vinted ↔ Reship) ----- */
