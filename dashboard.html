@@ -2695,7 +2695,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-07-16-v240-carton-fiche'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-07-17-v241-encaisse-fiable'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -5234,9 +5234,30 @@ function vintedRenderStatusLine(){
     if(t.sansVendeur) parts.push(`<b>${t.sansVendeur} sans vendeur (col. A)</b> : ${list(d.sansVendeur||[],3)}`);
     warn=`<span style="flex-basis:100%;color:#A32D2D;">⚠️ Lignes du Sheet non importées dans l'app — corriger dans le Google Sheet puis resynchroniser. ${parts.join(' — ')}</span>`;
   }
+  // Mises en caisse perdues : marquées dans l'app (en_caisse_at) mais plus dans le Sheet —
+  // typiquement une écriture partie sur une mauvaise ligne après insertion/tri dans le classeur,
+  // puis écrasée par la resync. Réparable en un clic (ré-écriture sur la ligne vérifiée par uid).
+  if(s && Number(s.perdusEnCaisse)>0){
+    warn+=`<span style="flex-basis:100%;color:#A32D2D;">⚠️ <b>${Number(s.perdusEnCaisse)} mise(s) en caisse</b> enregistrée(s) dans l'app mais plus marquée(s) dans le Sheet — les articles sont revenus « à traiter » à tort. <button class="btn" style="font-size:11.5px;padding:2px 10px;margin-left:6px;" id="vintedRepareBtn" onclick="vintedRepareEncaisse()">🔧 Réparer</button></span>`;
+  }
   el.innerHTML =
     `<span><span class="vdot ${ageDot(s&&s.lastSync)}"></span><b style="color:var(--text);">Sheet</b> — ${sync||'jamais synchronisé'}</span>`+
     `<span><span class="vdot ${ageDot(s&&s.lastRevolutImport)}"></span><b style="color:var(--text);">Revolut</b> — ${rev?('importé le '+rev):'jamais importé'}</span>`+warn;
+}
+// Ré-écrit « Oui » (col. M) sur la ligne Sheet VÉRIFIÉE par uid pour chaque mise en caisse perdue,
+// et remet en_caisse='Oui' en base. Garde-fous serveur : jamais un FAKE ni un remboursé.
+async function vintedRepareEncaisse(){
+  const btn=document.getElementById('vintedRepareBtn'); if(btn){ btn.disabled=true; btn.textContent='Réparation…'; }
+  try{
+    const r=await fetch(`${BACKEND_URL}/vinted/repare-encaisse`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    const d=await r.json().catch(()=>null);
+    if(!r.ok || !d || !d.ok){ showDashToast('Échec réparation : '+((d&&d.erreur)||('HTTP '+r.status)),'error'); if(btn){ btn.disabled=false; btn.textContent='🔧 Réparer'; } return; }
+    let msg=`${d.repares} mise(s) en caisse restaurée(s)`;
+    if(d.introuvables) msg+=` · ${d.introuvables} introuvable(s) dans le Sheet`;
+    if(d.ignores) msg+=` · ${d.ignores} ignorée(s) (FAKE/remboursé)`;
+    showDashToast(msg, d.repares?'success':'');
+    await loadVinted();
+  }catch(e){ showDashToast('Erreur réseau : '+(e&&e.message||''),'error'); if(btn){ btn.disabled=false; btn.textContent='🔧 Réparer'; } }
 }
 function vintedYears(){ return [...new Set(vintedAll.map(vYear).filter(Boolean))].sort().reverse(); }
 function vintedRenderYearSeg(){
@@ -5576,7 +5597,7 @@ async function vintedVerif(){
   try{
     const d=await api('/vinted/verif');
     const t=d.totaux||{}; const p=d.problemes||{};
-    const rien=!t.sansVendeur && !t.sansUid && !t.uidDoubles && !t.manquantes && !t.ongletsIgnores;
+    const rien=!t.sansVendeur && !t.sansUid && !t.uidDoubles && !t.manquantes && !t.ongletsIgnores && !t.perdusEnCaisse;
     const bloc=(titre,arr,tot,expl,color)=>{ if(!tot) return '';
       return `<div style="margin:12px 0;"><b style="color:${color||'#A32D2D'};">${titre} (${tot})</b>`+
         `<div style="font-size:12px;color:var(--text-muted);margin:2px 0 6px;">${expl}</div>`+
@@ -5589,6 +5610,7 @@ async function vintedVerif(){
     html+=bloc('Lignes sans vendeur (colonne A)',p.sansVendeur,t.sansVendeur,'Non importables : renseigner le vendeur en colonne A puis resynchroniser.');
     html+=bloc('Onglets du classeur NON lus',(p.ongletsIgnores||[]).map(o=>`${o.onglet}${o.lignes!=null?` — ${o.lignes} ligne(s) de données`:''}`),t.ongletsIgnores,'Seuls les onglets nommés « VINTED … AAAA » ou « À vérifier » sont importés. Renommer l’onglet pour l’inclure.');
     html+=bloc('Avec UID mais absentes de l’app',p.manquantes,t.manquantes,'Présentes dans le Sheet avec un UID mais absentes malgré la synchro — anomalie, me la signaler.');
+    html+=bloc('Mises en caisse perdues',p.perdusEnCaisse,t.perdusEnCaisse,'Marquées « en caisse » dans l’app (horodatage conservé) mais plus dans le Sheet — écriture partie sur une mauvaise ligne puis écrasée par la resync. Utiliser le bouton « 🔧 Réparer » de la ligne de statut.');
     if(t.orphelines) html+=bloc('Dans l’app mais plus dans le Sheet',(p.orphelines&&p.orphelines.detail)||[],t.orphelines,'Lignes supprimées du Sheet ou dont l’UID a changé — elles restent affichées dans l’app.', '#BA7517');
     document.getElementById('vintedVerifBody').innerHTML=html;
     document.getElementById('vintedVerifModal').classList.add('active');
