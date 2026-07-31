@@ -2704,7 +2704,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-07-31-v242-audit-encaisse'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-07-31-v243-encaisse-rapide'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -5876,16 +5876,24 @@ function vintedRenderCarton(){
   box.innerHTML=h;
 }
 async function vintedReceptionEncaisse(uid,cartonId){
+  // OPTIMISTE : on marque immédiatement (carton + liste de base + KPIs) sans attendre le serveur —
+  // la vérification de ligne Sheet côté serveur peut prendre quelques secondes (appels Google via
+  // proxy) et bloquait le clic. En cas d'échec serveur, on annule proprement et on prévient.
+  const a=(_vCarton && String(_vCarton.id)===String(cartonId)) ? _vCarton.arts.find(x=>String(x.uid)===String(uid)) : null;
+  const g=(vintedAll||[]).find(x=>x.uid===uid);
+  const prev={ a: a?a.est_en_caisse:null, g: g?{en_caisse:g.en_caisse,en_caisse_at:g.en_caisse_at}:null };
+  const rollback=()=>{
+    if(a){ a.est_en_caisse=prev.a; vintedRenderCarton(); }
+    if(g&&prev.g){ g.en_caisse=prev.g.en_caisse; g.en_caisse_at=prev.g.en_caisse_at; vintedRenderKpis(); vintedRenderCurrent(); }
+  };
+  if(a){ a.est_en_caisse=true; vintedRenderCarton(); }
+  if(g){ g.en_caisse='Oui'; g.en_caisse_at=new Date().toISOString(); vintedRenderKpis(); vintedRenderCurrent(); } // la liste de base suit tout de suite
   try{
     const d=await (await fetch(`${BACKEND_URL}/vinted/reship/article/${encodeURIComponent(uid)}/encaisse`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
-    if(!d.ok){ showDashToast('Erreur : '+(d.erreur||'?'),'error'); return; }
+    if(!d.ok){ rollback(); showDashToast('Mise en caisse ANNULÉE — '+(d.erreur||'erreur serveur'),'error'); return; }
     showDashToast('Mis en caisse ✓','success');
-    // Mise à jour LOCALE (pas de refetch → pas de rechargement des photos → pas de lag).
-    if(_vCarton && String(_vCarton.id)===String(cartonId)){
-      const a=_vCarton.arts.find(x=>String(x.uid)===String(uid)); if(a) a.est_en_caisse=true;
-      vintedRenderCarton();
-    } else { vintedOpenCarton(cartonId,false); }
-  }catch(e){ showDashToast('Erreur réseau','error'); }
+    if(!a && !g) vintedOpenCarton(cartonId,false); // cas rare : plus de contexte local → refetch
+  }catch(e){ rollback(); showDashToast('Mise en caisse ANNULÉE — erreur réseau','error'); }
 }
 async function vintedCloturerCarton(id,reste){
   let msg='Clôturer le carton '+esc(String(id))+' ?';
