@@ -2704,7 +2704,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-08-08-v245-affichage-liste'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-08-08-v246-sync-suppressions'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -5238,13 +5238,14 @@ function vintedRenderStatusLine(){
   // Lignes du Sheet NON importées (sans vendeur / sans UID / UID en double) : sans ce bandeau,
   // elles disparaissent en silence et on croit à des lignes « perdues » dans l'app.
   const d=s&&s.syncDiag; let warn='';
-  if(d && ((d.totaux&&(d.totaux.sansUid||d.totaux.sansVendeur||d.totaux.uidDoubles)) || (d.sansUid&&d.sansUid.length) || (d.sansVendeur&&d.sansVendeur.length) || (d.uidDoubles&&d.uidDoubles.length))){
-    const t=d.totaux||{sansUid:(d.sansUid||[]).length,sansVendeur:(d.sansVendeur||[]).length,uidDoubles:(d.uidDoubles||[]).length};
+  if(d && ((d.totaux&&(d.totaux.sansUid||d.totaux.sansVendeur||d.totaux.uidDoubles||d.totaux.purgeRefusee)) || (d.sansUid&&d.sansUid.length) || (d.sansVendeur&&d.sansVendeur.length) || (d.uidDoubles&&d.uidDoubles.length))){
+    const t=d.totaux||{sansUid:(d.sansUid||[]).length,sansVendeur:(d.sansVendeur||[]).length,uidDoubles:(d.uidDoubles||[]).length,purgeRefusee:0};
     const parts=[];
     const list=(arr,n)=>arr.slice(0,n).map(vEsc).join(' · ')+(arr.length>n?' …':'');
     if(t.sansUid) parts.push(`<b>${t.sansUid} sans UID (col. P)</b> : ${list(d.sansUid||[],3)}`);
     if(t.uidDoubles) parts.push(`<b>${t.uidDoubles} UID en double (col. P)</b> : ${list(d.uidDoubles||[],2)}`);
     if(t.sansVendeur) parts.push(`<b>${t.sansVendeur} sans vendeur (col. A)</b> : ${list(d.sansVendeur||[],3)}`);
+    if(t.purgeRefusee) parts.push(`<b>purge de ${t.purgeRefusee} lignes disparues REFUSÉE</b> (trop massive — onglet renommé ou lecture partielle ? me signaler)`);
     warn=`<span style="flex-basis:100%;color:#A32D2D;">⚠️ Lignes du Sheet non importées dans l'app — corriger dans le Google Sheet puis resynchroniser. ${parts.join(' — ')}</span>`;
   }
   // Mises en caisse perdues : marquées dans l'app (en_caisse_at) mais plus dans le Sheet —
@@ -5599,7 +5600,12 @@ async function vintedResync(){
   try {
     const resp=await fetch(`${BACKEND_URL}/vinted/sync`); const txt=await resp.text(); let d=null; try{ d=JSON.parse(txt); }catch(_){}
     if(!resp.ok || !d || d.ok===false){ const msg=(d&&d.erreur)||txt||('HTTP '+resp.status); showDashToast('Erreur sync : '+String(msg).slice(0,220),'error'); }
-    else { showDashToast(`Sheet synchronisé : ${d.upsertees} ligne(s)`,'success'); await loadVinted(); }
+    else {
+      let msg=`Sheet synchronisé : ${d.upsertees} ligne(s)`;
+      if(d.supprimees) msg+=` · ${d.supprimees} supprimée(s) (retirées du Sheet)`;
+      if(d.purgeRefusee) msg+=` · ⚠️ purge de ${d.purgeRefusee} lignes REFUSÉE (trop massive — onglet renommé ?)`;
+      showDashToast(msg, d.purgeRefusee?'warn':'success'); await loadVinted();
+    }
   }
   catch(e){ showDashToast('Erreur sync (réseau) : '+(e&&e.message||''),'error'); }
   finally { if(btn){ btn.disabled=false; btn.textContent='↻ Resync Sheet'; } }
