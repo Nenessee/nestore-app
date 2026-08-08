@@ -2704,7 +2704,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-07-31-v244-tracking-verif'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-08-08-v245-affichage-liste'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -5094,7 +5094,11 @@ function vIsRefunded(a){ const r=String(a.rembourse||'').trim().toLowerCase(); r
 const VINTED_SETUP_BEFORE = Date.UTC(2025, 4, 1); // 01/05/2025
 function vIsSetup(a){ const t=vintedParseDate(a.date_achat); return t>0 && t < VINTED_SETUP_BEFORE; }
 // Un article fake, remboursé ou de la période de mise en place ne peut pas être mis en caisse → exclu du « à traiter ».
-function vEligibleCaisse(a){ return !vIsEnCaisse(a) && !vIsFake(a) && !vIsRefunded(a) && !vIsSetup(a); }
+// Ligne invalide = ni titre ni transaction (déchet d'automatisation dans le Sheet, ex. reçu
+// e-mail recraché) : pas un article, on ne la propose jamais « à traiter ». Le rapport
+// « Vérifier Sheet ↔ app » les liste pour nettoyage.
+function vIsInvalide(a){ return !String(a.titre||'').trim() && !String(a.transaction_id||'').trim(); }
+function vEligibleCaisse(a){ return !vIsInvalide(a) && !vIsEnCaisse(a) && !vIsFake(a) && !vIsRefunded(a) && !vIsSetup(a); }
 // Localisation physique (avant mise en caisse) stockée dans emplacement_2 (col I) : '' / local / boutique.
 function vLocOf(a){ const v=String(a.emplacement_2||'').trim().toLowerCase(); if(v==='local') return 'local'; if(v==='boutique'||v==='magasin') return 'boutique'; return ''; }
 function vLocPill(a){
@@ -5351,6 +5355,8 @@ function vintedCatSelect(a){
   const cls = a.categorie ? (VCAT_CLS[a.categorie]||'') : 'empty';
   return `<select class="vcatsel ${cls}" onclick="event.stopPropagation()" onchange="event.stopPropagation();vintedSetCatInline('${vEsc(a.uid)}',this.value)">${opts}</select>`;
 }
+// Rendu résilient : une ligne aux données corrompues ne casse jamais le reste de la liste.
+function vRowSafe(a,view){ try{ return vintedRowHtml(a,view); }catch(e){ return `<tr><td colspan="7" style="color:#A32D2D;font-size:12px;">ligne illisible (uid ${vEsc(String(a&&a.uid||'?'))}) — voir « Vérifier Sheet ↔ app »</td></tr>`; } }
 function vintedRowHtml(a, view){
   const enc = vIsEnCaisse(a);
   const anomalie = vPriceAnomaly(a) ? `<span class="vanomalie" title="Prix € incohérent avec le prix £ — match Revolut à vérifier">⚠️</span>` : '';
@@ -5393,8 +5399,8 @@ function vintedRowHtml(a, view){
     ? `<td class="vchk-cell" onclick="event.stopPropagation()"><input type="checkbox" class="vchk" value="${vEsc(a.uid)}" ${vintedSelected.has(a.uid)?'checked':''} onclick="vintedToggleCheck(this)" title="Sélectionner pour la mise en caisse groupée"/></td>`
     : '';
   return `<tr onclick="openVintedFiche('${vEsc(a.uid)}')">
-    ${checkCell}<td style="white-space:nowrap;color:var(--text-muted);">${vEsc(a.date_achat||'—')}</td>
-    <td><div style="display:flex;align-items:center;">${thumb}<div style="min-width:0;"><div style="font-weight:600;line-height:1.25;">${vEsc(a.titre||'(sans titre)')}</div><div style="color:var(--text-muted);font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${vEsc(a.vendeur||'—')} ${vListePill(a)}${vBundlePill(a)}${(!enc&&!fake&&!refunded)?vLocPill(a):''}</div></div></div></td>
+    ${checkCell}<td style="white-space:nowrap;color:var(--text-muted);max-width:120px;overflow:hidden;text-overflow:ellipsis;" title="${vEsc(a.date_achat||'')}">${vEsc(a.date_achat||'—')}</td>
+    <td><div style="display:flex;align-items:center;">${thumb}<div style="min-width:0;overflow-wrap:anywhere;"><div style="font-weight:600;line-height:1.25;">${vEsc(a.titre||'(sans titre)')}</div><div style="color:var(--text-muted);font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${vEsc(a.vendeur||'—')} ${vListePill(a)}${vBundlePill(a)}${(!enc&&!fake&&!refunded)?vLocPill(a):''}</div></div></div></td>
     <td style="white-space:nowrap;"><span style="color:var(--text-muted);">${vGbp(a)}</span> · ${eur}</td>
     <td style="white-space:nowrap;">${tx}</td>
     <td>${vintedCatSelect(a)}${vSuggestBtn(a)}</td>
@@ -5490,7 +5496,7 @@ function vintedRenderCaisse(){
   const tb=document.getElementById('vintedRowsCaisse');
   if(!list.length){ tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:34px;color:var(--text-muted);">Rien à traiter ici ✓</td></tr>'; vintedPager('vintedPagerCaisse',0,0,''); vintedSyncBulkUI(); return; }
   const shown=Math.min(vintedShownCaisse,list.length);
-  tb.innerHTML = list.slice(0,shown).map(a=>vintedRowHtml(a,'caisse')).join('');
+  tb.innerHTML = list.slice(0,shown).map(a=>vRowSafe(a,'caisse')).join('');
   vintedPager('vintedPagerCaisse', shown, list.length, 'vintedShownCaisse+=VINTED_PAGE;vintedRenderCaisse()');
   vintedSyncBulkUI();
 }
@@ -5519,7 +5525,7 @@ function vintedRenderHisto(){
   const tb=document.getElementById('vintedRowsHisto');
   if(!list.length){ tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:34px;color:var(--text-muted);">Aucun résultat</td></tr>'; vintedPager('vintedPagerHisto',0,0,''); document.getElementById('vintedHistoCount').textContent=`0 ligne sur ${vintedAll.length}`; return; }
   const shown=Math.min(vintedShownHisto,list.length);
-  tb.innerHTML = list.slice(0,shown).map(a=>vintedRowHtml(a,'histo')).join('');
+  tb.innerHTML = list.slice(0,shown).map(a=>vRowSafe(a,'histo')).join('');
   vintedPager('vintedPagerHisto', shown, list.length, 'vintedShownHisto+=VINTED_PAGE;vintedRenderHisto()');
   document.getElementById('vintedHistoCount').textContent = `${list.length} ligne(s)${vintedYear?(' · '+vintedYear):''} sur ${vintedAll.length} au total`;
 }
@@ -5620,6 +5626,7 @@ async function vintedVerif(){
     html+=bloc('Onglets du classeur NON lus',(p.ongletsIgnores||[]).map(o=>`${o.onglet}${o.lignes!=null?` — ${o.lignes} ligne(s) de données`:''}`),t.ongletsIgnores,'Seuls les onglets nommés « VINTED … AAAA » ou « À vérifier » sont importés. Renommer l’onglet pour l’inclure.');
     html+=bloc('Avec UID mais absentes de l’app',p.manquantes,t.manquantes,'Présentes dans le Sheet avec un UID mais absentes malgré la synchro — anomalie, me la signaler.');
     html+=bloc('Mises en caisse perdues',p.perdusEnCaisse,t.perdusEnCaisse,'Marquées « en caisse » dans l’app (horodatage conservé) mais plus dans le Sheet — écriture partie sur une mauvaise ligne puis écrasée par la resync. Utiliser le bouton « 🔧 Réparer » de la ligne de statut.');
+    html+=bloc('Lignes invalides (ni titre ni transaction)',p.lignesInvalides,t.lignesInvalides,'Déchets d’automatisation importés du Sheet (ex. reçu e-mail recraché dans une cellule) : exclus du « à traiter », à supprimer/corriger dans le Sheet puis resynchroniser.');
     if(t.orphelines) html+=bloc('Dans l’app mais plus dans le Sheet',(p.orphelines&&p.orphelines.detail)||[],t.orphelines,'Lignes supprimées du Sheet ou dont l’UID a changé — elles restent affichées dans l’app.', '#BA7517');
     document.getElementById('vintedVerifBody').innerHTML=html;
     document.getElementById('vintedVerifModal').classList.add('active');
