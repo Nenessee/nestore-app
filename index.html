@@ -1052,7 +1052,7 @@ async function nvHardReload(){
 </script>
 
 <script>
-  const APP_VERSION = '2026-08-08-v246-sync-suppressions'; // version unifiée (dashboard, sw.js, serveur)
+  const APP_VERSION = '2026-08-11-v247-vente-timeout'; // version unifiée (dashboard, sw.js, serveur)
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
 
   // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
@@ -1414,15 +1414,17 @@ async function nvHardReload(){
     if (!q.length) return;
     _nvFlushing = true;
     const remaining = [];
-    for (const item of q) {
-      try {
-        const res = await fetch(`${BACKEND_URL}/sell`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item.payload) });
-        const result = await res.json().catch(() => ({}));
-        if (!res.ok || !result.success) remaining.push(item); // échec serveur → on garde pour réessayer
-      } catch (e) { remaining.push(item); } // réseau encore coupé → on garde
-    }
-    nvSetQueue(remaining);
-    _nvFlushing = false;
+    try {
+      for (const item of q) {
+        const c = new AbortController(); const t = setTimeout(() => c.abort(), 20000); // une vente qui pend ne bloque pas la file
+        try {
+          const res = await fetch(`${BACKEND_URL}/sell`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item.payload), signal: c.signal });
+          const result = await res.json().catch(() => ({}));
+          if (!res.ok || !result.success) remaining.push(item); // échec serveur → on garde pour réessayer
+        } catch (e) { remaining.push(item); } // réseau coupé / trop lent → on garde
+        finally { clearTimeout(t); }
+      }
+    } finally { nvSetQueue(remaining); _nvFlushing = false; }
     const synced = q.length - remaining.length;
     if (synced > 0 && typeof showToast === 'function') showToast(`${synced} vente(s) hors-ligne synchronisée(s) ✓`, 'success');
   }
@@ -1482,14 +1484,23 @@ async function nvHardReload(){
     // Hors-ligne d'emblée → on met en file et on confirme (la vente n'est pas perdue)
     if (!navigator.onLine) { finishOffline('Hors-ligne : vente enregistrée, sera synchronisée ✓'); return; }
 
+    // Timeout : une requête qui PEND (proxy Shopify bloqué côté serveur) laissait le bouton sur
+    // « Envoi en cours… » pour toujours. Au-delà de 25 s → même traitement que hors-ligne : la vente
+    // part en file et sera rejouée (l'idempotencyKey garantit zéro doublon même si la requête
+    // initiale avait fini par aboutir côté serveur).
+    const _ctrl = new AbortController();
+    const _to = setTimeout(() => _ctrl.abort(), 25000);
     try {
       const res = await fetch(`${BACKEND_URL}/sell`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: _ctrl.signal
       });
+      clearTimeout(_to);
       const result = await res.json().catch(() => ({}));
 
       // Le service worker renvoie {offline:true} en 503 quand l'API est injoignable
       if (res.status === 503 && result.offline) { finishOffline('Réseau coupé : vente mise en file, sera synchronisée ✓'); return; }
+      // Shopify injoignable côté serveur (timeout/passerelle) → on met en file, la resync rejouera tout.
+      if (res.status === 502 || res.status === 504) { finishOffline('Shopify injoignable : vente enregistrée, sera synchronisée ✓'); return; }
 
       if (!res.ok || !result.success) {
         showToast('Erreur Shopify : ' + (result.error?.message || result.error || 'réponse inattendue'), 'error');
@@ -1507,8 +1518,9 @@ async function nvHardReload(){
       currentData = null;
 
     } catch (err) {
-      // Erreur réseau → on met en file plutôt que de perdre la vente
-      finishOffline('Réseau coupé : vente enregistrée hors-ligne, sera synchronisée ✓');
+      clearTimeout(_to);
+      // Erreur réseau OU serveur trop lent (abort 25 s) → on met en file plutôt que de perdre la vente
+      finishOffline(_ctrl.signal.aborted ? 'Serveur trop lent : vente enregistrée, sera synchronisée ✓' : 'Réseau coupé : vente enregistrée hors-ligne, sera synchronisée ✓');
     }
   }
 
@@ -1521,10 +1533,13 @@ async function nvHardReload(){
     const reset = () => { if (btn) { btn.disabled = false; btn.textContent = '↩️ Retour — remettre en stock'; } };
     if (btn) { btn.disabled = true; btn.textContent = 'Traitement…'; }
     try {
+      const _rctrl = new AbortController();
+      const _rto = setTimeout(() => _rctrl.abort(), 30000); // serveur qui pend → échec net, pas un spinner infini
       const res = await fetch(`${BACKEND_URL}/return`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inventoryItemId: currentData.inventoryItemId, locationId: currentData.selectedLocationId, barcode: currentData.barcode, sku: currentData.sku, price: currentData.price })
+        body: JSON.stringify({ inventoryItemId: currentData.inventoryItemId, locationId: currentData.selectedLocationId, barcode: currentData.barcode, sku: currentData.sku, price: currentData.price }), signal: _rctrl.signal
       });
+      clearTimeout(_rto);
       const result = await res.json().catch(() => ({}));
       if (res.status === 409) { showToast(result.error || 'Déjà en stock — ce n\'est pas un retour', 'warn'); reset(); return; }
       if (!res.ok || !result.ok) { showToast(result.error || 'Erreur lors du retour', 'error'); reset(); return; }
@@ -1535,7 +1550,7 @@ async function nvHardReload(){
       try { if (typeof window.__nvLog === 'function') window.__nvLog('retour', { barcode: currentData.barcode, productName: currentData.name, boutique: currentData.boutique }); } catch(_) {}
       const bc = currentData.barcode, inp = document.getElementById('barcodeInput');
       if (inp && bc) { inp.value = bc; setTimeout(() => lookupProduct(), 500); } // recharge le produit (stock à jour)
-    } catch (e) { showToast('Erreur réseau', 'error'); reset(); }
+    } catch (e) { showToast(e && e.name === 'AbortError' ? 'Serveur trop lent — réessaie dans un instant' : 'Erreur réseau', 'error'); reset(); }
   }
 
   async function transferProduct(toBoutique) {
