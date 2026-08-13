@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-2026-08-11-v247-vente-timeout'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
+const CACHE_VERSION = 'nestore-2026-08-12-v248-session-glissante'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
 const STATIC_ASSETS = [
   '/',
   '/index.html',
