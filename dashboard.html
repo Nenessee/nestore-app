@@ -2704,7 +2704,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-08-13-v250-verif-rescan'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-08-14-v251-cartons-visibles'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -5707,9 +5707,17 @@ async function vintedReceptionListe(){
     if(!d.ok){ box.innerHTML='<div style="color:#A32D2D;padding:14px;">Erreur : '+vEsc(d.erreur||'?')+'</div>'; return; }
     const cartons=d.cartons||[];
     const fmtDate=iso=>{ if(!iso) return '—'; const dt=new Date(iso); return isNaN(dt)?'—':dt.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'}); };
-    let h=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    // Fraîcheur du miroir Registre Reship + synchro manuelle (sinon on attend le cron horaire
+    // sans le savoir — « 2 cartons arrivent et aucune trace dans l'app »).
+    const _ls=d.lastReshipSync?new Date(d.lastReshipSync):null;
+    const _age=_ls?Math.round((Date.now()-_ls.getTime())/60000):null;
+    let h=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
         <div style="font-weight:800;font-size:15px;">Cartons à traiter (${cartons.length})</div>
-        <button class="btn" style="font-size:12.5px;" onclick="vintedReceptionHistorique()">🗄 Historique</button>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:11.5px;color:var(--text-muted);">Registre Reship : ${_age==null?'jamais synchronisé':(_age<1?'à l\'instant':`il y a ${_age<60?_age+' min':Math.round(_age/60)+' h'}`)}</span>
+          <button class="btn" id="vintedReshipSyncBtn" style="font-size:12.5px;" onclick="vintedReshipResync()">↻ Synchroniser</button>
+          <button class="btn" style="font-size:12.5px;" onclick="vintedReceptionHistorique()">🗄 Historique</button>
+        </div>
       </div>`;
     if(!cartons.length){ h+='<div style="color:var(--text-muted);padding:20px;text-align:center;">Aucun carton à traiter ✓</div>'; }
     else h+=cartons.map(c=>{
@@ -5731,6 +5739,17 @@ async function vintedReceptionListe(){
     }).join('');
     box.innerHTML=h;
   }catch(e){ box.innerHTML='<div style="color:#A32D2D;padding:14px;">Erreur réseau</div>'; }
+}
+// Synchro manuelle du Registre Reship (packages/cartons/contenu) puis rechargement de la liste.
+async function vintedReshipResync(){
+  const btn=document.getElementById('vintedReshipSyncBtn'); if(btn){ btn.disabled=true; btn.textContent='Synchro…'; }
+  try{
+    const r=await fetch(`${BACKEND_URL}/vinted/reship/sync`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    const d=await r.json().catch(()=>null);
+    if(!r.ok||!d||!d.ok){ showDashToast('Échec synchro Reship : '+((d&&d.erreur)||('HTTP '+r.status)),'error'); }
+    else showDashToast(`Registre Reship synchronisé : ${d.packages} colis · ${d.cartons} cartons`,'success');
+  }catch(e){ showDashToast('Erreur réseau (synchro Reship)','error'); }
+  vintedReceptionListe();
 }
 async function vintedReceptionHistorique(){
   const box=document.getElementById('vintedReceptionWrap'); box.innerHTML='<div class="loading" style="padding:16px;">Chargement…</div>';
