@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-2026-08-17-v252-date-expedition'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
+const CACHE_VERSION = 'nestore-2026-08-17-v253-alerte-sessions'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
 const STATIC_ASSETS = [
   '/',
   '/index.html',

@@ -2704,7 +2704,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-08-17-v252-date-expedition'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-08-17-v253-alerte-sessions'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -5251,6 +5251,11 @@ function vintedRenderStatusLine(){
   // Mises en caisse perdues : marquées dans l'app (en_caisse_at) mais plus dans le Sheet —
   // typiquement une écriture partie sur une mauvaise ligne après insertion/tri dans le classeur,
   // puis écrasée par la resync. Réparable en un clic (ré-écriture sur la ligne vérifiée par uid).
+  // Scan tracking à l'arrêt : toutes les sessions Vinted sont mortes → rien ne se capture,
+  // les articles ne se relient plus aux colis. Alerte + où recharger les cookies.
+  if(s && Number(s.sessionsTotal)>0 && Number(s.sessionsMortes)>=Number(s.sessionsTotal)){
+    warn+=`<span style="flex-basis:100%;color:#A32D2D;">🛑 <b>Scan tracking à l'arrêt</b> : les ${Number(s.sessionsTotal)} sessions Vinted sont expirées (l'extension Chrome n'envoie plus les cookies). Recharger les cookies dans 📦 Suivi colis → 🛠 Supervision → « recoller un cookie à la main », puis ▶ Relancer le scan.</span>`;
+  }
   if(s && Number(s.perdusEnCaisse)>0){
     warn+=`<span style="flex-basis:100%;color:#A32D2D;">⚠️ <b>${Number(s.perdusEnCaisse)} mise(s) en caisse</b> enregistrée(s) dans l'app mais plus marquée(s) dans le Sheet — les articles sont revenus « à traiter » à tort. <button class="btn" style="font-size:11.5px;padding:2px 10px;margin-left:6px;" id="vintedRepareBtn" onclick="vintedRepareEncaisse()">🔧 Réparer</button></span>`;
   }
