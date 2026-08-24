@@ -2328,6 +2328,12 @@ tbody tr { transition: background .12s; }
   #tab-vinted .vinted-head { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; flex-wrap:wrap; }
   #tab-vinted .vinted-actions { display:flex; gap:8px; flex-wrap:wrap; }
   #tab-vinted .vinted-status { display:flex; gap:18px; flex-wrap:wrap; margin-top:8px; font-size:12.5px; color:var(--text-muted); }
+  .vtools { position:relative; display:inline-block; }
+  .vtools > summary { list-style:none; cursor:pointer; }
+  .vtools > summary::-webkit-details-marker { display:none; }
+  .vtools[open] > .vtools-menu { display:flex; }
+  .vtools-menu { display:none; position:absolute; right:0; top:calc(100% + 6px); z-index:60; flex-direction:column; gap:6px; padding:10px; background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.12); min-width:230px; }
+  .vtools-menu .btn { justify-content:flex-start; text-align:left; width:100%; }
   #tab-vinted .vinted-status .vdot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#3B6D11; margin-right:6px; vertical-align:middle; }
   #tab-vinted .vinted-status .vdot.old { background:#BA7517; }
   #tab-vinted .vinted-status .vdot.never { background:var(--text-muted); }
@@ -2464,13 +2470,20 @@ tbody tr { transition: background .12s; }
       <div id="vintedStatusLine" class="vinted-status"></div>
     </div>
     <div class="vinted-actions">
-      <button class="btn" onclick="document.getElementById('vintedRevolutFile').click()">⬆ Importer relevé Revolut</button>
-      <input type="file" id="vintedRevolutFile" accept=".csv,text/csv" style="display:none;" onchange="vintedRevolutFileChosen(this)"/>
-      <button class="btn" title="Exporter l'année/liste affichée en CSV (compta)" onclick="vintedExportCsv()">⬇ Export CSV</button>
+      <!-- UN SEUL bouton de synchro : relit Sheet Vinted + Registre Reship, personne n'a à savoir
+           qu'il y a deux miroirs. Les outils rares (diagnostics, import/export) vivent dans un menu. -->
+      <button class="btn" id="vintedResyncBtn" title="Relit le Google Sheet Vinted ET le Registre Reship, puis recharge l'onglet" onclick="vintedActualiserTout()">🔄 Actualiser</button>
       <button class="btn" title="Réception des cartons Reship + suivi colis" onclick="vintedOpenReship()">📦 Réception cartons</button>
-      <button class="btn" id="vintedResyncBtn" onclick="vintedResync()">↻ Resync</button>
-      <button class="btn" id="vintedVerifBtn" onclick="vintedVerif()" title="Compare ligne à ligne le Google Sheet et l'app, et explique chaque écart">✓ Vérifier Sheet ↔ app</button>
-      <button class="btn" id="vintedAuditBtn" onclick="vintedAuditEncaisse()" title="Pour chaque article encore à traiter : où en est-il physiquement (carton reçu, arrivé chez Reship, jamais arrivé…) ?">🕵️ Audit à traiter</button>
+      <details class="vtools" id="vintedToolsMenu">
+        <summary class="btn" title="Diagnostics et import/export (usage occasionnel)">🛠 Outils</summary>
+        <div class="vtools-menu">
+          <button class="btn" onclick="document.getElementById('vintedToolsMenu').removeAttribute('open');vintedVerif()" title="Compare ligne à ligne le Google Sheet et l'app, et explique chaque écart">✓ Vérifier Sheet ↔ app</button>
+          <button class="btn" id="vintedAuditBtn" onclick="document.getElementById('vintedToolsMenu').removeAttribute('open');vintedAuditEncaisse()" title="Pour chaque article encore à traiter : où en est-il physiquement ?">🕵️ Audit à traiter</button>
+          <button class="btn" onclick="document.getElementById('vintedToolsMenu').removeAttribute('open');document.getElementById('vintedRevolutFile').click()">⬆ Importer relevé Revolut</button>
+          <button class="btn" title="Exporter l'année/liste affichée en CSV (compta)" onclick="document.getElementById('vintedToolsMenu').removeAttribute('open');vintedExportCsv()">⬇ Export CSV</button>
+        </div>
+      </details>
+      <input type="file" id="vintedRevolutFile" accept=".csv,text/csv" style="display:none;" onchange="vintedRevolutFileChosen(this)"/>
     </div>
   </div>
 
@@ -2560,7 +2573,7 @@ tbody tr { transition: background .12s; }
     <div id="vintedReshipBody"><div class="loading">Chargement…</div></div>
     <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;">
       <button class="btn btn-green" id="vintedScanBtn" onclick="vintedRunScan()">▶ Relancer le scan</button>
-      <button class="btn" id="vintedReshipSyncBtn" onclick="vintedReshipSync()">↻ Resync Reship</button>
+      <button class="btn" id="vintedReshipSupSyncBtn" onclick="vintedReshipSync()" title="Relit le Registre Reship (colis, cartons, contenu)">🔄 Actualiser le Registre Reship</button>
     </div>
     <!-- Filet de secours manuel, discret et replié par défaut : l'extension Chrome poste le cookie en auto. -->
     <details style="margin-top:18px;border-top:1px solid var(--border);padding-top:12px;">
@@ -2704,7 +2717,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-08-18-v256-encaisse-solide'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-08-24-v257-vinted-range'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -5600,6 +5613,29 @@ function vintedSave(encaisse){
   } else { showDashToast('Enregistré ✓','success'); vintedCloseFiche(); }
 }
 
+// LE bouton de synchro de l'onglet : relit les deux miroirs (Sheet Vinted + Registre Reship)
+// en parallèle puis recharge — un seul geste, un seul message.
+async function vintedActualiserTout(){
+  const btn=document.getElementById('vintedResyncBtn'); if(btn){ btn.disabled=true; btn.textContent='Actualisation…'; }
+  try{
+    const [vs,rs]=await Promise.allSettled([
+      fetch(`${BACKEND_URL}/vinted/sync`).then(r=>r.json()),
+      fetch(`${BACKEND_URL}/vinted/reship/sync`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}).then(r=>r.json())
+    ]);
+    const v=vs.status==='fulfilled'?vs.value:null, r=rs.status==='fulfilled'?rs.value:null;
+    if(v&&v.ok===false||vs.status==='rejected'){ showDashToast('Sheet Vinted : échec de synchro'+((v&&v.erreur)?(' — '+String(v.erreur).slice(0,120)):''),'error'); }
+    else if(r&&r.ok===false||rs.status==='rejected'){ showDashToast('Registre Reship : échec de synchro','error'); }
+    else{
+      let msg=`À jour ✓ — Sheet : ${v.upsertees} ligne(s)`;
+      if(v.supprimees) msg+=` (${v.supprimees} supprimée(s))`;
+      if(v.purgeRefusee) msg+=` · ⚠️ purge de ${v.purgeRefusee} lignes REFUSÉE`;
+      msg+=` · Reship : ${r.packages} colis`;
+      showDashToast(msg, v.purgeRefusee?'warn':'success');
+    }
+    await loadVinted();
+  }catch(e){ showDashToast('Erreur réseau pendant l\'actualisation','error'); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='🔄 Actualiser'; } }
+}
 async function vintedResync(){
   const btn=document.getElementById('vintedResyncBtn'); if(btn){ btn.disabled=true; btn.textContent='Sync…'; }
   try {
@@ -5720,7 +5756,7 @@ async function vintedReceptionListe(){
         <div style="font-weight:800;font-size:15px;">Cartons à traiter (${cartons.length})</div>
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="font-size:11.5px;color:var(--text-muted);">Registre Reship : ${_age==null?'jamais synchronisé':(_age<1?'à l\'instant':`il y a ${_age<60?_age+' min':Math.round(_age/60)+' h'}`)}</span>
-          <button class="btn" id="vintedReshipSyncBtn" style="font-size:12.5px;" onclick="vintedReshipResync()">↻ Synchroniser</button>
+          <button class="btn" id="vintedReshipSyncBtn" style="font-size:12.5px;" title="Relit le Registre Reship (colis/cartons) puis recharge cette liste" onclick="vintedReshipResync()">🔄 Actualiser</button>
           <button class="btn" style="font-size:12.5px;" onclick="vintedReceptionHistorique()">🗄 Historique</button>
         </div>
       </div>`;
@@ -5747,7 +5783,7 @@ async function vintedReceptionListe(){
 }
 // Synchro manuelle du Registre Reship (packages/cartons/contenu) puis rechargement de la liste.
 async function vintedReshipResync(){
-  const btn=document.getElementById('vintedReshipSyncBtn'); if(btn){ btn.disabled=true; btn.textContent='Synchro…'; }
+  const btn=document.getElementById('vintedReshipSyncBtn'); if(btn){ btn.disabled=true; btn.textContent='Actualisation…'; }
   try{
     const r=await fetch(`${BACKEND_URL}/vinted/reship/sync`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
     const d=await r.json().catch(()=>null);
@@ -6014,14 +6050,14 @@ async function vintedRunScan(){
   finally{ if(btn){ btn.disabled=false; btn.textContent='▶ Relancer le scan'; } }
 }
 async function vintedReshipSync(){
-  const btn=document.getElementById('vintedReshipSyncBtn'); if(btn){ btn.disabled=true; btn.textContent='Sync…'; }
+  const btn=document.getElementById('vintedReshipSupSyncBtn'); if(btn){ btn.disabled=true; btn.textContent='Actualisation…'; }
   try{
     const resp=await fetch(`${BACKEND_URL}/vinted/reship/sync`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
     let r=null; const txt=await resp.text(); try{ r=JSON.parse(txt); }catch(_){}
     if(!resp.ok || !r || !r.ok){ const msg=(r&&r.erreur)||txt||('HTTP '+resp.status); showDashToast('Erreur resync : '+String(msg).slice(0,200),'error'); }
     else { showDashToast(`Reship synchronisé : ${r.packages||0} colis`,'success'); vintedLoadReship(); }
   }catch(e){ showDashToast('Erreur réseau (resync) : '+(e&&e.message||''),'error'); }
-  finally{ if(btn){ btn.disabled=false; btn.textContent='↻ Resync Reship'; } }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='🔄 Actualiser le Registre Reship'; } }
 }
 async function vintedSaveSession(){
   const label=(document.getElementById('vintedSessLabel').value||'').trim();
