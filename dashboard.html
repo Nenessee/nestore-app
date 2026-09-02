@@ -2740,7 +2740,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-09-02-v259-braderie-retour'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-09-02-v260-braderie-visible'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -3099,6 +3099,12 @@ async function loadStock(force) {
   let data, locMap;
   try {
     [data, locMap] = await Promise.all([api('/analytics/stock' + (force ? '?fresh=1' : '')), api('/stock/locations')]);
+    // Carte braderie : badge 🏷️ sur les lignes du stock dont le code-barres est au registre.
+    api('/braderie/liste').then(b=>{
+      const m={}; for(const it of (b&&b.items)||[]) if(it.barcode) m[it.barcode]=it.origine;
+      window._braderieMap=m;
+      if(Object.keys(m).length && typeof renderStockPage==='function') renderStockPage();
+    }).catch(()=>{ window._braderieMap={}; });
   } catch (e) {
     if (_seq !== _stockLoadSeq) return;        // un chargement plus récent a démarré
     if (hadData) { allStockData = _prev; showDashToast('Rafraîchissement échoué — liste précédente conservée', 'warn'); if (typeof filterStock === 'function') filterStock(); }
@@ -3390,7 +3396,7 @@ function stockRowHtml(p) {
   const rowCls = (!inBoutique && p.barcode) ? 'stock-row row-unlocated' : 'stock-row';
   return `<tr class="${rowCls}" data-pid="${p.id}" data-barcode="${esc(p.barcode||'')}">
     <td class="cell-select"><input type="checkbox" class="cb product-cb" data-id="${p.id}" data-varid="${p.variantId}" ${isSelected?'checked':''} onchange="toggleProduct(this)"/></td>
-    <td class="cell-article"><div class="stock-art">${img}<div class="meta"><div class="t">${esc(p.title)}</div><div class="v">${catIcon} ${esc(p.vendor)||'—'}</div></div></div></td>
+    <td class="cell-article"><div class="stock-art">${img}<div class="meta"><div class="t">${esc(p.title)}${(window._braderieMap&&p.barcode&&window._braderieMap[p.barcode])?` <span title="Article pointé braderie — origine ${esc(window._braderieMap[p.barcode])}" style="display:inline-block;padding:1px 8px;border-radius:999px;font-size:10px;font-weight:800;color:#fff;background:${window._braderieMap[p.barcode]==='DK'?'#BA7517':'#185FA5'};vertical-align:middle;">🏷️ BRADERIE ${esc(window._braderieMap[p.barcode])}</span>`:''}</div><div class="v">${catIcon} ${esc(p.vendor)||'—'}</div></div></div></td>
     <td data-label="Code-barres">${barcodeHtml}</td>
     <td data-label="Prix">${comparePrice}<span style="font-weight:600;">${parseFloat(p.price).toFixed(2)}€</span></td>
     <td data-label="Boutique"><span class="badge ${badge}">${esc(p.boutique)}</span>${p.misplaced?` <span class="badge badge-danger" title="Scanné à ${esc(p.scannedBoutique)}, mais rangé en ${esc(p.boutique)} sur Shopify">⚠️ vu à ${esc(p.scannedBoutique)}</span> <button class="btn" style="font-size:10px;padding:3px 7px;background:rgba(24,95,165,0.12);border-color:#185FA5;color:#185FA5;" title="Corriger : transférer vers ${esc(p.scannedBoutique)}" onclick="correctBoutique('${esc(escJs(p.barcode))}')">→ ${esc(p.scannedBoutique)}</button>`:''}</td>
