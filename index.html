@@ -935,6 +935,29 @@
   <!-- TAB INVENTAIRE -->
   <div id="apptab-inventaire" class="tab-panel">
 
+    <!-- BRADERIE : pointage à l'arrivée (réutilise les modes de scan ci-dessous) -->
+    <div class="scan-box" id="braderieBar" style="margin-bottom:1rem;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+        <div style="min-width:0;">
+          <div class="title" style="font-size:14px;">🏷️ Mode Braderie <span id="braderieState" style="color:#888780;font-weight:400;">— désactivé</span></div>
+          <div class="subtitle" id="braderieCounts" style="margin-top:2px;">Activer puis scanner chaque article à l'arrivée : bip = colle l'étiquette braderie.</div>
+        </div>
+        <button id="braderieToggleBtn" onclick="toggleBraderie()" style="padding:10px 16px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:10px;font-weight:700;cursor:pointer;color:#1a1a18;">Activer</button>
+      </div>
+      <div id="braderieManuelBox" style="display:none;margin-top:10px;padding:10px;border:1.5px dashed #BA7517;border-radius:10px;background:#FFF9F0;">
+        <div style="font-weight:700;font-size:13px;margin-bottom:6px;">Article inconnu du site — ajouter à la main</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+          <input id="braderieManBarcode" readonly style="width:140px;padding:8px;border:0.5px solid #d3d1c7;border-radius:8px;font-family:monospace;font-size:12px;background:#f5f5f3;"/>
+          <input id="braderieManDesignation" placeholder="Désignation (ex: SWEAT NIKE M)" style="flex:1;min-width:170px;padding:8px;border:0.5px solid #d3d1c7;border-radius:8px;font-size:13px;"/>
+          <input id="braderieManPrix" placeholder="Prix €" inputmode="decimal" style="width:80px;padding:8px;border:0.5px solid #d3d1c7;border-radius:8px;font-size:13px;"/>
+          <select id="braderieManOrigine" style="padding:8px;border:0.5px solid #d3d1c7;border-radius:8px;font-size:13px;"><option value="DK" selected>Origine DK</option><option value="Lille">Origine Lille</option></select>
+          <button onclick="braderieSaveManuel()" style="padding:8px 14px;background:#3B6D11;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;">Ajouter</button>
+          <button onclick="document.getElementById('braderieManuelBox').style.display='none'" style="padding:8px 10px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:8px;cursor:pointer;">✕</button>
+        </div>
+      </div>
+      <div id="braderieList" style="margin-top:8px;"></div>
+    </div>
+
     <!-- Mode sélection -->
     <div id="invModeSelect" class="scan-box" style="margin-bottom:1rem;">
       <div class="scan-label" style="margin-bottom:12px;">Choisir le mode de scan</div>
@@ -1052,7 +1075,7 @@ async function nvHardReload(){
 </script>
 
 <script>
-  const APP_VERSION = '2026-08-24-v257-vinted-range'; // version unifiée (dashboard, sw.js, serveur)
+  const APP_VERSION = '2026-08-24-v258-braderie'; // version unifiée (dashboard, sw.js, serveur)
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
 
   // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
@@ -1246,6 +1269,22 @@ async function nvHardReload(){
             return;
           }
         } catch(e) {}
+        // Braderie hors ligne ? (article jamais mis sur le site mais pointé au registre)
+        try {
+          const bl = await fetch(`${BACKEND_URL}/braderie/lookup?barcode=${encodeURIComponent(barcode)}`).then(r=>r.json());
+          if (bl && bl.braderie) {
+            const dk = bl.origine === 'DK';
+            area.innerHTML = `<div class="product-card" style="border-color:${dk?'#BA7517':'#185FA5'};">
+              ${braderieBannerHtml(bl.origine)}
+              <div class="pname">${esc(bl.designation || 'Article braderie (hors ligne)')}</div>
+              <div class="pcode">${esc(barcode)}</div>
+              ${bl.prix!=null?`<div class="pprice">${parseFloat(bl.prix).toFixed(2)} €</div>`:''}
+              <div class="error-msg" style="color:#888780;">Article hors ligne (absent de Shopify) — encaisser directement sur la caisse ${dk?'DK':'Lille'} (pas de « Marquer vendu » ici).</div>
+            </div>`;
+            showToast(`Braderie ${dk?'DK':'Lille'} → caisse ${dk?'DK':'Lille'}`, 'warn');
+            return;
+          }
+        } catch(_) {}
         area.innerHTML = `<div class="product-card error">
           <div class="pname">Produit introuvable</div>
           <div class="pcode">${esc(barcode)}</div>
@@ -1271,8 +1310,26 @@ async function nvHardReload(){
     }
   }
 
+  // ===== BRADERIE : aiguillage caisse/TPE au moment de la vente =====
+  let _braderieOverride = null; // 'DK' | 'Lille' quand l'article scanné est au registre braderie
+  function braderieBannerHtml(origine){
+    const dk = origine === 'DK';
+    return `<div style="background:${dk?'#BA7517':'#185FA5'};color:#fff;border-radius:12px;padding:14px;margin-bottom:12px;font-weight:800;font-size:15px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">🏷️ BRADERIE — Article ${dk?'DUNKERQUE':'LILLE'}<span style="margin-left:auto;font-size:13px;font-weight:700;background:rgba(255,255,255,.22);padding:4px 10px;border-radius:8px;white-space:nowrap;">→ Caisse ${dk?'DK':'Lille'} · TPE ${dk?'DK':'Lille'}</span></div>`;
+  }
+  async function braderieDecorate(barcode){
+    try{
+      const bl = await fetch(`${BACKEND_URL}/braderie/lookup?barcode=${encodeURIComponent(barcode)}`).then(r=>r.json());
+      if(!(bl && bl.braderie)) return;
+      _braderieOverride = bl.origine === 'DK' ? 'DK' : 'Lille';
+      const card = document.querySelector('#productArea .product-card');
+      if (card) card.insertAdjacentHTML('afterbegin', braderieBannerHtml(_braderieOverride));
+    }catch(_){}
+  }
+
   // Affiche la fiche d'UN article et l'arme pour la vente / le retour / le transfert.
   function renderProductCard(data, barcode) {
+    _braderieOverride = null;
+    braderieDecorate(barcode); // asynchrone : la bannière s'insère dès la réponse du registre
     const area = document.getElementById('productArea');
     currentData = data;
     // Fallback: si backend ne retourne pas onVinted, utilise la map locale
@@ -1462,7 +1519,9 @@ async function nvHardReload(){
     const btn = document.getElementById('sellBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'Envoi en cours...'; }
 
-    const boutique = document.getElementById('boutiqueSelect').value;
+    // Braderie : la vente d'un article pointé est attribuée à sa boutique d'ORIGINE
+    // (encaissée sur la caisse/TPE correspondante) — le serveur vérifie via le registre.
+    const boutique = _braderieOverride || document.getElementById('boutiqueSelect').value;
     const cd = currentData; // capture avant de réinitialiser
     const payload = {
       inventoryItemId: cd.inventoryItemId, locationId: cd.selectedLocationId, employee, boutique,
@@ -1810,6 +1869,7 @@ async function nvHardReload(){
   }
   async function handleInvScan(barcode) {
     if (!barcode) return;
+    if (braderieMode) { await braderieHandleScan(barcode); const i=document.getElementById('invScanInput'); if(i) i.focus(); return; }
     const status = document.getElementById('invScanStatus');
     if (invScanned.has(barcode)) {
       scanFeedback(false);
@@ -1821,6 +1881,87 @@ async function nvHardReload(){
     status.style.color = '#888780';
     await cochreArticle(barcode); // émet lui-même le feedback (OK / alerte)
     document.getElementById('invScanInput').focus();
+  }
+
+  // ===== BRADERIE : pointage à l'arrivée, aiguillage caisse/TPE à la vente =====
+  let braderieMode = false;
+  function _braderieStatus(){ return document.getElementById('invScanStatus') || document.getElementById('invStatus'); }
+  function toggleBraderie(){
+    braderieMode = !braderieMode;
+    const bar=document.getElementById('braderieBar'), st=document.getElementById('braderieState'), btn=document.getElementById('braderieToggleBtn');
+    if(braderieMode){
+      bar.style.border='2px solid #BA7517'; bar.style.background='#FFF9F0';
+      st.textContent='— ACTIF : chaque scan pointe pour la braderie'; st.style.color='#BA7517';
+      btn.textContent='Désactiver'; btn.style.background='#BA7517'; btn.style.color='#fff';
+      braderieRefresh();
+    } else {
+      bar.style.border=''; bar.style.background='';
+      st.textContent='— désactivé'; st.style.color='#888780';
+      btn.textContent='Activer'; btn.style.background='#f5f5f3'; btn.style.color='#1a1a18';
+      document.getElementById('braderieManuelBox').style.display='none';
+    }
+  }
+  async function braderieRefresh(){
+    try{
+      const d=await fetch(`${BACKEND_URL}/braderie/liste`).then(r=>r.json());
+      const items=(d&&d.items)||[];
+      const dk=items.filter(i=>i.origine==='DK').length, hl=items.filter(i=>i.hors_ligne).length, vd=items.filter(i=>i.vendu).length;
+      document.getElementById('braderieCounts').textContent=`${items.length} pointé(s) — ${dk} DK · ${items.length-dk} Lille · ${hl} hors ligne · ${vd} vendu(s)`;
+      document.getElementById('braderieList').innerHTML=items.slice(0,12).map(i=>`
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:0.5px solid #eee;font-size:12.5px;">
+          <span style="padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:700;color:#fff;background:${i.origine==='DK'?'#BA7517':'#185FA5'};">${esc(i.origine)}</span>
+          <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(i.designation||i.barcode||'?')}${i.hors_ligne?' <span style="color:#BA7517;">· hors ligne</span>':''}${i.vendu?' <span style="color:#3B6D11;font-weight:700;">· vendu ✓</span>':''}</span>
+          <button onclick="braderieSupprimer(${parseInt(i.id,10)})" title="Annuler ce pointage" style="border:none;background:none;cursor:pointer;opacity:.5;">🗑</button>
+        </div>`).join('');
+    }catch(_){}
+  }
+  async function braderieHandleScan(barcode){
+    const status=_braderieStatus();
+    try{
+      let prod=null;
+      try{
+        const r=await fetch(`${BACKEND_URL}/product/${encodeURIComponent(barcode)}`);
+        const d=await r.json();
+        if(r.ok && d && !d.error) prod=(d.multiple&&Array.isArray(d.matches))?d.matches[0]:d;
+      }catch(_){}
+      if(!prod || !(prod.name||prod.title)){
+        scanFeedback(false);
+        const box=document.getElementById('braderieManuelBox');
+        box.style.display='block';
+        document.getElementById('braderieManBarcode').value=barcode;
+        document.getElementById('braderieManDesignation').value='';
+        document.getElementById('braderieManDesignation').focus();
+        if(status){ status.textContent=`❓ Inconnu du site : ${barcode} — remplis la mini-fiche ci-dessus`; status.style.color='#BA7517'; }
+        return;
+      }
+      const origine=prod.boutique==='DK'?'DK':'Lille';
+      const r2=await fetch(`${BACKEND_URL}/braderie/ajout`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({barcode,designation:prod.name||prod.title||'',origine,prix:prod.price||null,hors_ligne:false})});
+      const d2=await r2.json().catch(()=>null);
+      if(!r2.ok||!d2||!d2.ok){ scanFeedback(false); if(status){ status.textContent='Erreur registre braderie'; status.style.color='#A32D2D'; } return; }
+      if(d2.doublon){ scanFeedback(false); if(status){ status.textContent=`⚠️ Déjà pointé : ${prod.name||barcode}`; status.style.color='#BA7517'; } }
+      else { scanFeedback(true); if(status){ status.textContent=`✓ ${prod.name||barcode} — ${origine} → colle l'étiquette 🏷️`; status.style.color='#3B6D11'; } }
+      braderieRefresh();
+    }catch(e){ scanFeedback(false); showToast('Erreur réseau (braderie)','error'); }
+  }
+  async function braderieSaveManuel(){
+    const barcode=document.getElementById('braderieManBarcode').value.trim();
+    const designation=document.getElementById('braderieManDesignation').value.trim();
+    const prix=document.getElementById('braderieManPrix').value.trim();
+    const origine=document.getElementById('braderieManOrigine').value;
+    if(!designation){ showToast('Désignation requise','warn'); return; }
+    try{
+      const r=await fetch(`${BACKEND_URL}/braderie/ajout`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({barcode:barcode||null,designation,prix:prix||null,origine,hors_ligne:true})});
+      const d=await r.json().catch(()=>null);
+      if(!r.ok||!d||!d.ok){ showToast('Erreur ajout braderie','error'); return; }
+      showToast(`Ajouté (${origine}) → colle l'étiquette 🏷️`,'success');
+      document.getElementById('braderieManuelBox').style.display='none';
+      document.getElementById('braderieManPrix').value='';
+      braderieRefresh();
+      const st=_braderieStatus(); if(st){ st.textContent=`✓ ${designation} — ${origine} (hors ligne)`; st.style.color='#3B6D11'; }
+    }catch(_){ showToast('Erreur réseau','error'); }
+  }
+  async function braderieSupprimer(id){
+    try{ await fetch(`${BACKEND_URL}/braderie/item/${id}`,{method:'DELETE'}); braderieRefresh(); }catch(_){}
   }
 
   async function toggleInventaireScan() {
