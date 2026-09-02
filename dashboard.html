@@ -2056,6 +2056,29 @@ tbody tr { transition: background .12s; }
       </select>
     </div>
   </div>
+  <!-- BRADERIE : suivi des articles pointés à l'arrivée (registre événementiel, purgé après) -->
+  <div class="table-card" id="braderiePanel" style="padding:16px 18px;margin-bottom:16px;border-left:3px solid #BA7517;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+      <div>
+        <div style="font-weight:700;font-size:14px;">🏷️ Braderie — suivi des articles pointés</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Pointage : caisse → onglet Stock → Mode Braderie. La vente d'un article pointé part sur la caisse/TPE de sa boutique d'origine.</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input id="braderieSearch" class="search-input" placeholder="Rechercher (désignation, code…)" style="width:220px;" oninput="braderieDashRender()"/>
+        <button class="btn" onclick="braderieDashLoad()">🔄 Actualiser</button>
+        <button class="btn" onclick="braderieDashExport()">⬇ Export CSV</button>
+        <button class="btn js-admin-only" style="display:none;color:#A32D2D;" onclick="braderieDashVider()">🗑 Vider le registre</button>
+      </div>
+    </div>
+    <div id="braderieDashKpis" class="kpi-grid" style="margin:12px 0;"></div>
+    <div style="overflow-x:auto;max-height:420px;overflow-y:auto;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);">
+          <th style="padding:6px 8px;">Origine</th><th style="padding:6px 8px;">Désignation</th><th style="padding:6px 8px;">Code-barres</th><th style="padding:6px 8px;">Prix</th><th style="padding:6px 8px;">Statut</th><th style="padding:6px 8px;">Pointé par</th><th style="padding:6px 8px;">Quand</th></tr></thead>
+        <tbody id="braderieDashRows"><tr><td colspan="7" style="padding:20px;text-align:center;color:var(--text-muted);">Clique « Actualiser » pour charger le registre.</td></tr></tbody>
+      </table>
+    </div>
+  </div>
   <!-- Transfert manuel (admin uniquement) -->
   <div class="table-card js-admin-only" id="trfManualPanel" style="display:none;padding:16px 18px;margin-bottom:16px;">
     <div style="font-weight:700;font-size:14px;margin-bottom:4px;">🔄 Nouveau transfert</div>
@@ -2717,7 +2740,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-08-24-v257-vinted-range'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-08-24-v258-braderie'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -3783,7 +3806,56 @@ function renderCommandesTable(data) {
 
 let allTransfertsData = [];
 
+// ===== BRADERIE (dashboard) : registre, KPIs, export =====
+let braderieDashItems=[];
+async function braderieDashLoad(){
+  try{
+    const d=await api('/braderie/liste');
+    braderieDashItems=(d&&d.items)||[];
+    braderieDashRender();
+  }catch(e){ document.getElementById('braderieDashRows').innerHTML=`<tr><td colspan="7" style="padding:16px;color:#A32D2D;">Erreur de chargement : ${esc(e.message)}</td></tr>`; }
+}
+function braderieDashRender(){
+  const q=(document.getElementById('braderieSearch').value||'').toLowerCase().trim();
+  const items=braderieDashItems.filter(i=>!q||String((i.designation||'')+' '+(i.barcode||'')+' '+(i.origine||'')).toLowerCase().includes(q));
+  const dk=braderieDashItems.filter(i=>i.origine==='DK'), vendus=braderieDashItems.filter(i=>i.vendu);
+  const caBraderie=vendus.reduce((t,i)=>t+(Number(i.prix_vente)||0),0);
+  const kpi=(n,l,c)=>`<div class="kpi"><div class="kpi-value" ${c?`style="color:${c};"`:''}>${n}</div><div class="kpi-label">${l}</div></div>`;
+  document.getElementById('braderieDashKpis').innerHTML=
+    kpi(braderieDashItems.length,'Articles pointés')+
+    kpi(dk.length,'Origine DK (rapatriés)','#BA7517')+
+    kpi(braderieDashItems.filter(i=>i.hors_ligne).length,'Hors ligne (jamais sur le site)','#185FA5')+
+    kpi(vendus.length,'Vendus','#3B6D11')+
+    kpi(Math.round(caBraderie).toLocaleString('fr-FR')+' €','CA braderie (app)','#3B6D11')+
+    kpi(dk.length-vendus.filter(i=>i.origine==='DK').length,'DK à re-transférer','#7c5cd6');
+  const fmt=(iso)=>{ if(!iso) return '—'; const d=new Date(iso); return isNaN(d)?'—':d.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'}); };
+  document.getElementById('braderieDashRows').innerHTML=items.length?items.map(i=>`
+    <tr style="border-bottom:0.5px solid var(--border);${i.vendu?'opacity:.55;':''}">
+      <td style="padding:6px 8px;"><span style="padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:700;color:#fff;background:${i.origine==='DK'?'#BA7517':'#185FA5'};">${esc(i.origine||'?')}</span></td>
+      <td style="padding:6px 8px;">${esc(i.designation||'—')}${i.hors_ligne?' <span style="font-size:10.5px;color:#185FA5;font-weight:700;">HORS LIGNE</span>':''}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:11.5px;">${esc(i.barcode||'—')}</td>
+      <td style="padding:6px 8px;white-space:nowrap;">${i.prix!=null?Number(i.prix).toFixed(0)+' €':'—'}</td>
+      <td style="padding:6px 8px;white-space:nowrap;">${i.vendu?`<span style="color:#3B6D11;font-weight:700;">vendu ${i.prix_vente!=null?Number(i.prix_vente).toFixed(0)+' €':''}</span>`:'à la braderie'}</td>
+      <td style="padding:6px 8px;">${esc(i.ajoute_par||'—')}</td>
+      <td style="padding:6px 8px;white-space:nowrap;color:var(--text-muted);font-size:11.5px;">${fmt(i.scanned_at)}</td>
+    </tr>`).join(''):'<tr><td colspan="7" style="padding:16px;text-align:center;color:var(--text-muted);">Aucun article pointé.</td></tr>';
+}
+function braderieDashExport(){
+  const head=['Origine','Designation','Code-barres','Prix','Statut','Prix vente','Pointe par','Quand','Hors ligne'];
+  const rows=[head].concat(braderieDashItems.map(i=>[i.origine,i.designation||'',i.barcode||'',i.prix!=null?i.prix:'',i.vendu?'vendu':'present',i.prix_vente!=null?i.prix_vente:'',i.ajoute_par||'',i.scanned_at||'',i.hors_ligne?'oui':'non']));
+  const csv=rows.map(r=>r.map(v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`).join(';')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download='braderie.csv'; document.body.appendChild(a); a.click(); a.remove();
+}
+async function braderieDashVider(){
+  if(!confirm('Vider TOUT le registre braderie ? (à faire uniquement après l\'événement — pense à exporter le CSV avant)')) return;
+  try{ const r=await fetch(`${BACKEND_URL}/braderie/vider`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}); const d=await r.json();
+    if(d&&d.ok){ showDashToast(`Registre vidé (${d.supprimes} articles)`,'success'); braderieDashLoad(); } else showDashToast('Échec de la purge','error');
+  }catch(_){ showDashToast('Erreur réseau','error'); }
+}
 async function loadTransferts() {
+  braderieDashLoad(); // le panneau braderie vit dans cet onglet
   const days = document.getElementById('trfPeriodFilter')?.value || 30;
   const tbody = document.getElementById('trfTable');
   tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr>';
