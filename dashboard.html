@@ -2740,7 +2740,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-08-24-v258-braderie'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-09-02-v259-braderie-retour'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -3821,13 +3821,17 @@ function braderieDashRender(){
   const dk=braderieDashItems.filter(i=>i.origine==='DK'), vendus=braderieDashItems.filter(i=>i.vendu);
   const caBraderie=vendus.reduce((t,i)=>t+(Number(i.prix_vente)||0),0);
   const kpi=(n,l,c)=>`<div class="kpi"><div class="kpi-value" ${c?`style="color:${c};"`:''}>${n}</div><div class="kpi-label">${l}</div></div>`;
+  const dkAttendus=dk.filter(i=>!i.vendu);                 // DK à recharger (non vendus)
+  const dkRetours=dkAttendus.filter(i=>i.retour_at);
+  const dkManquants=dkAttendus.filter(i=>!i.retour_at);
   document.getElementById('braderieDashKpis').innerHTML=
     kpi(braderieDashItems.length,'Articles pointés')+
     kpi(dk.length,'Origine DK (rapatriés)','#BA7517')+
     kpi(braderieDashItems.filter(i=>i.hors_ligne).length,'Hors ligne (jamais sur le site)','#185FA5')+
     kpi(vendus.length,'Vendus','#3B6D11')+
     kpi(Math.round(caBraderie).toLocaleString('fr-FR')+' €','CA braderie (app)','#3B6D11')+
-    kpi(dk.length-vendus.filter(i=>i.origine==='DK').length,'DK à re-transférer','#7c5cd6');
+    kpi(`${dkRetours.length}/${dkAttendus.length}`,'Retour DK pointé','#7c5cd6')+
+    kpi(dkManquants.length,'MANQUANTS (ni vendus ni retour)', dkManquants.length? '#A32D2D':'#3B6D11');
   const fmt=(iso)=>{ if(!iso) return '—'; const d=new Date(iso); return isNaN(d)?'—':d.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'}); };
   document.getElementById('braderieDashRows').innerHTML=items.length?items.map(i=>`
     <tr style="border-bottom:0.5px solid var(--border);${i.vendu?'opacity:.55;':''}">
@@ -3835,14 +3839,14 @@ function braderieDashRender(){
       <td style="padding:6px 8px;">${esc(i.designation||'—')}${i.hors_ligne?' <span style="font-size:10.5px;color:#185FA5;font-weight:700;">HORS LIGNE</span>':''}</td>
       <td style="padding:6px 8px;font-family:monospace;font-size:11.5px;">${esc(i.barcode||'—')}</td>
       <td style="padding:6px 8px;white-space:nowrap;">${i.prix!=null?Number(i.prix).toFixed(0)+' €':'—'}</td>
-      <td style="padding:6px 8px;white-space:nowrap;">${i.vendu?`<span style="color:#3B6D11;font-weight:700;">vendu ${i.prix_vente!=null?Number(i.prix_vente).toFixed(0)+' €':''}</span>`:'à la braderie'}</td>
+      <td style="padding:6px 8px;white-space:nowrap;">${i.vendu?`<span style="color:#3B6D11;font-weight:700;">vendu ${i.prix_vente!=null?Number(i.prix_vente).toFixed(0)+' €':''}</span>`:(i.retour_at?'<span style="color:#7c5cd6;font-weight:700;">retour ✓</span>':(i.origine==='DK'?'<span style="color:#BA7517;">à pointer retour</span>':'à la braderie'))}</td>
       <td style="padding:6px 8px;">${esc(i.ajoute_par||'—')}</td>
       <td style="padding:6px 8px;white-space:nowrap;color:var(--text-muted);font-size:11.5px;">${fmt(i.scanned_at)}</td>
     </tr>`).join(''):'<tr><td colspan="7" style="padding:16px;text-align:center;color:var(--text-muted);">Aucun article pointé.</td></tr>';
 }
 function braderieDashExport(){
-  const head=['Origine','Designation','Code-barres','Prix','Statut','Prix vente','Pointe par','Quand','Hors ligne'];
-  const rows=[head].concat(braderieDashItems.map(i=>[i.origine,i.designation||'',i.barcode||'',i.prix!=null?i.prix:'',i.vendu?'vendu':'present',i.prix_vente!=null?i.prix_vente:'',i.ajoute_par||'',i.scanned_at||'',i.hors_ligne?'oui':'non']));
+  const head=['Origine','Designation','Code-barres','Prix','Statut','Prix vente','Pointe par','Quand','Hors ligne','Retour pointe','Retour par'];
+  const rows=[head].concat(braderieDashItems.map(i=>[i.origine,i.designation||'',i.barcode||'',i.prix!=null?i.prix:'',i.vendu?'vendu':(i.retour_at?'retour':(i.origine==='DK'?'manquant':'present')),i.prix_vente!=null?i.prix_vente:'',i.ajoute_par||'',i.scanned_at||'',i.hors_ligne?'oui':'non',i.retour_at||'',i.retour_par||'']));
   const csv=rows.map(r=>r.map(v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`).join(';')).join('\n');
   const a=document.createElement('a');
   a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);

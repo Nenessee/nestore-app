@@ -944,6 +944,11 @@
         </div>
         <button id="braderieToggleBtn" onclick="toggleBraderie()" style="padding:10px 16px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:10px;font-weight:700;cursor:pointer;color:#1a1a18;">Activer</button>
       </div>
+      <div id="braderiePhaseRow" style="display:none;margin-top:10px;gap:8px;">
+        <button id="braderiePhaseArrivee" onclick="setBraderiePhase('arrivee')" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid #BA7517;background:#BA7517;color:#fff;font-weight:700;cursor:pointer;">📥 Pointage arrivée</button>
+        <button id="braderiePhaseRetour" onclick="setBraderiePhase('retour')" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid #d3d1c7;background:#f5f5f3;color:#1a1a18;font-weight:700;cursor:pointer;">🚚 Inventaire retour DK</button>
+      </div>
+      <div id="braderieManquants" style="display:none;margin-top:10px;"></div>
       <div id="braderieManuelBox" style="display:none;margin-top:10px;padding:10px;border:1.5px dashed #BA7517;border-radius:10px;background:#FFF9F0;">
         <div style="font-weight:700;font-size:13px;margin-bottom:6px;">Article inconnu du site — ajouter à la main</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
@@ -1075,7 +1080,7 @@ async function nvHardReload(){
 </script>
 
 <script>
-  const APP_VERSION = '2026-08-24-v258-braderie'; // version unifiée (dashboard, sw.js, serveur)
+  const APP_VERSION = '2026-09-02-v259-braderie-retour'; // version unifiée (dashboard, sw.js, serveur)
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
 
   // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
@@ -1893,12 +1898,15 @@ async function nvHardReload(){
       bar.style.border='2px solid #BA7517'; bar.style.background='#FFF9F0';
       st.textContent='— ACTIF : chaque scan pointe pour la braderie'; st.style.color='#BA7517';
       btn.textContent='Désactiver'; btn.style.background='#BA7517'; btn.style.color='#fff';
+      document.getElementById('braderiePhaseRow').style.display='flex';
       braderieRefresh();
     } else {
       bar.style.border=''; bar.style.background='';
       st.textContent='— désactivé'; st.style.color='#888780';
       btn.textContent='Activer'; btn.style.background='#f5f5f3'; btn.style.color='#1a1a18';
       document.getElementById('braderieManuelBox').style.display='none';
+      document.getElementById('braderiePhaseRow').style.display='none';
+      document.getElementById('braderieManquants').style.display='none';
     }
   }
   async function braderieRefresh(){
@@ -1906,7 +1914,25 @@ async function nvHardReload(){
       const d=await fetch(`${BACKEND_URL}/braderie/liste`).then(r=>r.json());
       const items=(d&&d.items)||[];
       const dk=items.filter(i=>i.origine==='DK').length, hl=items.filter(i=>i.hors_ligne).length, vd=items.filter(i=>i.vendu).length;
-      document.getElementById('braderieCounts').textContent=`${items.length} pointé(s) — ${dk} DK · ${items.length-dk} Lille · ${hl} hors ligne · ${vd} vendu(s)`;
+      const dkItems=items.filter(i=>i.origine==='DK');
+      const attendus=dkItems.filter(i=>!i.vendu);                    // DK à recharger (pointés, non vendus)
+      const retours=attendus.filter(i=>i.retour_at);
+      const manquants=attendus.filter(i=>!i.retour_at);
+      document.getElementById('braderieCounts').textContent = braderiePhase==='retour'
+        ? `Retour DK : ${retours.length}/${attendus.length} pointé(s) — ${manquants.length} MANQUANT(S)`
+        : `${items.length} pointé(s) — ${dk} DK · ${items.length-dk} Lille · ${hl} hors ligne · ${vd} vendu(s)`;
+      const mbox=document.getElementById('braderieManquants');
+      if(braderiePhase==='retour'){
+        mbox.style.display='block';
+        mbox.innerHTML = manquants.length
+          ? `<div style="font-weight:700;font-size:12.5px;color:#A32D2D;margin-bottom:4px;">Manquants (${manquants.length}) — ni vendus, ni pointés retour :</div>`+
+            manquants.map(i=>`
+            <div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-bottom:0.5px solid #eee;font-size:12.5px;">
+              <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(i.designation||i.barcode||'?')}${i.hors_ligne?' <span style="color:#BA7517;">· hors ligne</span>':''}</span>
+              ${i.barcode?`<span style="font-family:monospace;font-size:11px;color:#888780;">${esc(i.barcode)}</span>`:`<button onclick="braderieRetourManuel(${parseInt(i.id,10)})" style="padding:4px 10px;background:#7c5cd6;color:#fff;border:none;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;">✓ Retour à la main</button>`}
+            </div>`).join('')
+          : `<div style="font-weight:700;font-size:13px;color:#3B6D11;padding:8px;">✅ Tout est pointé — rien ne manque !</div>`;
+      }
       document.getElementById('braderieList').innerHTML=items.slice(0,12).map(i=>`
         <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:0.5px solid #eee;font-size:12.5px;">
           <span style="padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:700;color:#fff;background:${i.origine==='DK'?'#BA7517':'#185FA5'};">${esc(i.origine)}</span>
@@ -1915,7 +1941,41 @@ async function nvHardReload(){
         </div>`).join('');
     }catch(_){}
   }
+  let braderiePhase='arrivee'; // 'arrivee' (pointage à l'arrivée) | 'retour' (inventaire de fin d'événement, DK uniquement)
+  function setBraderiePhase(p){
+    braderiePhase=p;
+    const a=document.getElementById('braderiePhaseArrivee'), r=document.getElementById('braderiePhaseRetour');
+    const on=(b,col)=>{ b.style.background=col; b.style.borderColor=col; b.style.color='#fff'; };
+    const off=(b)=>{ b.style.background='#f5f5f3'; b.style.borderColor='#d3d1c7'; b.style.color='#1a1a18'; };
+    if(p==='retour'){ off(a); on(r,'#7c5cd6'); document.getElementById('braderieManuelBox').style.display='none'; }
+    else { on(a,'#BA7517'); off(r); document.getElementById('braderieManquants').style.display='none'; }
+    braderieRefresh();
+  }
+  // Inventaire retour : scanner un article = le pointer « rechargé ». La liste des MANQUANTS
+  // (DK, ni vendus ni pointés retour) se met à jour en direct — c'est elle qu'on vide.
+  async function braderieHandleRetour(barcode){
+    const status=_braderieStatus();
+    try{
+      const r=await fetch(`${BACKEND_URL}/braderie/retour`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({barcode})});
+      const d=await r.json().catch(()=>null);
+      if(!r.ok||!d||!d.ok){ scanFeedback(false); if(status){status.textContent='Erreur inventaire retour';status.style.color='#A32D2D';} return; }
+      const nom=d.item&&(d.item.designation||d.item.barcode)||barcode;
+      if(d.inconnu){ scanFeedback(false); if(status){status.textContent=`❓ ${barcode} : pas au registre braderie`;status.style.color='#BA7517';} }
+      else if(d.lille){ scanFeedback(false); if(status){status.textContent=`ℹ️ ${nom} : origine LILLE — il reste ici, ne pas charger`;status.style.color='#185FA5';} }
+      else if(d.vendu){ scanFeedback(false); if(status){status.textContent=`⚠️ ${nom} : VENDU pendant la braderie — ne devrait pas être dans le carton !`;status.style.color='#A32D2D';} showToast('Article déjà vendu !','error'); }
+      else if(d.doublon){ scanFeedback(false); if(status){status.textContent=`⚠️ Déjà pointé retour : ${nom}`;status.style.color='#BA7517';} }
+      else { scanFeedback(true); if(status){status.textContent=`✓ Retour pointé : ${nom}`;status.style.color='#3B6D11';} }
+      braderieRefresh();
+    }catch(_){ scanFeedback(false); showToast('Erreur réseau (retour)','error'); }
+  }
+  async function braderieRetourManuel(id){
+    try{ const r=await fetch(`${BACKEND_URL}/braderie/retour-id/${id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+      const d=await r.json().catch(()=>null);
+      if(d&&d.ok) braderieRefresh(); else showToast('Échec pointage retour','error');
+    }catch(_){ showToast('Erreur réseau','error'); }
+  }
   async function braderieHandleScan(barcode){
+    if(braderiePhase==='retour'){ await braderieHandleRetour(barcode); return; }
     const status=_braderieStatus();
     try{
       let prod=null;

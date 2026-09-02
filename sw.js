@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-2026-08-24-v258-braderie'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
+const CACHE_VERSION = 'nestore-2026-09-02-v259-braderie-retour'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
 const STATIC_ASSETS = [
   '/',
   '/index.html',
