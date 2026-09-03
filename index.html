@@ -949,6 +949,11 @@
         <button id="braderiePhaseRetour" onclick="setBraderiePhase('retour')" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid #d3d1c7;background:#f5f5f3;color:#1a1a18;font-weight:700;cursor:pointer;">🚚 Inventaire retour DK</button>
       </div>
       <div id="braderieManquants" style="display:none;margin-top:10px;"></div>
+      <div id="braderieChoixBox" style="display:none;margin-top:10px;padding:10px;border:1.5px solid #7c5cd6;border-radius:10px;background:#F7F4FF;">
+        <div style="font-weight:700;font-size:13px;margin-bottom:6px;">⚠️ Plusieurs articles partagent ce code-barres — lequel pointes-tu ?</div>
+        <div id="braderieChoixList" style="display:flex;flex-direction:column;gap:6px;"></div>
+        <button onclick="document.getElementById('braderieChoixBox').style.display='none'" style="margin-top:8px;padding:6px 10px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:8px;cursor:pointer;font-size:12px;">✕ Annuler</button>
+      </div>
       <div id="braderieManuelBox" style="display:none;margin-top:10px;padding:10px;border:1.5px dashed #BA7517;border-radius:10px;background:#FFF9F0;">
         <div style="font-weight:700;font-size:13px;margin-bottom:6px;">Article inconnu du site — ajouter à la main</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
@@ -1080,7 +1085,7 @@ async function nvHardReload(){
 </script>
 
 <script>
-  const APP_VERSION = '2026-09-02-v260-braderie-visible'; // version unifiée (dashboard, sw.js, serveur)
+  const APP_VERSION = '2026-09-03-v261-braderie-choix'; // version unifiée (dashboard, sw.js, serveur)
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
 
   // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
@@ -1982,7 +1987,25 @@ async function nvHardReload(){
       try{
         const r=await fetch(`${BACKEND_URL}/product/${encodeURIComponent(barcode)}`);
         const d=await r.json();
-        if(r.ok && d && !d.error) prod=(d.multiple&&Array.isArray(d.matches))?d.matches[0]:d;
+        if(r.ok && d && !d.error){
+          if(d.multiple && Array.isArray(d.matches) && d.matches.length>1){
+            // Code-barres partagé (ex: un article Lille + un article DK) : on NE choisit PAS
+            // automatiquement — l'équipe désigne l'article qu'elle a en main.
+            scanFeedback(false);
+            window._braderieMatches={ barcode, matches:d.matches };
+            const box=document.getElementById('braderieChoixBox');
+            document.getElementById('braderieChoixList').innerHTML=d.matches.map((m,i)=>`
+              <button onclick="braderieChoisir(${i})" style="display:flex;align-items:center;gap:10px;padding:10px;background:#fff;border:1px solid #d3d1c7;border-radius:10px;cursor:pointer;text-align:left;">
+                <span style="padding:2px 9px;border-radius:999px;font-size:10.5px;font-weight:800;color:#fff;background:${m.boutique==='DK'?'#BA7517':'#185FA5'};flex-shrink:0;">${esc(m.boutique||'?')}</span>
+                <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;font-size:13px;">${esc(m.name||m.title||'?')}</span>
+                <span style="color:#888780;font-size:12px;white-space:nowrap;">${m.price?parseFloat(m.price).toFixed(0)+' €':''}</span>
+              </button>`).join('');
+            box.style.display='block';
+            const st=_braderieStatus(); if(st){ st.textContent=`⚠️ ${barcode} : ${d.matches.length} articles possibles — choisis lequel pointer`; st.style.color='#7c5cd6'; }
+            return;
+          }
+          prod=(d.multiple&&Array.isArray(d.matches))?d.matches[0]:d;
+        }
       }catch(_){}
       if(!prod || !(prod.name||prod.title)){
         scanFeedback(false);
@@ -1994,14 +2017,24 @@ async function nvHardReload(){
         if(status){ status.textContent=`❓ Inconnu du site : ${barcode} — remplis la mini-fiche ci-dessus`; status.style.color='#BA7517'; }
         return;
       }
-      const origine=prod.boutique==='DK'?'DK':'Lille';
-      const r2=await fetch(`${BACKEND_URL}/braderie/ajout`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({barcode,designation:prod.name||prod.title||'',origine,prix:prod.price||null,hors_ligne:false})});
-      const d2=await r2.json().catch(()=>null);
-      if(!r2.ok||!d2||!d2.ok){ scanFeedback(false); if(status){ status.textContent='Erreur registre braderie'; status.style.color='#A32D2D'; } return; }
-      if(d2.doublon){ scanFeedback(false); if(status){ status.textContent=`⚠️ Déjà pointé : ${prod.name||barcode}`; status.style.color='#BA7517'; } }
-      else { scanFeedback(true); if(status){ status.textContent=`✓ ${prod.name||barcode} — ${origine} → colle l'étiquette 🏷️`; status.style.color='#3B6D11'; } }
-      braderieRefresh();
+      await braderieAjouterProduit(barcode, prod);
     }catch(e){ scanFeedback(false); showToast('Erreur réseau (braderie)','error'); }
+  }
+  // Pointe UN article précis (choisi ou unique) au registre braderie.
+  async function braderieAjouterProduit(barcode, prod){
+    const status=_braderieStatus();
+    const origine=prod.boutique==='DK'?'DK':'Lille';
+    const r2=await fetch(`${BACKEND_URL}/braderie/ajout`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({barcode,designation:prod.name||prod.title||'',origine,prix:prod.price||null,hors_ligne:false})});
+    const d2=await r2.json().catch(()=>null);
+    if(!r2.ok||!d2||!d2.ok){ scanFeedback(false); if(status){ status.textContent='Erreur registre braderie'; status.style.color='#A32D2D'; } return; }
+    if(d2.doublon){ scanFeedback(false); if(status){ status.textContent=`⚠️ Déjà pointé : ${prod.name||barcode}`; status.style.color='#BA7517'; } }
+    else { scanFeedback(true); if(status){ status.textContent=`✓ ${prod.name||barcode} — ${origine} → colle l'étiquette 🏷️`; status.style.color='#3B6D11'; } }
+    braderieRefresh();
+  }
+  async function braderieChoisir(i){
+    const c=window._braderieMatches; if(!c||!c.matches||!c.matches[i]) return;
+    document.getElementById('braderieChoixBox').style.display='none';
+    try{ await braderieAjouterProduit(c.barcode, c.matches[i]); }catch(_){ showToast('Erreur réseau (braderie)','error'); }
   }
   async function braderieSaveManuel(){
     const barcode=document.getElementById('braderieManBarcode').value.trim();
