@@ -1085,7 +1085,7 @@ async function nvHardReload(){
 </script>
 
 <script>
-  const APP_VERSION = '2026-09-04-v262-pdv-encaisse'; // version unifiée (dashboard, sw.js, serveur)
+  const APP_VERSION = '2026-09-24-v263-web-codebarre'; // version unifiée (dashboard, sw.js, serveur)
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
 
   // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
@@ -2342,6 +2342,7 @@ async function nvHardReload(){
             <div style="flex:1;min-width:0;">
               <div class="h-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(item.name)}</div>
               <div class="h-code">Commande #${esc(order.order_number)} · ${esc(order.customer?.first_name||'')} ${esc(order.customer?.last_name||'')}</div>
+              ${item.barcode?`<button onclick="event.stopPropagation();try{navigator.clipboard&&navigator.clipboard.writeText('${esc(escJs(item.barcode))}');}catch(_){}showToast('Code-barres copié ✓','success');" title="Copier le code-barres" style="margin-top:2px;padding:2px 8px;background:#f1efe8;border:0.5px solid #d3d1c7;border-radius:6px;font-family:monospace;font-size:12px;cursor:pointer;color:#1a1a18;">🏷 ${esc(item.barcode)}</button>`:''}
               <div style="font-size:11px;color:#888780;">${orderDate} · ${parseFloat(item.price).toFixed(2)}€</div>
             </div>
             <span class="badge ${badge}">${esc(itemBoutique)}</span>
