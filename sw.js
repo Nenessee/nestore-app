@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-2026-09-24-v263-web-codebarre'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
+const CACHE_VERSION = 'nestore-2026-09-26-v264-perf'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
 const STATIC_ASSETS = [
   '/',
   '/index.html',
