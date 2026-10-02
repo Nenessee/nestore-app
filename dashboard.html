@@ -2747,7 +2747,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-09-29-v265-boite'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-10-02-v266-perf-mobile'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -2814,12 +2814,13 @@ async function nvHardReload(){
   try{ const u=new URL(location.href); u.searchParams.set('_v', Date.now().toString()); location.replace(u.toString()); }
   catch(_){ location.reload(); }
 }
+// Poll de mise à jour via version.json (~50 octets) — AVANT : page entière (590 Ko) toutes
+// les 30 s = ~70 Mo/h sur mobile, ce qui saturait la connexion et ralentissait tout le reste.
 let _dashUpdateInterval = setInterval(() => {
-  fetch(location.href + '?nocache=' + Date.now(), { cache: 'no-store' })
-    .then(r => r.text())
-    .then(html => {
-      const match = html.match(/DASH_VERSION = '([^']+)'/);
-      if (match && match[1] !== DASH_VERSION) {
+  fetch('version.json?nocache=' + Date.now(), { cache: 'no-store' })
+    .then(r => r.json())
+    .then(v => {
+      if (v && v.version && v.version !== DASH_VERSION) {
         let b = document.getElementById('dashUpdateBanner');
         if (!b) {
           b = document.createElement('div');
