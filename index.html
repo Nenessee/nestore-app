@@ -1085,7 +1085,7 @@ async function nvHardReload(){
 </script>
 
 <script>
-  const APP_VERSION = '2026-09-29-v265-boite'; // version unifiée (dashboard, sw.js, serveur)
+  const APP_VERSION = '2026-10-02-v266-perf-mobile'; // version unifiée (dashboard, sw.js, serveur)
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
 
   // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
@@ -1193,13 +1193,14 @@ async function nvHardReload(){
       .catch(() => {});
   }
 
-  // Vérifier les mises à jour toutes les 30 secondes
+  // Vérifier les mises à jour toutes les 30 secondes — via version.json (~50 octets).
+  // AVANT : on re-téléchargeait la page ENTIÈRE (172 Ko) toutes les 30 s juste pour lire la
+  // version → ~20 Mo/h sur mobile, en concurrence avec les vraies requêtes (vente, scan…).
   let _appUpdateInterval = setInterval(() => {
-    fetch(location.href + '?nocache=' + Date.now(), { cache: 'no-store' })
-      .then(r => r.text())
-      .then(html => {
-        const match = html.match(/APP_VERSION = '([^']+)'/);
-        if (match && match[1] !== APP_VERSION) {
+    fetch('version.json?nocache=' + Date.now(), { cache: 'no-store' })
+      .then(r => r.json())
+      .then(v => {
+        if (v && v.version && v.version !== APP_VERSION) {
           document.getElementById('updateBanner').style.display = 'block';
         }
       }).catch(() => {});
