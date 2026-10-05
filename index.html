@@ -1085,7 +1085,7 @@ async function nvHardReload(){
 </script>
 
 <script>
-  const APP_VERSION = '2026-10-05-v267-boutique-stock'; // version unifiée (dashboard, sw.js, serveur)
+  const APP_VERSION = '2026-10-05-v268-emplacement-caisse'; // version unifiée (dashboard, sw.js, serveur)
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
 
   // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
@@ -1350,7 +1350,16 @@ async function nvHardReload(){
     }
     const isSold = data.totalStock === 0;
     const badgeClass = data.boutique === 'DK' ? 'badge-dk' : 'badge-lille';
-    const matchedLocation = (data.locations || [])[0];
+    // Emplacement cible = celui de la BOUTIQUE de l'article — PAS le premier de la liste :
+    // Shopify trie les emplacements par nom, donc « Nestore Dunkerque » (créé le 28/09) passe
+    // devant « Nestore Lille ». Prendre [0] faisait vendre/retourner les articles lillois sur
+    // l'emplacement de Dunkerque : article restant en ligne, retour refusé « Stock introuvable ».
+    const _locs = data.locations || [];
+    const _wantLoc = data.boutique === 'DK' ? 'dunkerque' : 'lille';
+    const matchedLocation = (data.boutiqueLocationId ? _locs.find(l => l.id === data.boutiqueLocationId) : null)
+      || _locs.find(l => (l.name || '').toLowerCase().includes(_wantLoc))
+      || _locs.find(l => ((data.stockByLocation || {})[l.name] || 0) > 0)
+      || _locs[0];
     currentData.selectedLocationId = matchedLocation?.id;
 
     area.innerHTML = `<div class="product-card">

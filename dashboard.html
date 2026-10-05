@@ -2748,7 +2748,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-10-05-v267-boutique-stock'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-10-05-v268-emplacement-caisse'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -3357,9 +3357,11 @@ async function openBoutiqueCoherence() {
       <button onclick="document.getElementById('btqCoherOverlay').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-muted);">×</button>
     </div>
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">Compare le champ Boutique de chaque fiche avec l'emplacement Shopify qui porte le stock (celui que le paiement propose au retrait).</div>
+    <div id="btqPhantomBody" style="font-size:13px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);">⏳ Ventes caisse encore en ligne : vérification…</div>
     <div id="btqCoherBody" style="font-size:13px;">⏳ Vérification de tout le stock actif sur Shopify… (1 à 2 min, laisse la fenêtre ouverte)</div>
   </div>`;
   document.body.appendChild(ov);
+  loadBtqPhantom();
   try {
     const d = await api('/stock/boutique-coherence');
     renderBoutiqueCoherence(d);
@@ -3394,6 +3396,49 @@ function renderBoutiqueCoherence(d) {
       </div>`).join('')}</div>`
     : `<div style="color:#3B6D11;font-weight:600;">✓ Tout concorde : chaque pièce renseignée est bien stockée dans la boutique de sa fiche.</div>`}
     ${(d.sansMetachamp || 0) ? `<div style="font-size:11px;color:var(--text-muted);margin-top:10px;">Les pièces sans champ Boutique ne sont pas comparées (rien à confronter) — renseigne le champ sur la fiche Shopify et le stock suivra tout seul.</div>` : ''}`;
+}
+// Ventes fantômes : ventes caisse dont l'article est encore disponible sur Shopify (la caisse
+// visait le mauvais emplacement entre le 28/09 et la v268) — remise à 0 en un clic par ligne.
+async function loadBtqPhantom() {
+  const body = document.getElementById('btqPhantomBody');
+  if (!body) return;
+  try {
+    const d = await api('/stock/ventes-encore-en-ligne?days=15');
+    if (!document.getElementById('btqPhantomBody')) return;
+    if (d.warming) { body.innerHTML = '👻 Ventes encore en ligne : photo de stock en préparation… <button class="btn" style="font-size:11px;" onclick="loadBtqPhantom()">Réessayer</button>'; return; }
+    window._btqPhantom = d.items || [];
+    if (!window._btqPhantom.length) { body.innerHTML = `<span style="color:#3B6D11;font-weight:600;">✓ Aucune vente caisse des ${d.periodeJours || 15} derniers jours encore en ligne.</span>`; return; }
+    body.innerHTML = `<div style="font-weight:700;color:#A32D2D;margin-bottom:6px;">👻 ${window._btqPhantom.length} article(s) VENDUS en caisse mais ENCORE EN LIGNE (risque de double vente)</div>
+      <div style="max-height:220px;overflow:auto;">${window._btqPhantom.map((a, i) => `
+        <div id="btqPh${i}" style="display:flex;justify-content:space-between;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+          <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_invEsc(a.title)} <span style="color:var(--text-muted);font-size:11px;">vendu le ${_invEsc(String(a.soldAt || '').slice(0, 10))} · ${_invEsc(a.boutique)} · ${_invEsc(a.employee || '')}</span></span>
+          <span style="display:flex;gap:6px;white-space:nowrap;align-items:center;">
+            <button class="btn" style="font-size:11px;padding:4px 8px;" onclick="btqZero(${i})" title="Remet le stock Shopify à 0 partout (la vente est déjà enregistrée en caisse)">Remettre à 0</button>
+            <a href="${esc(a.shopifyAdminUrl)}" target="_blank" class="link-btn" style="font-size:11px;">Shopify ↗</a>
+          </span>
+        </div>`).join('')}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Vérifie avant de remettre à 0 : un article retourné après sa vente, ou un code-barres partagé par deux articles, peut apparaître ici à tort.</div>`;
+  } catch (e) { body.innerHTML = `<span style="color:#A32D2D;">Ventes encore en ligne : erreur (${_invEsc(e.message)})</span>`; }
+}
+async function btqZero(i) {
+  const a = (window._btqPhantom || [])[i];
+  if (!a) return;
+  const row = document.getElementById('btqPh' + i);
+  const btn = row ? row.querySelector('button') : null;
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    const res = await fetch(`${BACKEND_URL}/stock/zero`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productId: a.productId })
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok || !d.ok) throw new Error(d.error || `HTTP ${res.status}`);
+    if (row) row.innerHTML = `<span style="color:#3B6D11;font-size:13px;padding:4px 0;">✓ « ${_invEsc(a.title)} » remis à 0 sur Shopify</span>`;
+    showDashToast('Stock remis à 0 ✓', 'success');
+  } catch (e) {
+    showDashToast('Échec : ' + e.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Remettre à 0'; }
+  }
 }
 async function btqRepair(i) {
   const a = ((window._btqCoherData || {}).anomalies || [])[i];
