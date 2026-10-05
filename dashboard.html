@@ -1864,6 +1864,7 @@ tbody tr { transition: background .12s; }
       <div class="section-title" style="margin:0;">Stock en ligne actuellement</div>
       <div class="stock-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn js-admin-only" onclick="openInventaireReport()" style="font-size:13px;background:rgba(24,95,165,0.12);border-color:#185FA5;color:#185FA5;" title="Bilan de l'inventaire : couverture, manquants, mal rangés, codes-barres en double">📋 Rapport inventaire</button>
+        <button class="btn js-admin-only" onclick="openBoutiqueCoherence()" style="font-size:13px;background:rgba(59,109,17,0.12);border-color:#3B6D11;color:#3B6D11;" title="Vérifie que le champ Boutique de chaque fiche concorde avec l'emplacement Shopify qui porte le stock — sinon le paiement propose le retrait dans la mauvaise boutique">🧭 Contrôle boutiques</button>
         <button class="btn js-admin-only" onclick="resetInventaireBoutique()" style="font-size:13px;background:rgba(186,117,23,0.12);border-color:#BA7517;color:#BA7517;" title="Décoche toutes les cases « en boutique » pour refaire l'inventaire (confirmation demandée)">⚠️ Reset inventaire</button>
       </div>
     </div>
@@ -2747,7 +2748,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-10-02-v266-perf-mobile'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-10-05-v267-boutique-stock'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -3339,6 +3340,80 @@ function exportInvMissing() {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = 'inventaire-manquants.csv';
   a.click(); URL.revokeObjectURL(a.href);
+}
+
+// ── Contrôle Boutique ↔ emplacement de stock Shopify ─────────────────────────
+// La fiche annonce une boutique (champ Boutique), mais le paiement propose le retrait là où le
+// stock se trouve RÉELLEMENT : si les deux divergent, c'est invisible à l'œil. Ce rapport scanne
+// tout le stock actif côté serveur et liste les pièces discordantes, réparables en un clic.
+async function openBoutiqueCoherence() {
+  const ov = document.createElement('div');
+  ov.id = 'btqCoherOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:24px 12px;overflow:auto;';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `<div style="background:var(--surface);color:var(--text);max-width:760px;width:100%;border-radius:18px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.4);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <div style="font-size:18px;font-weight:800;">🧭 Contrôle Boutique ↔ stock Shopify</div>
+      <button onclick="document.getElementById('btqCoherOverlay').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-muted);">×</button>
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">Compare le champ Boutique de chaque fiche avec l'emplacement Shopify qui porte le stock (celui que le paiement propose au retrait).</div>
+    <div id="btqCoherBody" style="font-size:13px;">⏳ Vérification de tout le stock actif sur Shopify… (1 à 2 min, laisse la fenêtre ouverte)</div>
+  </div>`;
+  document.body.appendChild(ov);
+  try {
+    const d = await api('/stock/boutique-coherence');
+    renderBoutiqueCoherence(d);
+  } catch (e) {
+    const b = document.getElementById('btqCoherBody');
+    if (b) b.innerHTML = `<span style="color:#A32D2D;">Erreur : ${_invEsc(e.message)}</span> <button class="btn" style="font-size:11px;" onclick="document.getElementById('btqCoherOverlay').remove();openBoutiqueCoherence()">Réessayer</button>`;
+  }
+}
+function renderBoutiqueCoherence(d) {
+  const body = document.getElementById('btqCoherBody');
+  if (!body) return;
+  window._btqCoherData = d;
+  const an = d.anomalies || [];
+  const kpi = (val, lbl, color) => `<div style="flex:1 1 120px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;"><div style="font-size:22px;font-weight:800;color:${color};">${val}</div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;">${lbl}</div></div>`;
+  body.innerHTML = `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+      ${kpi(d.verifies || 0, 'Pièces vérifiées', 'var(--text)')}
+      ${kpi(an.length, 'Discordances', an.length ? '#E24B4A' : '#3B6D11')}
+      ${kpi(d.sansMetachamp || 0, 'Champ Boutique vide', (d.sansMetachamp || 0) ? '#BA7517' : '#3B6D11')}
+    </div>
+    ${an.length ? `<div style="max-height:380px;overflow:auto;">${an.map((a, i) => `
+      <div id="btqAno${i}" style="display:flex;flex-direction:column;gap:4px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
+          <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;">${_invEsc(a.title)}</span>
+          <span style="display:flex;gap:6px;white-space:nowrap;align-items:center;">
+            ${a.issues.some(x => /stock/i.test(x)) ? `<button class="btn" style="font-size:11px;padding:4px 8px;" onclick="btqRepair(${i})" title="Replace le stock sur l'emplacement du champ Boutique (quantité sur sa boutique, 0 sur l'autre)">🔧 Réparer le stock</button>` : ''}
+            <a href="${esc(a.shopifyAdminUrl)}" target="_blank" class="link-btn" style="font-size:11px;">Shopify ↗</a>
+          </span>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);">${a.barcode ? `<span style="font-family:monospace;">${_invEsc(a.barcode)}</span> · ` : ''}fiche « ${_invEsc(a.metafield)} » · stock Lille ${a.stock.lille} / Dunkerque ${a.stock.dk} · tag app ${_invEsc(a.tag)}</div>
+        <div style="font-size:12px;color:#A32D2D;">${a.issues.map(_invEsc).join(' — ')}</div>
+      </div>`).join('')}</div>`
+    : `<div style="color:#3B6D11;font-weight:600;">✓ Tout concorde : chaque pièce renseignée est bien stockée dans la boutique de sa fiche.</div>`}
+    ${(d.sansMetachamp || 0) ? `<div style="font-size:11px;color:var(--text-muted);margin-top:10px;">Les pièces sans champ Boutique ne sont pas comparées (rien à confronter) — renseigne le champ sur la fiche Shopify et le stock suivra tout seul.</div>` : ''}`;
+}
+async function btqRepair(i) {
+  const a = ((window._btqCoherData || {}).anomalies || [])[i];
+  if (!a) return;
+  const row = document.getElementById('btqAno' + i);
+  const btn = row ? row.querySelector('button') : null;
+  if (btn) { btn.disabled = true; btn.textContent = 'Réparation…'; }
+  try {
+    const res = await fetch(`${BACKEND_URL}/stock/boutique-sync`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productId: a.productId })
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok || !d.ok) throw new Error(d.error || `HTTP ${res.status}`);
+    if (row) row.innerHTML = `<div style="padding:4px 0;color:#3B6D11;font-size:13px;">✓ « ${_invEsc(a.title)} » — stock replacé sur ${_invEsc(a.metafield)}</div>`;
+    showDashToast('Stock réaligné ✓', 'success');
+  } catch (e) {
+    showDashToast('Réparation impossible : ' + e.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '🔧 Réparer le stock'; }
+  }
 }
 
 async function loadInvDuplicates() {
@@ -3986,7 +4061,7 @@ function trfChoose(i) {
 }
 async function trfConfirm() {
   const c = window._trfCurrent; if (!c) return;
-  if (!confirm(`Transférer « ${c.name} » de ${c.from} vers ${c.to} ?\n\nLe tag boutique sera corrigé sur Shopify.`)) return;
+  if (!confirm(`Transférer « ${c.name} » de ${c.from} vers ${c.to} ?\n\nLe tag, le champ Boutique et l'emplacement du stock seront corrigés sur Shopify.`)) return;
   const btn = document.getElementById('trfConfirmBtn'); if (btn) { btn.disabled = true; btn.textContent = 'Transfert…'; }
   try {
     const res = await fetch(`${BACKEND_URL}/transfer`, {
@@ -3995,7 +4070,8 @@ async function trfConfirm() {
     });
     const d = await res.json().catch(() => ({}));
     if (!res.ok) { showDashToast(d.error || 'Erreur transfert', 'error'); if (btn) { btn.disabled = false; btn.textContent = '🔄 Transférer vers ' + c.to; } return; }
-    showDashToast(`Transféré vers ${c.to} ✓`, 'success');
+    if (d.stockMoved === false) showDashToast('⚠️ Transfert fait mais stock NON déplacé sur Shopify — passe par 🧭 Contrôle boutiques (onglet Stock)', 'error');
+    else showDashToast(`Transféré vers ${c.to} ✓ (stock déplacé)`, 'success');
     document.getElementById('trfManualResult').innerHTML = `<div style="color:#3B6D11;font-size:13px;padding:8px 0;">✓ « ${_invEsc(c.name)} » transféré ${c.from} → ${c.to}</div>`;
     const inp = document.getElementById('trfBarcodeInput'); if (inp) { inp.value = ''; inp.focus(); }
     window._trfCurrent = null;
@@ -4414,15 +4490,19 @@ async function correctBoutique(barcode) {
   const p = allStockData.find(x => x.barcode === barcode);
   if (!p || !p.misplaced) return;
   const to = p.scannedBoutique, from = p.boutique;
-  if (!confirm(`Transférer « ${p.title || barcode} » de ${from} vers ${to} ?\n\nLe tag boutique sera corrigé sur Shopify (scanné à ${to}, mais rangé en ${from}).`)) return;
+  if (!confirm(`Transférer « ${p.title || barcode} » de ${from} vers ${to} ?\n\nLe tag, le champ Boutique et l'emplacement du stock seront corrigés sur Shopify (scanné à ${to}, mais rangé en ${from}).`)) return;
   try {
     const res = await fetch(`${BACKEND_URL}/transfer`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ barcode, productId: p.id, productName: p.title, brand: p.vendor, imageUrl: p.image, fromBoutique: from, toBoutique: to, employee: DASH_EMPLOYEE || DASH_BOUTIQUE || 'inconnu' })
     });
     if (!res.ok) { const err = await res.json().catch(()=>({})); showToast('Erreur : ' + (err.error || res.status), 'error'); return; }
+    const d = await res.json().catch(()=>({}));
     p.boutique = to; p.misplaced = false;
-    if (typeof showDashToast === 'function') showDashToast(`Transféré vers ${to} ✓`, 'success');
+    if (typeof showDashToast === 'function') {
+      if (d.stockMoved === false) showDashToast('⚠️ Transfert fait mais stock NON déplacé sur Shopify — passe par 🧭 Contrôle boutiques', 'error');
+      else showDashToast(`Transféré vers ${to} ✓ (stock déplacé)`, 'success');
+    }
     filterStock();
   } catch(e) { showToast('Erreur réseau : ' + e.message, 'error'); }
 }

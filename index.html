@@ -1085,7 +1085,7 @@ async function nvHardReload(){
 </script>
 
 <script>
-  const APP_VERSION = '2026-10-02-v266-perf-mobile'; // version unifiée (dashboard, sw.js, serveur)
+  const APP_VERSION = '2026-10-05-v267-boutique-stock'; // version unifiée (dashboard, sw.js, serveur)
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
 
   // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
@@ -1625,7 +1625,7 @@ async function nvHardReload(){
 
   async function transferProduct(toBoutique) {
     if (!currentData || !currentEmployee) return;
-    if (!confirm(`Transférer cet article vers ${toBoutique} ?`)) return;
+    if (!confirm(`Transférer cet article vers ${toBoutique} ?\n\nLe tag, le champ Boutique et l'emplacement du stock seront corrigés sur Shopify.`)) return;
     const btn = document.getElementById('transferBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'Transfert en cours...'; }
     try {
@@ -1673,7 +1673,9 @@ async function nvHardReload(){
       document.body.style.transition = 'background .1s';
       document.body.style.background = '#d4edbc';
       setTimeout(() => { document.body.style.background = '#f5f5f3'; }, 200);
-      showToast(`Transféré vers ${toBoutique} ✓`, 'success');
+      showToast(result.stockMoved === false
+        ? '⚠️ Transféré, mais stock NON déplacé sur Shopify — signale-le à l\'admin'
+        : `Transféré vers ${toBoutique} ✓ (stock déplacé)`, result.stockMoved === false ? 'warn' : 'success');
     } catch (err) {
       showToast('Erreur réseau : ' + err.message, 'error');
       if (btn) { btn.disabled = false; btn.textContent = `🔄 Transférer vers ${toBoutique}`; }
