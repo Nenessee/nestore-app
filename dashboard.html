@@ -9,6 +9,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Schibsted+Grotesk:wght@600;700;800&display=swap">
 <script>
   (function(){
     try {
@@ -33,99 +36,117 @@
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
+/* Jetons alignés sur nestore-ui.css (grammaire du site nestorevintage.fr).
+   Les NOMS historiques sont conservés — tout le dashboard les référence. */
 :root {
-  --bg: #f5f4ef;
-  --bg-gradient: radial-gradient(ellipse at top, #faf9f4 0%, #f5f4ef 60%);
+  --bg: #faf9f7;
+  --bg-gradient: #faf9f7;
   --surface: #ffffff;
-  --surface-2: #faf9f4;
+  --surface-2: #fcfcfb;
   --surface-raised: #ffffff;
-  --surface-alt: #f5f4ef;
-  --border: rgba(26, 26, 24, 0.06);
-  --border-strong: rgba(26, 26, 24, 0.12);
-  --text: #0e0e0c;
-  --text-muted: #686760;
-  --text-soft: #8c8a82;
-  --brand: #0e0e0c;
+  --surface-alt: #fcfcfb;
+  --border: #e6e5e3;
+  --border-soft: #f0efec;
+  --border-strong: #e6e5e3;
+  --text: #0a0a0a;
+  --text-muted: #7a7a7a;
+  --text-soft: #a0a0a0;
+  --brand: #0a0a0a;
   --brand-ink: #ffffff;
-  --accent: #E8504E;
-  --accent-dim: rgba(232, 80, 78, 0.1);
-  --success: #3B6D11;
-  --success-dim: rgba(59, 109, 17, 0.1);
-  --warning: #BA7517;
-  --warning-dim: rgba(186, 117, 23, 0.1);
-  --info: #185FA5;
-  --info-dim: rgba(24, 95, 165, 0.1);
-  --badge-dk-bg: #E6F1FB;
-  --badge-dk-fg: #0C447C;
-  --badge-lille-bg: #EAF3DE;
-  --badge-lille-fg: #27500A;
-  --badge-web-bg: #EEEDFE;
-  --badge-web-fg: #3C3489;
-  --badge-vinted-bg: #E1F5EE;
-  --badge-vinted-fg: #085041;
-  --badge-warning-bg: #FAEEDA;
-  --badge-warning-fg: #633806;
-  --badge-danger-bg: #FCEBEB;
-  --badge-danger-fg: #A32D2D;
-  --shadow-sm: 0 1px 2px rgba(14, 14, 12, 0.04);
-  --shadow-md: 0 1px 3px rgba(14, 14, 12, 0.06), 0 8px 24px rgba(14, 14, 12, 0.04);
-  --shadow-lg: 0 4px 16px rgba(14, 14, 12, 0.08), 0 24px 48px rgba(14, 14, 12, 0.06);
+  --accent: #c0392b;
+  --accent-dim: rgba(192, 57, 43, 0.08);
+  --success: #16805e;
+  --success-dim: #e9f5f0;
+  --warning: #a76d08;
+  --warning-dim: rgba(167, 109, 8, 0.1);
+  --info: #2a78d6;
+  --info-dim: rgba(42, 120, 214, 0.1);
+  --badge-dk-bg: var(--surface);
+  --badge-dk-fg: var(--text-muted);
+  --badge-lille-bg: var(--surface);
+  --badge-lille-fg: var(--text-muted);
+  --badge-web-bg: rgba(42, 120, 214, 0.1);
+  --badge-web-fg: #2a78d6;
+  --badge-vinted-bg: #e9f5f0;
+  --badge-vinted-fg: #16805e;
+  --badge-warning-bg: rgba(167, 109, 8, 0.1);
+  --badge-warning-fg: #a76d08;
+  --badge-danger-bg: rgba(192, 57, 43, 0.1);
+  --badge-danger-fg: #c0392b;
+  --serie-1: #1baf7a;
+  --serie-2: #2a78d6;
+  --serie-3: #eb6834;
+  --serie-neutre: #a0a0a0;
+  --chart-grid: #ececea;
+  --chart-tick: #a0a0a0;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 34px rgba(0, 0, 0, 0.12);
   --bar-blur: saturate(180%) blur(24px);
-  --bar-bg: rgba(250, 249, 245, 0.97);
-  --bar-border: rgba(26, 26, 24, 0.06);
-  --row-stripe: rgba(26, 26, 24, 0.022);
+  --bar-bg: rgba(250, 249, 247, 0.97);
+  --bar-border: #e6e5e3;
+  --row-stripe: rgba(10, 10, 10, 0.016);
 }
 [data-theme="dark"] {
-  --bg: #0a0a09;
-  --bg-gradient: radial-gradient(ellipse at top, #161614 0%, #0a0a09 60%);
-  --surface: #141412;
-  --surface-2: #1a1a18;
-  --surface-raised: #1e1e1c;
-  --surface-alt: #0f0f0e;
-  --border: rgba(245, 244, 239, 0.07);
-  --border-strong: rgba(245, 244, 239, 0.14);
-  --text: #f5f4ef;
-  --text-muted: #8f8e88;
-  --text-soft: #5e5d58;
-  --brand: #f5f4ef;
-  --brand-ink: #0e0e0c;
-  --accent: #FF6B68;
-  --accent-dim: rgba(255, 107, 104, 0.14);
-  --success: #5DCAA5;
-  --success-dim: rgba(93, 202, 165, 0.14);
-  --warning: #E8A247;
-  --warning-dim: rgba(232, 162, 71, 0.14);
-  --info: #5A9EE8;
-  --info-dim: rgba(90, 158, 232, 0.14);
-  --badge-dk-bg: rgba(90, 158, 232, 0.16);
-  --badge-dk-fg: #8CBEF0;
-  --badge-lille-bg: rgba(93, 202, 165, 0.16);
-  --badge-lille-fg: #8CE0BE;
-  --badge-web-bg: rgba(137, 128, 224, 0.18);
-  --badge-web-fg: #B0A8EF;
-  --badge-vinted-bg: rgba(93, 202, 165, 0.16);
-  --badge-vinted-fg: #8CE0BE;
-  --badge-warning-bg: rgba(232, 162, 71, 0.16);
-  --badge-warning-fg: #F0C587;
-  --badge-danger-bg: rgba(255, 107, 104, 0.16);
-  --badge-danger-fg: #FF9997;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.45), 0 16px 40px rgba(0, 0, 0, 0.25);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.55), 0 32px 64px rgba(0, 0, 0, 0.35);
-  --bar-bg: rgba(16, 16, 14, 0.97);
-  --bar-border: rgba(245, 244, 239, 0.07);
-  --row-stripe: rgba(245, 244, 239, 0.028);
+  --bg: #121211;
+  --bg-gradient: #121211;
+  --surface: #1a1a19;
+  --surface-2: #201f1e;
+  --surface-raised: #201f1e;
+  --surface-alt: #201f1e;
+  --border: #2e2e2b;
+  --border-soft: #262624;
+  --border-strong: #2e2e2b;
+  --text: #ffffff;
+  --text-muted: #908f86;
+  --text-soft: #75746c;
+  --brand: #ffffff;
+  --brand-ink: #0a0a0a;
+  --accent: #e66767;
+  --accent-dim: rgba(230, 103, 103, 0.14);
+  --success: #3fcf9e;
+  --success-dim: #16302a;
+  --warning: #d9a21f;
+  --warning-dim: rgba(217, 162, 31, 0.14);
+  --info: #3987e5;
+  --info-dim: rgba(57, 135, 229, 0.14);
+  --badge-dk-bg: var(--surface);
+  --badge-dk-fg: var(--text-muted);
+  --badge-lille-bg: var(--surface);
+  --badge-lille-fg: var(--text-muted);
+  --badge-web-bg: rgba(57, 135, 229, 0.16);
+  --badge-web-fg: #3987e5;
+  --badge-vinted-bg: #16302a;
+  --badge-vinted-fg: #3fcf9e;
+  --badge-warning-bg: rgba(217, 162, 31, 0.16);
+  --badge-warning-fg: #d9a21f;
+  --badge-danger-bg: rgba(230, 103, 103, 0.16);
+  --badge-danger-fg: #e66767;
+  --serie-1: #199e70;
+  --serie-2: #3987e5;
+  --serie-3: #d95926;
+  --serie-neutre: #75746c;
+  --chart-grid: #2e2e2b;
+  --chart-tick: #75746c;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 34px rgba(0, 0, 0, 0.45);
+  --bar-bg: rgba(18, 18, 17, 0.97);
+  --bar-border: #2e2e2b;
+  --row-stripe: rgba(255, 255, 255, 0.022);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 *, *::before, *::after { -webkit-tap-highlight-color: transparent; }
 html, body {
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Display', 'Segoe UI', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
+/* Titres et montants en Schibsted Grotesk — la police de titre du site. */
+.topbar-title, .kpi-value { font-family: 'Schibsted Grotesk', 'Inter', -apple-system, sans-serif; }
 body {
   min-height: 100vh; min-height: 100dvh;
   background: var(--bg-gradient);
@@ -199,22 +220,24 @@ a { color: inherit; text-decoration: none; }
   max-width: 80px;
 }
 .btn {
-  padding: 9px 14px;
-  border-radius: 10px;
+  padding: 9px 16px;
+  border-radius: 999px;
   border: 1px solid var(--border-strong);
-  background: var(--surface-2);
+  background: var(--surface);
   color: var(--text);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
   min-height: 36px;
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   text-decoration: none;
-  transition: transform .1s, opacity .15s;
+  transition: transform .1s, opacity .15s, border-color .15s;
 }
+.btn:hover { border-color: var(--text); }
 .btn:active { transform: scale(0.97); }
-.btn-green { background: var(--success); border-color: var(--success); color: #fff; }
-.btn-red { background: var(--accent); border-color: var(--accent); color: #fff; }
+/* Action principale en noir plein ; le rouge reste un signal (contour), jamais un pavé. */
+.btn-green { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+.btn-red { background: var(--surface); border-color: var(--accent); color: var(--accent); }
 .icon-btn {
   width: 36px; height: 36px;
   display: inline-flex; align-items: center; justify-content: center;
@@ -271,30 +294,25 @@ a { color: inherit; text-decoration: none; }
 .tabs-inner::-webkit-scrollbar { display: none; }
 .tab {
   flex-shrink: 0;
-  padding: 14px 16px;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  margin: 7px 0;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: .01em;
   border: none; background: none;
   color: var(--text-muted);
   white-space: nowrap;
-  min-height: 46px;
   position: relative;
   scroll-snap-align: start;
-  transition: color .15s;
+  transition: color .15s, background .15s;
   cursor: pointer;
   user-select: none;
 }
+.tab:hover { background: var(--surface-2); color: var(--text); }
 .tab:active { color: var(--text); }
-.tab.active { color: var(--text); }
-.tab.active::after {
-  content: '';
-  position: absolute;
-  left: 16px; right: 16px; bottom: 0;
-  height: 2px;
-  background: var(--accent);
-  border-radius: 2px 2px 0 0;
-}
+.tab.active { background: var(--brand); color: var(--brand-ink); }
+.tab.active::after { display: none; }
 
 /* ====== CONTENT ====== */
 .content {
@@ -333,22 +351,22 @@ a { color: inherit; text-decoration: none; }
 .kpi {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 18px;
+  border-radius: 14px;
+  padding: 14px 16px;
   box-shadow: var(--shadow-sm);
 }
 .kpi-label {
-  font-size: 11px;
-  color: var(--text-muted);
+  font-size: 9.5px;
+  color: var(--text-soft);
   margin-bottom: 8px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-weight: 700;
+  letter-spacing: 1.6px;
+  font-weight: 800;
 }
 .kpi-value {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 800;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.5px;
   color: var(--text);
   line-height: 1.05;
   font-variant-numeric: tabular-nums;
@@ -370,15 +388,16 @@ a { color: inherit; text-decoration: none; }
 .chart-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 14px;
   padding: 20px;
   box-shadow: var(--shadow-sm);
 }
 .chart-title {
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--text);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--text-soft);
   margin-bottom: 16px;
 }
 .chart-wrap { position: relative; height: 240px; }
@@ -387,7 +406,7 @@ a { color: inherit; text-decoration: none; }
 .table-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 14px;
   overflow: hidden;
   margin-bottom: 24px;
   box-shadow: var(--shadow-sm);
@@ -395,15 +414,16 @@ a { color: inherit; text-decoration: none; }
 .table-header {
   padding: 14px 18px;
   display: flex; justify-content: space-between; align-items: center;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-soft);
   flex-wrap: wrap;
   gap: 10px;
 }
 .table-title {
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--text);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--text-soft);
 }
 .filters-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; align-items: center; }
 .filter-select {
@@ -436,9 +456,10 @@ a { color: inherit; text-decoration: none; }
   min-height: 38px;
 }
 .search-input:focus, .filter-select:focus {
-  outline: none;
+  outline: 2px solid var(--text);
+  outline-offset: -2px;
   border-color: var(--text);
-  box-shadow: 0 0 0 4px var(--accent-dim);
+  box-shadow: none;
 }
 
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -446,16 +467,16 @@ th {
   padding: 12px 14px;
   text-align: left;
   background: var(--surface-alt);
-  color: var(--text-muted);
-  font-weight: 600;
-  font-size: 11px;
+  color: var(--text-soft);
+  font-weight: 800;
+  font-size: 9.5px;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 1.2px;
   white-space: nowrap;
 }
 td {
   padding: 12px 14px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--border-soft);
   color: var(--text);
   vertical-align: middle;
 }
@@ -2748,7 +2769,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-10-08-v270-habillage-caisse'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-10-08-v271-habillage-dashboard'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -3000,12 +3021,18 @@ async function loadSummary() {
   `;
 }
 
+// Couleur de graphique lue depuis les jetons (suit le mode clair/sombre au prochain rendu).
+function nvChartColor(name, fallback) {
+  try { const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim(); return v || fallback; }
+  catch (_) { return fallback; }
+}
 function makeChart(id, type, labels, datasets, options={}) {
   if(typeof Chart==='undefined') return;
   if(charts[id]) charts[id].destroy();
   const ctx = document.getElementById(id)?.getContext('2d');
   if(!ctx) return;
-  charts[id] = new Chart(ctx, { type, data:{labels,datasets}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:datasets.length>1,labels:{font:{size:11},color:'#888780'}}},scales:type!=='doughnut'?{y:{beginAtZero:true,grid:{color:'#f1efe8'},ticks:{color:'#888780',font:{size:11}}},x:{grid:{display:false},ticks:{color:'#888780',font:{size:11}}}}:{},...options}});
+  const tick = nvChartColor('--chart-tick','#a0a0a0'), grid = nvChartColor('--chart-grid','#ececea');
+  charts[id] = new Chart(ctx, { type, data:{labels,datasets}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:datasets.length>1,labels:{font:{size:11},color:tick}}},scales:type!=='doughnut'?{y:{beginAtZero:true,grid:{color:grid},ticks:{color:tick,font:{size:11}}},x:{grid:{display:false},ticks:{color:tick,font:{size:11}}}}:{},...options}});
 }
 
 async function loadVentes() {
@@ -3026,37 +3053,45 @@ async function loadVentes() {
     api(`/analytics/recent?limit=9999&${getDateParams()}`)
   ]);
 
-  // Daily - stack par boutique
+  // Daily - stack par canal. Palette du site : 3 séries maximum (vert, bleu, orange) ;
+  // les canaux marginaux (Vinted, Depop, historiques…) sont regroupés en « Autres », gris neutre.
   const dates = [...new Set(daily.map(d=>d.date))].sort();
-  const channels = [...new Set(daily.map(d=>d.boutique))];
-  const colors = {'Lille':'#2C2C2A','DK':'#5DCAA5','Site web':'#7F77DD','Vinted':'#1D9E75','Depop':'#D85A30'};
-  const dailyDatasets = channels.map(ch => ({
+  const SERIE = { 'Lille': nvChartColor('--serie-1','#1baf7a'), 'DK': nvChartColor('--serie-2','#2a78d6'), 'Site web': nvChartColor('--serie-3','#eb6834') };
+  const NEUTRE = nvChartColor('--serie-neutre','#a0a0a0');
+  const channelsBruts = [...new Set(daily.map(d=>d.boutique))];
+  const chPrincipaux = channelsBruts.filter(ch => SERIE[ch]);
+  const chAutres = channelsBruts.filter(ch => !SERIE[ch]);
+  const sumFor = (chs, date) => chs.reduce((s, ch) => { const row = daily.find(d => d.date === date && d.boutique === ch); return s + (row ? parseFloat(row.revenue) : 0); }, 0);
+  const dailyDatasets = chPrincipaux.map(ch => ({
     label: ch,
-    data: dates.map(date => {
-      const row = daily.find(d => d.date === date && d.boutique === ch);
-      return row ? parseFloat(row.revenue) : 0;
-    }),
-    backgroundColor: colors[ch] || '#9FE1CB',
+    data: dates.map(date => sumFor([ch], date)),
+    backgroundColor: SERIE[ch],
     borderRadius: 4, stack: 'stack'
   }));
+  if (chAutres.length) dailyDatasets.push({ label: 'Autres', data: dates.map(date => sumFor(chAutres, date)), backgroundColor: NEUTRE, borderRadius: 4, stack: 'stack' });
   makeChart('dailyChart','bar',dates.map(d=>new Date(d).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})),dailyDatasets);
 
   const allHours=Array.from({length:13},(_,i)=>i+8);
   const hMap={};hourly.forEach(d=>hMap[parseInt(d.hour)]=parseInt(d.count));
-  makeChart('hourlyChart','bar',allHours.map(h=>`${h}h`),[{label:'Ventes',data:allHours.map(h=>hMap[h]||0),backgroundColor:'#5DCAA5',borderRadius:4}]);
+  makeChart('hourlyChart','bar',allHours.map(h=>`${h}h`),[{label:'Ventes',data:allHours.map(h=>hMap[h]||0),backgroundColor:nvChartColor('--serie-1','#1baf7a'),borderRadius:4}]);
 
-  const boutiqueColors = boutiques.map(d=>colors[d.boutique]||'#9FE1CB');
-  makeChart('boutiqueChart','doughnut',boutiques.map(d=>d.boutique),[{data:boutiques.map(d=>parseFloat(d.revenue)),backgroundColor:boutiqueColors,borderWidth:0}],{plugins:{legend:{display:true,position:'bottom',labels:{font:{size:12},color:'#5f5e5a'}}}});
+  // Donut par canal : même palette, mêmes regroupements que le graphique quotidien.
+  const bPrincipaux = boutiques.filter(d=>SERIE[d.boutique]);
+  const bAutres = boutiques.filter(d=>!SERIE[d.boutique]);
+  const bLabels = bPrincipaux.map(d=>d.boutique).concat(bAutres.length?['Autres']:[]);
+  const bData = bPrincipaux.map(d=>parseFloat(d.revenue)).concat(bAutres.length?[bAutres.reduce((s,d)=>s+parseFloat(d.revenue),0)]:[]);
+  const boutiqueColors = bPrincipaux.map(d=>SERIE[d.boutique]).concat(bAutres.length?[NEUTRE]:[]);
+  makeChart('boutiqueChart','doughnut',bLabels,[{data:bData,backgroundColor:boutiqueColors,borderWidth:0}],{plugins:{legend:{display:true,position:'bottom',labels:{font:{size:12},color:nvChartColor('--chart-tick','#a0a0a0')}}}});
 
   makeChart('employeeChart','bar',employees.map(d=>d.employee),[
-    {label:'CA (€)',data:employees.map(d=>parseFloat(d.revenue)),backgroundColor:'#2C2C2A',borderRadius:4},
-    {label:'Ventes',data:employees.map(d=>parseInt(d.count)),backgroundColor:'#D3D1C7',borderRadius:4}
+    {label:'CA (€)',data:employees.map(d=>parseFloat(d.revenue)),backgroundColor:nvChartColor('--serie-1','#1baf7a'),borderRadius:4},
+    {label:'Ventes',data:employees.map(d=>parseInt(d.count)),backgroundColor:NEUTRE,borderRadius:4}
   ]);
 
   const topBrands=brands.slice(0,10);
   makeChart('brandsChart','bar',topBrands.map(d=>d.brand),[
-    {label:'Ventes',data:topBrands.map(d=>parseInt(d.count)),backgroundColor:'#5DCAA5',borderRadius:4},
-    {label:'CA (€)',data:topBrands.map(d=>parseFloat(d.revenue)),backgroundColor:'#2C2C2A',borderRadius:4}
+    {label:'Ventes',data:topBrands.map(d=>parseInt(d.count)),backgroundColor:NEUTRE,borderRadius:4},
+    {label:'CA (€)',data:topBrands.map(d=>parseFloat(d.revenue)),backgroundColor:nvChartColor('--serie-1','#1baf7a'),borderRadius:4}
   ],{indexAxis:'y'});
 
   allSalesData = recent;
@@ -6382,7 +6417,7 @@ function pdvVentilTable(title, hint, list, keyLabel, cols) {
 }
 // Barres horizontales pures CSS (pas de dépendance externe).
 // ---- Graphiques Chart.js (chargée à la demande, comme SheetJS) ----
-const PDV_PALETTE = ['#3B6D11', '#185FA5', '#E0A106', '#7c5cd6', '#A32D2D', '#0d8f8f', '#c0397b', '#5a6270'];
+const PDV_PALETTE = ['#1baf7a', '#2a78d6', '#eb6834', '#a0a0a0', '#7a7a7a', '#c7c6c3', '#55544f', '#8f8e86']; // 3 séries du site puis gris neutres (jamais de 4e couleur d'accent)
 const _pdvHexRgba = (hex, a) => { const h = hex.replace('#', ''); const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; };
 let _pdvChartInstances = {}; let _pdvChartQueue = [];
 async function pdvLoadChartLib() {
@@ -6410,7 +6445,7 @@ function pdvChartCfg(type, rows, valueFmt, color) {
     const tt = { callbacks: { label: c => (type === 'bar' || type === 'line') ? valueFmt(raw[c.dataIndex]) : `${c.label} : ${valueFmt(raw[c.dataIndex])}` } };
     if (type === 'doughnut') return { type: 'doughnut', data: { labels, datasets: [{ data, backgroundColor: labels.map((_, i) => PDV_PALETTE[i % PDV_PALETTE.length]), borderColor: surf, borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'right', labels: { color: ink, boxWidth: 12, font: { size: 11 } } }, tooltip: tt } } };
     if (type === 'line') return { type: 'line', data: { labels, datasets: [{ data: raw, borderColor: color, backgroundColor: _pdvHexRgba(color, 0.14), fill: true, tension: 0.3, borderWidth: 2, pointRadius: 3, pointBackgroundColor: color, pointBorderColor: surf }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: tt }, scales: { x: { grid: { display: false }, ticks: { color: ink, font: { size: 11 } } }, y: { grid: { color: grid }, ticks: { color: ink, font: { size: 11 }, callback: v => valueFmt(v) } } } } };
-    return { type: 'bar', data: { labels, datasets: [{ data: raw, backgroundColor: raw.map(v => v < 0 ? '#A32D2D' : color), borderRadius: 4, maxBarThickness: 46 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: tt }, scales: { x: { grid: { display: false }, ticks: { color: ink, font: { size: 11 }, maxRotation: 45, minRotation: 0 } }, y: { grid: { color: grid }, ticks: { color: ink, font: { size: 11 }, callback: v => valueFmt(v) } } } } };
+    return { type: 'bar', data: { labels, datasets: [{ data: raw, backgroundColor: raw.map(v => v < 0 ? nvChartColor('--accent','#c0392b') : color), borderRadius: 4, maxBarThickness: 46 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: tt }, scales: { x: { grid: { display: false }, ticks: { color: ink, font: { size: 11 }, maxRotation: 45, minRotation: 0 } }, y: { grid: { color: grid }, ticks: { color: ink, font: { size: 11 }, callback: v => valueFmt(v) } } } } };
   };
 }
 // Bloc ventilation avec bascule Tableau / Graphique (Chart.js).
@@ -6422,7 +6457,7 @@ function pdvvBlock(id, title, hint, list, keyLabel, cols, chartVal, chartFmt, ch
   const header = `<div class="table-header" style="margin-bottom:10px;align-items:center;gap:10px;"><span class="table-title">${title}</span>${hint ? `<span style="font-size:11px;color:var(--text-soft);">${hint}</span>` : ''}${toggle}</div>`;
   if (isChart) {
     const cid = 'pdvcv_' + id, rows = list.map(g => ({ label: String(g.k), value: chartVal(g) }));
-    pdvQueueChart(cid, pdvChartCfg(chartType || 'bar', rows, chartFmt, chartColor || '#3B6D11'));
+    pdvQueueChart(cid, pdvChartCfg(chartType || 'bar', rows, chartFmt, chartColor || nvChartColor('--serie-1','#1baf7a')));
     const h = (chartType === 'doughnut') ? 260 : Math.max(220, Math.min(list.length * 34 + 40, 380));
     return `<div class="table-card">${header}<div style="position:relative;height:${h}px;">${rows.length ? `<canvas id="${cid}"></canvas>` : '<div style="color:var(--text-muted);padding:14px;">Aucune donnée.</div>'}</div></div>`;
   }
@@ -7154,9 +7189,9 @@ function veilleSalesGoto(n){ if(n<1||n>veilleState.lastTotalPages) return; veill
 function veilleRenderCharts(stats){
   if(typeof Chart==='undefined'){ document.querySelectorAll('.chart-wrap').forEach(el=>{el.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-soft);font-size:12px;">Graphique indisponible (Chart.js non chargé)</div>';}); return; }
   const byDay=stats.byDay||[];
-  if (document.getElementById('veilleVolChart')) makeChart('veilleVolChart','line', byDay.map(r=>r.day), [{label:'Volume', data:byDay.map(r=>+r.volume), borderColor:'#E8504E', backgroundColor:'rgba(232,80,78,0.12)', fill:true, tension:0.3, pointRadius:2}]);
+  if (document.getElementById('veilleVolChart')) makeChart('veilleVolChart','line', byDay.map(r=>r.day), [{label:'Volume', data:byDay.map(r=>+r.volume), borderColor:nvChartColor('--serie-1','#1baf7a'), backgroundColor:'rgba(27,175,122,0.12)', fill:true, tension:0.3, pointRadius:2}]);
   const top=(stats.byBrand||[]).slice(0,8);
-  if (document.getElementById('veilleBrandChart')) makeChart('veilleBrandChart','bar', top.map(b=>b.brand), [{label:'Volume', data:top.map(b=>+b.volume), backgroundColor:'#185FA5', borderRadius:4}]);
+  if (document.getElementById('veilleBrandChart')) makeChart('veilleBrandChart','bar', top.map(b=>b.brand), [{label:'Volume', data:top.map(b=>+b.volume), backgroundColor:nvChartColor('--serie-2','#2a78d6'), borderRadius:4}]);
 }
 
 function veilleRenderHeatmap(heatmap){
