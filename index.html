@@ -257,7 +257,9 @@
     .app {
       max-width: 520px;
       margin: 0 auto;
-      padding: 0 16px 16px;
+      /* 12 px de respiration sous la barre fixe — le sélecteur de boutique (admin)
+         arrivait collé au bord supérieur sur mobile. */
+      padding: 12px 16px 16px;
     }
 
     /* ====== TOP BAR ====== */
@@ -535,7 +537,8 @@
       letter-spacing: -0.03em;
       color: var(--text);
       margin: 12px 0 6px;
-      font-variant-numeric: tabular-nums;
+      /* Proportionnel : le tabulaire écartait trop les chiffres d'un prix isolé en Schibsted. */
+      font-variant-numeric: normal;
     }
     .pdetails {
       font-size: 13px; color: var(--text-muted);
@@ -1108,7 +1111,7 @@ async function nvHardReload(){
 </script>
 
 <script>
-  const APP_VERSION = '2026-10-08-v271-habillage-dashboard'; // version unifiée (dashboard, sw.js, serveur)
+  const APP_VERSION = '2026-10-08-v272-finitions-visuelles'; // version unifiée (dashboard, sw.js, serveur)
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
 
   // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
