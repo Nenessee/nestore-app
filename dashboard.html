@@ -369,7 +369,9 @@ a { color: inherit; text-decoration: none; }
   letter-spacing: -0.5px;
   color: var(--text);
   line-height: 1.05;
-  font-variant-numeric: tabular-nums;
+  /* Chiffres PROPORTIONNELS ici : le tabulaire (utile dans les colonnes de prix)
+     écartait trop les chiffres en Schibsted sur une grosse valeur isolée. */
+  font-variant-numeric: normal;
 }
 .kpi-value.green { color: var(--success); }
 .kpi-trend { font-size: 12px; margin-top: 6px; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -2769,7 +2771,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-10-08-v271-habillage-dashboard'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-10-08-v272-finitions-visuelles'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -3031,7 +3033,9 @@ function makeChart(id, type, labels, datasets, options={}) {
   if(charts[id]) charts[id].destroy();
   const ctx = document.getElementById(id)?.getContext('2d');
   if(!ctx) return;
-  const tick = nvChartColor('--chart-tick','#a0a0a0'), grid = nvChartColor('--chart-grid','#ececea');
+  // Chiffres d'axes lisibles : Inter + encre secondaire (plus foncée que les micro-libellés).
+  if (Chart.defaults && Chart.defaults.font) Chart.defaults.font.family = "'Inter', -apple-system, 'Helvetica Neue', Arial, sans-serif";
+  const tick = nvChartColor('--text-muted','#7a7a7a'), grid = nvChartColor('--chart-grid','#ececea');
   charts[id] = new Chart(ctx, { type, data:{labels,datasets}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:datasets.length>1,labels:{font:{size:11},color:tick}}},scales:type!=='doughnut'?{y:{beginAtZero:true,grid:{color:grid},ticks:{color:tick,font:{size:11}}},x:{grid:{display:false},ticks:{color:tick,font:{size:11}}}}:{},...options}});
 }
 
