@@ -2322,11 +2322,22 @@ tbody tr { transition: background .12s; }
         <div><label class="eq-lbl">Prénom</label><input id="euName" class="search-input" placeholder="ex: Sophie" style="width:100%;"/></div>
         <div><label class="eq-lbl">Code (PIN)</label><input id="euPin" class="search-input" inputmode="numeric" placeholder="4 à 6 chiffres" style="width:100%;"/></div>
         <div><label class="eq-lbl">Boutique</label><select id="euBoutique" class="search-input" style="width:100%;"><option value="">—</option><option value="Lille">Lille</option><option value="DK">Dunkerque</option></select></div>
-        <div><label class="eq-lbl">Rôle</label><select id="euRole" class="search-input" style="width:100%;"><option value="employee">Employé</option><option value="admin">Admin (lecture)</option><option value="superadmin">Superadmin</option><option value="deposant">Déposant (client)</option></select></div>
-        <div><label class="eq-lbl">Tag déposant (option)</label><input id="euDepotTag" class="search-input" placeholder="depot-nom" style="width:100%;" title="Obligatoire pour un compte Déposant ; optionnel pour un membre d'équipe qui a aussi des articles en dépôt (il verra « Mes dépôts »)"/></div>
+        <div><label class="eq-lbl">Rôle</label><select id="euRole" class="search-input" style="width:100%;"><option value="employee">Employé</option><option value="admin">Admin (lecture)</option><option value="superadmin">Superadmin</option></select></div>
         <button class="btn btn-green" onclick="equipeAddUser()" style="min-height:42px;white-space:nowrap;">＋ Ajouter</button>
       </div>
       <div id="euAddResult" style="margin-top:10px;font-size:13px;"></div>
+    </div>
+
+    <div class="table-card" style="padding:18px;margin-bottom:16px;">
+      <div class="table-title" style="margin-bottom:6px;">Ajouter un déposant (client)</div>
+      <div style="font-size:12px;color:var(--text-soft);margin-bottom:14px;">Compte client pour l'espace dépôt (depot.html) : il ne voit QUE ses articles — ni boutique, ni accès à l'app. Pour un membre d'équipe qui a aussi un dépôt (ex. Noa), utilise plutôt le bouton 💼 sur sa ligne.</div>
+      <div class="eq-addgrid" style="grid-template-columns:minmax(160px,2fr) minmax(120px,1fr) minmax(150px,1.3fr) auto;">
+        <div><label class="eq-lbl">Nom du client</label><input id="edName" class="search-input" placeholder="ex: Drag" style="width:100%;"/></div>
+        <div><label class="eq-lbl">Code (PIN)</label><input id="edPin" class="search-input" inputmode="numeric" placeholder="6 chiffres min" style="width:100%;"/></div>
+        <div><label class="eq-lbl">Tag dépôt</label><input id="edTag" class="search-input" placeholder="depot-drag" style="width:100%;"/></div>
+        <button class="btn btn-green" onclick="equipeAddDeposant()" style="min-height:42px;white-space:nowrap;">＋ Créer le déposant</button>
+      </div>
+      <div id="edAddResult" style="margin-top:10px;font-size:13px;"></div>
     </div>
 
     <div class="table-card" style="padding:18px;">
@@ -2801,7 +2812,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-10-08-v274-depots-site'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-10-08-v275-ajout-deposant-separe'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -8690,17 +8701,34 @@ window.markVintedRemoved = async function(barcode, btn) {
     const pin=(document.getElementById('euPin').value||'').trim();
     const boutique=document.getElementById('euBoutique').value;
     const role=document.getElementById('euRole').value;
-    const depotTag=((document.getElementById('euDepotTag')||{}).value||'').trim();
     const out=document.getElementById('euAddResult');
-    const _minLen = (role==='admin'||role==='superadmin'||role==='deposant')?6:4;
+    const _minLen = (role==='admin'||role==='superadmin')?6:4;
     if(!name||pin.length<_minLen){ out.innerHTML=`<span style="color:var(--accent);">Prénom + code (${_minLen} chiffres min pour ce rôle) requis.</span>`; return; }
-    if(role==='deposant'&&!depotTag){ out.innerHTML='<span style="color:var(--accent);">Un compte Déposant doit avoir son tag (ex. depot-noa).</span>'; return; }
     try {
-      const res=await fetch(`${BACKEND_URL}/auth/users`,{method:'POST',headers:{'X-NV-Admin-Token':token,'Content-Type':'application/json'},body:JSON.stringify({name,pin,boutique,role,depotTag:depotTag||null})});
+      const res=await fetch(`${BACKEND_URL}/auth/users`,{method:'POST',headers:{'X-NV-Admin-Token':token,'Content-Type':'application/json'},body:JSON.stringify({name,pin,boutique,role})});
       const dd=await res.json().catch(()=>({}));
       if(!res.ok){ out.innerHTML='<span style="color:var(--accent);">'+(dd.error||'Erreur')+'</span>'; return; }
-      out.innerHTML='<span style="color:var(--success);">✓ '+_esc(name)+' ajouté'+(depotTag?` · 💼 ${_esc(depotTag)}`:'')+'</span>';
-      document.getElementById('euName').value=''; document.getElementById('euPin').value=''; if(document.getElementById('euDepotTag')) document.getElementById('euDepotTag').value='';
+      out.innerHTML='<span style="color:var(--success);">✓ '+_esc(name)+' ajouté</span>';
+      document.getElementById('euName').value=''; document.getElementById('euPin').value='';
+      loadTeam();
+    } catch(e){ out.innerHTML='<span style="color:var(--accent);">Erreur réseau</span>'; }
+  };
+  // Création d'un DÉPOSANT (client) : flux séparé — rôle forcé, PAS de boutique (évite les
+  // erreurs de saisie), tag depot-nom obligatoire.
+  window.equipeAddDeposant = async function() {
+    const token = ''; // session superadmin via le wrapper fetch
+    const name=(document.getElementById('edName').value||'').trim();
+    const pin=(document.getElementById('edPin').value||'').trim();
+    const tag=(document.getElementById('edTag').value||'').trim().toLowerCase();
+    const out=document.getElementById('edAddResult');
+    if(!name||pin.length<6){ out.innerHTML='<span style="color:var(--accent);">Nom + code (6 chiffres minimum) requis.</span>'; return; }
+    if(!/^depot-[a-z0-9][a-z0-9-]*$/.test(tag)){ out.innerHTML='<span style="color:var(--accent);">Tag invalide — format attendu : depot-nom (ex. depot-drag).</span>'; return; }
+    try {
+      const res=await fetch(`${BACKEND_URL}/auth/users`,{method:'POST',headers:{'X-NV-Admin-Token':token,'Content-Type':'application/json'},body:JSON.stringify({name,pin,role:'deposant',depotTag:tag})});
+      const dd=await res.json().catch(()=>({}));
+      if(!res.ok){ out.innerHTML='<span style="color:var(--accent);">'+(dd.error||'Erreur')+'</span>'; return; }
+      out.innerHTML='<span style="color:var(--success);">✓ Déposant '+_esc(name)+' créé · 💼 '+_esc(tag)+' — donne-lui l\'adresse depot.html + son nom et son code.</span>';
+      document.getElementById('edName').value=''; document.getElementById('edPin').value=''; document.getElementById('edTag').value='';
       loadTeam();
     } catch(e){ out.innerHTML='<span style="color:var(--accent);">Erreur réseau</span>'; }
   };
