@@ -21,7 +21,19 @@
   .voile.on { display: block; }
   .feuille { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); width: min(520px, 100vw);
     background: var(--n-surface); border: 1px solid var(--n-line); border-radius: 18px 18px 0 0;
-    max-height: 82dvh; overflow: auto; padding: 18px 18px calc(18px + env(safe-area-inset-bottom)); }
+    max-height: 82dvh; overflow: auto; padding: 10px 18px calc(18px + env(safe-area-inset-bottom)); }
+  .feuille__poignee { width: 40px; height: 4px; border-radius: 999px; background: var(--n-line); margin: 0 auto 14px; }
+  /* Lignes d'action du panneau */
+  .act { display: flex; gap: 12px; align-items: center; width: 100%; text-align: left; padding: 13px 14px;
+    border: 1px solid var(--n-line); border-radius: 14px; background: var(--n-surface); cursor: pointer;
+    font: inherit; color: inherit; }
+  .act:active { background: var(--n-surface-2); }
+  .act__ico { font-size: 20px; flex: 0 0 auto; }
+  .act__txt { flex: 1; min-width: 0; }
+  .act__txt strong { font-size: 14px; }
+  .act__txt small { display: block; color: var(--n-ink-3); font-size: 11.5px; margin-top: 2px; }
+  .act__chev { color: var(--n-ink-4); font-size: 18px; }
+  .n-btn:disabled { opacity: .4; cursor: not-allowed; }
   @media (max-width: 480px) { .masq-mobile { display: none; } }
 </style>
 </head>
@@ -185,26 +197,95 @@ function ouvrirPanneau(ev, pid){
   const i = ((donnees||{}).items||[]).find(x=>String(x.productId)===String(pid));
   if (!i) return;
   articleOuvert = i;
-  const enCours = (i.demandes||[]).length;
-  document.getElementById('feuille').innerHTML = `
-    <div style="display:flex;gap:12px;align-items:center;margin-bottom:14px;">
-      ${i.image?`<img class="n-row__thumb" src="${esc(i.image)}" style="width:56px;height:56px;" alt="">`:`<div class="n-row__thumb thumb-ph" style="width:56px;height:56px;">👕</div>`}
-      <div style="min-width:0;">
-        <div class="n-h3" style="font-size:15px;">${esc(i.titre)}</div>
-        <div class="n-muted" style="font-size:12px;">${i.prix!=null?('affiché '+eur(i.prix)+' · '):''}${i.net!=null?('ton net : '+eur(i.net)):''}</div>
-        ${i.url?`<a href="${esc(i.url)}" target="_blank" rel="noopener" style="font-size:12px;color:inherit;">voir sur le site ↗</a>`:''}
-      </div>
-    </div>
-    ${enCours
-      ? `<div class="n-pill n-pill--accent" style="margin-bottom:8px;">⏳ Demande en cours : ${i.demandes.map(x=>x.type==='prix'?('prix '+x.newPrice+' €'):x.type.replace('_',' ')).join(' · ')}</div>
-         <div class="n-muted" style="font-size:12.5px;">L'équipe Nestore doit d'abord la traiter avant une nouvelle demande.</div>`
-      : `<div style="display:flex;flex-direction:column;gap:8px;">
-          <button class="n-btn n-btn--primary" style="width:100%;" onclick="agir('retrait')">📤 Demander le retrait</button>
-          <button class="n-btn n-btn--ghost" style="width:100%;" onclick="agir('vendu_ailleurs')">🤝 Vendu de mon côté</button>
-          <button class="n-btn n-btn--ghost" style="width:100%;" onclick="agirPrix()">💶 Changer le prix</button>
-        </div>`}
-    <button class="n-btn n-btn--ghost n-btn--sm" style="width:100%;margin-top:12px;" onclick="fermerPanneau()">Fermer</button>`;
+  panneauActions();
   document.getElementById('voile').classList.add('on');
+}
+function panneauEntete(i){
+  return `
+    <div class="feuille__poignee"></div>
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;">
+      ${i.image?`<img class="n-row__thumb" src="${esc(i.image)}" style="width:60px;height:60px;" alt="">`:`<div class="n-row__thumb thumb-ph" style="width:60px;height:60px;">👕</div>`}
+      <div style="min-width:0;flex:1;">
+        <div class="n-h3" style="font-size:15.5px;line-height:1.25;">${esc(i.titre)}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:5px;">
+          ${i.prix!=null?`<span class="n-pill n-pill--outline n-num">${eur(i.prix)} affiché</span>`:''}
+          ${i.net!=null?`<span class="n-pill n-pill--outline n-num" style="color:var(--n-ok);border-color:var(--n-ok);">${eur(i.net)} pour toi</span>`:''}
+          ${i.url?`<a href="${esc(i.url)}" target="_blank" rel="noopener" style="font-size:12px;color:inherit;">voir sur le site ↗</a>`:''}
+        </div>
+      </div>
+    </div>`;
+}
+// Vue 1 : les trois actions.
+function panneauActions(){
+  const i = articleOuvert; if(!i) return;
+  const enCours = (i.demandes||[]).length;
+  document.getElementById('feuille').innerHTML = panneauEntete(i) + (enCours
+    ? `<div style="border:1px solid var(--n-line);border-radius:14px;padding:14px;background:var(--n-surface-2);">
+        <div style="font-weight:700;font-size:13.5px;margin-bottom:4px;">⏳ Demande en cours : ${i.demandes.map(x=>x.type==='prix'?('prix '+x.newPrice+' €'):x.type.replace('_',' ')).join(' · ')}</div>
+        <div class="n-muted" style="font-size:12.5px;">L'équipe Nestore doit d'abord la traiter avant une nouvelle demande.</div>
+      </div>`
+    : `<div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="act" onclick="agir('retrait')"><span class="act__ico">📤</span><span class="act__txt"><strong>Demander le retrait</strong><small>L'équipe valide, le retire du site et te le tient prêt en boutique.</small></span><span class="act__chev">›</span></button>
+        <button class="act" onclick="agir('vendu_ailleurs')"><span class="act__ico">🤝</span><span class="act__txt"><strong>Vendu de mon côté</strong><small>Tu l'as vendu toi-même — l'équipe valide et le retire du site.</small></span><span class="act__chev">›</span></button>
+        <button class="act" onclick="panneauPrix()"><span class="act__ico">💶</span><span class="act__txt"><strong>Changer le prix</strong><small>Nouveau prix affiché — tu vois tout de suite ce que tu touches.</small></span><span class="act__chev">›</span></button>
+      </div>`)
+    + `<button class="n-btn n-btn--ghost n-btn--sm" style="width:100%;margin-top:12px;" onclick="fermerPanneau()">Fermer</button>`;
+}
+// Vue 2 : nouveau prix, avec le calcul EN DIRECT (affiché / commission / ce que tu touches).
+function panneauPrix(){
+  const i = articleOuvert; if(!i) return;
+  document.getElementById('feuille').innerHTML = panneauEntete(i) + `
+    <span class="n-label">Nouveau prix affiché sur le site</span>
+    <div style="display:flex;gap:8px;align-items:stretch;margin:8px 0 10px;">
+      <button class="n-btn n-btn--ghost" style="min-width:54px;font-size:16px;" onclick="prixPas(-5)">−5</button>
+      <div style="flex:1;position:relative;">
+        <input id="prixInput" class="n-field n-num" inputmode="numeric" autocomplete="off" value="${i.prix!=null?Math.round(i.prix):''}" oninput="prixMaj()" style="width:100%;text-align:center;font-size:24px;font-weight:800;padding-right:36px;">
+        <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-weight:800;color:var(--n-ink-3);">€</span>
+      </div>
+      <button class="n-btn n-btn--ghost" style="min-width:54px;font-size:16px;" onclick="prixPas(5)">+5</button>
+    </div>
+    <div id="prixRecap"></div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button class="n-btn n-btn--ghost" style="flex:1;" onclick="panneauActions()">← Retour</button>
+      <button id="prixEnvoyerBtn" class="n-btn n-btn--primary" style="flex:2;" onclick="prixEnvoyer()">Envoyer la demande</button>
+    </div>`;
+  prixMaj();
+  const el = document.getElementById('prixInput');
+  if (el) { el.focus(); el.select(); }
+}
+function prixPas(d){
+  const el = document.getElementById('prixInput'); if(!el) return;
+  const v = Number(String(el.value).replace(',','.')) || 0;
+  el.value = Math.max(0, Math.round((v + d) / 5) * 5); // on retombe toujours sur un multiple de 5
+  prixMaj();
+}
+function prixMaj(){
+  const i = articleOuvert; if(!i) return;
+  const c = (donnees && donnees.commission) || { taux: 0.3, frais: 15, prixMin: 25 };
+  const box = document.getElementById('prixRecap');
+  const btn = document.getElementById('prixEnvoyerBtn');
+  const p = Number(String((document.getElementById('prixInput')||{}).value||'').replace(',','.'));
+  const valide = Number.isFinite(p) && p >= c.prixMin && p % 5 === 0;
+  const identique = valide && i.prix != null && p === i.prix;
+  const ligne = (l,v,fort) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;${fort?'':'border-bottom:1px dashed var(--n-line);'}"><span class="n-muted" style="font-size:12.5px;">${l}</span><span class="n-num" style="font-weight:${fort?800:600};font-size:${fort?'18px':'13.5px'};${fort?'color:var(--n-ok);':''}">${v}</span></div>`;
+  if (valide) {
+    const net = Math.round((p * (1 - c.taux) - c.frais) * 100) / 100;
+    box.innerHTML = `<div style="border:1px solid var(--n-line);border-radius:14px;padding:4px 14px;background:var(--n-surface-2);">
+      ${ligne('Affiché sur le site', eur(p))}
+      ${ligne(`Commission Nestore (${Math.round(c.taux*100)} % + ${c.frais} €)`, '− ' + eur(p - net))}
+      ${ligne('Tu touches à la vente', eur(net), true)}
+    </div>${identique?`<div class="n-muted" style="font-size:12px;margin-top:6px;">C'est déjà le prix actuel — change-le pour envoyer.</div>`:''}`;
+  } else {
+    box.innerHTML = `<div style="border:1px dashed var(--n-line);border-radius:14px;padding:12px 14px;color:var(--n-ink-3);font-size:12.5px;">Prix en multiples de 5 € — minimum ${c.prixMin} €. Exemple : 35, 120, 235…</div>`;
+  }
+  if (btn) btn.disabled = !valide || identique;
+}
+async function prixEnvoyer(){
+  const i = articleOuvert; if(!i) return;
+  const p = Number(String((document.getElementById('prixInput')||{}).value||'').replace(',','.'));
+  const c = (donnees && donnees.commission) || { taux: 0.3, frais: 15, prixMin: 25 };
+  if (!Number.isFinite(p) || p < c.prixMin || p % 5 !== 0) return;
+  await envoyerDemandes([{ productId: i.productId, type: 'prix', newPrice: p }]);
 }
 function fermerPanneau(){ articleOuvert=null; const v=document.getElementById('voile'); if(v) v.classList.remove('on'); }
 async function agir(type){
@@ -214,17 +295,6 @@ async function agir(type){
     : `Marquer « ${i.titre} » vendu de ton côté ?\n\nL'équipe valide et le retire du site.`;
   if(!confirm(msg)) return;
   await envoyerDemandes([{ productId: i.productId, type }]);
-}
-async function agirPrix(){
-  const i = articleOuvert; if(!i) return;
-  const c = (donnees && donnees.commission) || { prixMin: 25 };
-  const v = prompt(`Nouveau prix affiché pour « ${i.titre} » (actuellement ${i.prix!=null?i.prix+' €':'—'}) —\nmultiple de 5, minimum ${c.prixMin} € :`);
-  if(v===null) return;
-  const p = Number(String(v).replace(',','.'));
-  if(!Number.isFinite(p) || p < c.prixMin || p % 5 !== 0){ alert(`Prix invalide — multiple de 5 €, minimum ${c.prixMin} €. Exemple : 35, 120, 235…`); return; }
-  const net = Math.round((p*0.7-15)*100)/100;
-  if(!confirm(`Prix demandé : ${p} € (tu toucheras ${net.toFixed(2)} € à la vente).\nAppliqué après validation par l'équipe — envoyer ?`)) return;
-  await envoyerDemandes([{ productId: i.productId, type:'prix', newPrice: p }]);
 }
 async function envoyerDemandes(demandes){
   try {
