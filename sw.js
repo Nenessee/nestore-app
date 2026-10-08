@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-2026-10-08-v279-barre-flottante-prix-direct'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
+const CACHE_VERSION = 'nestore-2026-10-08-v280-dosage-clics-panneau-centre'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
 const STATIC_ASSETS = [
   '/',
   '/index.html',

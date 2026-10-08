@@ -2832,7 +2832,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-10-08-v279-barre-flottante-prix-direct'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-10-08-v280-dosage-clics-panneau-centre'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -4883,8 +4883,8 @@ function depotSiteRender() {
   const rows = depotSiteVisibles();
   const opts = c => '<option value="">— non attribué —</option>' + (d.clients || []).map(x => `<option value="${esc(x.depot_tag)}"${c === x.depot_tag ? ' selected' : ''}>${esc(x.name)}</option>`).join('');
   document.getElementById('depotSiteTable').innerHTML = rows.length ? rows.map(i => `
-    <tr onclick="depotSiteLigneClick(event,'${esc(escJs(String(i.productId)))}')" style="cursor:pointer;">
-      <td><input type="checkbox" ${depotSiteSel.has(String(i.productId)) ? 'checked' : ''} onchange="depotSiteCocher('${esc(escJs(String(i.productId)))}',this.checked)"></td>
+    <tr>
+      <td style="cursor:pointer;padding-left:14px;padding-right:14px;" onclick="depotSiteCaseClick(event,'${esc(escJs(String(i.productId)))}')"><input type="checkbox" ${depotSiteSel.has(String(i.productId)) ? 'checked' : ''} onchange="depotSiteCocher('${esc(escJs(String(i.productId)))}',this.checked)"></td>
       <td><div style="display:flex;align-items:center;gap:8px;">${i.image ? `<img src="${esc(i.image)}" style="width:34px;height:34px;object-fit:cover;border-radius:7px;flex-shrink:0;">` : ''}<span>${esc(i.titre)}</span>${i.clientTag ? '' : ' <span class="badge" style="background:var(--warning-dim);color:var(--warning);">⚠ à attribuer</span>'} <a href="https://admin.shopify.com/store/nestore-io/products/${esc(String(i.productId))}" target="_blank" rel="noopener" style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:999px;background:var(--surface);color:var(--text);text-decoration:none;white-space:nowrap;">↗ Shopify</a></div></td>
       <td style="font-family:monospace;font-size:12px;">${esc(i.barcode || '—')}</td>
       <td class="num">${i.prix != null ? i.prix.toFixed(2) + ' €' : '—'}</td>
@@ -4893,9 +4893,10 @@ function depotSiteRender() {
     </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted);">Aucun article</td></tr>';
   depotSiteMajBulk();
 }
-// Cliquer n'importe où sur la ligne coche/décoche (sauf sur la liste client, le lien ou la case elle-même).
-function depotSiteLigneClick(ev, pid) {
-  if (ev.target.closest('select, a, button') || ev.target.tagName === 'INPUT') return;
+// Zone de clic élargie AUTOUR de la case (toute la cellule), sans que le reste de la
+// ligne ne coche — cliquer un titre ou un prix ne sélectionne rien.
+function depotSiteCaseClick(ev, pid) {
+  if (ev.target.tagName === 'INPUT') return; // la case elle-même gère déjà son onchange
   const on = !depotSiteSel.has(String(pid));
   depotSiteCocher(pid, on);
   const cb = ev.currentTarget.querySelector('input[type="checkbox"]');
