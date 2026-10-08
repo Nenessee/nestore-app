@@ -2748,7 +2748,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-10-05-v268-emplacement-caisse'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-10-08-v269-fake-anticourse'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -5844,7 +5844,8 @@ function vintedCloseFiche(){ document.getElementById('vintedFiche').classList.re
 function vintedCopy(btn,val){ try{ navigator.clipboard&&navigator.clipboard.writeText(val); }catch(_){}; const t=btn.textContent; btn.textContent='copié ✓'; setTimeout(()=>btn.textContent=t,1200); }
 
 function vintedSave(encaisse){
-  const uid=vintedCurrentUid; const a=vintedAll.find(x=>x.uid===uid); if(!a) return;
+  const uid=vintedCurrentUid; const a=vintedAll.find(x=>x.uid===uid);
+  if(!a){ showDashToast('Article introuvable dans la liste — 🔄 Actualiser puis rouvre la fiche','error'); return; }
   const fields={ categorie:document.getElementById('vfCat').value, authenticite:document.getElementById('vfAuth').value, note:document.getElementById('vfNote').value, emplacement_2:document.getElementById('vfLoc').value };
   // Un article fake ou remboursé ne peut pas être mis en caisse → on enregistre les champs sans encaisser.
   if(encaisse && (fields.authenticite==='FAKE' || vIsRefunded(a))){ showDashToast('Article fake/remboursé : enregistré sans mise en caisse','warn'); encaisse=false; }
@@ -5857,10 +5858,10 @@ function vintedSave(encaisse){
   a.categorie=fields.categorie; a.authenticite=fields.authenticite; a.note=fields.note; a.emplacement_2=fields.emplacement_2;
   if(encaisse){ a.en_caisse='Oui'; a.en_caisse_at=new Date().toISOString(); }
   vintedRenderKpis(); vintedRenderCurrent();
-  // écriture Sheet + base en fond
+  // écriture Sheet + base en fond — un échec est TOUJOURS signalé avec sa raison (statut HTTP compris)
   fetch(`${BACKEND_URL}/vinted/article/${encodeURIComponent(uid)}/save`,{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ fields, encaisse }) })
-    .then(r=>r.json()).then(d=>{ if(!d||!d.ok){ showDashToast('Échec écriture Sheet : '+((d&&d.erreur)||'?'),'error'); loadVinted(); } })
-    .catch(()=>{ showDashToast('Erreur réseau (Sheet)','error'); loadVinted(); });
+    .then(async r=>{ const d=await r.json().catch(()=>null); if(!r.ok||!d||!d.ok){ showDashToast('Échec écriture Sheet : '+((d&&d.erreur)||('HTTP '+r.status)),'error'); loadVinted(); } })
+    .catch(()=>{ showDashToast('Erreur réseau (Sheet) — modification NON enregistrée, réessaie','error'); loadVinted(); });
   if(encaisse){
     if(nextUid){ openVintedFiche(nextUid); }
     else { vintedCloseFiche(); showDashToast('Mis en caisse ✓ — plus rien à traiter ici','success'); }
