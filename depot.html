@@ -147,7 +147,7 @@ async function chargerTout(){
         ${i.image?`<img class="n-row__thumb" src="${esc(i.image)}" alt="">`:`<div class="n-row__thumb thumb-ph">👕</div>`}
         <div class="n-row__main">
           <div class="n-row__title">${esc(i.titre)}</div>
-          <div class="n-row__sub">${i.barcode?esc(i.barcode)+' · ':''}${i.net!=null?('ton net : '+eur(i.net)):''}</div>
+          <div class="n-row__sub">${i.barcode?esc(i.barcode)+' · ':''}${i.net!=null?('ton net : '+eur(i.net)):''}${i.url?` · <a href="${esc(i.url)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;white-space:nowrap;">voir sur le site ↗</a>`:''}</div>
         </div>
         <div class="n-row__side">
           ${i.demandes.length?`<span class="n-pill n-pill--accent">⏳ ${i.demandes.map(x=>x.type==='prix'?('prix '+x.newPrice+' €'):x.type.replace('_',' ')).join(' · ')}</span>`:(actif?'<span class="n-pill n-pill--outline">En ligne</span>':'<span class="n-pill n-pill--solid">Sorti</span>')}
