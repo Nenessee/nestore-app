@@ -33,6 +33,16 @@
   .act__txt small { display: block; color: var(--n-ink-3); font-size: 11.5px; margin-top: 2px; }
   .act__chev { color: var(--n-ink-4); font-size: 18px; }
   .n-btn:disabled { opacity: .4; cursor: not-allowed; }
+  /* FAQ dépliable */
+  .faq details { border-bottom: 1px solid var(--n-line); }
+  .faq details:last-child { border-bottom: 0; }
+  .faq summary { cursor: pointer; padding: 13px 16px; font-weight: 700; font-size: 13.5px;
+    list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: '+'; color: var(--n-ink-3); font-weight: 600; font-size: 17px; flex: 0 0 auto; }
+  .faq details[open] summary::after { content: '–'; }
+  .faq .faq__rep { padding: 0 16px 14px; font-size: 12.5px; line-height: 1.6; color: var(--n-ink-3); }
+  .faq .faq__rep b { color: var(--n-ink); }
   @media (max-width: 480px) { .masq-mobile { display: none; } }
 </style>
 </head>
@@ -80,6 +90,11 @@
     <div class="n-card">
       <div class="n-card__head"><span class="n-label">Tes demandes</span></div>
       <div class="n-card__body n-card__body--flush" id="listeDemandes"></div>
+    </div>
+
+    <div class="n-card faq">
+      <div class="n-card__head"><span class="n-label">Comment ça marche — questions fréquentes</span></div>
+      <div class="n-card__body n-card__body--flush" id="faq"></div>
     </div>
 
   </div>
@@ -145,6 +160,7 @@ async function chargerTout(){
     const c = d.commission;
     document.getElementById('regles').textContent =
       `Quand un article se vend, tu touches son prix − ${Math.round(c.taux*100)} % − ${c.frais} € de frais fixes. Les prix sont en multiples de 5 € (minimum ${c.prixMin} €). Tes demandes (retrait, prix…) sont appliquées après validation par l'équipe.`;
+    remplirFaq(c);
     const k = (val,lbl)=>`<div class="n-card n-kpi"><span class="n-label">${lbl}</span><div class="n-kpi__val" style="font-size:20px;">${val}</div></div>`;
     document.getElementById('kpis').innerHTML =
       k(d.totaux.enLigne,'Articles en ligne') +
@@ -188,6 +204,30 @@ async function chargerDemandes(){
         <div class="n-row__side">${st[r.status]||esc(r.status)}</div>
       </div>`).join('') : '<div style="padding:18px;text-align:center;color:var(--n-ink-3);font-size:13px;">Aucune demande pour l\'instant.</div>';
   } catch(_){}
+}
+
+// FAQ — les grandes lignes du dépôt, avec les montants injectés depuis les règles du serveur.
+function remplirFaq(c){
+  const box = document.getElementById('faq'); if(!box || box.dataset.ok) return;
+  const pc = Math.round(c.taux*100);
+  const ex = 240, exNet = Math.round((ex*(1-c.taux)-c.frais)*100)/100;
+  const q = (titre, rep) => `<details><summary>${titre}</summary><div class="faq__rep">${rep}</div></details>`;
+  box.innerHTML =
+    q('Combien je touche quand un article se vend ?',
+      `Le prix affiché − <b>${pc} % de commission</b> − <b>${c.frais} € de frais fixes</b>. Exemple : vendu ${ex} € → <b>${eur(exNet)} pour toi</b>. Ton net est indiqué sous chaque article, et affiché en direct quand tu changes un prix.`) +
+    q('Qui fixe les prix ?',
+      `Toi. Les prix sont en <b>multiples de 5 €</b> (minimum ${c.prixMin} €) pour rester simples en boutique. Pour changer : touche l'article → <b>💶 Changer le prix</b> — tu vois immédiatement ce que tu toucheras. L'équipe applique ensuite sur le site et refait l'étiquette.`) +
+    q(`Je veux récupérer un article (ou je l'ai déjà vendu de mon côté) ?`,
+      `Touche l'article → <b>📤 Retirer du site</b>. L'équipe valide, le retire de la vente et te le tient prêt en boutique si tu viens le chercher. Si tu l'as vendu de ton côté, fais la demande <b>tout de suite</b> pour éviter qu'il parte en double.`) +
+    q(`Pourquoi ma demande n'est pas appliquée tout de suite ?`,
+      `Chaque demande passe par une validation de l'équipe Nestore. Tu suis l'avancement dans <b>« Tes demandes »</b> : ⏳ en attente → ✓ faite (ou refusée, avec la raison). Tant qu'une demande est en attente sur un article, tu ne peux pas en envoyer une autre dessus.`) +
+    q('Que veut dire « En ligne » / « Sorti » ?',
+      `<b>En ligne</b> : l'article est en vente sur le site — tu peux l'ouvrir avec « voir sur le site ↗ ». <b>Sorti</b> : il n'est plus en vente (vendu chez Nestore, vendu de ton côté ou retiré).`) +
+    q('Quand et comment je suis payé ?',
+      `L'équipe Nestore fait le point avec toi sur les ventes et te règle ton net directement. Une question sur un règlement ? Passe en boutique ou écris-nous.`) +
+    q(`J'ai un souci ou une question ?`,
+      `Passe en boutique ou contacte l'équipe Nestore. Pense aussi au bouton ↻ en haut pour recharger tes articles.`);
+  box.dataset.ok = '1';
 }
 
 // Clic sur un article en ligne → panneau avec les trois actions (une demande à la fois).
