@@ -2334,7 +2334,12 @@ tbody tr { transition: background .12s; }
       <div class="eq-addgrid" style="grid-template-columns:minmax(160px,2fr) minmax(120px,1fr) minmax(150px,1.3fr) auto;">
         <div><label class="eq-lbl">Nom du client</label><input id="edName" class="search-input" placeholder="ex: Drag" style="width:100%;"/></div>
         <div><label class="eq-lbl">Code (PIN)</label><input id="edPin" class="search-input" inputmode="numeric" placeholder="6 chiffres min" style="width:100%;"/></div>
-        <div><label class="eq-lbl">Tag dépôt</label><input id="edTag" class="search-input" placeholder="depot-drag" style="width:100%;"/></div>
+        <div><label class="eq-lbl">Tag dépôt</label>
+          <div class="search-input" style="width:100%;display:flex;align-items:center;gap:1px;padding-top:0;padding-bottom:0;cursor:text;" onclick="document.getElementById('edTagSuffix').focus()">
+            <span style="color:var(--text-muted);font-weight:700;user-select:none;">depot-</span>
+            <input id="edTagSuffix" placeholder="drag" autocomplete="off" autocapitalize="none" spellcheck="false" style="flex:1;min-width:0;border:none;outline:none;background:transparent;color:var(--text);font-size:14px;padding:9px 0;"/>
+          </div>
+        </div>
         <button class="btn btn-green" onclick="equipeAddDeposant()" style="min-height:42px;white-space:nowrap;">＋ Créer le déposant</button>
       </div>
       <div id="edAddResult" style="margin-top:10px;font-size:13px;"></div>
@@ -2812,7 +2817,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-10-08-v275-ajout-deposant-separe'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-10-08-v276-depot-prefixe-acces'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -8719,16 +8724,19 @@ window.markVintedRemoved = async function(barcode, btn) {
     const token = ''; // session superadmin via le wrapper fetch
     const name=(document.getElementById('edName').value||'').trim();
     const pin=(document.getElementById('edPin').value||'').trim();
-    const tag=(document.getElementById('edTag').value||'').trim().toLowerCase();
+    // Le préfixe depot- est fixe dans l'interface : on ne saisit que le diminutif
+    // (et on le re-retire si quelqu'un tape quand même le tag complet).
+    const suffix=(document.getElementById('edTagSuffix').value||'').trim().toLowerCase().replace(/^depot-/,'');
+    const tag='depot-'+suffix;
     const out=document.getElementById('edAddResult');
     if(!name||pin.length<6){ out.innerHTML='<span style="color:var(--accent);">Nom + code (6 chiffres minimum) requis.</span>'; return; }
-    if(!/^depot-[a-z0-9][a-z0-9-]*$/.test(tag)){ out.innerHTML='<span style="color:var(--accent);">Tag invalide — format attendu : depot-nom (ex. depot-drag).</span>'; return; }
+    if(!/^[a-z0-9][a-z0-9-]*$/.test(suffix)){ out.innerHTML='<span style="color:var(--accent);">Diminutif invalide — lettres/chiffres sans espace ni accent (ex. drag → depot-drag).</span>'; return; }
     try {
       const res=await fetch(`${BACKEND_URL}/auth/users`,{method:'POST',headers:{'X-NV-Admin-Token':token,'Content-Type':'application/json'},body:JSON.stringify({name,pin,role:'deposant',depotTag:tag})});
       const dd=await res.json().catch(()=>({}));
       if(!res.ok){ out.innerHTML='<span style="color:var(--accent);">'+(dd.error||'Erreur')+'</span>'; return; }
       out.innerHTML='<span style="color:var(--success);">✓ Déposant '+_esc(name)+' créé · 💼 '+_esc(tag)+' — donne-lui l\'adresse depot.html + son nom et son code.</span>';
-      document.getElementById('edName').value=''; document.getElementById('edPin').value=''; document.getElementById('edTag').value='';
+      document.getElementById('edName').value=''; document.getElementById('edPin').value=''; document.getElementById('edTagSuffix').value='';
       loadTeam();
     } catch(e){ out.innerHTML='<span style="color:var(--accent);">Erreur réseau</span>'; }
   };
@@ -8741,8 +8749,9 @@ window.markVintedRemoved = async function(barcode, btn) {
   window.equipeEditDepotTag = async function(id, current) {
     const v = prompt('Tag dépôt du compte (format depot-nom, ex. depot-noa) — vide pour retirer :', current || 'depot-');
     if (v === null) return;
-    const val = v.trim().toLowerCase();
-    if (val && !/^depot-[a-z0-9][a-z0-9-]*$/.test(val)) { showDashToast('Format invalide — attendu : depot-nom', 'error'); return; }
+    let val = v.trim().toLowerCase();
+    if (val && !val.startsWith('depot-')) val = 'depot-' + val; // préfixe oublié → on le rajoute
+    if (val && !/^depot-[a-z0-9][a-z0-9-]*$/.test(val)) { showDashToast('Format invalide — attendu : depot-nom (ou vide pour retirer)', 'error'); return; }
     await equipeUpdateUser(id, { depotTag: val || null });
   };
   window.equipeResetPin = function(id) {
