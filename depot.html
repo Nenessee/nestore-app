@@ -13,11 +13,15 @@
   .page { max-width: 760px; margin: 0 auto; padding: 14px 16px 60px; display: flex; flex-direction: column; gap: 12px; }
   .centre { min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 16px; }
   .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
-  .sel-bar { position: sticky; bottom: 12px; display: none; gap: 8px; flex-wrap: wrap; align-items: center;
-    background: var(--n-surface); border: 1px solid var(--n-line); border-radius: 999px; padding: 8px 12px; box-shadow: var(--n-shadow-pop); }
-  .sel-bar.on { display: flex; }
-  .n-row input[type="checkbox"] { width: 17px; height: 17px; flex: 0 0 auto; accent-color: var(--n-accent); }
   .thumb-ph { display: grid; place-items: center; font-size: 18px; color: var(--n-ink-4); }
+  .ligne-active { cursor: pointer; }
+  .ligne-active:active { background: var(--n-surface-2); }
+  /* Panneau d'actions (clic sur un article) — feuille qui monte du bas, façon onglet Vinted. */
+  .voile { position: fixed; inset: 0; z-index: 50; background: rgba(10,10,10,.45); display: none; }
+  .voile.on { display: block; }
+  .feuille { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); width: min(520px, 100vw);
+    background: var(--n-surface); border: 1px solid var(--n-line); border-radius: 18px 18px 0 0;
+    max-height: 82dvh; overflow: auto; padding: 18px 18px calc(18px + env(safe-area-inset-bottom)); }
   @media (max-width: 480px) { .masq-mobile { display: none; } }
 </style>
 </head>
@@ -67,13 +71,12 @@
       <div class="n-card__body n-card__body--flush" id="listeDemandes"></div>
     </div>
 
-    <div class="sel-bar" id="selBar">
-      <span class="n-muted n-num" id="selCpt" style="font-size:12px;font-weight:700;"></span>
-      <button class="n-btn n-btn--primary n-btn--sm" onclick="demander('retrait')">📤 Retirer</button>
-      <button class="n-btn n-btn--ghost n-btn--sm" onclick="demander('vendu_ailleurs')">🤝 Vendu de mon côté</button>
-      <button class="n-btn n-btn--ghost n-btn--sm" onclick="demanderPrix()">💶 Changer le prix</button>
-    </div>
   </div>
+</div>
+
+<!-- Panneau d'actions sur un article -->
+<div class="voile" id="voile" onclick="if(event.target===this)fermerPanneau()">
+  <div class="feuille" id="feuille"></div>
 </div>
 
 <script>
@@ -82,7 +85,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;'
 const eur = n => (Number(n)||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
 let jeton = null; try { jeton = localStorage.getItem('nv_depot_token'); } catch(_){}
 let donnees = null;
-const selection = new Set();
+let articleOuvert = null; // article affiché dans le panneau d'actions
 
 async function api(chemin, options){
   const o = options || {};
@@ -124,7 +127,7 @@ function montrerEspace(){
 }
 
 async function chargerTout(){
-  selection.clear(); majSelection();
+  fermerPanneau();
   try {
     const d = await api('/depot/mine');
     donnees = d;
@@ -142,8 +145,7 @@ async function chargerTout(){
     document.getElementById('cptEnLigne').textContent = enLigne.length + ' article' + (enLigne.length>1?'s':'');
     document.getElementById('cptSortis').textContent = sortis.length + ' article' + (sortis.length>1?'s':'');
     const ligne = (i, actif) => `
-      <div class="n-row">
-        ${actif?`<input type="checkbox" ${selection.has(i.productId)?'checked':''} onchange="basculer('${esc(i.productId)}',this.checked)" ${i.demandes.length?'disabled title="Demande en cours — attends son traitement"':''}>`:''}
+      <div class="n-row${actif?' ligne-active':''}"${actif?` onclick="ouvrirPanneau(event,'${esc(i.productId)}')"`:''}>
         ${i.image?`<img class="n-row__thumb" src="${esc(i.image)}" alt="">`:`<div class="n-row__thumb thumb-ph">👕</div>`}
         <div class="n-row__main">
           <div class="n-row__title">${esc(i.titre)}</div>
@@ -177,30 +179,52 @@ async function chargerDemandes(){
   } catch(_){}
 }
 
-function basculer(pid, on){ if(on) selection.add(pid); else selection.delete(pid); majSelection(); }
-function majSelection(){
-  const bar = document.getElementById('selBar'); if(!bar) return;
-  bar.classList.toggle('on', selection.size>0);
-  document.getElementById('selCpt').textContent = selection.size + ' sélectionné' + (selection.size>1?'s':'');
+// Clic sur un article en ligne → panneau avec les trois actions (une demande à la fois).
+function ouvrirPanneau(ev, pid){
+  if (ev && ev.target && ev.target.closest('a')) return; // le lien « voir sur le site » garde son clic
+  const i = ((donnees||{}).items||[]).find(x=>String(x.productId)===String(pid));
+  if (!i) return;
+  articleOuvert = i;
+  const enCours = (i.demandes||[]).length;
+  document.getElementById('feuille').innerHTML = `
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:14px;">
+      ${i.image?`<img class="n-row__thumb" src="${esc(i.image)}" style="width:56px;height:56px;" alt="">`:`<div class="n-row__thumb thumb-ph" style="width:56px;height:56px;">👕</div>`}
+      <div style="min-width:0;">
+        <div class="n-h3" style="font-size:15px;">${esc(i.titre)}</div>
+        <div class="n-muted" style="font-size:12px;">${i.prix!=null?('affiché '+eur(i.prix)+' · '):''}${i.net!=null?('ton net : '+eur(i.net)):''}</div>
+        ${i.url?`<a href="${esc(i.url)}" target="_blank" rel="noopener" style="font-size:12px;color:inherit;">voir sur le site ↗</a>`:''}
+      </div>
+    </div>
+    ${enCours
+      ? `<div class="n-pill n-pill--accent" style="margin-bottom:8px;">⏳ Demande en cours : ${i.demandes.map(x=>x.type==='prix'?('prix '+x.newPrice+' €'):x.type.replace('_',' ')).join(' · ')}</div>
+         <div class="n-muted" style="font-size:12.5px;">L'équipe Nestore doit d'abord la traiter avant une nouvelle demande.</div>`
+      : `<div style="display:flex;flex-direction:column;gap:8px;">
+          <button class="n-btn n-btn--primary" style="width:100%;" onclick="agir('retrait')">📤 Demander le retrait</button>
+          <button class="n-btn n-btn--ghost" style="width:100%;" onclick="agir('vendu_ailleurs')">🤝 Vendu de mon côté</button>
+          <button class="n-btn n-btn--ghost" style="width:100%;" onclick="agirPrix()">💶 Changer le prix</button>
+        </div>`}
+    <button class="n-btn n-btn--ghost n-btn--sm" style="width:100%;margin-top:12px;" onclick="fermerPanneau()">Fermer</button>`;
+  document.getElementById('voile').classList.add('on');
 }
-async function demander(type){
-  if(!selection.size) return;
+function fermerPanneau(){ articleOuvert=null; const v=document.getElementById('voile'); if(v) v.classList.remove('on'); }
+async function agir(type){
+  const i = articleOuvert; if(!i) return;
   const msg = type==='retrait'
-    ? `Demander le RETRAIT de ${selection.size} article(s) ?\n\nL'équipe valide, retire les articles du site et te les tient prêts en boutique.`
-    : `Marquer ${selection.size} article(s) « vendus de ton côté » ?\n\nL'équipe valide et les retire du site.`;
+    ? `Demander le RETRAIT de « ${i.titre} » ?\n\nL'équipe valide, retire l'article du site et te le tient prêt en boutique.`
+    : `Marquer « ${i.titre} » vendu de ton côté ?\n\nL'équipe valide et le retire du site.`;
   if(!confirm(msg)) return;
-  await envoyerDemandes([...selection].map(pid=>({ productId: pid, type })));
+  await envoyerDemandes([{ productId: i.productId, type }]);
 }
-async function demanderPrix(){
-  if(!selection.size) return;
+async function agirPrix(){
+  const i = articleOuvert; if(!i) return;
   const c = (donnees && donnees.commission) || { prixMin: 25 };
-  const v = prompt(`Nouveau prix affiché (en €) pour ${selection.size} article(s) —\nmultiple de 5, minimum ${c.prixMin} € :`);
+  const v = prompt(`Nouveau prix affiché pour « ${i.titre} » (actuellement ${i.prix!=null?i.prix+' €':'—'}) —\nmultiple de 5, minimum ${c.prixMin} € :`);
   if(v===null) return;
   const p = Number(String(v).replace(',','.'));
   if(!Number.isFinite(p) || p < c.prixMin || p % 5 !== 0){ alert(`Prix invalide — multiple de 5 €, minimum ${c.prixMin} €. Exemple : 35, 120, 235…`); return; }
   const net = Math.round((p*0.7-15)*100)/100;
-  if(!confirm(`Prix demandé : ${p} € (tu toucheras ${net.toFixed(2)} € par vente).\nAppliqué après validation par l'équipe — envoyer ?`)) return;
-  await envoyerDemandes([...selection].map(pid=>({ productId: pid, type:'prix', newPrice: p })));
+  if(!confirm(`Prix demandé : ${p} € (tu toucheras ${net.toFixed(2)} € à la vente).\nAppliqué après validation par l'équipe — envoyer ?`)) return;
+  await envoyerDemandes([{ productId: i.productId, type:'prix', newPrice: p }]);
 }
 async function envoyerDemandes(demandes){
   try {
