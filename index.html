@@ -14,6 +14,9 @@
   <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
   <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Schibsted+Grotesk:wght@600;700;800&display=swap">
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
@@ -45,83 +48,91 @@
     });
   </script>
   <style>
+    /* Jetons alignés sur nestore-ui.css (la grammaire du site nestorevintage.fr) :
+       fond blanc chaud, cartes à filet #e6e5e3, encre #0a0a0a, un seul vert d'accent.
+       Les NOMS de variables historiques sont conservés (toute l'app les référence). */
     :root {
-      --bg: #f5f4ef;
-      --bg-gradient: radial-gradient(ellipse at top, #faf9f4 0%, #f5f4ef 60%);
+      --bg: #faf9f7;
+      --bg-gradient: #faf9f7;
       --surface: #ffffff;
-      --surface-2: #faf9f4;
+      --surface-2: #fcfcfb;
       --surface-raised: #ffffff;
-      --border: rgba(26, 26, 24, 0.06);
-      --border-strong: rgba(26, 26, 24, 0.12);
-      --text: #0e0e0c;
-      --text-muted: #686760;
-      --text-soft: #8c8a82;
-      --brand: #0e0e0c;
+      --border: #e6e5e3;
+      --border-soft: #f0efec;
+      --border-strong: #e6e5e3;
+      --text: #0a0a0a;
+      --text-muted: #7a7a7a;
+      --text-soft: #a0a0a0;
+      --brand: #0a0a0a;
       --brand-ink: #ffffff;
-      --accent: #E8504E;
-      --accent-dim: rgba(232, 80, 78, 0.1);
-      --success: #3B6D11;
-      --success-dim: rgba(59, 109, 17, 0.1);
-      --warning: #BA7517;
-      --warning-dim: rgba(186, 117, 23, 0.1);
-      --info: #185FA5;
-      --info-dim: rgba(24, 95, 165, 0.1);
-      --purchase: #3B6D11;
-      --badge-dk-bg: #E6F1FB;
-      --badge-dk-fg: #0C447C;
-      --badge-lille-bg: #EAF3DE;
-      --badge-lille-fg: #27500A;
-      --badge-stock0-bg: #FCEBEB;
-      --badge-stock0-fg: #A32D2D;
-      --shadow-sm: 0 1px 2px rgba(14, 14, 12, 0.04);
-      --shadow-md: 0 1px 3px rgba(14, 14, 12, 0.06), 0 8px 24px rgba(14, 14, 12, 0.04);
-      --shadow-lg: 0 4px 16px rgba(14, 14, 12, 0.08), 0 24px 48px rgba(14, 14, 12, 0.06);
+      --accent: #c0392b;
+      --accent-dim: rgba(192, 57, 43, 0.08);
+      --success: #16805e;
+      --success-dim: #e9f5f0;
+      --warning: #a76d08;
+      --warning-dim: rgba(167, 109, 8, 0.1);
+      --info: #2a78d6;
+      --info-dim: rgba(42, 120, 214, 0.1);
+      --purchase: #16805e;
+      --badge-dk-bg: var(--surface);
+      --badge-dk-fg: var(--text-muted);
+      --badge-lille-bg: var(--surface);
+      --badge-lille-fg: var(--text-muted);
+      --badge-stock0-bg: rgba(192, 57, 43, 0.1);
+      --badge-stock0-fg: #c0392b;
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+      --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.04);
+      --shadow-lg: 0 10px 34px rgba(0, 0, 0, 0.12);
       --bar-blur: saturate(180%) blur(24px);
-      --bar-bg: rgba(250, 249, 245, 0.97);
+      --bar-bg: rgba(250, 249, 247, 0.97);
     }
     [data-theme="dark"] {
-      --bg: #0a0a09;
-      --bg-gradient: radial-gradient(ellipse at top, #161614 0%, #0a0a09 60%);
-      --surface: #141412;
-      --surface-2: #1a1a18;
-      --surface-raised: #1e1e1c;
-      --border: rgba(245, 244, 239, 0.07);
-      --border-strong: rgba(245, 244, 239, 0.14);
-      --text: #f5f4ef;
-      --text-muted: #8f8e88;
-      --text-soft: #5e5d58;
-      --brand: #f5f4ef;
-      --brand-ink: #0e0e0c;
-      --accent: #FF6B68;
-      --accent-dim: rgba(255, 107, 104, 0.14);
-      --success: #5DCAA5;
-      --success-dim: rgba(93, 202, 165, 0.14);
-      --warning: #E8A247;
-      --warning-dim: rgba(232, 162, 71, 0.14);
-      --info: #5A9EE8;
-      --info-dim: rgba(90, 158, 232, 0.14);
-      --purchase: #5DCAA5;
-      --badge-dk-bg: rgba(90, 158, 232, 0.16);
-      --badge-dk-fg: #8CBEF0;
-      --badge-lille-bg: rgba(93, 202, 165, 0.16);
-      --badge-lille-fg: #8CE0BE;
-      --badge-stock0-bg: rgba(255, 107, 104, 0.16);
-      --badge-stock0-fg: #FF9997;
-      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-      --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.45), 0 16px 40px rgba(0, 0, 0, 0.25);
-      --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.55), 0 32px 64px rgba(0, 0, 0, 0.35);
-      --bar-bg: rgba(16, 16, 14, 0.97);
+      --bg: #121211;
+      --bg-gradient: #121211;
+      --surface: #1a1a19;
+      --surface-2: #201f1e;
+      --surface-raised: #201f1e;
+      --border: #2e2e2b;
+      --border-soft: #262624;
+      --border-strong: #2e2e2b;
+      --text: #ffffff;
+      --text-muted: #908f86;
+      --text-soft: #75746c;
+      --brand: #ffffff;
+      --brand-ink: #0a0a0a;
+      --accent: #e66767;
+      --accent-dim: rgba(230, 103, 103, 0.14);
+      --success: #3fcf9e;
+      --success-dim: #16302a;
+      --warning: #d9a21f;
+      --warning-dim: rgba(217, 162, 31, 0.14);
+      --info: #3987e5;
+      --info-dim: rgba(57, 135, 229, 0.14);
+      --purchase: #3fcf9e;
+      --badge-dk-bg: var(--surface);
+      --badge-dk-fg: var(--text-muted);
+      --badge-lille-bg: var(--surface);
+      --badge-lille-fg: var(--text-muted);
+      --badge-stock0-bg: rgba(230, 103, 103, 0.16);
+      --badge-stock0-fg: #e66767;
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.3);
+      --shadow-lg: 0 10px 34px rgba(0, 0, 0, 0.45);
+      --bar-bg: rgba(18, 18, 17, 0.97);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     *, *::before, *::after { -webkit-tap-highlight-color: transparent; }
     html, body {
       background: var(--bg);
       color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Display', 'Segoe UI', sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
       text-rendering: optimizeLegibility;
-      font-feature-settings: "cv11", "ss01", "ss03";
+    }
+    /* Titres et montants en Schibsted Grotesk — la police de titre du site. */
+    h1, .title, .pname, .pprice {
+      font-family: 'Schibsted Grotesk', 'Inter', -apple-system, sans-serif;
     }
     body {
       min-height: 100vh;
@@ -147,17 +158,17 @@
     .login-box {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 24px;
+      border-radius: 14px;
       padding: 2.5rem 2rem;
       width: 100%;
       max-width: 380px;
-      box-shadow: var(--shadow-lg);
+      box-shadow: var(--shadow-sm);
       position: relative;
     }
     .login-box::before {
       content: '';
       position: absolute; inset: 0;
-      border-radius: 24px;
+      border-radius: 14px;
       background: linear-gradient(180deg, var(--border-strong), transparent 40%);
       opacity: .6;
       pointer-events: none;
@@ -192,30 +203,31 @@
     }
     input, textarea, select.form-input {
       width: 100%;
-      padding: 14px 16px;
+      padding: 12px 14px;
       border: 1px solid var(--border-strong);
-      border-radius: 14px;
+      border-radius: 10px;
       font-size: 16px;
-      background: var(--surface-2);
+      background: var(--surface);
       color: var(--text);
       margin-bottom: 10px;
       transition: border-color .15s, background .15s, box-shadow .15s;
     }
     input::placeholder, textarea::placeholder { color: var(--text-soft); }
     input:focus, textarea:focus, select:focus {
-      outline: none;
+      outline: 2px solid var(--text);
+      outline-offset: -2px;
       border-color: var(--text);
       background: var(--surface);
-      box-shadow: 0 0 0 4px var(--accent-dim);
+      box-shadow: none;
     }
     .login-box button {
       width: 100%;
       padding: 15px;
       background: var(--brand);
       color: var(--brand-ink);
-      border: none; border-radius: 14px;
-      font-size: 15px; font-weight: 700;
-      letter-spacing: -0.01em;
+      border: 1px solid var(--brand); border-radius: 999px;
+      font-size: 14px; font-weight: 700;
+      letter-spacing: .01em;
       min-height: 48px;
       transition: transform .1s, opacity .15s;
     }
@@ -390,7 +402,7 @@
       top: 6px;
       width: 32px; height: 3px;
       border-radius: 99px;
-      background: var(--accent);
+      background: var(--text);
     }
     .tab-label { line-height: 1; white-space: nowrap; }
     /* Auto-icon for dynamically-added commandes tab (fallback plain text) */
@@ -404,7 +416,7 @@
     .scan-box, .form-box, .history-box, .product-card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 18px;
+      border-radius: 14px;
       margin-bottom: 14px;
       box-shadow: var(--shadow-sm);
     }
@@ -412,12 +424,12 @@
     .history-box { overflow: hidden; }
 
     .scan-label, .form-label {
-      font-size: 11px;
-      color: var(--text-muted);
+      font-size: 9.5px;
+      color: var(--text-soft);
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      font-weight: 700;
-      margin-bottom: 8px;
+      letter-spacing: 1.6px;
+      font-weight: 800;
+      margin-bottom: 9px;
       display: block;
     }
     .scan-row {
@@ -431,19 +443,20 @@
     .scan-input { margin-bottom: 0 !important; }
     .form-input {
       width: 100%;
-      padding: 13px 14px;
+      padding: 12px 14px;
       border: 1px solid var(--border-strong);
-      border-radius: 12px;
-      background: var(--surface-2);
+      border-radius: 10px;
+      background: var(--surface);
       color: var(--text);
       font-size: 16px;
       margin-bottom: 10px;
     }
     .form-input:focus {
-      outline: none;
+      outline: 2px solid var(--text);
+      outline-offset: -2px;
       border-color: var(--text);
       background: var(--surface);
-      box-shadow: 0 0 0 4px var(--accent-dim);
+      box-shadow: none;
     }
     .form-row { display: flex; gap: 8px; }
     .form-row .form-input { flex: 1; }
@@ -452,15 +465,16 @@
       font-family: inherit;
     }
 
-    /* Buttons */
+    /* Buttons — pilules : noir plein pour l'action principale, contour pour le reste.
+       Jamais deux pleins côte à côte (grammaire du site). */
     .btn-search {
       flex-shrink: 0;
-      padding: 13px 16px;
+      padding: 13px 18px;
       background: var(--brand);
       color: var(--brand-ink);
-      border: none; border-radius: 12px;
-      font-size: 14px; font-weight: 700;
-      letter-spacing: -0.01em;
+      border: 1px solid var(--brand); border-radius: 999px;
+      font-size: 13px; font-weight: 700;
+      letter-spacing: .01em;
       min-height: 46px;
       min-width: 46px;
       white-space: nowrap;
@@ -471,20 +485,20 @@
     .btn-sell, .btn-purchase {
       width: 100%;
       margin-top: 14px;
-      padding: 16px;
-      border: none; border-radius: 14px;
-      font-size: 15px; font-weight: 700;
-      letter-spacing: -0.01em;
+      padding: 15px;
+      border: 1px solid var(--brand); border-radius: 999px;
+      font-size: 14px; font-weight: 700;
+      letter-spacing: .01em;
       min-height: 50px;
       transition: transform .1s, opacity .15s;
     }
     .btn-sell {
-      background: var(--accent);
-      color: #fff;
+      background: var(--brand);
+      color: var(--brand-ink);
     }
     .btn-purchase {
-      background: var(--purchase);
-      color: #fff;
+      background: var(--brand);
+      color: var(--brand-ink);
     }
     .btn-sell:active, .btn-purchase:active { transform: scale(0.98); }
     .btn-sell:disabled, .btn-purchase:disabled { opacity: .4; cursor: not-allowed; }
@@ -492,8 +506,11 @@
       text-align: center; margin-top: 14px;
       font-size: 13px; color: var(--accent); font-weight: 700;
     }
+    /* Action secondaire (transfert…) : contour, jamais un 2e bouton plein. */
     .btn-transfer {
-      background: var(--info) !important;
+      background: var(--surface) !important;
+      color: var(--text) !important;
+      border: 1px solid var(--border-strong) !important;
     }
     .btn-transfer:active { transform: scale(0.98); }
 
@@ -525,18 +542,22 @@
       display: flex; gap: 14px; flex-wrap: wrap;
     }
 
-    /* Badges */
+    /* Badges — pastilles façon site : capitales, interlettrage, contour pour les
+       boutiques (le texte dit Lille/DK, la couleur ne porte pas l'info), teinte
+       rouge réservée au « Stock 0 ». */
     .badge {
-      font-size: 11px;
-      padding: 4px 10px;
+      font-size: 9.5px;
+      padding: 3px 9px;
       border-radius: 99px;
-      font-weight: 700;
-      letter-spacing: 0.02em;
+      font-weight: 800;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
       white-space: nowrap;
       flex-shrink: 0;
+      border: 1px solid transparent;
     }
-    .badge-dk { background: var(--badge-dk-bg); color: var(--badge-dk-fg); }
-    .badge-lille { background: var(--badge-lille-bg); color: var(--badge-lille-fg); }
+    .badge-dk { background: var(--badge-dk-bg); color: var(--badge-dk-fg); border-color: var(--border); }
+    .badge-lille { background: var(--badge-lille-bg); color: var(--badge-lille-fg); border-color: var(--border); }
     .badge-stock0 { background: var(--badge-stock0-bg); color: var(--badge-stock0-fg); }
 
     /* Error / loading */
@@ -557,16 +578,17 @@
     .history-box { overflow: hidden; }
     .history-header {
       padding: 12px 18px;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid var(--border-soft);
       display: flex; justify-content: space-between; align-items: center;
     }
     .history-title {
-      font-size: 13px; font-weight: 700;
-      color: var(--text);
-      letter-spacing: -0.01em;
+      font-size: 9.5px; font-weight: 800;
+      color: var(--text-soft);
+      text-transform: uppercase;
+      letter-spacing: 1.6px;
     }
     .history-count {
-      font-size: 12px; color: var(--text-muted);
+      font-size: 11.5px; color: var(--text-muted);
       font-variant-numeric: tabular-nums;
     }
     .history-empty {
@@ -576,11 +598,12 @@
       color: var(--text-soft);
     }
     .history-item {
-      padding: 12px 18px;
-      border-bottom: 1px solid var(--border);
+      padding: 11px 18px;
+      border-bottom: 1px solid var(--border-soft);
       display: flex; align-items: center; gap: 12px;
       transition: background .15s;
     }
+    .history-item:hover { background: var(--surface-2); }
     .history-item:last-child { border-bottom: none; }
     .h-name {
       font-size: 14px; font-weight: 600;
@@ -662,7 +685,7 @@
     .info-banner .sub { font-size: 12px; opacity: .85; }
     .info-banner button {
       padding: 8px 14px; background: var(--surface); border: 1px solid var(--info);
-      border-radius: 10px; font-size: 12px; color: var(--info); font-weight: 600;
+      border-radius: 999px; font-size: 12px; color: var(--info); font-weight: 600;
       min-height: 36px; flex-shrink: 0;
     }
 
@@ -675,7 +698,7 @@
       width: 100%;
       padding: 14px;
       border: 1.5px dashed var(--border-strong);
-      border-radius: 12px;
+      border-radius: 10px;
       background: var(--surface-2);
       color: var(--text-muted);
       font-size: 14px;
@@ -687,10 +710,10 @@
     select.admin-visible {
       display: block !important;
       width: 100%;
-      padding: 13px 14px;
+      padding: 12px 14px;
       border: 1px solid var(--border-strong);
-      border-radius: 12px;
-      background: var(--surface-2);
+      border-radius: 10px;
+      background: var(--surface);
       color: var(--text);
       font-size: 16px;
       margin-bottom: 10px;
@@ -792,7 +815,7 @@
     <div class="scan-row">
       <input type="text" id="barcodeInput" class="scan-input" placeholder="Pointer le scanner ici..." autofocus />
       <button class="btn-search" id="searchBtn" onclick="lookupProduct()">Rechercher</button>
-      <button class="btn-search" id="venteScanBtn" onclick="toggleVenteScan()" title="Scanner avec la caméra" aria-label="Scanner avec la caméra" style="background:#185FA5;padding:0 14px;">📷</button>
+      <button class="btn-search" id="venteScanBtn" onclick="toggleVenteScan()" title="Scanner avec la caméra" aria-label="Scanner avec la caméra" style="background:var(--surface);border-color:var(--border-strong);color:var(--text);padding:0 14px;">📷</button>
     </div>
     <div id="venteReader" style="display:none;border-radius:10px;overflow:hidden;margin-top:10px;"></div>
     <div id="venteScanStatus" style="display:none;margin-top:8px;font-size:13px;color:#888780;text-align:center;"></div>
@@ -961,7 +984,7 @@
           <input id="braderieManDesignation" placeholder="Désignation (ex: SWEAT NIKE M)" style="flex:1;min-width:170px;padding:8px;border:0.5px solid #d3d1c7;border-radius:8px;font-size:13px;"/>
           <input id="braderieManPrix" placeholder="Prix €" inputmode="decimal" style="width:80px;padding:8px;border:0.5px solid #d3d1c7;border-radius:8px;font-size:13px;"/>
           <select id="braderieManOrigine" style="padding:8px;border:0.5px solid #d3d1c7;border-radius:8px;font-size:13px;"><option value="DK" selected>Origine DK</option><option value="Lille">Origine Lille</option></select>
-          <button onclick="braderieSaveManuel()" style="padding:8px 14px;background:#3B6D11;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;">Ajouter</button>
+          <button onclick="braderieSaveManuel()" style="padding:8px 14px;background:var(--success);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;">Ajouter</button>
           <button onclick="document.getElementById('braderieManuelBox').style.display='none'" style="padding:8px 10px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:8px;cursor:pointer;">✕</button>
         </div>
       </div>
@@ -1072,7 +1095,7 @@
 </nav>
 
 <div class="toast" id="toast"></div>
-<div id="updateBanner" style="display:none;position:fixed;top:0;left:0;right:0;background:#3B6D11;color:#fff;text-align:center;padding:12px;font-size:13px;font-weight:600;z-index:9999;cursor:pointer;" onclick="nvHardReload()">
+<div id="updateBanner" style="display:none;position:fixed;top:0;left:0;right:0;background:var(--success);color:#fff;text-align:center;padding:12px;font-size:13px;font-weight:600;z-index:9999;cursor:pointer;" onclick="nvHardReload()">
   🔄 Nouvelle version disponible — Appuyer pour actualiser
 </div>
 <script>
@@ -1085,7 +1108,7 @@ async function nvHardReload(){
 </script>
 
 <script>
-  const APP_VERSION = '2026-10-08-v269-fake-anticourse'; // version unifiée (dashboard, sw.js, serveur)
+  const APP_VERSION = '2026-10-08-v270-habillage-caisse'; // version unifiée (dashboard, sw.js, serveur)
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
 
   // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
@@ -1712,7 +1735,7 @@ async function nvHardReload(){
           <strong>Retire l'annonce Vinted maintenant</strong> pour éviter qu'un client achète un article déjà vendu et devoir annuler sa commande.
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;">
-          <button onclick="confirmVintedRemoved('${esc(escJs(barcode||''))}',this)" style="padding:15px;background:#3B6D11;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;min-height:50px;">
+          <button onclick="confirmVintedRemoved('${esc(escJs(barcode||''))}',this)" style="padding:15px;background:var(--success);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;min-height:50px;">
             ✓ J'ai retiré de Vinted
           </button>
           <button onclick="document.getElementById('vintedReminderModal').remove()" style="padding:13px;background:transparent;color:var(--text-muted);border:none;font-size:13px;cursor:pointer;min-height:44px;">
@@ -2170,7 +2193,8 @@ async function nvHardReload(){
     status.textContent = 'Démarrage de la caméra...';
     status.style.color = '#888780';
     btn.textContent = '✕';
-    btn.style.background = '#A32D2D';
+    btn.style.background = 'var(--accent)';
+    btn.style.color = '#fff';
     venteScanning = true;
 
     const formats = [
@@ -2220,7 +2244,7 @@ async function nvHardReload(){
     const btn = document.getElementById('venteScanBtn');
     const reader = document.getElementById('venteReader');
     const status = document.getElementById('venteScanStatus');
-    if (btn) { btn.textContent = '📷'; btn.style.background = '#185FA5'; }
+    if (btn) { btn.textContent = '📷'; btn.style.background = 'var(--surface)'; btn.style.color = 'var(--text)'; }
     if (venteScanner) {
       venteScanner.stop().catch(() => {}).finally(() => {
         if (venteScanner) { try { venteScanner.clear(); } catch(e) {} venteScanner = null; }
@@ -2360,7 +2384,7 @@ async function nvHardReload(){
             <span class="badge ${badge}">${esc(itemBoutique)}</span>
           </div>
           <div style="display:flex;gap:8px;width:100%;flex-wrap:wrap;">
-            <button onclick="markAside('${esc(escJs(order.id))}', '${esc(escJs(item.id))}', this)" style="flex:1;min-width:180px;padding:10px;background:#3B6D11;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">📦 Mis de côté — prêt à expédier</button>
+            <button onclick="markAside('${esc(escJs(order.id))}', '${esc(escJs(item.id))}', this)" style="flex:1;min-width:180px;padding:10px;background:var(--success);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">📦 Mis de côté — prêt à expédier</button>
             <button onclick="generateReturnPDF('${esc(escJs(order.id))}')" style="padding:10px 12px;background:#185FA5;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;" title="Générer le PDF retour">📄 Retour</button>
             <button onclick="markNotFound('${esc(escJs(order.id))}', '${esc(escJs(item.id))}', this)" style="padding:10px 12px;background:#FCEBEB;border:0.5px solid #f7c1c1;border-radius:8px;font-size:13px;color:#A32D2D;cursor:pointer;font-weight:600;">❌</button>
             <a href="https://admin.shopify.com/store/nestore-io/orders/${esc(encodeURIComponent(order.id))}" target="_blank" style="padding:10px 12px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:8px;font-size:13px;color:#1a1a18;text-decoration:none;">↗</a>
@@ -3459,16 +3483,16 @@ async function nvHardReload(){
 </script>
 
 <!-- ===== Écran de connexion employé (PIN) ===== -->
-<div id="nvLoginOverlay" style="display:none;position:fixed;inset:0;z-index:2147483600;background:#15140f;color:#f5f3ec;align-items:center;justify-content:center;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;">
-  <div style="width:min(360px,90vw);background:#1f1d17;border:1px solid #34312a;border-radius:16px;padding:26px 22px;box-shadow:0 20px 60px rgba(0,0,0,.5);">
-    <div style="font-size:20px;font-weight:700;margin-bottom:4px;">Nestore — Connexion</div>
-    <div style="font-size:13px;color:#9b978c;margin-bottom:18px;">Choisis ton prénom et entre ton code.</div>
-    <label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#9b978c;">Prénom</label>
-    <select id="nvLoginName" style="width:100%;margin:6px 0 14px;padding:11px;border-radius:10px;border:1px solid #34312a;background:#15140f;color:#f5f3ec;font-size:15px;"></select>
-    <label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#9b978c;">Code</label>
-    <input id="nvLoginPin" type="password" inputmode="numeric" autocomplete="off" placeholder="••••" style="width:100%;margin:6px 0 14px;padding:11px;border-radius:10px;border:1px solid #34312a;background:#15140f;color:#f5f3ec;font-size:18px;letter-spacing:4px;text-align:center;" onkeydown="if(event.key==='Enter')nvDoLogin()">
-    <button id="nvLoginBtn" onclick="nvDoLogin()" style="width:100%;padding:12px;border:0;border-radius:10px;background:#3B6D11;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">Se connecter</button>
-    <div id="nvLoginErr" style="color:#E8504E;font-size:13px;margin-top:12px;text-align:center;min-height:18px;"></div>
+<div id="nvLoginOverlay" style="display:none;position:fixed;inset:0;z-index:2147483600;background:var(--bg);color:var(--text);align-items:center;justify-content:center;font-family:'Inter',-apple-system,'Helvetica Neue',Arial,sans-serif;">
+  <div style="width:min(360px,90vw);background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:26px 22px;box-shadow:var(--shadow-sm);">
+    <div style="font-family:'Schibsted Grotesk','Inter',sans-serif;font-size:20px;font-weight:800;letter-spacing:-.4px;color:var(--text);margin-bottom:4px;">Nestore — Connexion</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:18px;">Choisis ton prénom et entre ton code.</div>
+    <label style="font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:1.6px;color:var(--text-soft);">Prénom</label>
+    <select id="nvLoginName" style="width:100%;margin:6px 0 14px;padding:11px 13px;border-radius:10px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text);font-size:15px;"></select>
+    <label style="font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:1.6px;color:var(--text-soft);">Code</label>
+    <input id="nvLoginPin" type="password" inputmode="numeric" autocomplete="off" placeholder="••••" style="width:100%;margin:6px 0 14px;padding:11px;border-radius:10px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text);font-size:18px;letter-spacing:4px;text-align:center;" onkeydown="if(event.key==='Enter')nvDoLogin()">
+    <button id="nvLoginBtn" onclick="nvDoLogin()" style="width:100%;padding:12px;border:1px solid var(--brand);border-radius:999px;background:var(--brand);color:var(--brand-ink);font-size:14px;font-weight:700;letter-spacing:.01em;cursor:pointer;">Se connecter</button>
+    <div id="nvLoginErr" style="color:var(--accent);font-size:13px;margin-top:12px;text-align:center;min-height:18px;"></div>
   </div>
 </div>
 <script>

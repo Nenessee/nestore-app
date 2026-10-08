@@ -1,0 +1,303 @@
+/* ====================================================================
+   NESTORE — JETONS D'INTERFACE
+   --------------------------------------------------------------------
+   Repris de ce qu'on a construit sur nestorevintage.fr : fiche produit,
+   bloc « La piece », carrousels, banniere de cookies.
+
+   N'IMPOSE AUCUNE STRUCTURE. Ce fichier ne contient que des variables
+   et des classes de presentation. Aucun comportement, aucune donnee.
+   ==================================================================== */
+
+:root {
+  /* --- Surfaces ---------------------------------------------------- */
+  --n-bg:          #faf9f7;  /* fond d'application, blanc chaud */
+  --n-surface:     #ffffff;  /* cartes */
+  --n-surface-2:   #fcfcfb;  /* zones internes, en-tetes de tableau */
+
+  /* --- Filets ------------------------------------------------------ */
+  --n-line:        #e6e5e3;  /* bordure de carte */
+  --n-line-soft:   #f0efec;  /* separateur interne */
+
+  /* --- Encre ------------------------------------------------------- */
+  --n-ink:         #0a0a0a;  /* titres, montants */
+  --n-ink-2:       #4a4a4a;  /* texte courant */
+  --n-ink-3:       #7a7a7a;  /* texte secondaire */
+  --n-ink-4:       #a0a0a0;  /* micro-libelles */
+
+  /* --- Accent ------------------------------------------------------ */
+  --n-accent:      #1d9e75;  /* le vert du point « Piece unique » */
+  --n-accent-ink:  #16805e;  /* le meme, lisible sur fond clair */
+  --n-accent-bg:   #e9f5f0;
+
+  /* --- Action principale -------------------------------------------
+     PIEGE : ne jamais peindre un bouton plein avec --n-ink. En mode
+     sombre l'encre devient blanche, et le bouton se retrouve blanc sur
+     blanc, illisible. L'action principale a donc ses deux jetons a
+     elle, inverses d'un mode a l'autre. */
+  --n-btn-bg:      #0a0a0a;
+  --n-btn-ink:     #ffffff;
+
+  /* --- Etats ------------------------------------------------------- */
+  --n-ok:          #16805e;
+  --n-warn:        #a76d08;
+  --n-bad:         #c0392b;
+
+  /* --- Rayons ------------------------------------------------------ */
+  --n-r-card:      14px;
+  --n-r-field:     10px;
+  --n-r-pill:      999px;
+
+  /* --- Ombres ------------------------------------------------------
+     Discretes. Sur ce systeme, c'est le filet qui separe, pas l'ombre.
+     L'ombre portee n'est reservee qu'aux elements flottants. */
+  --n-shadow:      0 1px 2px rgb(0 0 0 / .04);
+  --n-shadow-pop:  0 10px 34px rgb(0 0 0 / .12);
+
+  /* --- Polices ------------------------------------------------------
+     Schibsted Grotesk pour les titres, Inter pour le reste : ce sont
+     exactement les deux polices du site. */
+  --n-font-title:  "Schibsted Grotesk", -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --n-font-text:   Inter, -apple-system, "Helvetica Neue", Arial, sans-serif;
+
+  /* --- Series de graphiques ----------------------------------------
+     Palette validee (bande de clarte, plancher de chroma, separation
+     daltonisme toutes paires, contraste). NE PAS en inventer une
+     quatrieme : au-dela de trois series, regrouper en « Autres » ou
+     separer en plusieurs graphiques. */
+  --n-serie-1:     #1baf7a;  /* le vert Nestore, version graphique */
+  --n-serie-2:     #2a78d6;
+  --n-serie-3:     #eb6834;
+  --n-grid:        #ececea;  /* grille, tres en retrait */
+}
+
+/* Mode sombre. Les valeurs sont choisies pour le fond sombre, ce n'est
+   pas une inversion automatique du mode clair. Declare sous les deux
+   portees : la preference systeme, et le bouton lune de l'app. */
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    --n-bg: #121211;  --n-surface: #1a1a19;  --n-surface-2: #201f1e;
+    --n-line: #2e2e2b; --n-line-soft: #262624;
+    --n-ink: #ffffff; --n-ink-2: #c3c2b7; --n-ink-3: #908f86; --n-ink-4: #75746c;
+    --n-btn-bg: #ffffff; --n-btn-ink: #0a0a0a;
+    --n-accent: #22b183; --n-accent-ink: #3fcf9e; --n-accent-bg: #16302a;
+    --n-ok: #3fcf9e; --n-warn: #d9a21f; --n-bad: #e66767;
+    --n-serie-1: #199e70; --n-serie-2: #3987e5; --n-serie-3: #d95926;
+    --n-grid: #2e2e2b;
+    --n-shadow: 0 1px 2px rgb(0 0 0 / .3);
+  }
+}
+:root[data-theme="dark"] {
+  --n-bg: #121211;  --n-surface: #1a1a19;  --n-surface-2: #201f1e;
+  --n-line: #2e2e2b; --n-line-soft: #262624;
+  --n-ink: #ffffff; --n-ink-2: #c3c2b7; --n-ink-3: #908f86; --n-ink-4: #75746c;
+  --n-btn-bg: #ffffff; --n-btn-ink: #0a0a0a;
+    --n-accent: #22b183; --n-accent-ink: #3fcf9e; --n-accent-bg: #16302a;
+  --n-ok: #3fcf9e; --n-warn: #d9a21f; --n-bad: #e66767;
+  --n-serie-1: #199e70; --n-serie-2: #3987e5; --n-serie-3: #d95926;
+  --n-grid: #2e2e2b;
+  --n-shadow: 0 1px 2px rgb(0 0 0 / .3);
+}
+
+/* ====================================================================
+   SOCLE
+   ==================================================================== */
+body.n-app {
+  margin: 0;
+  background: var(--n-bg);
+  color: var(--n-ink-2);
+  font-family: var(--n-font-text);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ====================================================================
+   TITRES ET MICRO-LIBELLES
+   Le micro-libelle en capitales est la signature du site : on l'utilise
+   au-dessus de chaque bloc plutot qu'un gros titre.
+   ==================================================================== */
+.n-h1 { font-family: var(--n-font-title); font-size: 24px; font-weight: 800; letter-spacing: -.4px; color: var(--n-ink); margin: 0; }
+.n-h2 { font-family: var(--n-font-title); font-size: 16px; font-weight: 700; letter-spacing: -.2px; color: var(--n-ink); margin: 0; }
+.n-h3 { font-family: var(--n-font-title); font-size: 13px; font-weight: 700; letter-spacing: .02em; color: var(--n-ink); margin: 0; }
+
+.n-label {
+  display: block;
+  font-size: 9.5px; font-weight: 800; letter-spacing: 1.6px;
+  text-transform: uppercase; color: var(--n-ink-4);
+}
+
+.n-muted { color: var(--n-ink-3); }
+.n-num   { font-variant-numeric: tabular-nums; }
+
+/* ====================================================================
+   CARTE
+   Blanche, filet #e6e5e3, rayon 14. C'est l'unite de base de toute
+   l'interface : plus de blocs poses a meme le fond.
+   ==================================================================== */
+.n-card {
+  background: var(--n-surface);
+  border: 1px solid var(--n-line);
+  border-radius: var(--n-r-card);
+  box-shadow: var(--n-shadow);
+}
+.n-card__head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--n-line-soft);
+}
+.n-card__body { padding: 14px 16px; }
+.n-card__body--flush { padding: 0; }
+
+/* ====================================================================
+   BOUTONS
+   Noir plein pour l'action principale, contour pour le reste. Jamais
+   deux boutons pleins cote a cote.
+   ==================================================================== */
+.n-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  box-sizing: border-box; min-height: 38px; padding: 9px 18px;
+  border-radius: var(--n-r-pill); border: 1px solid transparent;
+  font-family: inherit; font-size: 12.5px; font-weight: 700; letter-spacing: .01em;
+  line-height: 1.2; cursor: pointer; text-decoration: none;
+  transition: background .18s ease, color .18s ease, border-color .18s ease;
+}
+.n-btn--primary { background: var(--n-btn-bg); border-color: var(--n-btn-bg); color: var(--n-btn-ink); }
+.n-btn--primary:hover { filter: brightness(.88); }
+.n-btn--ghost { background: var(--n-surface); border-color: var(--n-line); color: var(--n-ink); }
+.n-btn--ghost:hover { border-color: var(--n-ink); }
+.n-btn--icon { min-width: 38px; padding: 9px; }
+.n-btn--sm { min-height: 30px; padding: 6px 12px; font-size: 11.5px; }
+
+/* ====================================================================
+   CHAMPS
+   ==================================================================== */
+.n-field {
+  box-sizing: border-box; width: 100%; min-height: 40px; padding: 10px 13px;
+  background: var(--n-surface); color: var(--n-ink);
+  border: 1px solid var(--n-line); border-radius: var(--n-r-field);
+  font-family: inherit; font-size: 13px;
+}
+.n-field::placeholder { color: var(--n-ink-4); }
+.n-field:focus { outline: 2px solid var(--n-ink); outline-offset: -2px; border-color: var(--n-ink); }
+.n-select { appearance: none; padding-right: 34px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--n-ink-3) 50%), linear-gradient(135deg, var(--n-ink-3) 50%, transparent 50%);
+  background-position: right 16px center, right 11px center;
+  background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
+
+/* ====================================================================
+   PASTILLES
+   Memes proportions que les badges du site. La couleur ne porte jamais
+   l'information seule : le texte dit toujours de quoi il s'agit.
+   ==================================================================== */
+.n-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px; border-radius: var(--n-r-pill);
+  font-size: 9.5px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase;
+  white-space: nowrap;
+}
+.n-pill--solid   { background: var(--n-btn-bg); color: var(--n-btn-ink); }
+.n-pill--outline { background: var(--n-surface); color: var(--n-ink-3); border: 1px solid var(--n-line); }
+.n-pill--accent  { background: var(--n-accent-bg); color: var(--n-accent-ink); }
+.n-pill::before  { content: ""; display: none; }
+.n-pill--dot::before { display: block; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+/* ====================================================================
+   LIGNE DE LISTE (ventes de la session, resultats de scan…)
+   ==================================================================== */
+.n-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 16px; border-bottom: 1px solid var(--n-line-soft);
+  transition: background .15s ease;
+}
+.n-row:last-child { border-bottom: 0; }
+.n-row:hover { background: var(--n-surface-2); }
+.n-row__thumb {
+  flex: 0 0 auto; width: 44px; height: 44px; border-radius: 9px;
+  background: var(--n-surface-2); border: 1px solid var(--n-line-soft);
+  object-fit: contain;
+}
+.n-row__main { flex: 1 1 auto; min-width: 0; }
+.n-row__title {
+  font-size: 13px; font-weight: 600; color: var(--n-ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.n-row__sub { font-size: 11px; color: var(--n-ink-3); font-variant-numeric: tabular-nums; }
+.n-row__side { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.n-row__price { font-size: 13px; font-weight: 800; letter-spacing: -.2px; color: var(--n-ink); font-variant-numeric: tabular-nums; }
+
+/* ====================================================================
+   TUILE DE CHIFFRE
+   Micro-libelle au-dessus, nombre en gros, variation en dessous.
+   ==================================================================== */
+.n-kpi { padding: 14px 16px; }
+.n-kpi__val { margin-top: 6px; font-family: var(--n-font-title); font-size: 22px; font-weight: 800; letter-spacing: -.5px; color: var(--n-ink); font-variant-numeric: tabular-nums; }
+.n-kpi__sub { margin-top: 3px; font-size: 11px; color: var(--n-ink-3); }
+.n-kpi__delta { font-weight: 700; }
+.n-kpi__delta--up { color: var(--n-ok); }
+.n-kpi__delta--down { color: var(--n-bad); }
+
+/* ====================================================================
+   TABLEAU
+   En-tete en micro-libelles, lignes separees par un filet doux, chiffres
+   alignes a droite en chiffres tabulaires.
+   ==================================================================== */
+.n-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.n-table th {
+  position: sticky; top: 0; z-index: 1;
+  padding: 10px 14px; text-align: left; background: var(--n-surface-2);
+  border-bottom: 1px solid var(--n-line);
+  font-size: 9.5px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--n-ink-4);
+  white-space: nowrap;
+}
+.n-table td { padding: 10px 14px; border-bottom: 1px solid var(--n-line-soft); color: var(--n-ink-2); vertical-align: middle; }
+.n-table tbody tr:hover td { background: var(--n-surface-2); }
+.n-table .num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--n-ink); }
+
+/* ====================================================================
+   NAVIGATION
+   ==================================================================== */
+.n-topbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 18px; background: var(--n-surface);
+  border-bottom: 1px solid var(--n-line);
+}
+.n-tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+.n-tabs::-webkit-scrollbar { display: none; }
+.n-tab {
+  padding: 7px 12px; border-radius: var(--n-r-pill);
+  font-size: 11.5px; font-weight: 700; letter-spacing: .01em; color: var(--n-ink-3);
+  text-decoration: none; white-space: nowrap; transition: background .15s ease, color .15s ease;
+}
+.n-tab:hover { background: var(--n-surface-2); color: var(--n-ink); }
+.n-tab[aria-current="page"] { background: var(--n-btn-bg); color: var(--n-btn-ink); }
+
+.n-bottombar {
+  display: flex; background: var(--n-surface);
+  border-top: 1px solid var(--n-line); padding: 6px 4px 8px;
+}
+.n-bottombar a {
+  flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 6px 2px; text-decoration: none; color: var(--n-ink-4);
+  font-size: 9.5px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase;
+}
+.n-bottombar a[aria-current="page"] { color: var(--n-ink); }
+
+/* ====================================================================
+   GRAPHIQUES — regles de forme
+   Marques fines, extremites arrondies a 4px ancrees sur la ligne de
+   base, 2px d'espace entre deux barres, grille en retrait.
+   ==================================================================== */
+/* Les graphiques en barres occupent la largeur ; un donut garde sa
+   taille propre, d'ou la variante --fixe. */
+.n-chart { width: 100%; height: auto; overflow: visible; }
+.n-chart--fixe { width: auto; flex: 0 0 auto; }
+.n-chart .grid line { stroke: var(--n-grid); stroke-width: 1; }
+.n-chart .axis text { fill: var(--n-ink-4); font-size: 9.5px; font-weight: 700; letter-spacing: .4px; }
+.n-chart .bar { rx: 4; }
+.n-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; }
+.n-legend span { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--n-ink-3); }
+.n-legend i { width: 9px; height: 9px; border-radius: 3px; flex: 0 0 auto; }
+
+@media (prefers-reduced-motion: reduce) {
+  .n-btn, .n-row, .n-tab { transition: none; }
+}
