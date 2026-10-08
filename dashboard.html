@@ -562,7 +562,7 @@ tr:hover td { background: var(--surface-alt); }
 /* "À brader" / "Manquant" / badge-danger → routés en style WARNING (ambre)
    le rouge devient overwhelming quand toutes les lignes sont alertes */
 .badge-danger {
-  background: rgba(186, 117, 23, 0.10);
+  background: var(--warning-dim);
   color: #8a5512;
 }
 [data-theme="dark"] .badge-danger {
@@ -570,7 +570,7 @@ tr:hover td { background: var(--surface-alt); }
   color: #E8A247;
 }
 /* Score 0 / valeurs rouges dans le JS — atténuées */
-#stockTable td span[style*="color:#A32D2D"],
+#stockTable td span[style*="color:var(--accent)"],
 #stockTable td span[style*="color:#E24B4A"],
 #stockTable td span[style*="color:#791F1F"] {
   opacity: 0.55 !important;
@@ -785,7 +785,7 @@ tr:hover td { background: var(--surface-alt); }
   .employee-pill { padding: 3px; }
 }
 /* Override les inline styles hardcodés qui cassent le dark mode */
-#dashApp button[style*="background:#f5f5f3"],
+#dashApp button[style*="background:var(--surface-2)"],
 #dashApp button[style*="background:#fff"],
 #dashApp a[style*="background:#fff"] {
   background: var(--surface-2) !important;
@@ -795,7 +795,7 @@ tr:hover td { background: var(--surface-alt); }
   border-radius: 10px !important;
   font-weight: 600 !important;
 }
-#dashApp button[style*="background:#2C2C2A"] {
+#dashApp button[style*="background:var(--text)"] {
   background: var(--surface-2) !important;
   color: var(--text) !important;
   border: 1px solid var(--border-strong) !important;
@@ -803,19 +803,19 @@ tr:hover td { background: var(--surface-alt); }
   border-radius: 10px !important;
   font-weight: 600 !important;
 }
-#dashApp button[style*="color:#A32D2D"],
-#dashApp a[style*="color:#A32D2D"],
+#dashApp button[style*="color:var(--accent)"],
+#dashApp a[style*="color:var(--accent)"],
 #dashApp button[style*="background:rgba(163,45,45"] {
   background: var(--accent-dim) !important;
   color: var(--accent) !important;
   border: 1px solid var(--accent) !important;
 }
 /* Pills/badges de code-barres et statuts générés par le JS */
-#dashApp [style*="background:#f1efe8"] {
+#dashApp [style*="background:var(--surface-2)"] {
   background: var(--surface-alt) !important;
   color: var(--text-muted) !important;
 }
-#dashApp span[style*="background:#f1efe8"][style*="monospace"] {
+#dashApp span[style*="background:var(--surface-2)"][style*="monospace"] {
   color: var(--text) !important;
   border: 1px solid var(--border) !important;
 }
@@ -834,7 +834,7 @@ tr:hover td { background: var(--surface-alt); }
 /* Lignes de tableau colorées par le JS — tint subtil */
 #dashApp tr[style*="background:#FFF8F8"],
 #dashApp tr[style*="background:#fff8f8"] {
-  background: rgba(232, 80, 78, 0.05) !important;
+  background: var(--accent-dim) !important;
 }
 [data-theme="dark"] #dashApp tr[style*="background:#FFF8F8"],
 [data-theme="dark"] #dashApp tr[style*="background:#fff8f8"] {
@@ -869,7 +869,7 @@ tr:hover td { background: var(--surface-alt); }
   color: var(--text) !important;
 }
 /* Badges et spans pâles */
-#dashApp [style*="background:#EAF3DE"],
+#dashApp [style*="background:var(--success-dim)"],
 #dashApp [style*="background:#eaf3de"] {
   background: var(--badge-lille-bg) !important;
   color: var(--badge-lille-fg) !important;
@@ -880,17 +880,17 @@ tr:hover td { background: var(--surface-alt); }
   border-color: var(--success) !important;
   color: var(--text) !important;
 }
-#dashApp [style*="background:#E6F1FB"],
+#dashApp [style*="background:var(--info-dim)"],
 #dashApp [style*="background:#e6f1fb"] {
   background: var(--badge-dk-bg) !important;
   color: var(--badge-dk-fg) !important;
 }
-#dashApp [style*="background:#FCEBEB"],
+#dashApp [style*="background:var(--accent-dim)"],
 #dashApp [style*="background:#fcebeb"] {
   background: var(--badge-danger-bg) !important;
   color: var(--badge-danger-fg) !important;
 }
-#dashApp [style*="background:#FAEEDA"],
+#dashApp [style*="background:var(--warning-dim)"],
 #dashApp [style*="background:#faeeda"] {
   background: var(--badge-warning-bg) !important;
   color: var(--badge-warning-fg) !important;
@@ -907,12 +907,12 @@ tr:hover td { background: var(--surface-alt); }
 }
 .kpi[onclick]:active, .kpi[style*="cursor:pointer"]:active { transform: translateY(0); }
 /* KPIs sélectionnés / alertes */
-.kpi[style*="border-color:#A32D2D"],
+.kpi[style*="border-color:var(--accent)"],
 .kpi[style*="border-color:#e53"] {
   border-color: var(--accent) !important;
   background: var(--accent-dim) !important;
 }
-.kpi[style*="border-color:#BA7517"] {
+.kpi[style*="border-color:var(--warning)"] {
   border-color: var(--warning) !important;
   background: var(--warning-dim) !important;
 }
@@ -949,10 +949,10 @@ tr:hover td { background: var(--surface-alt); }
   .kpi-value { font-size: 22px; }
 }
 /* Inputs / selects / textareas inline-styled */
-#dashApp input[style*="background:#f5f5f3"],
+#dashApp input[style*="background:var(--surface-2)"],
 #dashApp input[style*="background:#fff"],
 #dashApp select[style*="background:#fff"],
-#dashApp textarea[style*="background:#f5f5f3"],
+#dashApp textarea[style*="background:var(--surface-2)"],
 #dashApp textarea[style*="background:#fff"] {
   background: var(--surface-2) !important;
   color: var(--text) !important;
@@ -1003,13 +1003,13 @@ tr:hover td { background: var(--surface-alt); }
   letter-spacing: -0.02em;
 }
 .qa-label { font-weight: 500; color: var(--text-muted); }
-.qa-danger { border-color: rgba(232, 80, 78, 0.3); background: var(--accent-dim); }
+.qa-danger { border-color: var(--accent-dim); background: var(--accent-dim); }
 .qa-danger .qa-count { color: var(--accent); }
 .qa-danger:hover { border-color: var(--accent); }
-.qa-warning { border-color: rgba(186, 117, 23, 0.3); background: var(--warning-dim); }
+.qa-warning { border-color: var(--warning-dim); background: var(--warning-dim); }
 .qa-warning .qa-count { color: var(--warning); }
 .qa-warning:hover { border-color: var(--warning); }
-.qa-info { border-color: rgba(24, 95, 165, 0.3); background: var(--info-dim); }
+.qa-info { border-color: var(--info-dim); background: var(--info-dim); }
 .qa-info .qa-count { color: var(--info); }
 .qa-info:hover { border-color: var(--info); }
 .qa-reset {
@@ -1175,7 +1175,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .cmdk-item .lbl { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cmdk-item .suffix { color: var(--text-soft); font-size: 11px; flex-shrink: 0; }
 .cmdk-item.selected { background: var(--accent-dim); color: var(--accent); }
-.cmdk-item.selected .ic { background: rgba(232,80,78,0.2); }
+.cmdk-item.selected .ic { background: var(--accent-dim); }
 .cmdk-item:hover:not(.selected) { background: var(--surface-alt); }
 .cmdk-empty { padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 14px; }
 .cmdk-footer {
@@ -1578,7 +1578,7 @@ tbody tr { transition: background .12s; }
 <div class="tabs">
   <div class="tabs-inner">
     <div class="tab active" onclick="switchTab('ventes',this)">Scan &amp; Ventes</div>
-    <div class="tab" id="tabObjectif" onclick="switchTab('objectif',this)">Objectif <span id="objectifBadge" style="display:none;width:8px;height:8px;border-radius:50%;background:#E8504E;margin-left:2px;vertical-align:middle;"></span></div>
+    <div class="tab" id="tabObjectif" onclick="switchTab('objectif',this)">Objectif <span id="objectifBadge" style="display:none;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-left:2px;vertical-align:middle;"></span></div>
     <div class="tab" onclick="switchTab('stock',this)">Stock en ligne</div>
     <div class="tab" id="tabSoldes" onclick="switchTab('soldes',this)">Soldes</div>
     <div class="tab" onclick="switchTab('rachats',this)">Rachats</div>
@@ -1599,17 +1599,17 @@ tbody tr { transition: background .12s; }
 <div class="modal" id="soldeModal">
   <div class="modal-box">
     <div class="modal-title" id="soldeModalTitle">Appliquer une réduction</div>
-    <div style="font-size:13px;color:#888780;margin-bottom:16px;" id="soldeModalSub"></div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;" id="soldeModalSub"></div>
     <label style="font-size:13px;font-weight:500;display:block;margin-bottom:8px;">Réduction (%)</label>
-    <input type="number" id="discountSelect" min="1" max="90" value="30" style="width:100%;padding:8px 12px;border:0.5px solid #d3d1c7;border-radius:8px;font-size:15px;margin-bottom:12px;"/>
+    <input type="number" id="discountSelect" min="1" max="90" value="30" style="width:100%;padding:8px 12px;border:0.5px solid var(--border);border-radius:8px;font-size:15px;margin-bottom:12px;"/>
     <label style="font-size:13px;font-weight:500;display:block;margin-bottom:8px;">Tag Shopify ajouté</label>
-    <input id="tagInput" style="width:100%;padding:8px 12px;border:0.5px solid #d3d1c7;border-radius:8px;font-size:13px;margin-bottom:12px;background:#f5f5f3;color:#888780;" value="soldepct" readonly/>
+    <input id="tagInput" style="width:100%;padding:8px 12px;border:0.5px solid var(--border);border-radius:8px;font-size:13px;margin-bottom:12px;background:var(--surface-2);color:var(--text-muted);" value="soldepct" readonly/>
     <div id="progressArea" style="display:none;margin-top:12px;">
-      <div style="font-size:13px;color:#888780;" id="progressText">Mise à jour en cours...</div>
+      <div style="font-size:13px;color:var(--text-muted);" id="progressText">Mise à jour en cours...</div>
       <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
     </div>
     <div class="modal-actions">
-      <button class="btn" style="background:#fff;color:#1a1a18;border-color:#d3d1c7;" onclick="closeSoldeModal()">Annuler</button>
+      <button class="btn" style="background:#fff;color:var(--text);border-color:var(--border);" onclick="closeSoldeModal()">Annuler</button>
       <button class="btn btn-red" id="applyBtn" onclick="applySolde()">Appliquer</button>
     </div>
   </div>
@@ -1619,9 +1619,9 @@ tbody tr { transition: background .12s; }
 <div class="modal" id="etatModal">
   <div class="modal-box">
     <div class="modal-title">État de l'article</div>
-    <div style="font-size:13px;color:#888780;margin-bottom:16px;" id="etatModalSub"></div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;" id="etatModalSub"></div>
     <label style="font-size:13px;font-weight:500;display:block;margin-bottom:8px;">État (poussé vers Shopify · custom.etat)</label>
-    <select id="etatSelect" style="width:100%;padding:8px 12px;border:0.5px solid #d3d1c7;border-radius:8px;font-size:15px;margin-bottom:12px;">
+    <select id="etatSelect" style="width:100%;padding:8px 12px;border:0.5px solid var(--border);border-radius:8px;font-size:15px;margin-bottom:12px;">
       <option value="">— Choisir un état —</option>
       <option value="Neuf">Neuf</option>
       <option value="Excellent état">Excellent état</option>
@@ -1631,11 +1631,11 @@ tbody tr { transition: background .12s; }
     </select>
     <label style="font-size:13px;font-weight:500;display:block;margin-bottom:8px;">Détails / défauts <span style="color:#b4b2a9;font-weight:400;">(optionnel · custom.disclosures)</span></label>
     <textarea id="etatDisclosures" rows="3" placeholder="Ex : légères marques d'usure sur la semelle, boîte d'origine incluse…"
-      style="width:100%;padding:8px 12px;border:0.5px solid #d3d1c7;border-radius:8px;font-size:13px;margin-bottom:6px;resize:vertical;font-family:inherit;"></textarea>
+      style="width:100%;padding:8px 12px;border:0.5px solid var(--border);border-radius:8px;font-size:13px;margin-bottom:6px;resize:vertical;font-family:inherit;"></textarea>
     <div id="etatMsg" style="font-size:13px;min-height:18px;margin-bottom:6px;"></div>
     <div class="modal-actions">
-      <button class="btn" style="background:#fff;color:#1a1a18;border-color:#d3d1c7;" onclick="closeEtatModal()">Annuler</button>
-      <button class="btn" id="etatSaveBtn" style="background:#185FA5;color:#fff;border-color:#185FA5;" onclick="saveEtat()">Enregistrer</button>
+      <button class="btn" style="background:#fff;color:var(--text);border-color:var(--border);" onclick="closeEtatModal()">Annuler</button>
+      <button class="btn" id="etatSaveBtn" style="background:var(--info);color:#fff;border-color:var(--info);" onclick="saveEtat()">Enregistrer</button>
     </div>
   </div>
 </div>
@@ -1650,11 +1650,11 @@ tbody tr { transition: background .12s; }
     <button class="period-btn" onclick="setPeriod(90,this)">3 mois</button>
     <button class="period-btn" onclick="setPeriod(365,this)">1 an</button>
     <div style="display:flex;align-items:center;gap:6px;margin-left:8px;">
-      <span style="font-size:12px;color:#888780;">Du</span>
-      <input type="date" id="dateFrom" style="padding:5px 8px;border:0.5px solid #d3d1c7;border-radius:8px;font-size:12px;cursor:pointer;"
+      <span style="font-size:12px;color:var(--text-muted);">Du</span>
+      <input type="date" id="dateFrom" style="padding:5px 8px;border:0.5px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer;"
         onchange="setCustomRange()"/>
-      <span style="font-size:12px;color:#888780;">au</span>
-      <input type="date" id="dateTo" style="padding:5px 8px;border:0.5px solid #d3d1c7;border-radius:8px;font-size:12px;cursor:pointer;"
+      <span style="font-size:12px;color:var(--text-muted);">au</span>
+      <input type="date" id="dateTo" style="padding:5px 8px;border:0.5px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer;"
         onchange="setCustomRange()"/>
     </div>
   </div>
@@ -1687,12 +1687,12 @@ tbody tr { transition: background .12s; }
     <div class="table-header">
       <span class="table-title">Toutes les ventes</span>
       <input class="search-input" placeholder="Rechercher..." oninput="filterSales(this.value)" style="max-width:240px;"/>
-      <span id="salesCount" style="font-size:12px;color:#888780;"></span>
+      <span id="salesCount" style="font-size:12px;color:var(--text-muted);"></span>
     </div>
     <div style="overflow-x:auto;">
       <table>
         <thead><tr><th>Article</th><th>Marque</th><th>Code-barres</th><th>Prix</th><th>Canal</th><th>Employé</th><th>Date & heure</th></tr></thead>
-        <tbody id="salesTable"><tr><td colspan="6" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
+        <tbody id="salesTable"><tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-muted);">Chargement...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1733,7 +1733,7 @@ tbody tr { transition: background .12s; }
     <div id="objCelebrate" style="display:none;text-align:center;font-weight:700;color:var(--success,#3B6D11);margin-top:10px;">🎉 Objectif du mois atteint, bravo l'équipe ! 🎉</div>
     <!-- KPIs -->
     <div id="objKpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:16px;"></div>
-    <div id="objNoTarget" style="display:none;margin-top:14px;padding:12px;border-radius:10px;background:rgba(186,117,23,.1);color:#8a5e1f;font-size:13px;">Objectif non défini par l'admin pour ce mois.</div>
+    <div id="objNoTarget" style="display:none;margin-top:14px;padding:12px;border-radius:10px;background:var(--warning-dim);color:#8a5e1f;font-size:13px;">Objectif non défini par l'admin pour ce mois.</div>
   </div>
 
   <!-- Carte saisie -->
@@ -1765,7 +1765,7 @@ tbody tr { transition: background .12s; }
   <div class="table-card" style="padding:18px;">
     <div class="table-title" id="objEntriesTitle" style="margin-bottom:12px;">Saisies du mois</div>
     <div id="objMissingAlert"></div>
-    <div style="overflow-x:auto;"><table><thead><tr><th>Date</th><th id="objColBoutique" style="display:none;">Boutique</th><th>CA (€)</th><th>Saisi par</th><th id="objColAction" style="display:none;"></th></tr></thead><tbody id="objEntriesTable"><tr><td colspan="5" style="text-align:center;padding:20px;color:#888780;">—</td></tr></tbody></table></div>
+    <div style="overflow-x:auto;"><table><thead><tr><th>Date</th><th id="objColBoutique" style="display:none;">Boutique</th><th>CA (€)</th><th>Saisi par</th><th id="objColAction" style="display:none;"></th></tr></thead><tbody id="objEntriesTable"><tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted);">—</td></tr></tbody></table></div>
   </div>
 </div>
 </div>
@@ -1886,9 +1886,9 @@ tbody tr { transition: background .12s; }
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
       <div class="section-title" style="margin:0;">Stock en ligne actuellement</div>
       <div class="stock-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn js-admin-only" onclick="openInventaireReport()" style="font-size:13px;background:rgba(24,95,165,0.12);border-color:#185FA5;color:#185FA5;" title="Bilan de l'inventaire : couverture, manquants, mal rangés, codes-barres en double">📋 Rapport inventaire</button>
-        <button class="btn js-admin-only" onclick="openBoutiqueCoherence()" style="font-size:13px;background:rgba(59,109,17,0.12);border-color:#3B6D11;color:#3B6D11;" title="Vérifie que le champ Boutique de chaque fiche concorde avec l'emplacement Shopify qui porte le stock — sinon le paiement propose le retrait dans la mauvaise boutique">🧭 Contrôle boutiques</button>
-        <button class="btn js-admin-only" onclick="resetInventaireBoutique()" style="font-size:13px;background:rgba(186,117,23,0.12);border-color:#BA7517;color:#BA7517;" title="Décoche toutes les cases « en boutique » pour refaire l'inventaire (confirmation demandée)">⚠️ Reset inventaire</button>
+        <button class="btn js-admin-only" onclick="openInventaireReport()" style="font-size:13px;background:var(--info-dim);border-color:var(--info);color:var(--info);" title="Bilan de l'inventaire : couverture, manquants, mal rangés, codes-barres en double">📋 Rapport inventaire</button>
+        <button class="btn js-admin-only" onclick="openBoutiqueCoherence()" style="font-size:13px;background:var(--success-dim);border-color:var(--success);color:var(--success);" title="Vérifie que le champ Boutique de chaque fiche concorde avec l'emplacement Shopify qui porte le stock — sinon le paiement propose le retrait dans la mauvaise boutique">🧭 Contrôle boutiques</button>
+        <button class="btn js-admin-only" onclick="resetInventaireBoutique()" style="font-size:13px;background:var(--warning-dim);border-color:var(--warning);color:var(--warning);" title="Décoche toutes les cases « en boutique » pour refaire l'inventaire (confirmation demandée)">⚠️ Reset inventaire</button>
       </div>
     </div>
     <div class="filters-row">
@@ -1949,8 +1949,8 @@ tbody tr { transition: background .12s; }
         <option value="true">Avec boîte</option>
         <option value="false">Sans boîte</option>
       </select>
-      <button onclick="exportMissingStock()" style="padding:8px 14px;background:#2C2C2A;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">📋 Exporter non cochés</button>
-      <button onclick="loadStock(true);" style="padding:8px 14px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:8px;font-size:12px;cursor:pointer;white-space:nowrap;" title="Force un rechargement frais depuis Shopify">↻ Actualiser</button>
+      <button onclick="exportMissingStock()" style="padding:8px 14px;background:var(--text);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">📋 Exporter non cochés</button>
+      <button onclick="loadStock(true);" style="padding:8px 14px;background:var(--surface-2);border:0.5px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer;white-space:nowrap;" title="Force un rechargement frais depuis Shopify">↻ Actualiser</button>
     </div>
   </div>
   <div id="stockSummary"></div>
@@ -1962,7 +1962,7 @@ tbody tr { transition: background .12s; }
   <div class="table-card tc-custom">
     <div class="table-header">
       <span class="table-title" id="stockTitle">Articles en ligne</span>
-      <span id="stockCount" style="font-size:12px;color:#888780;"></span>
+      <span id="stockCount" style="font-size:12px;color:var(--text-muted);"></span>
     </div>
     <div id="stockTableWrap" style="overflow-x:auto;">
       <table>
@@ -1975,7 +1975,7 @@ tbody tr { transition: background .12s; }
           <th>Boîte</th>
           <th></th>
         </tr></thead>
-        <tbody id="stockTable"><tr><td colspan="12" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
+        <tbody id="stockTable"><tr><td colspan="12" style="text-align:center;padding:30px;color:var(--text-muted);">Chargement...</td></tr></tbody>
       </table>
       <div id="stockPager"></div>
     </div>
@@ -2000,12 +2000,12 @@ tbody tr { transition: background .12s; }
   <div class="table-card">
     <div class="table-header">
       <span class="table-title">Tous les rachats</span>
-      <span id="rachatsCount" style="font-size:12px;color:#888780;"></span>
+      <span id="rachatsCount" style="font-size:12px;color:var(--text-muted);"></span>
     </div>
     <div style="overflow-x:auto;">
       <table>
         <thead><tr><th>Article</th><th>Marque</th><th>Code-barres</th><th>Achat</th><th>Estimé</th><th>Vendu</th><th>Marge</th><th>Statut vente</th><th>Authentification</th><th>Règlement</th><th>Employé</th><th>Date</th></tr></thead>
-        <tbody id="rachatsTable"><tr><td colspan="12" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
+        <tbody id="rachatsTable"><tr><td colspan="12" style="text-align:center;padding:30px;color:var(--text-muted);">Chargement...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -2022,7 +2022,7 @@ tbody tr { transition: background .12s; }
     <div class="kpi-grid" id="soldesKpis" style="margin-bottom:16px;"><div class="loading">Chargement…</div></div>
     <div class="stock-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
       <button class="btn btn-green" onclick="soldesApply()">🏷️ Appliquer les soldes</button>
-      <button class="btn" style="background:rgba(186,117,23,0.12);border-color:#BA7517;color:#BA7517;" onclick="soldesTerminate()">↩️ Terminer les soldes</button>
+      <button class="btn" style="background:var(--warning-dim);border-color:var(--warning);color:var(--warning);" onclick="soldesTerminate()">↩️ Terminer les soldes</button>
       <button class="btn" onclick="soldesRefresh()" style="font-size:13px;">↻ Actualiser</button>
     </div>
     <div class="table-card" style="padding:14px;margin-bottom:14px;">
@@ -2045,7 +2045,7 @@ tbody tr { transition: background .12s; }
       <div class="table-header"><span class="table-title">Catalogue en ligne</span><span id="soldesCount" style="font-size:12px;color:var(--text-muted);"></span></div>
       <div style="overflow-x:auto;"><table>
         <thead><tr><th>Article</th><th>Boutique</th><th>Prix actuel</th><th>Prix soldé</th><th>Remise</th><th>Statut</th><th></th></tr></thead>
-        <tbody id="soldesTable"><tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Chargement…</td></tr></tbody>
+        <tbody id="soldesTable"><tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted);">Chargement…</td></tr></tbody>
       </table></div>
       <div id="soldesPager"></div>
     </div>
@@ -2088,7 +2088,7 @@ tbody tr { transition: background .12s; }
     </div>
   </div>
   <!-- BRADERIE : suivi des articles pointés à l'arrivée (registre événementiel, purgé après) -->
-  <div class="table-card" id="braderiePanel" style="padding:16px 18px;margin-bottom:16px;border-left:3px solid #BA7517;">
+  <div class="table-card" id="braderiePanel" style="padding:16px 18px;margin-bottom:16px;border-left:3px solid var(--warning);">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
       <div>
         <div style="font-weight:700;font-size:14px;">🏷️ Braderie — suivi des articles pointés</div>
@@ -2098,7 +2098,7 @@ tbody tr { transition: background .12s; }
         <input id="braderieSearch" class="search-input" placeholder="Rechercher (désignation, code…)" style="width:220px;" oninput="braderieDashRender()"/>
         <button class="btn" onclick="braderieDashLoad()">🔄 Actualiser</button>
         <button class="btn" onclick="braderieDashExport()">⬇ Export CSV</button>
-        <button class="btn js-admin-only" style="display:none;color:#A32D2D;" onclick="braderieDashVider()">🗑 Vider le registre</button>
+        <button class="btn js-admin-only" style="display:none;color:var(--accent);" onclick="braderieDashVider()">🗑 Vider le registre</button>
       </div>
     </div>
     <div id="braderieDashKpis" class="kpi-grid" style="margin:12px 0;"></div>
@@ -2124,12 +2124,12 @@ tbody tr { transition: background .12s; }
   <div class="table-card">
     <div class="table-header">
       <span class="table-title">Historique des transferts</span>
-      <span id="trfCount" style="font-size:12px;color:#888780;"></span>
+      <span id="trfCount" style="font-size:12px;color:var(--text-muted);"></span>
     </div>
     <div style="overflow-x:auto;">
       <table>
         <thead><tr><th>Date / Heure</th><th>Employé</th><th>Article</th><th>Marque</th><th>De</th><th>Vers</th></tr></thead>
-        <tbody id="trfTable"><tr><td colspan="6" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
+        <tbody id="trfTable"><tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-muted);">Chargement...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -2202,7 +2202,7 @@ tbody tr { transition: background .12s; }
   <div class="table-card">
     <div class="table-header">
       <span class="table-title">Commandes en cours</span>
-      <span id="cmdCount" style="font-size:12px;color:#888780;"></span>
+      <span id="cmdCount" style="font-size:12px;color:var(--text-muted);"></span>
     </div>
     <div style="overflow-x:auto;">
       <table>
@@ -2210,7 +2210,7 @@ tbody tr { transition: background .12s; }
           <th>Commande</th><th>Client</th><th>Article</th><th>Boutique</th>
           <th>Prix</th><th>Date</th><th>Mis de côté</th><th>Expédition</th><th>Lien</th>
         </tr></thead>
-        <tbody id="cmdTable"><tr><td colspan="9" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
+        <tbody id="cmdTable"><tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-muted);">Chargement...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -2228,7 +2228,7 @@ tbody tr { transition: background .12s; }
     <div style="overflow-x:auto;">
       <table>
         <thead><tr><th>Article</th><th>Déposant</th><th>Prix dépôt</th><th>Vente</th><th>Marge</th><th>Déposé le</th><th>Limite</th><th>Statut</th><th>Action</th></tr></thead>
-        <tbody id="depotsTable"><tr><td colspan="9" style="text-align:center;padding:30px;color:#888780;">Chargement…</td></tr></tbody>
+        <tbody id="depotsTable"><tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-muted);">Chargement…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -2261,12 +2261,12 @@ tbody tr { transition: background .12s; }
   <div class="table-card">
     <div class="table-header">
       <span class="table-title">Tous les nettoyages</span>
-      <span id="cleanCount2" style="font-size:12px;color:#888780;"></span>
+      <span id="cleanCount2" style="font-size:12px;color:var(--text-muted);"></span>
     </div>
     <div style="overflow-x:auto;">
       <table>
         <thead><tr><th>Paire</th><th>Client</th><th>Téléphone</th><th>Service</th><th>Prix</th><th>Employé</th><th>Boutique</th><th>Dépôt</th><th>Remarques</th><th>Photos</th><th>Notes</th><th>Statut</th></tr></thead>
-        <tbody id="cleanTable"><tr><td colspan="11" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
+        <tbody id="cleanTable"><tr><td colspan="11" style="text-align:center;padding:30px;color:var(--text-muted);">Chargement...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -2344,11 +2344,11 @@ tbody tr { transition: background .12s; }
       </select>
     </div>
     <div id="actKpis" class="kpi-grid" style="margin-bottom:20px;"></div>
-    <div class="table-header" style="margin-bottom:8px;"><span class="table-title">Journal détaillé</span><span id="actCount" style="font-size:12px;color:#888780;"></span></div>
+    <div class="table-header" style="margin-bottom:8px;"><span class="table-title">Journal détaillé</span><span id="actCount" style="font-size:12px;color:var(--text-muted);"></span></div>
     <div style="overflow-x:auto;">
       <table>
         <thead><tr><th>Date</th><th>Heure</th><th>Employé</th><th>Action</th><th>Détails</th><th>Boutique</th><th>Montant</th></tr></thead>
-        <tbody id="actTable"><tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr></tbody>
+        <tbody id="actTable"><tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted);">Chargement...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -2388,8 +2388,8 @@ tbody tr { transition: background .12s; }
   .vtools[open] > .vtools-menu { display:flex; }
   .vtools-menu { display:none; position:absolute; right:0; top:calc(100% + 6px); z-index:60; flex-direction:column; gap:6px; padding:10px; background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.12); min-width:230px; }
   .vtools-menu .btn { justify-content:flex-start; text-align:left; width:100%; }
-  #tab-vinted .vinted-status .vdot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#3B6D11; margin-right:6px; vertical-align:middle; }
-  #tab-vinted .vinted-status .vdot.old { background:#BA7517; }
+  #tab-vinted .vinted-status .vdot { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--success); margin-right:6px; vertical-align:middle; }
+  #tab-vinted .vinted-status .vdot.old { background:var(--warning); }
   #tab-vinted .vinted-status .vdot.never { background:var(--text-muted); }
   /* Segmented controls (année + vue) */
   #tab-vinted .vinted-toolbar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
@@ -2422,13 +2422,13 @@ tbody tr { transition: background .12s; }
   .vcat.vet { color:#7c5cd6; border-color:#c9b8f0; } .vcat.snk { color:#1f86b8; border-color:#a7d9ef; } .vcat.acc { color:#b87917; border-color:#efd6a7; }
   [data-theme="dark"] .vcat.vet { color:#c9a3ff; border-color:#3d2d5c; } [data-theme="dark"] .vcat.snk { color:#7fd4ff; border-color:#23475c; } [data-theme="dark"] .vcat.acc { color:#ffcf8f; border-color:#5c4523; }
   .vtag { display:inline-block; padding:3px 9px; border-radius:999px; font-size:11px; font-weight:600; border:1px solid var(--border); white-space:nowrap; }
-  .vtag.acaisse { color:#BA7517; border-color:#efd6a7; background:rgba(186,117,23,.10); }
-  .vtag.encaisse { color:#3B6D11; border-color:#bfe0a0; background:rgba(59,109,17,.10); }
-  .veur.miss { color:#BA7517; font-weight:700; }
+  .vtag.acaisse { color:var(--warning); border-color:#efd6a7; background:var(--warning-dim); }
+  .vtag.encaisse { color:var(--success); border-color:#bfe0a0; background:var(--success-dim); }
+  .veur.miss { color:var(--warning); font-weight:700; }
   .vlist { display:inline-block; padding:1px 7px; border-radius:999px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.3px; border:1px solid var(--border); white-space:nowrap; }
-  .vlist-nouvelle { color:#3B6D11; border-color:#bfe0a0; background:rgba(59,109,17,.10); }
-  .vlist-ancienne { color:#185FA5; border-color:#a7c6ef; background:rgba(24,95,165,.12); }
-  [data-theme="dark"] .vlist-ancienne { color:#7fb6ef; border-color:#26456f; background:rgba(24,95,165,.18); }
+  .vlist-nouvelle { color:var(--success); border-color:#bfe0a0; background:var(--success-dim); }
+  .vlist-ancienne { color:var(--info); border-color:#a7c6ef; background:var(--info-dim); }
+  [data-theme="dark"] .vlist-ancienne { color:#7fb6ef; border-color:#26456f; background:var(--info-dim); }
   #tab-vinted .vlist { font-size:9.5px; padding:1px 6px; opacity:.9; }
   /* Zébrures discrètes */
   #tab-vinted tbody tr:nth-child(even) td { background:rgba(0,0,0,.013); }
@@ -2439,7 +2439,7 @@ tbody tr { transition: background .12s; }
   /* Bouton copier (icône presse-papier → ✓ vert à la copie) */
   #tab-vinted .vcopy { display:inline-flex; align-items:center; justify-content:center; width:24px; height:23px; margin-left:5px; padding:0; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text-muted); cursor:pointer; vertical-align:middle; transition:.12s; }
   #tab-vinted .vcopy:hover { border-color:var(--text-muted); color:var(--text); background:var(--surface-2); }
-  #tab-vinted .vcopy.ok { color:#3B6D11; border-color:#bfe0a0; background:rgba(59,109,17,.12); }
+  #tab-vinted .vcopy.ok { color:var(--success); border-color:#bfe0a0; background:var(--success-dim); }
   #tab-vinted .vcopy svg { width:13px; height:13px; display:block; }
   /* Sélecteur catégorie — propre, coloré par catégorie */
   #tab-vinted .vcatsel { font-size:12.5px; font-weight:600; padding:6px 10px; max-width:160px; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--text); font-family:inherit; cursor:pointer; transition:.12s; }
@@ -2448,28 +2448,28 @@ tbody tr { transition: background .12s; }
   #tab-vinted .vcatsel.vet { color:#7c5cd6; border-color:#c9b8f0; } #tab-vinted .vcatsel.snk { color:#1f86b8; border-color:#a7d9ef; } #tab-vinted .vcatsel.acc { color:#b87917; border-color:#efd6a7; }
   [data-theme="dark"] #tab-vinted .vcatsel.vet { color:#c9a3ff; border-color:#3d2d5c; } [data-theme="dark"] #tab-vinted .vcatsel.snk { color:#7fd4ff; border-color:#23475c; } [data-theme="dark"] #tab-vinted .vcatsel.acc { color:#ffcf8f; border-color:#5c4523; }
   /* Bouton « En caisse » — vert doux, plein au survol (ni mur saturé, ni fantôme gris) */
-  #tab-vinted .vbtn-caisse { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; padding:7px 13px; border-radius:8px; border:1px solid #bfe0a0; background:rgba(59,109,17,.09); color:#3B6D11; cursor:pointer; white-space:nowrap; transition:.12s; font-family:inherit; }
-  #tab-vinted .vbtn-caisse:hover { background:#3B6D11; color:#fff; border-color:#3B6D11; box-shadow:0 1px 4px rgba(59,109,17,.3); }
+  #tab-vinted .vbtn-caisse { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; padding:7px 13px; border-radius:8px; border:1px solid #bfe0a0; background:var(--success-dim); color:var(--success); cursor:pointer; white-space:nowrap; transition:.12s; font-family:inherit; }
+  #tab-vinted .vbtn-caisse:hover { background:var(--success); color:#fff; border-color:var(--success); box-shadow:0 1px 4px var(--success-dim); }
   #tab-vinted .vbtn-caisse.mini { padding:4px 9px; font-size:11px; }
-  [data-theme="dark"] #tab-vinted .vbtn-caisse { border-color:#2c5214; background:rgba(59,109,17,.16); color:#8fd05f; }
-  [data-theme="dark"] #tab-vinted .vbtn-caisse:hover { background:#3B6D11; color:#fff; }
+  [data-theme="dark"] #tab-vinted .vbtn-caisse { border-color:#2c5214; background:var(--success-dim); color:#8fd05f; }
+  [data-theme="dark"] #tab-vinted .vbtn-caisse:hover { background:var(--success); color:#fff; }
   /* --- Sélection groupée : cases TOUJOURS visibles, ligne sélectionnée bien marquée --- */
   #tab-vinted th.vchk-th { width:44px; text-align:center; }
   #tab-vinted td.vchk-cell { text-align:center; width:44px; }
-  #tab-vinted input.vchk { width:20px; height:20px; cursor:pointer; accent-color:#3B6D11; vertical-align:middle; margin:0; }
-  #tab-vinted #vintedCheckAll { width:17px; height:17px; cursor:pointer; accent-color:#3B6D11; vertical-align:middle; margin:0; }
+  #tab-vinted input.vchk { width:20px; height:20px; cursor:pointer; accent-color:var(--success); vertical-align:middle; margin:0; }
+  #tab-vinted #vintedCheckAll { width:17px; height:17px; cursor:pointer; accent-color:var(--success); vertical-align:middle; margin:0; }
   /* Ligne sélectionnée : fond vert net + liseré vert à gauche → repérable au premier coup d'œil */
-  #tab-vinted #vintedRowsCaisse tr:has(input.vchk:checked) > td { background:rgba(59,109,17,.15); }
-  #tab-vinted #vintedRowsCaisse tr:has(input.vchk:checked):hover > td { background:rgba(59,109,17,.21); }
-  #tab-vinted #vintedRowsCaisse tr:has(input.vchk:checked) > td.vchk-cell { box-shadow:inset 4px 0 0 #3B6D11; }
-  [data-theme="dark"] #tab-vinted #vintedRowsCaisse tr:has(input.vchk:checked) > td { background:rgba(59,109,17,.26); }
+  #tab-vinted #vintedRowsCaisse tr:has(input.vchk:checked) > td { background:var(--success-dim); }
+  #tab-vinted #vintedRowsCaisse tr:has(input.vchk:checked):hover > td { background:var(--success-dim); }
+  #tab-vinted #vintedRowsCaisse tr:has(input.vchk:checked) > td.vchk-cell { box-shadow:inset 4px 0 0 var(--success); }
+  [data-theme="dark"] #tab-vinted #vintedRowsCaisse tr:has(input.vchk:checked) > td { background:var(--success-dim); }
   /* Barre d'action flottante (pilule centrée en bas, façon Gmail/Linear) */
   #tab-vinted #vintedBulkBar { position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:160; display:flex; align-items:center; gap:14px; padding:9px 11px 9px 18px; background:var(--surface); border:1px solid var(--border); border-radius:999px; box-shadow:0 8px 30px rgba(0,0,0,.20); animation:vbulkIn .16s ease; }
   @keyframes vbulkIn { from{ opacity:0; transform:translate(-50%,8px); } to{ opacity:1; transform:translate(-50%,0); } }
   #tab-vinted #vintedBulkBar .vbulk-count { display:inline-flex; align-items:center; gap:8px; font-weight:600; font-size:13.5px; color:var(--text); white-space:nowrap; }
-  #tab-vinted #vintedBulkBar .vbulk-num { display:inline-flex; align-items:center; justify-content:center; min-width:23px; height:23px; padding:0 7px; border-radius:999px; background:#3B6D11; color:#fff; font-size:12.5px; font-weight:700; }
-  #tab-vinted #vintedBulkBar .vbulk-go { display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; padding:8px 16px; border-radius:999px; border:none; background:#3B6D11; color:#fff; cursor:pointer; font-family:inherit; transition:.12s; }
-  #tab-vinted #vintedBulkBar .vbulk-go:hover { background:#2f5a0e; box-shadow:0 2px 8px rgba(59,109,17,.4); }
+  #tab-vinted #vintedBulkBar .vbulk-num { display:inline-flex; align-items:center; justify-content:center; min-width:23px; height:23px; padding:0 7px; border-radius:999px; background:var(--success); color:#fff; font-size:12.5px; font-weight:700; }
+  #tab-vinted #vintedBulkBar .vbulk-go { display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; padding:8px 16px; border-radius:999px; border:none; background:var(--success); color:#fff; cursor:pointer; font-family:inherit; transition:.12s; }
+  #tab-vinted #vintedBulkBar .vbulk-go:hover { background:#2f5a0e; box-shadow:0 2px 8px var(--success-dim); }
   #tab-vinted #vintedBulkBar .vbulk-go:disabled { background:var(--surface-alt); color:var(--text-muted); cursor:default; box-shadow:none; }
   #tab-vinted #vintedBulkBar .vbulk-close { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:999px; border:none; background:none; color:var(--text-muted); font-size:17px; cursor:pointer; font-family:inherit; }
   #tab-vinted #vintedBulkBar .vbulk-close:hover { background:var(--surface-alt); color:var(--text); }
@@ -2483,13 +2483,13 @@ tbody tr { transition: background .12s; }
   #tab-vinted .vcarton-copy { display:inline-flex; align-items:center; gap:7px; max-width:100%; padding:6px 11px; border:1px solid var(--border); border-radius:9px; background:var(--surface-alt); color:var(--text); cursor:pointer; font-family:inherit; font-size:12.5px; font-weight:700; line-height:1.1; transition:.12s; }
   #tab-vinted .vcarton-copy:hover { border-color:var(--text-muted); background:var(--surface-2); }
   #tab-vinted .vcarton-copy:active { transform:translateY(1px); }
-  #tab-vinted .vcarton-copy.ok { border-color:#bfe0a0; background:rgba(59,109,17,.14); color:#3B6D11; }
+  #tab-vinted .vcarton-copy.ok { border-color:#bfe0a0; background:var(--success-dim); color:var(--success); }
   #tab-vinted .vcarton-copy .vcc-txt { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:150px; }
   #tab-vinted .vcarton-copy .vcc-ico { flex:0 0 auto; display:inline-flex; width:15px; height:15px; color:var(--text-muted); }
-  #tab-vinted .vcarton-copy.ok .vcc-ico { color:#3B6D11; }
+  #tab-vinted .vcarton-copy.ok .vcc-ico { color:var(--success); }
   #tab-vinted .vcarton-copy .vcc-ico svg { width:15px; height:15px; }
   /* Tags statut fake / remboursé */
-  .vtag.fake { color:#A32D2D; border-color:#e6b3b3; background:rgba(163,45,45,.10); }
+  .vtag.fake { color:var(--accent); border-color:#e6b3b3; background:var(--accent-dim); }
   .vtag.rembourse { color:#7c5cd6; border-color:#c9b8f0; background:rgba(124,92,214,.10); }
   [data-theme="dark"] .vtag.rembourse { color:#c9a3ff; border-color:#3d2d5c; }
   /* Tag localisation (articles pas encore en caisse) : aucun / local / boutique */
@@ -2508,7 +2508,7 @@ tbody tr { transition: background .12s; }
   #tab-vinted .vjustif.off { opacity:.3; }
   #tab-vinted .vanomalie { margin-left:5px; cursor:help; }
   #tab-vinted .vbtn-undo { font-size:11px; padding:3px 8px; border-radius:7px; border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer; font-family:inherit; transition:.12s; margin-left:4px; }
-  #tab-vinted .vbtn-undo:hover { border-color:#A32D2D; color:#A32D2D; }
+  #tab-vinted .vbtn-undo:hover { border-color:var(--accent); color:var(--accent); }
   /* Badge bundle (article issu d'un lot dégroupé) */
   #tab-vinted .vbundle { display:inline-flex; align-items:center; font-size:9.5px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; padding:1px 7px; border-radius:999px; border:1px solid #efc07a; color:#9a5b00; background:rgba(224,161,6,.16); cursor:pointer; font-family:inherit; white-space:nowrap; }
   #tab-vinted .vbundle:hover { background:#E0A106; color:#3a2400; border-color:#E0A106; }
@@ -2696,7 +2696,7 @@ tbody tr { transition: background .12s; }
       <button class="btn" onclick="pdvsExportCsv()">⬇ CSV</button>
     </span>
   </div>
-  <div style="font-size:12px;color:#185FA5;background:rgba(24,95,165,.10);border:1px solid #b3ccea;border-radius:8px;padding:10px 12px;margin-bottom:14px;">
+  <div style="font-size:12px;color:var(--info);background:var(--info-dim);border:1px solid #b3ccea;border-radius:8px;padding:10px 12px;margin-bottom:14px;">
     🧹 Page de <b>contrôle qualité</b> — sert à repérer les erreurs de saisie PDV à corriger à la source. Les chiffres de <b>CA / marge réels</b> sont dans l'onglet <b>« PDV Ventes »</b>, pas ici.
   </div>
   <div class="filters-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;">
@@ -2718,7 +2718,7 @@ tbody tr { transition: background .12s; }
     <div class="modal-title" id="vintedConfirmTitle">Confirmer</div>
     <div id="vintedConfirmMsg" style="color:var(--text-muted);font-size:14px;line-height:1.55;"></div>
     <div class="modal-actions">
-      <button class="btn" style="background:#fff;color:#1a1a18;border-color:#d3d1c7;" onclick="vintedConfirmResolve(false)">Annuler</button>
+      <button class="btn" style="background:#fff;color:var(--text);border-color:var(--border);" onclick="vintedConfirmResolve(false)">Annuler</button>
       <button class="btn btn-green" id="vintedConfirmOk" onclick="vintedConfirmResolve(true)">Confirmer</button>
     </div>
   </div>
@@ -2771,7 +2771,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-10-08-v272-finitions-visuelles'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-10-08-v273-habillage-listes'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -2822,7 +2822,7 @@ function showToast(msg, type = '') {
     document.body.appendChild(t);
   }
   t.textContent = msg;
-  t.style.background = type === 'error' ? '#A32D2D' : type === 'warn' ? '#BA7517' : '#3B6D11';
+  t.style.background = type === 'error' ? 'var(--accent)' : type === 'warn' ? 'var(--warning)' : 'var(--success)';
   t.style.opacity = '1';
   clearTimeout(t._to);
   t._to = setTimeout(() => { t.style.opacity = '0'; }, 2800);
@@ -2849,7 +2849,7 @@ let _dashUpdateInterval = setInterval(() => {
         if (!b) {
           b = document.createElement('div');
           b.id = 'dashUpdateBanner';
-          b.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#3B6D11;color:#fff;text-align:center;padding:12px;font-size:13px;font-weight:600;z-index:9999;cursor:pointer;';
+          b.style.cssText = 'position:fixed;top:0;left:0;right:0;background:var(--success);color:#fff;text-align:center;padding:12px;font-size:13px;font-weight:600;z-index:9999;cursor:pointer;';
           b.textContent = '🔄 Nouvelle version disponible — Appuyer pour actualiser';
           b.onclick = nvHardReload;
           document.body.prepend(b);
@@ -3009,7 +3009,7 @@ function channelBadge(b) {
   if(b==='Site web') return '<span class="badge badge-web">Site web</span>';
   if(b==='Vinted') return '<span class="badge badge-vinted">Vinted</span>';
   if(b==='Depop') return '<span class="badge badge-vinted">Depop</span>';
-  return `<span class="badge" style="background:#f1efe8;color:#5f5e5a;">${esc(b)}</span>`;
+  return `<span class="badge" style="background:var(--surface-2);color:#5f5e5a;">${esc(b)}</span>`;
 }
 
 async function loadSummary() {
@@ -3109,7 +3109,7 @@ function renderSalesTable(data, keepPage) {
   window._salesRenderData = data;
   document.getElementById('salesCount').textContent = `${data.length} vente${data.length>1?'s':''}`;
   const tbody = document.getElementById('salesTable');
-  if(!data.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Aucune vente</td></tr>';return;}
+  if(!data.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted);">Aucune vente</td></tr>';return;}
   const shown = Math.min(salesShown, data.length);
   let _rowsHtml = data.slice(0, shown).map(s => {
     const img = s.image_url?`<img src="${esc(s.image_url)}" class="product-img"/>`:`<span class="no-img">👕</span>`;
@@ -3117,12 +3117,12 @@ function renderSalesTable(data, keepPage) {
     const initials = s.employee?esc(s.employee.substring(0,2).toUpperCase()):'?';
     const storeName = 'nestore-io';
     const barcodeHtml = s.barcode
-      ? `<span style="font-family:monospace;font-size:11px;background:#f1efe8;padding:2px 6px;border-radius:4px;">${esc(s.barcode)}</span>`
+      ? `<span style="font-family:monospace;font-size:11px;background:var(--surface-2);padding:2px 6px;border-radius:4px;">${esc(s.barcode)}</span>`
       : '<span style="color:#b4b2a9;font-size:12px;">—</span>';
     const shopifyLink = s.barcode && s.boutique !== 'Site web' && s.boutique !== 'Vinted'
-      ? `<a href="https://admin.shopify.com/store/${storeName}/products?query=${esc(encodeURIComponent(s.barcode))}" target="_blank" style="font-size:11px;padding:2px 7px;border:0.5px solid #d3d1c7;border-radius:5px;background:#fff;color:#1a1a18;text-decoration:none;white-space:nowrap;">↗ Shopify</a>`
+      ? `<a href="https://admin.shopify.com/store/${storeName}/products?query=${esc(encodeURIComponent(s.barcode))}" target="_blank" style="font-size:11px;padding:2px 7px;border:0.5px solid var(--border);border-radius:5px;background:#fff;color:var(--text);text-decoration:none;white-space:nowrap;">↗ Shopify</a>`
       : '';
-    return `<tr><td style="display:flex;align-items:center;gap:8px;">${img}<span>${esc(s.product_name)}</span></td><td style="color:#888780;font-size:12px;">${esc(s.brand)||'—'}</td><td style="display:flex;gap:4px;align-items:center;">${barcodeHtml}${shopifyLink}</td><td style="font-weight:600;">${parseFloat(s.price).toFixed(2)} €</td><td>${channelBadge(s.boutique)}</td><td><span class="avatar">${initials}</span>${esc(s.employee)}</td><td style="color:#888780;">${date}</td></tr>`;
+    return `<tr><td style="display:flex;align-items:center;gap:8px;">${img}<span>${esc(s.product_name)}</span></td><td style="color:var(--text-muted);font-size:12px;">${esc(s.brand)||'—'}</td><td style="display:flex;gap:4px;align-items:center;">${barcodeHtml}${shopifyLink}</td><td style="font-weight:600;">${parseFloat(s.price).toFixed(2)} €</td><td>${channelBadge(s.boutique)}</td><td><span class="avatar">${initials}</span>${esc(s.employee)}</td><td style="color:var(--text-muted);">${date}</td></tr>`;
   }).join('');
   if (shown < data.length) {
     _rowsHtml += `<tr><td colspan="7" style="text-align:center;padding:14px;">
@@ -3143,7 +3143,7 @@ async function loadStock(force) {
   const _seq = ++_stockLoadSeq;
   const _prev = allStockData;                 // sauvegarde : on ne vide pas la liste avant d'avoir une réponse valide
   const hadData = !!(_prev && _prev.length);
-  if (!hadData) document.getElementById('stockTable').innerHTML = '<tr><td colspan="12" style="text-align:center;padding:40px;color:#888780;">Chargement du stock…</td></tr>';
+  if (!hadData) document.getElementById('stockTable').innerHTML = '<tr><td colspan="12" style="text-align:center;padding:40px;color:var(--text-muted);">Chargement du stock…</td></tr>';
   let data, locMap;
   try {
     [data, locMap] = await Promise.all([api('/analytics/stock' + (force ? '?fresh=1' : '')), api('/stock/locations')]);
@@ -3156,7 +3156,7 @@ async function loadStock(force) {
   } catch (e) {
     if (_seq !== _stockLoadSeq) return;        // un chargement plus récent a démarré
     if (hadData) { allStockData = _prev; showDashToast('Rafraîchissement échoué — liste précédente conservée', 'warn'); if (typeof filterStock === 'function') filterStock(); }
-    else document.getElementById('stockTable').innerHTML = '<tr><td colspan="12" style="text-align:center;padding:40px;color:#A32D2D;">Erreur de chargement — clique sur ↻ Actualiser pour réessayer</td></tr>';
+    else document.getElementById('stockTable').innerHTML = '<tr><td colspan="12" style="text-align:center;padding:40px;color:var(--accent);">Erreur de chargement — clique sur ↻ Actualiser pour réessayer</td></tr>';
     return;
   }
   if (_seq !== _stockLoadSeq) return; // un chargement plus récent (ex: changement de boutique) a démarré → on abandonne celui-ci
@@ -3218,7 +3218,7 @@ async function loadStock(force) {
       else if (_srvVal.ageMinutes!=null && _srvVal.ageMinutes>120) _valNote=`⚠️ Valeur figée : calculée il y a ${Math.round(_srvVal.ageMinutes/60)} h`+(_srvVal.refreshError?` (rafraîchissement en échec : ${esc(_srvVal.refreshError.message)})`:'');
     }
     _valuesHtml = `
-      <div class="kpi"><div class="kpi-label">💰 Valeur stock (total)</div><div class="kpi-value" style="color:#3B6D11;">${eur(valTotal)}</div><div class="kpi-sub">${total} articles en ligne${_srvVal&&_srvVal.products?` · ${_srvVal.products} produits valorisés`:''}</div>${_valNote?`<div class="kpi-sub" style="color:#A32D2D;font-weight:600;">${_valNote}</div>`:''}</div>
+      <div class="kpi"><div class="kpi-label">💰 Valeur stock (total)</div><div class="kpi-value" style="color:var(--success);">${eur(valTotal)}</div><div class="kpi-sub">${total} articles en ligne${_srvVal&&_srvVal.products?` · ${_srvVal.products} produits valorisés`:''}</div>${_valNote?`<div class="kpi-sub" style="color:var(--accent);font-weight:600;">${_valNote}</div>`:''}</div>
       <div class="kpi"><div class="kpi-label">Valeur stock Lille</div><div class="kpi-value">${eur(valLille)}</div></div>
       <div class="kpi"><div class="kpi-label">Valeur stock Dunkerque</div><div class="kpi-value">${eur(valDK)}</div></div>`;
   }
@@ -3238,13 +3238,13 @@ async function loadStock(force) {
     ${statsHtml}
     <div class="stock-section-label">Filtres rapides — un clic applique ce filtre seul (remet les autres à zéro)</div>
     <div class="stock-quick">
-      ${qf('localises','Localisés ✓', localized, `sur ${total}`, '#3B6D11', false)}
-      ${qf('nonlocalises','Non localisés', notLocalized, notLocalized>0?'à vérifier':'tout localisé ✓', notLocalized>0?'#A32D2D':'#3B6D11', notLocalized>0)}
-      ${qf('j60','+60 jours', alert60, 'à brader', '#A32D2D', false)}
-      ${qf('nocb','Sans code-barres', missingBarcode, missingBarcode>0?'à scanner':'tout OK', missingBarcode>0?'#A32D2D':'#3B6D11', missingBarcode>0)}
-      ${qf('boite','Boîte non renseignée', boiteManquante, boiteManquante>0?'sneakers à compléter':'tout renseigné ✓', boiteManquante>0?'#BA7517':'#3B6D11', false)}
+      ${qf('localises','Localisés ✓', localized, `sur ${total}`, 'var(--success)', false)}
+      ${qf('nonlocalises','Non localisés', notLocalized, notLocalized>0?'à vérifier':'tout localisé ✓', notLocalized>0?'var(--accent)':'var(--success)', notLocalized>0)}
+      ${qf('j60','+60 jours', alert60, 'à brader', 'var(--accent)', false)}
+      ${qf('nocb','Sans code-barres', missingBarcode, missingBarcode>0?'à scanner':'tout OK', missingBarcode>0?'var(--accent)':'var(--success)', missingBarcode>0)}
+      ${qf('boite','Boîte non renseignée', boiteManquante, boiteManquante>0?'sneakers à compléter':'tout renseigné ✓', boiteManquante>0?'var(--warning)':'var(--success)', false)}
       ${qf('vinted','Sur Vinted', onVintedCount, 'annonces en ligne', '#09B1BA', false)}
-      ${_isAdmin ? qf('doublons','Codes-barres en double', dupCount, dupCount>0?'à corriger':'aucun ✓', dupCount>0?'#A32D2D':'#3B6D11', dupCount>0) : ''}
+      ${_isAdmin ? qf('doublons','Codes-barres en double', dupCount, dupCount>0?'à corriger':'aucun ✓', dupCount>0?'var(--accent)':'var(--success)', dupCount>0) : ''}
     </div>`;
   filterStock();
   if (typeof loadForgottenSales === 'function') loadForgottenSales(); // cache serveur chaud → alerte ventes oubliées
@@ -3253,11 +3253,11 @@ async function loadStock(force) {
     const existing = document.getElementById('syncStatsBanner');
     if (existing) existing.remove();
     if (!stats.today?.length) return;
-    const lines = stats.today.map(e => `<span style="font-size:12px;background:#EAF3DE;color:#3B6D11;padding:3px 10px;border-radius:20px;font-weight:500;">${esc(e.updated_by)} — ${e.count} article${e.count>1?'s':''}</span>`).join('');
+    const lines = stats.today.map(e => `<span style="font-size:12px;background:var(--success-dim);color:var(--success);padding:3px 10px;border-radius:20px;font-weight:500;">${esc(e.updated_by)} — ${e.count} article${e.count>1?'s':''}</span>`).join('');
     const banner = document.createElement('div');
     banner.id = 'syncStatsBanner';
     banner.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 14px;background:#f5faf0;border:0.5px solid #b5d4a0;border-radius:10px;margin-bottom:12px;';
-    banner.innerHTML = `<span style="font-size:12px;color:#3B6D11;font-weight:600;">📦 Synchro aujourd'hui :</span> ${lines} <span style="font-size:11px;color:#888780;margin-left:4px;">${stats.total} total cochés</span>`;
+    banner.innerHTML = `<span style="font-size:12px;color:var(--success);font-weight:600;">📦 Synchro aujourd'hui :</span> ${lines} <span style="font-size:11px;color:var(--text-muted);margin-left:4px;">${stats.total} total cochés</span>`;
     document.getElementById('stockSummary').after(banner);
   }).catch(()=>{});
 }
@@ -3336,17 +3336,17 @@ function openInventaireReport() {
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">Basé sur le stock actuellement chargé. Coché = scanné « en boutique ».</div>
     <div style="margin-bottom:16px;">
       <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span style="font-weight:700;">Couverture</span><span style="font-weight:700;">${coches.length} / ${total} · ${pct}%</span></div>
-      <div style="height:12px;background:var(--surface-2);border-radius:99px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${pct>=90?'#3B6D11':pct>=60?'#EF9F27':'#E24B4A'};"></div></div>
+      <div style="height:12px;background:var(--surface-2);border-radius:99px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${pct>=90?'var(--success)':pct>=60?'#EF9F27':'var(--accent)'};"></div></div>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;">
-      ${kpi(coches.length, 'Cochés', '#3B6D11')}
-      ${kpi(manquants.length, 'Manquants', '#E24B4A')}
-      ${kpi(malRanges.length, 'Mal rangés', '#185FA5')}
-      ${kpi(noBc.length, 'Sans code-barres', '#BA7517')}
+      ${kpi(coches.length, 'Cochés', 'var(--success)')}
+      ${kpi(manquants.length, 'Manquants', 'var(--accent)')}
+      ${kpi(malRanges.length, 'Mal rangés', 'var(--info)')}
+      ${kpi(noBc.length, 'Sans code-barres', 'var(--warning)')}
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;font-size:12px;color:var(--text-muted);">
       <span>Valeur cochée : <b style="color:var(--text);">${eur(valCoche)}</b></span>
-      <span>Valeur manquante : <b style="color:#E24B4A;">${eur(valManq)}</b></span>
+      <span>Valeur manquante : <b style="color:var(--accent);">${eur(valManq)}</b></span>
     </div>
 
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
@@ -3354,10 +3354,10 @@ function openInventaireReport() {
       ${malRanges.length?`<button class="btn" style="font-size:12px;" onclick="document.getElementById('invReportOverlay').remove();document.getElementById('stockLocationFilter').value='misplaced';filterStock();switchTab('stock');">Voir les mal rangés dans le tableau →</button>`:''}
     </div>
 
-    ${malRanges.length?`<details style="margin-bottom:12px;"><summary style="cursor:pointer;font-weight:700;font-size:14px;color:#185FA5;">⚠️ ${malRanges.length} article(s) mal rangé(s)</summary>
-      <div style="max-height:180px;overflow:auto;margin-top:8px;">${malRanges.slice(0,200).map(p=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_invEsc(p.title)}</span><span style="color:#A32D2D;white-space:nowrap;">vu à ${_invEsc(p.scannedBoutique)} · ${_invEsc(p.boutique)}</span></div>`).join('')}</div></details>`:''}
+    ${malRanges.length?`<details style="margin-bottom:12px;"><summary style="cursor:pointer;font-weight:700;font-size:14px;color:var(--info);">⚠️ ${malRanges.length} article(s) mal rangé(s)</summary>
+      <div style="max-height:180px;overflow:auto;margin-top:8px;">${malRanges.slice(0,200).map(p=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_invEsc(p.title)}</span><span style="color:var(--accent);white-space:nowrap;">vu à ${_invEsc(p.scannedBoutique)} · ${_invEsc(p.boutique)}</span></div>`).join('')}</div></details>`:''}
 
-    ${manquants.length?`<details style="margin-bottom:12px;"><summary style="cursor:pointer;font-weight:700;font-size:14px;color:#E24B4A;">❓ ${manquants.length} manquant(s) — non scanné(s)</summary>
+    ${manquants.length?`<details style="margin-bottom:12px;"><summary style="cursor:pointer;font-weight:700;font-size:14px;color:var(--accent);">❓ ${manquants.length} manquant(s) — non scanné(s)</summary>
       <div style="max-height:200px;overflow:auto;margin-top:8px;">${manquants.slice(0,300).map(p=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_invEsc(p.title)}</span><span style="color:var(--text-muted);white-space:nowrap;font-family:monospace;">${_invEsc(p.barcode)}</span></div>`).join('')}${manquants.length>300?`<div style="padding:6px 0;color:var(--text-muted);font-size:11px;">… et ${manquants.length-300} autres (voir l'export CSV)</div>`:''}</div></details>`:''}
 
     <div id="invDupSection" style="margin-top:10px;border-top:1px solid var(--border);padding-top:12px;">
@@ -3406,7 +3406,7 @@ async function openBoutiqueCoherence() {
     renderBoutiqueCoherence(d);
   } catch (e) {
     const b = document.getElementById('btqCoherBody');
-    if (b) b.innerHTML = `<span style="color:#A32D2D;">Erreur : ${_invEsc(e.message)}</span> <button class="btn" style="font-size:11px;" onclick="document.getElementById('btqCoherOverlay').remove();openBoutiqueCoherence()">Réessayer</button>`;
+    if (b) b.innerHTML = `<span style="color:var(--accent);">Erreur : ${_invEsc(e.message)}</span> <button class="btn" style="font-size:11px;" onclick="document.getElementById('btqCoherOverlay').remove();openBoutiqueCoherence()">Réessayer</button>`;
   }
 }
 function renderBoutiqueCoherence(d) {
@@ -3418,8 +3418,8 @@ function renderBoutiqueCoherence(d) {
   body.innerHTML = `
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
       ${kpi(d.verifies || 0, 'Pièces vérifiées', 'var(--text)')}
-      ${kpi(an.length, 'Discordances', an.length ? '#E24B4A' : '#3B6D11')}
-      ${kpi(d.sansMetachamp || 0, 'Champ Boutique vide', (d.sansMetachamp || 0) ? '#BA7517' : '#3B6D11')}
+      ${kpi(an.length, 'Discordances', an.length ? 'var(--accent)' : 'var(--success)')}
+      ${kpi(d.sansMetachamp || 0, 'Champ Boutique vide', (d.sansMetachamp || 0) ? 'var(--warning)' : 'var(--success)')}
     </div>
     ${an.length ? `<div style="max-height:380px;overflow:auto;">${an.map((a, i) => `
       <div id="btqAno${i}" style="display:flex;flex-direction:column;gap:4px;padding:8px 0;border-bottom:1px solid var(--border);">
@@ -3431,9 +3431,9 @@ function renderBoutiqueCoherence(d) {
           </span>
         </div>
         <div style="font-size:11px;color:var(--text-muted);">${a.barcode ? `<span style="font-family:monospace;">${_invEsc(a.barcode)}</span> · ` : ''}fiche « ${_invEsc(a.metafield)} » · stock Lille ${a.stock.lille} / Dunkerque ${a.stock.dk} · tag app ${_invEsc(a.tag)}</div>
-        <div style="font-size:12px;color:#A32D2D;">${a.issues.map(_invEsc).join(' — ')}</div>
+        <div style="font-size:12px;color:var(--accent);">${a.issues.map(_invEsc).join(' — ')}</div>
       </div>`).join('')}</div>`
-    : `<div style="color:#3B6D11;font-weight:600;">✓ Tout concorde : chaque pièce renseignée est bien stockée dans la boutique de sa fiche.</div>`}
+    : `<div style="color:var(--success);font-weight:600;">✓ Tout concorde : chaque pièce renseignée est bien stockée dans la boutique de sa fiche.</div>`}
     ${(d.sansMetachamp || 0) ? `<div style="font-size:11px;color:var(--text-muted);margin-top:10px;">Les pièces sans champ Boutique ne sont pas comparées (rien à confronter) — renseigne le champ sur la fiche Shopify et le stock suivra tout seul.</div>` : ''}`;
 }
 // Ventes fantômes : ventes caisse dont l'article est encore disponible sur Shopify (la caisse
@@ -3446,8 +3446,8 @@ async function loadBtqPhantom() {
     if (!document.getElementById('btqPhantomBody')) return;
     if (d.warming) { body.innerHTML = '👻 Ventes encore en ligne : photo de stock en préparation… <button class="btn" style="font-size:11px;" onclick="loadBtqPhantom()">Réessayer</button>'; return; }
     window._btqPhantom = d.items || [];
-    if (!window._btqPhantom.length) { body.innerHTML = `<span style="color:#3B6D11;font-weight:600;">✓ Aucune vente caisse des ${d.periodeJours || 15} derniers jours encore en ligne.</span>`; return; }
-    body.innerHTML = `<div style="font-weight:700;color:#A32D2D;margin-bottom:6px;">👻 ${window._btqPhantom.length} article(s) VENDUS en caisse mais ENCORE EN LIGNE (risque de double vente)</div>
+    if (!window._btqPhantom.length) { body.innerHTML = `<span style="color:var(--success);font-weight:600;">✓ Aucune vente caisse des ${d.periodeJours || 15} derniers jours encore en ligne.</span>`; return; }
+    body.innerHTML = `<div style="font-weight:700;color:var(--accent);margin-bottom:6px;">👻 ${window._btqPhantom.length} article(s) VENDUS en caisse mais ENCORE EN LIGNE (risque de double vente)</div>
       <div style="max-height:220px;overflow:auto;">${window._btqPhantom.map((a, i) => `
         <div id="btqPh${i}" style="display:flex;justify-content:space-between;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
           <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_invEsc(a.title)} <span style="color:var(--text-muted);font-size:11px;">vendu le ${_invEsc(String(a.soldAt || '').slice(0, 10))} · ${_invEsc(a.boutique)} · ${_invEsc(a.employee || '')}</span></span>
@@ -3457,7 +3457,7 @@ async function loadBtqPhantom() {
           </span>
         </div>`).join('')}</div>
       <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Vérifie avant de remettre à 0 : un article retourné après sa vente, ou un code-barres partagé par deux articles, peut apparaître ici à tort.</div>`;
-  } catch (e) { body.innerHTML = `<span style="color:#A32D2D;">Ventes encore en ligne : erreur (${_invEsc(e.message)})</span>`; }
+  } catch (e) { body.innerHTML = `<span style="color:var(--accent);">Ventes encore en ligne : erreur (${_invEsc(e.message)})</span>`; }
 }
 async function btqZero(i) {
   const a = (window._btqPhantom || [])[i];
@@ -3472,7 +3472,7 @@ async function btqZero(i) {
     });
     const d = await res.json().catch(() => ({}));
     if (!res.ok || !d.ok) throw new Error(d.error || `HTTP ${res.status}`);
-    if (row) row.innerHTML = `<span style="color:#3B6D11;font-size:13px;padding:4px 0;">✓ « ${_invEsc(a.title)} » remis à 0 sur Shopify</span>`;
+    if (row) row.innerHTML = `<span style="color:var(--success);font-size:13px;padding:4px 0;">✓ « ${_invEsc(a.title)} » remis à 0 sur Shopify</span>`;
     showDashToast('Stock remis à 0 ✓', 'success');
   } catch (e) {
     showDashToast('Échec : ' + e.message, 'error');
@@ -3492,7 +3492,7 @@ async function btqRepair(i) {
     });
     const d = await res.json().catch(() => ({}));
     if (!res.ok || !d.ok) throw new Error(d.error || `HTTP ${res.status}`);
-    if (row) row.innerHTML = `<div style="padding:4px 0;color:#3B6D11;font-size:13px;">✓ « ${_invEsc(a.title)} » — stock replacé sur ${_invEsc(a.metafield)}</div>`;
+    if (row) row.innerHTML = `<div style="padding:4px 0;color:var(--success);font-size:13px;">✓ « ${_invEsc(a.title)} » — stock replacé sur ${_invEsc(a.metafield)}</div>`;
     showDashToast('Stock réaligné ✓', 'success');
   } catch (e) {
     showDashToast('Réparation impossible : ' + e.message, 'error');
@@ -3507,49 +3507,49 @@ async function loadInvDuplicates() {
     const data = await api('/stock/duplicate-barcodes');
     if (!document.getElementById('invDupBody')) return;
     if (data.warming) { body.innerHTML = 'Catalogue en cours de synchronisation… <button class="btn" style="font-size:11px;" onclick="loadInvDuplicates()">Réessayer</button>'; return; }
-    if (!data.groups || !data.groups.length) { body.innerHTML = '<span style="color:#3B6D11;">✓ Aucun code-barres partagé par plusieurs articles.</span>'; return; }
+    if (!data.groups || !data.groups.length) { body.innerHTML = '<span style="color:var(--success);">✓ Aucun code-barres partagé par plusieurs articles.</span>'; return; }
     body.innerHTML = `<div style="margin-bottom:8px;color:var(--text);"><b>${data.totalGroups}</b> code(s)-barres partagé(s) par <b>${data.totalArticles}</b> articles — à corriger pour éviter les ambiguïtés en caisse.</div>
       <div style="max-height:240px;overflow:auto;">${data.groups.map(g=>`
         <div style="border:1px solid var(--border);border-radius:10px;padding:8px 10px;margin-bottom:8px;">
-          <div style="font-family:monospace;font-weight:700;font-size:12px;margin-bottom:4px;">${_invEsc(g.barcode)} <span style="color:#A32D2D;">×${g.count}</span></div>
+          <div style="font-family:monospace;font-weight:700;font-size:12px;margin-bottom:4px;">${_invEsc(g.barcode)} <span style="color:var(--accent);">×${g.count}</span></div>
           ${g.items.map(it=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px;"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_invEsc(it.title)} <span style="color:var(--text-muted);">· ${_invEsc(it.boutique)}</span></span><a href="${esc(it.shopifyAdminUrl)}" target="_blank" class="link-btn" style="white-space:nowrap;">Shopify ↗</a></div>`).join('')}
         </div>`).join('')}</div>`;
   } catch(e) {
-    body.innerHTML = '<span style="color:#A32D2D;">Erreur de chargement.</span> <button class="btn" style="font-size:11px;" onclick="loadInvDuplicates()">Réessayer</button>';
+    body.innerHTML = '<span style="color:var(--accent);">Erreur de chargement.</span> <button class="btn" style="font-size:11px;" onclick="loadInvDuplicates()">Réessayer</button>';
   }
 }
 // ===== Rendu paginé du tableau Stock en ligne =====
 let stockFiltered = [];
 const STOCK_PAGE_SIZE = 80;
 let stockShown = STOCK_PAGE_SIZE;
-const ETAT_COLORS = { 'Neuf':'#3B6D11', 'Excellent état':'#5DCAA5', 'Très bon état':'#185FA5', 'Bon état':'#EF9F27', 'État correct':'#BA7517' };
-const LOC_COLORS = { en_magasin:'#3B6D11', reserve:'#185FA5', local:'#7B4FBA', pressing:'#BA7517' };
+const ETAT_COLORS = { 'Neuf':'var(--success)', 'Excellent état':'var(--success)', 'Très bon état':'var(--info)', 'Bon état':'#EF9F27', 'État correct':'var(--warning)' };
+const LOC_COLORS = { en_magasin:'var(--success)', reserve:'var(--info)', local:'#7B4FBA', pressing:'var(--warning)' };
 
 function stockRowHtml(p) {
   const badge = p.boutique==='DK'?'badge-dk':'badge-lille';
   const catIcon = {Sneakers:'👟',Sapes:'👕',Accessoires:'👜',Autre:'📦'}[p.category]||'';
   const img = p.image?`<img src="${esc(p.image)}" class="product-img" loading="lazy" decoding="async"/>`:`<span class="no-img">👕</span>`;
   const fillPct = Math.min((p.daysOnline/90)*100,100);
-  const fillColor = p.daysOnline>=60?'#E24B4A':p.daysOnline>=30?'#EF9F27':'#5DCAA5';
+  const fillColor = p.daysOnline>=60?'var(--accent)':p.daysOnline>=30?'#EF9F27':'var(--success)';
   const statusBadge = p.daysOnline>=60?'<span class="badge badge-danger">À brader</span>':p.daysOnline>=30?'<span class="badge badge-warning">À surveiller</span>':'<span class="badge badge-ok">OK</span>';
   const score = p.score||0;
-  const scoreFill = score>=70?'#5DCAA5':score>=40?'#EF9F27':'#E24B4A';
+  const scoreFill = score>=70?'var(--success)':score>=40?'#EF9F27':'var(--accent)';
   const barcodeHtml = p.barcode
-    ? `<span style="font-family:monospace;font-size:11px;background:#f1efe8;padding:2px 6px;border-radius:4px;">${esc(p.barcode)}</span><button onclick="openBarcodeInput(${p.variantId}, this, '${esc(escJs(p.barcode))}')" title="Modifier le code-barres" style="border:none;background:none;cursor:pointer;font-size:11px;opacity:.55;padding:2px 4px;vertical-align:middle;">✏️</button>`
+    ? `<span style="font-family:monospace;font-size:11px;background:var(--surface-2);padding:2px 6px;border-radius:4px;">${esc(p.barcode)}</span><button onclick="openBarcodeInput(${p.variantId}, this, '${esc(escJs(p.barcode))}')" title="Modifier le code-barres" style="border:none;background:none;cursor:pointer;font-size:11px;opacity:.55;padding:2px 4px;vertical-align:middle;">✏️</button>`
     : `<span onclick="openBarcodeInput(${p.variantId}, this)" style="cursor:pointer;" title="Cliquer pour ajouter un code-barres"><span class="badge badge-danger">Manquant — scanner</span></span>`;
   const isSelected = selectedProducts.has(p.id);
-  const comparePrice = p.compareAtPrice ? `<span style="text-decoration:line-through;color:#888780;font-size:11px;margin-right:4px;">${parseFloat(p.compareAtPrice).toFixed(0)}€</span>` : '';
+  const comparePrice = p.compareAtPrice ? `<span style="text-decoration:line-through;color:var(--text-muted);font-size:11px;margin-right:4px;">${parseFloat(p.compareAtPrice).toFixed(0)}€</span>` : '';
   const inBoutique = p.inBoutique === true;
   const rawLoc = p.location || '';
   const loc = rawLoc === 'en_boutique' ? 'en_magasin' : rawLoc; // compat ancienne valeur
   const checkCell = p.barcode
-    ? `<input type="checkbox" class="cb-loc" ${inBoutique?'checked':''} onchange="onCheckLocation('${esc(escJs(p.barcode))}', this.checked, '${esc(escJs(loc))}', ${p.id})" style="width:18px;height:18px;cursor:pointer;accent-color:#3B6D11;"/>`
+    ? `<input type="checkbox" class="cb-loc" ${inBoutique?'checked':''} onchange="onCheckLocation('${esc(escJs(p.barcode))}', this.checked, '${esc(escJs(loc))}', ${p.id})" style="width:18px;height:18px;cursor:pointer;accent-color:var(--success);"/>`
     : `<span style="color:#b4b2a9;font-size:11px;">—</span>`;
   const vintedCell = p.barcode
     ? `<input type="checkbox" class="cb-vinted" ${p.onVinted?'checked':''} onchange="onCheckVinted('${esc(escJs(p.barcode))}', this.checked, ${p.id})" style="width:18px;height:18px;cursor:pointer;accent-color:#09B1BA;"/>`
     : `<span style="color:#b4b2a9;font-size:11px;">—</span>`;
   const locCell = p.barcode
-    ? `<select onchange="updateStockLocation('${esc(escJs(p.barcode))}', ${inBoutique}, this.value, ${p.id})" style="font-size:11px;padding:4px 6px;border:0.5px solid #d3d1c7;border-radius:6px;color:${LOC_COLORS[loc]||'#888780'};max-width:130px;">
+    ? `<select onchange="updateStockLocation('${esc(escJs(p.barcode))}', ${inBoutique}, this.value, ${p.id})" style="font-size:11px;padding:4px 6px;border:0.5px solid var(--border);border-radius:6px;color:${LOC_COLORS[loc]||'var(--text-muted)'};max-width:130px;">
         <option value="" ${!loc?'selected':''}>— Choisir —</option>
         <option value="en_magasin" ${loc==='en_magasin'?'selected':''}>🏪 En magasin</option>
         <option value="reserve" ${loc==='reserve'?'selected':''}>📦 Réserve</option>
@@ -3563,22 +3563,22 @@ function stockRowHtml(p) {
   // 3 états distincts : '' (non renseigné → la fiche produit n'affiche rien), true (Avec), false (Sans).
   const boiteVal = p.boite === 'true' ? 'true' : (p.boite === 'false' ? 'false' : '');
   const boiteCell = p.category === 'Sneakers'
-    ? `<select onchange="updateBoite(${p.id}, this.value, this)" style="font-size:11px;padding:4px 6px;border:0.5px solid ${boiteVal==='true'?'#3B6D11':boiteVal==='false'?'#BA7517':'#d3d1c7'};border-radius:6px;color:${boiteVal==='true'?'#3B6D11':boiteVal==='false'?'#BA7517':'#888780'};max-width:110px;">
+    ? `<select onchange="updateBoite(${p.id}, this.value, this)" style="font-size:11px;padding:4px 6px;border:0.5px solid ${boiteVal==='true'?'var(--success)':boiteVal==='false'?'var(--warning)':'var(--border)'};border-radius:6px;color:${boiteVal==='true'?'var(--success)':boiteVal==='false'?'var(--warning)':'var(--text-muted)'};max-width:110px;">
         <option value="" ${boiteVal===''?'selected':''}>—</option>
         <option value="true" ${boiteVal==='true'?'selected':''}>📦 Oui</option>
         <option value="false" ${boiteVal==='false'?'selected':''}>Non</option>
       </select>`
     : `<span style="color:#b4b2a9;font-size:11px;">—</span>`;
   const etatCell = etatVal
-    ? `<button class="etat-btn" onclick="openEtatModal(${p.id})" title="Modifier l'état${hasDisc?' — détails renseignés':''}" style="border:0.5px solid ${ETAT_COLORS[etatVal]||'#d3d1c7'};color:${ETAT_COLORS[etatVal]||'#555'};background:#fff;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;">✓ ${esc(etatVal)}${hasDisc?' 📝':''} <span style="opacity:.6;">✏️</span></button>`
-    : `<button class="etat-btn" onclick="openEtatModal(${p.id})" title="Définir l'état" style="border:0.5px dashed #d3d1c7;color:#888780;background:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;white-space:nowrap;">+ État</button>`;
+    ? `<button class="etat-btn" onclick="openEtatModal(${p.id})" title="Modifier l'état${hasDisc?' — détails renseignés':''}" style="border:0.5px solid ${ETAT_COLORS[etatVal]||'var(--border)'};color:${ETAT_COLORS[etatVal]||'#555'};background:#fff;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;">✓ ${esc(etatVal)}${hasDisc?' 📝':''} <span style="opacity:.6;">✏️</span></button>`
+    : `<button class="etat-btn" onclick="openEtatModal(${p.id})" title="Définir l'état" style="border:0.5px dashed var(--border);color:var(--text-muted);background:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;white-space:nowrap;">+ État</button>`;
   const rowCls = (!inBoutique && p.barcode) ? 'stock-row row-unlocated' : 'stock-row';
   return `<tr class="${rowCls}" data-pid="${p.id}" data-barcode="${esc(p.barcode||'')}">
     <td class="cell-select"><input type="checkbox" class="cb product-cb" data-id="${p.id}" data-varid="${p.variantId}" ${isSelected?'checked':''} onchange="toggleProduct(this)"/></td>
-    <td class="cell-article"><div class="stock-art">${img}<div class="meta"><div class="t">${esc(p.title)}${(window._braderieMap&&p.barcode&&window._braderieMap[p.barcode])?` <span title="Article pointé braderie — origine ${esc(window._braderieMap[p.barcode])}" style="display:inline-block;padding:1px 8px;border-radius:999px;font-size:10px;font-weight:800;color:#fff;background:${window._braderieMap[p.barcode]==='DK'?'#BA7517':'#185FA5'};vertical-align:middle;">🏷️ BRADERIE ${esc(window._braderieMap[p.barcode])}</span>`:''}</div><div class="v">${catIcon} ${esc(p.vendor)||'—'}</div></div></div></td>
+    <td class="cell-article"><div class="stock-art">${img}<div class="meta"><div class="t">${esc(p.title)}${(window._braderieMap&&p.barcode&&window._braderieMap[p.barcode])?` <span title="Article pointé braderie — origine ${esc(window._braderieMap[p.barcode])}" style="display:inline-block;padding:1px 8px;border-radius:999px;font-size:10px;font-weight:800;color:#fff;background:${window._braderieMap[p.barcode]==='DK'?'var(--warning)':'var(--info)'};vertical-align:middle;">🏷️ BRADERIE ${esc(window._braderieMap[p.barcode])}</span>`:''}</div><div class="v">${catIcon} ${esc(p.vendor)||'—'}</div></div></div></td>
     <td data-label="Code-barres">${barcodeHtml}</td>
     <td data-label="Prix">${comparePrice}<span style="font-weight:600;">${parseFloat(p.price).toFixed(2)}€</span></td>
-    <td data-label="Boutique"><span class="badge ${badge}">${esc(p.boutique)}</span>${p.misplaced?` <span class="badge badge-danger" title="Scanné à ${esc(p.scannedBoutique)}, mais rangé en ${esc(p.boutique)} sur Shopify">⚠️ vu à ${esc(p.scannedBoutique)}</span> <button class="btn" style="font-size:10px;padding:3px 7px;background:rgba(24,95,165,0.12);border-color:#185FA5;color:#185FA5;" title="Corriger : transférer vers ${esc(p.scannedBoutique)}" onclick="correctBoutique('${esc(escJs(p.barcode))}')">→ ${esc(p.scannedBoutique)}</button>`:''}</td>
+    <td data-label="Boutique"><span class="badge ${badge}">${esc(p.boutique)}</span>${p.misplaced?` <span class="badge badge-danger" title="Scanné à ${esc(p.scannedBoutique)}, mais rangé en ${esc(p.boutique)} sur Shopify">⚠️ vu à ${esc(p.scannedBoutique)}</span> <button class="btn" style="font-size:10px;padding:3px 7px;background:var(--info-dim);border-color:var(--info);color:var(--info);" title="Corriger : transférer vers ${esc(p.scannedBoutique)}" onclick="correctBoutique('${esc(escJs(p.barcode))}')">→ ${esc(p.scannedBoutique)}</button>`:''}</td>
     <td data-label="Ancienneté"><div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;"><div class="stock-age"><span style="font-size:13px;font-weight:600;">${p.daysOnline}j</span>${statusBadge}</div><div class="days-bar" style="width:90px;"><div class="days-bar-fill" style="width:${fillPct}%;background:${fillColor};"></div></div></div></td>
     <td class="cell-loc" data-label="En boutique">${checkCell}</td>
     <td data-label="Localisation">${locCell}</td>
@@ -3594,7 +3594,7 @@ function renderStockPage() {
   const pager = document.getElementById('stockPager');
   const total = stockFiltered.length;
   if (!total) {
-    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:30px;color:#888780;">Aucun article</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:30px;color:var(--text-muted);">Aucun article</td></tr>';
     if (pager) pager.innerHTML = '';
     document.getElementById('stockCount').textContent = '0 article';
     syncSelectAllCheckbox();
@@ -3835,25 +3835,25 @@ async function saveEtat() {
   const etat = document.getElementById('etatSelect').value;
   const disclosures = document.getElementById('etatDisclosures').value.trim();
   const msg = document.getElementById('etatMsg');
-  if (!etat) { msg.style.color = '#E24B4A'; msg.textContent = 'Choisis un état dans la liste.'; return; }
+  if (!etat) { msg.style.color = 'var(--accent)'; msg.textContent = 'Choisis un état dans la liste.'; return; }
   const btn = document.getElementById('etatSaveBtn');
   btn.disabled = true; btn.textContent = 'Enregistrement…';
-  msg.style.color = '#888780'; msg.textContent = 'Envoi vers Shopify…';
+  msg.style.color = 'var(--text-muted)'; msg.textContent = 'Envoi vers Shopify…';
   try {
     const res = await fetch(`${BACKEND_URL}/stock/etat`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ productId: etatTargetId, etat, disclosures })
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.ok) { msg.style.color = '#E24B4A'; msg.textContent = 'Erreur : ' + (data.error || res.status); btn.disabled = false; btn.textContent = 'Enregistrer'; return; }
+    if (!res.ok || !data.ok) { msg.style.color = 'var(--accent)'; msg.textContent = 'Erreur : ' + (data.error || res.status); btn.disabled = false; btn.textContent = 'Enregistrer'; return; }
     // Met à jour la donnée locale + le tableau, sans recharger tout Shopify
     const p = allStockData.find(x => x.id === etatTargetId);
     if (p) { p.etat = etat; p.disclosures = disclosures; }
-    msg.style.color = '#3B6D11'; msg.textContent = 'Enregistré ✓';
+    msg.style.color = 'var(--success)'; msg.textContent = 'Enregistré ✓';
     if (typeof renderStockPage === 'function') renderStockPage(); // maj ciblée, garde la pagination/scroll
     setTimeout(closeEtatModal, 700);
   } catch (e) {
-    msg.style.color = '#E24B4A'; msg.textContent = 'Erreur réseau : ' + e.message;
+    msg.style.color = 'var(--accent)'; msg.textContent = 'Erreur réseau : ' + e.message;
     btn.disabled = false; btn.textContent = 'Enregistrer';
   }
 }
@@ -3922,7 +3922,7 @@ function showDashToast(msg, type='success') {
     t.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:10px;font-size:13px;font-weight:500;color:#fff;z-index:9999;opacity:0;transition:opacity 0.2s;pointer-events:none;';
     document.body.appendChild(t);
   }
-  t.style.background = type === 'error' ? '#A32D2D' : '#3B6D11';
+  t.style.background = type === 'error' ? 'var(--accent)' : 'var(--success)';
   t.textContent = msg;
   t.style.opacity = '1';
   setTimeout(() => { t.style.opacity = '0'; }, 3000);
@@ -3931,7 +3931,7 @@ function showDashToast(msg, type='success') {
 let allCommandesData = [];
 
 async function loadDashCommandes() {
-  document.getElementById('cmdTable').innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr>';
+  document.getElementById('cmdTable').innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-muted);">Chargement...</td></tr>';
   try {
     const [data, states] = await Promise.all([
       fetch(`${BACKEND_URL}/orders/all`).then(r => r.json()),
@@ -3952,16 +3952,16 @@ async function loadDashCommandes() {
     document.getElementById('commandesKpis').innerHTML = `
       <div class="kpi"><div class="kpi-label">À traiter</div><div class="kpi-value">${total}</div><div class="kpi-sub">hors expédiées</div></div>
       <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('cmdStatusFilter').value='pending';filterCommandes();">
-        <div class="kpi-label">En attente</div><div class="kpi-value" style="color:${pending>0?'#BA7517':'#3B6D11'}">${pending}</div><div class="kpi-sub">à préparer</div>
+        <div class="kpi-label">En attente</div><div class="kpi-value" style="color:${pending>0?'var(--warning)':'var(--success)'}">${pending}</div><div class="kpi-sub">à préparer</div>
       </div>
       <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('cmdStatusFilter').value='aside';filterCommandes();">
-        <div class="kpi-label">Mis de côté</div><div class="kpi-value" style="color:#185FA5;">${aside}</div><div class="kpi-sub">prêts à expédier</div>
+        <div class="kpi-label">Mis de côté</div><div class="kpi-value" style="color:var(--info);">${aside}</div><div class="kpi-sub">prêts à expédier</div>
       </div>
-      ${notFound>0?`<div class="kpi" style="border-color:#f7c1c1;"><div class="kpi-label">⚠️ Introuvables</div><div class="kpi-value" style="color:#A32D2D;">${notFound}</div></div>`:''}
+      ${notFound>0?`<div class="kpi" style="border-color:#f7c1c1;"><div class="kpi-label">⚠️ Introuvables</div><div class="kpi-value" style="color:var(--accent);">${notFound}</div></div>`:''}
     `;
     filterCommandes();
   } catch(e) {
-    document.getElementById('cmdTable').innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:#A32D2D;">Erreur de chargement</td></tr>';
+    document.getElementById('cmdTable').innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--accent);">Erreur de chargement</td></tr>';
   }
 }
 
@@ -3982,7 +3982,7 @@ function filterCommandes() {
 
 function renderCommandesTable(data) {
   document.getElementById('cmdCount').textContent = `${data.length} commande${data.length>1?'s':''}`;
-  if (!data.length) { document.getElementById('cmdTable').innerHTML='<tr><td colspan="9" style="text-align:center;padding:30px;color:#888780;">Aucune commande</td></tr>'; return; }
+  if (!data.length) { document.getElementById('cmdTable').innerHTML='<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-muted);">Aucune commande</td></tr>'; return; }
   document.getElementById('cmdTable').innerHTML = data.map(o => {
     const date = new Date(o.created_at).toLocaleDateString('fr-FR', {day:'2-digit',month:'2-digit',year:'2-digit',timeZone:'Europe/Paris'});
     const badge = o.boutique==='DK' ? 'badge-dk' : 'badge-lille';
@@ -3998,7 +3998,7 @@ function renderCommandesTable(data) {
     // Statut expédition
     const shipCell = o.fulfillment_status === 'fulfilled'
       ? `<span class="badge badge-ok">✓ Expédié</span>`
-      : `<span class="badge" style="background:#f1efe8;color:#5f5e5a;">Non expédié</span>`;
+      : `<span class="badge" style="background:var(--surface-2);color:#5f5e5a;">Non expédié</span>`;
 
     const rowBg = o.isNotFound ? 'background:#FFF8F8;' : o.fulfillment_status==='fulfilled' ? 'background:#F5FBF0;' : '';
 
@@ -4008,7 +4008,7 @@ function renderCommandesTable(data) {
       <td style="font-size:12px;">${img}${esc(o.product_name)}</td>
       <td><span class="badge ${badge}">${esc(o.boutique)}</span></td>
       <td style="font-weight:600;">${parseFloat(o.price).toFixed(2)}€</td>
-      <td style="color:#888780;font-size:12px;">${date}</td>
+      <td style="color:var(--text-muted);font-size:12px;">${date}</td>
       <td>${asideCell}</td>
       <td>${shipCell}</td>
       <td><a href="https://admin.shopify.com/store/nestore-io/orders/${o.order_id}" target="_blank" class="link-btn">Shopify ↗</a></td>
@@ -4025,7 +4025,7 @@ async function braderieDashLoad(){
     const d=await api('/braderie/liste');
     braderieDashItems=(d&&d.items)||[];
     braderieDashRender();
-  }catch(e){ document.getElementById('braderieDashRows').innerHTML=`<tr><td colspan="7" style="padding:16px;color:#A32D2D;">Erreur de chargement : ${esc(e.message)}</td></tr>`; }
+  }catch(e){ document.getElementById('braderieDashRows').innerHTML=`<tr><td colspan="7" style="padding:16px;color:var(--accent);">Erreur de chargement : ${esc(e.message)}</td></tr>`; }
 }
 function braderieDashRender(){
   const q=(document.getElementById('braderieSearch').value||'').toLowerCase().trim();
@@ -4038,20 +4038,20 @@ function braderieDashRender(){
   const dkManquants=dkAttendus.filter(i=>!i.retour_at);
   document.getElementById('braderieDashKpis').innerHTML=
     kpi(braderieDashItems.length,'Articles pointés')+
-    kpi(dk.length,'Origine DK (rapatriés)','#BA7517')+
-    kpi(braderieDashItems.filter(i=>i.hors_ligne).length,'Hors ligne (jamais sur le site)','#185FA5')+
-    kpi(vendus.length,'Vendus','#3B6D11')+
-    kpi(Math.round(caBraderie).toLocaleString('fr-FR')+' €','CA braderie (app)','#3B6D11')+
+    kpi(dk.length,'Origine DK (rapatriés)','var(--warning)')+
+    kpi(braderieDashItems.filter(i=>i.hors_ligne).length,'Hors ligne (jamais sur le site)','var(--info)')+
+    kpi(vendus.length,'Vendus','var(--success)')+
+    kpi(Math.round(caBraderie).toLocaleString('fr-FR')+' €','CA braderie (app)','var(--success)')+
     kpi(`${dkRetours.length}/${dkAttendus.length}`,'Retour DK pointé','#7c5cd6')+
-    kpi(dkManquants.length,'MANQUANTS (ni vendus ni retour)', dkManquants.length? '#A32D2D':'#3B6D11');
+    kpi(dkManquants.length,'MANQUANTS (ni vendus ni retour)', dkManquants.length? 'var(--accent)':'var(--success)');
   const fmt=(iso)=>{ if(!iso) return '—'; const d=new Date(iso); return isNaN(d)?'—':d.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'}); };
   document.getElementById('braderieDashRows').innerHTML=items.length?items.map(i=>`
     <tr style="border-bottom:0.5px solid var(--border);${i.vendu?'opacity:.55;':''}">
-      <td style="padding:6px 8px;"><span style="padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:700;color:#fff;background:${i.origine==='DK'?'#BA7517':'#185FA5'};">${esc(i.origine||'?')}</span></td>
-      <td style="padding:6px 8px;">${esc(i.designation||'—')}${i.hors_ligne?' <span style="font-size:10.5px;color:#185FA5;font-weight:700;">HORS LIGNE</span>':''}</td>
+      <td style="padding:6px 8px;"><span style="padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:700;color:#fff;background:${i.origine==='DK'?'var(--warning)':'var(--info)'};">${esc(i.origine||'?')}</span></td>
+      <td style="padding:6px 8px;">${esc(i.designation||'—')}${i.hors_ligne?' <span style="font-size:10.5px;color:var(--info);font-weight:700;">HORS LIGNE</span>':''}</td>
       <td style="padding:6px 8px;font-family:monospace;font-size:11.5px;">${esc(i.barcode||'—')}</td>
       <td style="padding:6px 8px;white-space:nowrap;">${i.prix!=null?Number(i.prix).toFixed(0)+' €':'—'}</td>
-      <td style="padding:6px 8px;white-space:nowrap;">${i.vendu?`<span style="color:#3B6D11;font-weight:700;">vendu ${i.prix_vente!=null?Number(i.prix_vente).toFixed(0)+' €':''}</span>`:(i.retour_at?'<span style="color:#7c5cd6;font-weight:700;">retour ✓</span>':(i.origine==='DK'?'<span style="color:#BA7517;">à pointer retour</span>':'à la braderie'))}</td>
+      <td style="padding:6px 8px;white-space:nowrap;">${i.vendu?`<span style="color:var(--success);font-weight:700;">vendu ${i.prix_vente!=null?Number(i.prix_vente).toFixed(0)+' €':''}</span>`:(i.retour_at?'<span style="color:#7c5cd6;font-weight:700;">retour ✓</span>':(i.origine==='DK'?'<span style="color:var(--warning);">à pointer retour</span>':'à la braderie'))}</td>
       <td style="padding:6px 8px;">${esc(i.ajoute_par||'—')}</td>
       <td style="padding:6px 8px;white-space:nowrap;color:var(--text-muted);font-size:11.5px;">${fmt(i.scanned_at)}</td>
     </tr>`).join(''):'<tr><td colspan="7" style="padding:16px;text-align:center;color:var(--text-muted);">Aucun article pointé.</td></tr>';
@@ -4074,7 +4074,7 @@ async function loadTransferts() {
   braderieDashLoad(); // le panneau braderie vit dans cet onglet
   const days = document.getElementById('trfPeriodFilter')?.value || 30;
   const tbody = document.getElementById('trfTable');
-  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-muted);">Chargement...</td></tr>';
   try {
     const sep = '?';
     const boutiqueParam = DASH_BOUTIQUE !== 'admin' ? `&boutique=${DASH_BOUTIQUE}` : '';
@@ -4083,7 +4083,7 @@ async function loadTransferts() {
     allTransfertsData = await res.json();
     renderTransferts();
   } catch(e) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:30px;color:#A32D2D;">Erreur de chargement : ${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--accent);">Erreur de chargement : ${e.message}</td></tr>`;
     document.getElementById('trfKpis').innerHTML = '';
   }
 }
@@ -4108,7 +4108,7 @@ function trfCardHtml(c) {
       <div style="font-size:12px;color:var(--text-muted);">${c.brand ? _invEsc(c.brand) + ' · ' : ''}${_invEsc(c.barcode)}</div>
       <div style="margin-top:5px;"><span class="badge ${badge}">${c.from}</span> ${c.totalStock != null ? `<span style="font-size:12px;color:var(--text-muted);">Stock ${c.totalStock}</span>` : ''}</div>
     </div>
-    <button class="btn" id="trfConfirmBtn" style="background:#185FA5;color:#fff;border-color:#185FA5;" onclick="trfConfirm()">🔄 Transférer vers ${c.to}</button>
+    <button class="btn" id="trfConfirmBtn" style="background:var(--info);color:#fff;border-color:var(--info);" onclick="trfConfirm()">🔄 Transférer vers ${c.to}</button>
   </div>`;
 }
 async function trfLookup() {
@@ -4122,12 +4122,12 @@ async function trfLookup() {
     const res = await fetch(`${BACKEND_URL}/product/${encodeURIComponent(bc)}`);
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.error || (!data.multiple && !data.name && !data.title)) {
-      box.innerHTML = '<div style="color:#A32D2D;font-size:13px;padding:8px 0;">Article introuvable sur Shopify.</div>'; return;
+      box.innerHTML = '<div style="color:var(--accent);font-size:13px;padding:8px 0;">Article introuvable sur Shopify.</div>'; return;
     }
     // Code-barres partagé → on laisse choisir lequel transférer
     if (data.multiple && Array.isArray(data.matches)) {
       window._trfMatches = data.matches.map(m => trfBuildObj(m, bc));
-      box.innerHTML = `<div style="font-size:12px;color:#BA7517;font-weight:700;margin-bottom:8px;">⚠️ ${data.matches.length} articles ont ce code-barres — choisis lequel transférer :</div>`
+      box.innerHTML = `<div style="font-size:12px;color:var(--warning);font-weight:700;margin-bottom:8px;">⚠️ ${data.matches.length} articles ont ce code-barres — choisis lequel transférer :</div>`
         + window._trfMatches.map((c, i) => `<div style="border:1px solid var(--border);border-radius:10px;padding:8px 10px;margin-bottom:8px;display:flex;justify-content:space-between;gap:8px;align-items:center;">
             <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_invEsc(c.name)} <span class="badge ${c.from==='DK'?'badge-dk':'badge-lille'}">${c.from}</span></span>
             <button class="btn" style="font-size:12px;white-space:nowrap;" onclick="trfChoose(${i})">Choisir</button>
@@ -4136,7 +4136,7 @@ async function trfLookup() {
     }
     window._trfCurrent = trfBuildObj(data, bc);
     box.innerHTML = trfCardHtml(window._trfCurrent);
-  } catch(e) { box.innerHTML = `<div style="color:#A32D2D;font-size:13px;padding:8px 0;">Erreur : ${e.message}</div>`; }
+  } catch(e) { box.innerHTML = `<div style="color:var(--accent);font-size:13px;padding:8px 0;">Erreur : ${e.message}</div>`; }
 }
 function trfChoose(i) {
   const c = (window._trfMatches || [])[i]; if (!c) return;
@@ -4156,7 +4156,7 @@ async function trfConfirm() {
     if (!res.ok) { showDashToast(d.error || 'Erreur transfert', 'error'); if (btn) { btn.disabled = false; btn.textContent = '🔄 Transférer vers ' + c.to; } return; }
     if (d.stockMoved === false) showDashToast('⚠️ Transfert fait mais stock NON déplacé sur Shopify — passe par 🧭 Contrôle boutiques (onglet Stock)', 'error');
     else showDashToast(`Transféré vers ${c.to} ✓ (stock déplacé)`, 'success');
-    document.getElementById('trfManualResult').innerHTML = `<div style="color:#3B6D11;font-size:13px;padding:8px 0;">✓ « ${_invEsc(c.name)} » transféré ${c.from} → ${c.to}</div>`;
+    document.getElementById('trfManualResult').innerHTML = `<div style="color:var(--success);font-size:13px;padding:8px 0;">✓ « ${_invEsc(c.name)} » transféré ${c.from} → ${c.to}</div>`;
     const inp = document.getElementById('trfBarcodeInput'); if (inp) { inp.value = ''; inp.focus(); }
     window._trfCurrent = null;
     loadTransferts();
@@ -4179,8 +4179,8 @@ function renderTransferts() {
   const thisMonth = filtered.filter(t => new Date(t.transferred_at) >= monthStart).length;
   document.getElementById('trfKpis').innerHTML = `
     <div class="kpi"><div class="kpi-label">Total</div><div class="kpi-value">${total}</div></div>
-    <div class="kpi"><div class="kpi-label">Lille → DK</div><div class="kpi-value" style="color:#185FA5;">${toDK}</div></div>
-    <div class="kpi"><div class="kpi-label">DK → Lille</div><div class="kpi-value" style="color:#3B6D11;">${toLille}</div></div>
+    <div class="kpi"><div class="kpi-label">Lille → DK</div><div class="kpi-value" style="color:var(--info);">${toDK}</div></div>
+    <div class="kpi"><div class="kpi-label">DK → Lille</div><div class="kpi-value" style="color:var(--success);">${toLille}</div></div>
     <div class="kpi"><div class="kpi-label">Ce mois</div><div class="kpi-value">${thisMonth}</div></div>
   `;
   document.getElementById('trfCount').textContent = `${total} transfert${total>1?'s':''}`;
@@ -4189,21 +4189,21 @@ function renderTransferts() {
     const dateStr = d.toLocaleDateString('fr-FR', { timeZone:'Europe/Paris' }) + ' ' + d.toLocaleTimeString('fr-FR', { timeZone:'Europe/Paris', hour:'2-digit', minute:'2-digit' });
     const img = t.image_url ? `<img src="${esc(t.image_url)}" style="width:32px;height:32px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:8px;">` : '';
     return `<tr>
-      <td style="font-size:12px;color:#888780;white-space:nowrap;">${dateStr}</td>
+      <td style="font-size:12px;color:var(--text-muted);white-space:nowrap;">${dateStr}</td>
       <td><strong>${esc(t.employee)||'—'}</strong></td>
       <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${img}${esc(t.product_name||t.barcode)||'—'}</td>
-      <td style="color:#888780;">${esc(t.brand)||'—'}</td>
+      <td style="color:var(--text-muted);">${esc(t.brand)||'—'}</td>
       <td><span class="badge ${t.from_boutique==='DK'?'badge-dk':'badge-lille'}">${esc(t.from_boutique)}</span></td>
       <td><span class="badge ${t.to_boutique==='DK'?'badge-dk':'badge-lille'}">${esc(t.to_boutique)}</span></td>
     </tr>`;
-  }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;color:#888780;">Aucun transfert sur cette période</td></tr>';
+  }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-muted);">Aucun transfert sur cette période</td></tr>';
 }
 
 let allActiviteData = [];
 
 async function loadActivite() {
   const days = document.getElementById('actPeriodFilter')?.value || 1;
-  document.getElementById('actTable').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Chargement...</td></tr>';
+  document.getElementById('actTable').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted);">Chargement...</td></tr>';
   try {
     const [activity, transfers, eventsRes] = await Promise.all([
       fetch(`${BACKEND_URL}/analytics/activity?days=${days}`).then(r => r.json()).catch(() => []),
@@ -4259,7 +4259,7 @@ async function loadActivite() {
     allActiviteData = data;
     filterActivite();
   } catch(e) {
-    document.getElementById('actTable').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#A32D2D;">Erreur de chargement</td></tr>';
+    document.getElementById('actTable').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--accent);">Erreur de chargement</td></tr>';
   }
 }
 
@@ -4297,9 +4297,9 @@ function filterActivite() {
   const nbLookup = filtered.filter(a => a.type === 'lookup').length;
   document.getElementById('actSummary').innerHTML = `
     <div class="kpi"><div class="kpi-label">Total actions</div><div class="kpi-value">${filtered.length}</div></div>
-    <div class="kpi"><div class="kpi-label">💰 Ventes</div><div class="kpi-value" style="color:#3B6D11;">${caVente.toFixed(0)}€</div><div class="kpi-sub">${nbVente} vente${nbVente>1?'s':''}</div></div>
-    <div class="kpi"><div class="kpi-label">🛍 Rachats</div><div class="kpi-value" style="color:#BA7517;">${caRachat.toFixed(0)}€</div><div class="kpi-sub">${nbRachat} rachat${nbRachat>1?'s':''}</div></div>
-    <div class="kpi"><div class="kpi-label">👟 Nettoyages</div><div class="kpi-value" style="color:#185FA5;">${caNettoyage.toFixed(0)}€</div><div class="kpi-sub">${nbNettoyage} paire${nbNettoyage>1?'s':''}</div></div>
+    <div class="kpi"><div class="kpi-label">💰 Ventes</div><div class="kpi-value" style="color:var(--success);">${caVente.toFixed(0)}€</div><div class="kpi-sub">${nbVente} vente${nbVente>1?'s':''}</div></div>
+    <div class="kpi"><div class="kpi-label">🛍 Rachats</div><div class="kpi-value" style="color:var(--warning);">${caRachat.toFixed(0)}€</div><div class="kpi-sub">${nbRachat} rachat${nbRachat>1?'s':''}</div></div>
+    <div class="kpi"><div class="kpi-label">👟 Nettoyages</div><div class="kpi-value" style="color:var(--info);">${caNettoyage.toFixed(0)}€</div><div class="kpi-sub">${nbNettoyage} paire${nbNettoyage>1?'s':''}</div></div>
     <div class="kpi"><div class="kpi-label">🔄 Transferts</div><div class="kpi-value">${nbTransfert}</div></div>
     <div class="kpi"><div class="kpi-label">📦 Inventaire</div><div class="kpi-value">${nbInventaire}</div></div>
     <div class="kpi"><div class="kpi-label">🔎 Scans produit</div><div class="kpi-value">${nbLookup}</div></div>
@@ -4322,13 +4322,13 @@ function filterActivite() {
     .map(([emp, c]) =>
       `<div class="kpi">
         <div class="kpi-label">${esc(emp)||'—'}</div>
-        <div class="kpi-value" style="color:#3B6D11;">${c.caVente.toFixed(0)}€</div>
+        <div class="kpi-value" style="color:var(--success);">${c.caVente.toFixed(0)}€</div>
         <div class="kpi-sub">CA ventes · ${c.vente} ventes</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">
           ${c.rachat?`<span class="badge badge-warning">${c.rachat} rach. · ${c.caRachat.toFixed(0)}€</span>`:''}
           ${c.nettoyage?`<span class="badge badge-lille">${c.nettoyage} nett. · ${c.caNettoyage.toFixed(0)}€</span>`:''}
-          ${c.inventaire?`<span class="badge" style="background:#f1efe8;color:#5f5e5a;">${c.inventaire} scan${c.inventaire>1?'s':''}</span>`:''}
-          ${c.transfert?`<span class="badge" style="background:#dbeafe;color:#185FA5;">${c.transfert} transf.</span>`:''}
+          ${c.inventaire?`<span class="badge" style="background:var(--surface-2);color:#5f5e5a;">${c.inventaire} scan${c.inventaire>1?'s':''}</span>`:''}
+          ${c.transfert?`<span class="badge" style="background:#dbeafe;color:var(--info);">${c.transfert} transf.</span>`:''}
         </div>
       </div>`
     ).join('');
@@ -4346,12 +4346,12 @@ function filterActivite() {
       <td style="font-size:12px;color:var(--text-muted);white-space:nowrap;">${dateStr}</td>
       <td style="font-family:monospace;font-size:12px;font-weight:600;color:var(--text-muted);">${heureStr}</td>
       <td><strong>${esc(a.employee)||'—'}</strong></td>
-      <td><span class="badge ${badge||''}" style="${a.type==='transfert'?'background:#dbeafe;color:#185FA5;':(!badge?'background:#f1efe8;color:#5f5e5a;':'')}">${typeLabels[a.type]||esc(a.type)}</span></td>
+      <td><span class="badge ${badge||''}" style="${a.type==='transfert'?'background:#dbeafe;color:var(--info);':(!badge?'background:var(--surface-2);color:#5f5e5a;':'')}">${typeLabels[a.type]||esc(a.type)}</span></td>
       <td style="font-size:13px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(a.label)||'—'}</td>
       <td>${a.boutique?`<span class="badge ${a.boutique==='DK'?'badge-dk':'badge-lille'}">${esc(a.boutique)}</span>`:'—'}</td>
       <td style="font-weight:600;text-align:right;">${parseFloat(a.amount||0)>0?parseFloat(a.amount).toFixed(2)+'€':'—'}</td>
     </tr>`;
-  }).join('') + (filtered.length > 500 ? `<tr><td colspan="7" style="text-align:center;padding:14px;color:#888780;font-size:12px;">… ${filtered.length - 500} actions supplémentaires (utilise les filtres ou l'export CSV pour tout voir)</td></tr>` : '') : '<tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Aucune activité</td></tr>';
+  }).join('') + (filtered.length > 500 ? `<tr><td colspan="7" style="text-align:center;padding:14px;color:var(--text-muted);font-size:12px;">… ${filtered.length - 500} actions supplémentaires (utilise les filtres ou l'export CSV pour tout voir)</td></tr>` : '') : '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted);">Aucune activité</td></tr>';
 }
 
 function exportActivity() {
@@ -4403,14 +4403,14 @@ function openBarcodeInput(variantId, el, current) {
   cell.innerHTML = `
     <div style="display:flex;gap:4px;align-items:center;">
       <input id="bc_${variantId}" type="text" placeholder="Scanner ou saisir..." autofocus value="${esc(current||'')}"
-        style="width:130px;padding:4px 8px;border:0.5px solid #3B6D11;border-radius:6px;font-size:12px;font-family:monospace;"
+        style="width:130px;padding:4px 8px;border:0.5px solid var(--success);border-radius:6px;font-size:12px;font-family:monospace;"
         onkeydown="if(event.key==='Enter') saveBarcode(${variantId}, this)"/>
       <button onclick="openCameraForBarcode(${variantId})"
-        style="padding:4px 8px;background:#185FA5;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;" title="Scanner avec la caméra">📷</button>
+        style="padding:4px 8px;background:var(--info);color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;" title="Scanner avec la caméra">📷</button>
       <button onclick="saveBarcode(${variantId}, document.getElementById('bc_${variantId}'))"
-        style="padding:4px 8px;background:#3B6D11;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;">✓</button>
+        style="padding:4px 8px;background:var(--success);color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;">✓</button>
       <button onclick="renderStockPage()"
-        style="padding:4px 8px;background:#f5f5f3;border:0.5px solid #d3d1c7;border-radius:6px;font-size:12px;cursor:pointer;">✕</button>
+        style="padding:4px 8px;background:var(--surface-2);border:0.5px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer;">✕</button>
     </div>
     <div id="camContainer_${variantId}" style="display:none;margin-top:8px;"></div>`;
   setTimeout(() => document.getElementById(`bc_${variantId}`)?.focus(), 50);
@@ -4433,8 +4433,8 @@ async function openCameraForBarcode(variantId) {
   const container = document.getElementById(`camContainer_${variantId}`);
   container.style.display = 'block';
   container.innerHTML = `<div id="qr_${variantId}" style="width:100%;max-width:300px;"></div>
-    <div style="font-size:11px;color:#888780;margin-top:4px;">Pointez sur le code-barres</div>
-    <button onclick="stopCamera(${variantId})" style="margin-top:6px;padding:4px 10px;border:0.5px solid #d3d1c7;border-radius:6px;font-size:12px;cursor:pointer;">✕ Fermer</button>`;
+    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Pointez sur le code-barres</div>
+    <button onclick="stopCamera(${variantId})" style="margin-top:6px;padding:4px 10px;border:0.5px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer;">✕ Fermer</button>`;
 
   const scanner = new Html5Qrcode(`qr_${variantId}`);
   window[`_scanner_${variantId}`] = scanner;
@@ -4614,13 +4614,13 @@ async function loadCleanings() {
     <div class="kpi"><div class="kpi-label">Total nettoyages</div><div class="kpi-value">${s.total.count}</div><div class="kpi-sub">${parseFloat(s.total.revenue).toFixed(2)}€ générés</div></div>
     <div class="kpi"><div class="kpi-label">Ce mois</div><div class="kpi-value green">${parseFloat(s.month.revenue).toFixed(2)}€</div><div class="kpi-sub">${s.month.count} nettoyages</div></div>
     <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('cleanStatusFilter').value='en_cours';filterCleanings();">
-      <div class="kpi-label">En cours</div><div class="kpi-value" style="color:#185FA5;">${s.active.count}</div><div class="kpi-sub">en attente</div>
+      <div class="kpi-label">En cours</div><div class="kpi-value" style="color:var(--info);">${s.active.count}</div><div class="kpi-sub">en attente</div>
     </div>
     <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('cleanStatusFilter').value='pret';filterCleanings();">
-      <div class="kpi-label">Prêts à récupérer</div><div class="kpi-value" style="color:#3B6D11;">${s.ready.count}</div><div class="kpi-sub">à contacter</div>
+      <div class="kpi-label">Prêts à récupérer</div><div class="kpi-value" style="color:var(--success);">${s.ready.count}</div><div class="kpi-sub">à contacter</div>
     </div>
     <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('cleanStatusFilter').value='a_regler';filterCleanings();">
-      <div class="kpi-label">À régler</div><div class="kpi-value" style="color:#BA7517;">${s.unpaid.count}</div><div class="kpi-sub">${parseFloat(s.unpaid.amount).toFixed(2)}€ en attente</div>
+      <div class="kpi-label">À régler</div><div class="kpi-value" style="color:var(--warning);">${s.unpaid.count}</div><div class="kpi-sub">${parseFloat(s.unpaid.amount).toFixed(2)}€ en attente</div>
     </div>
   `;
   renderCleaningsTable(data);
@@ -4628,15 +4628,15 @@ async function loadCleanings() {
 
 const statusLabels = { en_cours: '🔵 En cours', pret: '🟢 Prêt', recupere: '⚪ Récupéré', a_regler: '🟠 À régler' };
 const statusBadges = {
-  en_cours: '<span class="badge" style="background:#E6F1FB;color:#0C447C;">En cours</span>',
+  en_cours: '<span class="badge" style="background:var(--info-dim);color:var(--info);">En cours</span>',
   pret: '<span class="badge badge-ok">Prêt ✓</span>',
-  recupere: '<span class="badge" style="background:#f1efe8;color:#5f5e5a;">Récupéré</span>',
+  recupere: '<span class="badge" style="background:var(--surface-2);color:#5f5e5a;">Récupéré</span>',
   a_regler: '<span class="badge badge-warning">À régler</span>'
 };
 
 function renderCleaningsTable(data) {
   document.getElementById('cleanCount2').textContent = `${data.length} nettoyage${data.length>1?'s':''}`;
-  if (!data.length) { document.getElementById('cleanTable').innerHTML='<tr><td colspan="11" style="text-align:center;padding:30px;color:#888780;">Aucun nettoyage</td></tr>'; return; }
+  if (!data.length) { document.getElementById('cleanTable').innerHTML='<tr><td colspan="11" style="text-align:center;padding:30px;color:var(--text-muted);">Aucun nettoyage</td></tr>'; return; }
   document.getElementById('cleanTable').innerHTML = data.map(c => {
     const date = new Date(c.deposited_at).toLocaleDateString('fr-FR');
     const photos = c.photos ? (typeof c.photos === 'string' ? JSON.parse(c.photos) : c.photos) : [];
@@ -4653,20 +4653,20 @@ function renderCleaningsTable(data) {
       <td style="font-weight:600;">${price}</td>
       <td>${esc(c.employee)}</td>
       <td><span class="badge ${c.boutique==='DK'?'badge-dk':'badge-lille'}">${esc(c.boutique)}</span></td>
-      <td style="color:#888780;font-size:12px;">${date}</td>
+      <td style="color:var(--text-muted);font-size:12px;">${date}</td>
       <td style="font-size:12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(c.remarks||'')}">${esc(c.remarks)||'—'}</td>
       <td style="display:flex;gap:3px;flex-wrap:wrap;align-items:center;">
         ${photosHtml}
-        <button onclick="triggerPhotoUpload(${c.id})" style="width:32px;height:32px;border:0.5px dashed #d3d1c7;border-radius:4px;background:#f5f5f3;cursor:pointer;font-size:16px;flex-shrink:0;">+</button>
+        <button onclick="triggerPhotoUpload(${c.id})" style="width:32px;height:32px;border:0.5px dashed var(--border);border-radius:4px;background:var(--surface-2);cursor:pointer;font-size:16px;flex-shrink:0;">+</button>
       </td>
       <td>
         <input type="text" value="${esc(c.notes||'')}" placeholder="Ajouter une note..."
           onblur="saveCleaningNote(${c.id}, this.value)"
           onkeydown="if(event.key==='Enter') this.blur()"
-          style="width:140px;padding:4px 8px;border:0.5px solid #d3d1c7;border-radius:6px;font-size:12px;background:#fff;"/>
+          style="width:140px;padding:4px 8px;border:0.5px solid var(--border);border-radius:6px;font-size:12px;background:#fff;"/>
       </td>
       <td>
-        <select onchange="updateCleaningStatus(${c.id}, this.value)" style="font-size:12px;padding:4px 6px;border:0.5px solid #d3d1c7;border-radius:6px;background:#fff;">
+        <select onchange="updateCleaningStatus(${c.id}, this.value)" style="font-size:12px;padding:4px 6px;border:0.5px solid var(--border);border-radius:6px;background:#fff;">
           <option value="en_cours" ${c.status==='en_cours'?'selected':''}>🔵 En cours</option>
           <option value="pret" ${c.status==='pret'?'selected':''}>🟢 Prêt</option>
           <option value="a_regler" ${c.status==='a_regler'?'selected':''}>🟠 À régler</option>
@@ -4782,7 +4782,7 @@ async function loadDepots() {
   const summary = document.getElementById('depotsSummary');
   try {
     const rows = await api('/deposits');
-    if (!rows || !rows.length) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:#888780;">Aucun dépôt-vente</td></tr>'; if (summary) summary.textContent = ''; return; }
+    if (!rows || !rows.length) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-muted);">Aucun dépôt-vente</td></tr>'; if (summary) summary.textContent = ''; return; }
     const toPay = rows.filter(r => r.depot_status === 'vendu' && r.payment_status !== 'regle');
     const due = toPay.reduce((a, r) => a + (parseFloat(r.depositor_due) || 0), 0);
     if (summary) summary.textContent = `${rows.length} dépôt(s) · ${toPay.length} à payer (${due.toFixed(2)}€)`;
@@ -4791,7 +4791,7 @@ async function loadDepots() {
       const depose = r.purchased_at ? new Date(r.purchased_at).toLocaleDateString('fr-FR') : '—';
       const limite = r.deposit_deadline ? new Date(r.deposit_deadline).toLocaleDateString('fr-FR') : '—';
       let statut, action = '';
-      if (r.depot_status === 'restitue') { statut = '<span style="color:#888780;">Restitué</span>'; }
+      if (r.depot_status === 'restitue') { statut = '<span style="color:var(--text-muted);">Restitué</span>'; }
       else if (r.depot_status === 'vendu') {
         if (r.payment_status === 'regle') statut = '<span style="color:var(--success);">Vendu · payé</span>';
         else { statut = '<span style="color:#D85A30;font-weight:600;">Vendu · à payer</span>'; action = `<button class="btn btn-green" style="font-size:11px;padding:4px 8px;" onclick="markDepositPaid(${r.id})">Marquer payé</button>`; }
@@ -4806,10 +4806,10 @@ async function loadDepots() {
       let marge = '—';
       if (saleVal > 0) {
         const m = saleVal - dueVal, pct = Math.round((m / saleVal) * 100);
-        marge = `<span style="color:${m >= 0 ? '#3B6D11' : '#A32D2D'};font-weight:600;">${m.toFixed(2)}€ (${pct}%)</span>`;
+        marge = `<span style="color:${m >= 0 ? 'var(--success)' : 'var(--accent)'};font-weight:600;">${m.toFixed(2)}€ (${pct}%)</span>`;
       }
       const rowBg = (r.overdue && r.depot_status === 'en_depot') ? 'background:#FFF8F8;' : '';
-      return `<tr style="${rowBg}"><td><strong>${_escD(r.product_name)}</strong>${r.brand ? '<br><span style="font-size:11px;color:#888780;">' + _escD(r.brand) + '</span>' : ''}</td><td>${dep}</td><td>${due2}</td><td>${vente}</td><td>${marge}</td><td>${depose}</td><td>${limite}</td><td>${statut}</td><td>${action}</td></tr>`;
+      return `<tr style="${rowBg}"><td><strong>${_escD(r.product_name)}</strong>${r.brand ? '<br><span style="font-size:11px;color:var(--text-muted);">' + _escD(r.brand) + '</span>' : ''}</td><td>${dep}</td><td>${due2}</td><td>${vente}</td><td>${marge}</td><td>${depose}</td><td>${limite}</td><td>${statut}</td><td>${action}</td></tr>`;
     }).join('');
   } catch (e) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--accent);">Erreur : ' + e.message + '</td></tr>'; }
 }
@@ -4936,12 +4936,12 @@ function renderObjProgress(p) {
   if (noTarget) { k.innerHTML = ''; return; }
   const delta = p.delta_vs_pace_ttc;
   const deltaTxt = delta == null ? '—' : ((delta >= 0 ? '+' : '') + fmtEur(delta));
-  const deltaColor = (delta == null) ? 'inherit' : (delta >= 0 ? '#3B6D11' : '#A32D2D');
+  const deltaColor = (delta == null) ? 'inherit' : (delta >= 0 ? 'var(--success)' : 'var(--accent)');
   const todaySub = p.today_is_open ? ('aujourd\'hui : ' + fmtEur(p.today_ttc)) : 'fermé aujourd\'hui';
   k.innerHTML = [
     ['Reste à faire', fmtEur(p.remaining_ttc), '', 'inherit'],
     ['Par jour ouvré restant', p.required_per_open_day == null ? '—' : (fmtEur(p.required_per_open_day) + '/j'), p.open_days_remaining + ' j restants', 'inherit'],
-    ['Objectif du jour', p.daily_objective_ttc == null ? '—' : fmtEur(p.daily_objective_ttc), todaySub, p.today_met === false ? '#A32D2D' : 'inherit'],
+    ['Objectif du jour', p.daily_objective_ttc == null ? '—' : fmtEur(p.daily_objective_ttc), todaySub, p.today_met === false ? 'var(--accent)' : 'inherit'],
     ['Avance / retard', deltaTxt, 'vs rythme', deltaColor],
     ['Projection fin de mois', fmtEur(p.projection_eom_ttc), '', 'inherit']
   ].map(([l, v, sub, col]) => `<div class="obj-kpi"><div class="v" style="color:${col}">${v}</div><div class="l">${l}</div>${sub ? `<div class="l" style="text-transform:none;">${sub}</div>` : ''}</div>`).join('');
@@ -4971,7 +4971,7 @@ function renderObjEntries(d) {
   missing.sort((a, b) => a.date < b.date ? 1 : (a.date > b.date ? -1 : 0));
   // Titre + compteur + pastille
   const titleEl = document.getElementById('objEntriesTitle');
-  if (titleEl) titleEl.innerHTML = 'Saisies du mois' + (missing.length ? ` <span style="color:#E8504E;font-weight:600;font-size:13px;">· ${missing.length} jour${missing.length > 1 ? 's' : ''} manquant${missing.length > 1 ? 's' : ''}</span>` : '');
+  if (titleEl) titleEl.innerHTML = 'Saisies du mois' + (missing.length ? ` <span style="color:var(--accent);font-weight:600;font-size:13px;">· ${missing.length} jour${missing.length > 1 ? 's' : ''} manquant${missing.length > 1 ? 's' : ''}</span>` : '');
   const badge = document.getElementById('objectifBadge');
   if (badge && ym === new Date().toLocaleDateString('en-CA').slice(0, 7)) badge.style.display = missing.length ? 'inline-block' : 'none';
   // Encart compact des jours manquants (chips, cliquables pour l'admin)
@@ -4984,14 +4984,14 @@ function renderObjEntries(d) {
         const click = adm ? ` onclick="objEditEntry('${m.boutique}','${m.date}',null)"` : '';
         return `<span${click} style="display:inline-block;background:var(--surface);border:1px solid var(--accent);color:var(--accent);border-radius:999px;padding:4px 11px;font-size:12px;${adm ? 'cursor:pointer;' : ''}">${lbl}</span>`;
       }).join('');
-      alertBox.innerHTML = `<div style="background:rgba(232,80,78,.07);border:1px solid rgba(232,80,78,.25);border-radius:12px;padding:12px 14px;margin-bottom:14px;">
-        <div style="font-weight:700;color:#E8504E;font-size:13px;margin-bottom:8px;">⚠️ ${missing.length} jour${missing.length > 1 ? 's' : ''} sans saisie${adm ? ' — clique un jour pour le saisir' : ''}</div>
+      alertBox.innerHTML = `<div style="background:var(--accent-dim);border:1px solid var(--accent-dim);border-radius:12px;padding:12px 14px;margin-bottom:14px;">
+        <div style="font-weight:700;color:var(--accent);font-size:13px;margin-bottom:8px;">⚠️ ${missing.length} jour${missing.length > 1 ? 's' : ''} sans saisie${adm ? ' — clique un jour pour le saisir' : ''}</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;">${chips}</div></div>`;
     }
   }
   // Tableau = uniquement les saisies réelles (compact)
   const actual = rows.slice().sort((a, b) => a.date < b.date ? 1 : (a.date > b.date ? -1 : (a.boutique < b.boutique ? -1 : 1)));
-  if (!actual.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#888780;">Aucune saisie ce mois</td></tr>'; return; }
+  if (!actual.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted);">Aucune saisie ce mois</td></tr>'; return; }
   tb.innerHTML = actual.map(r => {
     const act = adm ? `<td><button class="btn" style="font-size:11px;padding:4px 8px;" onclick="objEditEntry('${r.boutique}','${r.date}', ${Number(r.amount_ttc)})">Modifier</button></td>` : '';
     return `<tr><td>${objDayShort(r.date)}</td><td>${objBoutiqueLabel(r.boutique)}</td><td>${fmtEur(r.amount_ttc)}</td><td style="color:var(--text-muted);font-size:12px;">${esc(r.updated_by || r.entered_by || '')}</td>${act}</tr>`;
@@ -5065,14 +5065,14 @@ async function loadObjOverview() {
       const pct = (p.pct_attainment == null) ? 0 : p.pct_attainment;
       const w = Math.max(0, Math.min(100, pct));
       const pctTxt = (p.pct_attainment == null) ? '—' : (p.pct_attainment + '%');
-      const bg = isTotal ? 'background:linear-gradient(135deg,#2C2C2A,#3a3a36);color:#fff;' : 'background:rgba(0,0,0,.04);';
+      const bg = isTotal ? 'background:var(--brand);color:var(--brand-ink);' : 'background:rgba(0,0,0,.04);';
       const muted = isTotal ? 'rgba(255,255,255,.7)' : 'var(--text-muted)';
       const barBg = isTotal ? 'rgba(255,255,255,.18)' : 'rgba(0,0,0,.09)';
       return `<div style="${bg}border-radius:14px;padding:16px 18px;flex:1;min-width:190px;">
         <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">${isTotal ? 'Total' : objBoutiqueLabel(p.boutique)}</div>
         <div style="font-size:26px;font-weight:800;line-height:1;">${fmtEur(p.mtd_ttc)}</div>
         <div style="font-size:12px;color:${muted};margin:4px 0 10px;">sur ${p.target_ttc == null ? '—' : fmtEur(p.target_ttc)} · <strong>${pctTxt}</strong></div>
-        <div style="height:9px;border-radius:5px;background:${barBg};overflow:hidden;"><div style="height:100%;width:${w}%;background:${w >= 100 ? '#3B6D11' : (isTotal ? '#9FE1CB' : '#3B6D11')};border-radius:5px;transition:width .8s;"></div></div>
+        <div style="height:9px;border-radius:5px;background:${barBg};overflow:hidden;"><div style="height:100%;width:${w}%;background:${w >= 100 ? 'var(--success)' : (isTotal ? 'var(--success)' : 'var(--success)')};border-radius:5px;transition:width .8s;"></div></div>
         <div style="font-size:11px;color:${muted};margin-top:8px;">Reste ${p.remaining_ttc == null ? '—' : fmtEur(p.remaining_ttc)} · proj. ${fmtEur(p.projection_eom_ttc)}</div>
       </div>`;
     };
@@ -5120,7 +5120,7 @@ function showRevenueMissingPopup(d) {
     <div style="font-size:17px;font-weight:700;margin-bottom:6px;">CA non saisi</div>
     <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">Le CA de <strong>${dateFr}</strong> (${d.boutique}) n'a pas été saisi. Tu peux l'entrer maintenant :</div>
     <input type="number" id="revMissAmount" placeholder="CA du jour (€)" min="0" step="0.01" style="width:100%;padding:11px;border-radius:10px;border:1px solid var(--border,#d3d1c7);font-size:16px;margin-bottom:10px;box-sizing:border-box;"/>
-    <div id="revMissErr" style="color:#E8504E;font-size:12px;min-height:14px;margin-bottom:8px;"></div>
+    <div id="revMissErr" style="color:var(--accent);font-size:12px;min-height:14px;margin-bottom:8px;"></div>
     <div style="display:flex;gap:8px;">
       <button onclick="revMissSave('${d.boutique}','${d.date}')" class="btn btn-green" style="flex:1;">Enregistrer</button>
       <button onclick="document.getElementById('revMissOverlay').remove()" class="btn" style="flex:1;">Plus tard</button>
@@ -5172,12 +5172,12 @@ async function loadRachats() {
     <div class="kpi"><div class="kpi-label">Marge totale</div><div class="kpi-value green">${parseFloat(s.total_margin||0).toFixed(2)}€</div><div class="kpi-sub">sur articles vendus</div></div>
     <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('rachatsStatusFilter').value='posted';filterRachats();">
       <div class="kpi-label">Postés en ligne</div>
-      <div class="kpi-value" style="color:#185FA5;">${posted}</div>
+      <div class="kpi-value" style="color:var(--info);">${posted}</div>
       <div class="kpi-sub">en attente de vente</div>
     </div>
     <div class="kpi" style="cursor:pointer;" onclick="document.getElementById('rachatsStatusFilter').value='pending';filterRachats();">
       <div class="kpi-label">À mettre en ligne</div>
-      <div class="kpi-value" style="color:${notPosted>0?'#BA7517':'#3B6D11'}">${notPosted}</div>
+      <div class="kpi-value" style="color:${notPosted>0?'var(--warning)':'var(--success)'}">${notPosted}</div>
       <div class="kpi-sub">${notPosted>0?'pas encore postés':'tout est posté ✓'}</div>
     </div>
   `;
@@ -5186,17 +5186,17 @@ async function loadRachats() {
 
 function renderRachatsTable(data) {
   document.getElementById('rachatsCount').textContent = `${data.length} rachat${data.length>1?'s':''}`;
-  if (!data.length) { document.getElementById('rachatsTable').innerHTML='<tr><td colspan="12" style="text-align:center;padding:30px;color:#888780;">Aucun rachat</td></tr>'; return; }
+  if (!data.length) { document.getElementById('rachatsTable').innerHTML='<tr><td colspan="12" style="text-align:center;padding:30px;color:var(--text-muted);">Aucun rachat</td></tr>'; return; }
   document.getElementById('rachatsTable').innerHTML = data.map(r => {
     const status = r.computed_status === 'sold'
       ? '<span class="badge badge-ok">✓ Vendu</span>'
       : r.isPosted
-        ? '<span class="badge" style="background:#E6F1FB;color:#185FA5;">🛍 Posté en ligne</span>'
+        ? '<span class="badge" style="background:var(--info-dim);color:var(--info);">🛍 Posté en ligne</span>'
         : '<span class="badge badge-warning">⏳ À mettre en ligne</span>';
-    const margin = r.margin != null ? `<span style="font-weight:600;color:${r.margin>=0?'#3B6D11':'#A32D2D'}">${r.margin>=0?'+':''}${parseFloat(r.margin).toFixed(2)}€ ${r.margin_pct!=null?`(${r.margin_pct}%)`:''}</span>` : '—';
+    const margin = r.margin != null ? `<span style="font-weight:600;color:${r.margin>=0?'var(--success)':'var(--accent)'}">${r.margin>=0?'+':''}${parseFloat(r.margin).toFixed(2)}€ ${r.margin_pct!=null?`(${r.margin_pct}%)`:''}</span>` : '—';
     const soldPrice = r.sold_price ? `${parseFloat(r.sold_price).toFixed(2)}€` : '—';
     const date = new Date(r.purchased_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'});
-    const barcodeHtml = r.barcode ? `<span style="font-family:monospace;font-size:11px;background:#f1efe8;padding:2px 6px;border-radius:4px;">${esc(r.barcode)}</span>` : '—';
+    const barcodeHtml = r.barcode ? `<span style="font-family:monospace;font-size:11px;background:var(--surface-2);padding:2px 6px;border-radius:4px;">${esc(r.barcode)}</span>` : '—';
 
     // Authentification
     const auth = r.authenticated || 'pending';
@@ -5230,17 +5230,17 @@ function renderRachatsTable(data) {
 
     return `<tr style="${pay==='non_regle'?'background:#FFF8F8;':''}">
       <td style="font-weight:500;">${esc(r.product_name)}</td>
-      <td style="color:#888780;font-size:12px;">${esc(r.brand)||'—'}</td>
+      <td style="color:var(--text-muted);font-size:12px;">${esc(r.brand)||'—'}</td>
       <td>${barcodeHtml}</td>
       <td style="font-weight:600;">${parseFloat(r.purchase_price).toFixed(2)}€</td>
-      <td style="color:#888780;">${r.estimated_price?parseFloat(r.estimated_price).toFixed(2)+'€':'—'}</td>
+      <td style="color:var(--text-muted);">${r.estimated_price?parseFloat(r.estimated_price).toFixed(2)+'€':'—'}</td>
       <td>${soldPrice}</td>
       <td>${margin}</td>
       <td>${status}</td>
       <td>${authCell}</td>
       <td>${payCell}</td>
       <td>${esc(r.employee)}</td>
-      <td style="color:#888780;">${date}</td>
+      <td style="color:var(--text-muted);">${date}</td>
     </tr>`;
   }).join('');
 }
@@ -5532,7 +5532,7 @@ async function loadVinted(){
     vintedRenderStatusLine(); vintedRenderKpis(); vintedRenderYearSeg();
     vintedRenderCurrent();
   } catch(e){
-    document.getElementById('vintedRowsCaisse').innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:#A32D2D;">Erreur de chargement : ${vEsc(e.message)}</td></tr>`;
+    document.getElementById('vintedRowsCaisse').innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--accent);">Erreur de chargement : ${vEsc(e.message)}</td></tr>`;
   }
 }
 function vintedRenderStatusLine(){
@@ -5552,7 +5552,7 @@ function vintedRenderStatusLine(){
     if(t.uidDoubles) parts.push(`<b>${t.uidDoubles} UID en double (col. P)</b> : ${list(d.uidDoubles||[],2)}`);
     if(t.sansVendeur) parts.push(`<b>${t.sansVendeur} sans vendeur (col. A)</b> : ${list(d.sansVendeur||[],3)}`);
     if(t.purgeRefusee) parts.push(`<b>purge de ${t.purgeRefusee} lignes disparues REFUSÉE</b> (trop massive — onglet renommé ou lecture partielle ? me signaler)`);
-    warn=`<span style="flex-basis:100%;color:#A32D2D;">⚠️ Lignes du Sheet non importées dans l'app — corriger dans le Google Sheet puis resynchroniser. ${parts.join(' — ')}</span>`;
+    warn=`<span style="flex-basis:100%;color:var(--accent);">⚠️ Lignes du Sheet non importées dans l'app — corriger dans le Google Sheet puis resynchroniser. ${parts.join(' — ')}</span>`;
   }
   // Mises en caisse perdues : marquées dans l'app (en_caisse_at) mais plus dans le Sheet —
   // typiquement une écriture partie sur une mauvaise ligne après insertion/tri dans le classeur,
@@ -5560,10 +5560,10 @@ function vintedRenderStatusLine(){
   // Scan tracking à l'arrêt : toutes les sessions Vinted sont mortes → rien ne se capture,
   // les articles ne se relient plus aux colis. Alerte + où recharger les cookies.
   if(s && Number(s.sessionsTotal)>0 && Number(s.sessionsMortes)>=Number(s.sessionsTotal)){
-    warn+=`<span style="flex-basis:100%;color:#A32D2D;">🛑 <b>Scan tracking à l'arrêt</b> : les ${Number(s.sessionsTotal)} sessions Vinted sont expirées (l'extension Chrome n'envoie plus les cookies). Recharger les cookies dans 📦 Suivi colis → 🛠 Supervision → « recoller un cookie à la main », puis ▶ Relancer le scan.</span>`;
+    warn+=`<span style="flex-basis:100%;color:var(--accent);">🛑 <b>Scan tracking à l'arrêt</b> : les ${Number(s.sessionsTotal)} sessions Vinted sont expirées (l'extension Chrome n'envoie plus les cookies). Recharger les cookies dans 📦 Suivi colis → 🛠 Supervision → « recoller un cookie à la main », puis ▶ Relancer le scan.</span>`;
   }
   if(s && Number(s.perdusEnCaisse)>0){
-    warn+=`<span style="flex-basis:100%;color:#A32D2D;">⚠️ <b>${Number(s.perdusEnCaisse)} mise(s) en caisse</b> enregistrée(s) dans l'app mais plus marquée(s) dans le Sheet — les articles sont revenus « à traiter » à tort. <button class="btn" style="font-size:11.5px;padding:2px 10px;margin-left:6px;" id="vintedRepareBtn" onclick="vintedRepareEncaisse()">🔧 Réparer</button></span>`;
+    warn+=`<span style="flex-basis:100%;color:var(--accent);">⚠️ <b>${Number(s.perdusEnCaisse)} mise(s) en caisse</b> enregistrée(s) dans l'app mais plus marquée(s) dans le Sheet — les articles sont revenus « à traiter » à tort. <button class="btn" style="font-size:11.5px;padding:2px 10px;margin-left:6px;" id="vintedRepareBtn" onclick="vintedRepareEncaisse()">🔧 Réparer</button></span>`;
   }
   el.innerHTML =
     `<span><span class="vdot ${ageDot(s&&s.lastSync)}"></span><b style="color:var(--text);">Sheet</b> — ${sync||'jamais synchronisé'}</span>`+
@@ -5608,9 +5608,9 @@ function vintedRenderKpis(){
   const catLbl = vintedCat ? (vintedCat==='__none' ? ' · à catégoriser' : ' · '+vintedCat) : '';
   const kpi=(n,l,color,go)=>`<div class="kpi" style="cursor:pointer;" onclick="vintedKpiGo('${go}')" title="Filtrer"><div class="kpi-value" ${color?`style="color:${color};"`:''}>${n}</div><div class="kpi-label">${l}</div></div>`;
   document.getElementById('vintedKpis').innerHTML =
-    kpi(aTraiter,'À mettre en caisse'+catLbl,'#BA7517','atraiter') +
-    kpi(sansPrix,'Sans prix €'+catLbl,'#185FA5','sansprix') +
-    kpi(enCaisse,'Mis en caisse ('+yLbl+')'+catLbl,'#3B6D11','encaisse') +
+    kpi(aTraiter,'À mettre en caisse'+catLbl,'var(--warning)','atraiter') +
+    kpi(sansPrix,'Sans prix €'+catLbl,'var(--info)','sansprix') +
+    kpi(enCaisse,'Mis en caisse ('+yLbl+')'+catLbl,'var(--success)','encaisse') +
     kpi(Math.round(depense).toLocaleString('fr-FR')+' €','Dépensé ('+yLbl+')'+catLbl,'','depense');
 }
 function vintedSwitchViewTo(v){ vintedSwitchView(v, document.querySelector(`#tab-vinted .vseg-view .vseg-btn[data-view="${v}"]`)); }
@@ -5668,7 +5668,7 @@ function vintedCatSelect(a){
   return `<select class="vcatsel ${cls}" onclick="event.stopPropagation()" onchange="event.stopPropagation();vintedSetCatInline('${vEsc(a.uid)}',this.value)">${opts}</select>`;
 }
 // Rendu résilient : une ligne aux données corrompues ne casse jamais le reste de la liste.
-function vRowSafe(a,view){ try{ return vintedRowHtml(a,view); }catch(e){ return `<tr><td colspan="7" style="color:#A32D2D;font-size:12px;">ligne illisible (uid ${vEsc(String(a&&a.uid||'?'))}) — voir « Vérifier Sheet ↔ app »</td></tr>`; } }
+function vRowSafe(a,view){ try{ return vintedRowHtml(a,view); }catch(e){ return `<tr><td colspan="7" style="color:var(--accent);font-size:12px;">ligne illisible (uid ${vEsc(String(a&&a.uid||'?'))}) — voir « Vérifier Sheet ↔ app »</td></tr>`; } }
 function vintedRowHtml(a, view){
   const enc = vIsEnCaisse(a);
   const anomalie = vPriceAnomaly(a) ? `<span class="vanomalie" title="Prix € incohérent avec le prix £ — match Revolut à vérifier">⚠️</span>` : '';
@@ -5766,7 +5766,7 @@ async function vintedBulkEncaisse(){
   if(!arts.length){ showDashToast('Aucun article éligible dans la sélection','warn'); return; }
   const bundlesSansPrix=arts.filter(a=>vIsBundle(a) && a.prix_eur==null).length;
   let message=`<strong>${arts.length}</strong> article${arts.length>1?'s':''} ${arts.length>1?'vont':'va'} être marqué${arts.length>1?'s':''} « en caisse ».`;
-  if(bundlesSansPrix) message+=`<div style="margin-top:10px;color:#BA7517;">⚠️ ${bundlesSansPrix} article${bundlesSansPrix>1?'s':''} issu${bundlesSansPrix>1?'s':''} d'un bundle sans prix € — le prix sera à répartir à la main ensuite.</div>`;
+  if(bundlesSansPrix) message+=`<div style="margin-top:10px;color:var(--warning);">⚠️ ${bundlesSansPrix} article${bundlesSansPrix>1?'s':''} issu${bundlesSansPrix>1?'s':''} d'un bundle sans prix € — le prix sera à répartir à la main ensuite.</div>`;
   const ok=await vintedConfirm({ title:'Mettre en caisse la sélection ?', message, confirmLabel:`✓ Mettre en caisse (${arts.length})` });
   if(!ok) return;
   const okUids=arts.map(a=>a.uid);
@@ -5955,12 +5955,12 @@ async function vintedVerif(){
     const t=d.totaux||{}; const p=d.problemes||{};
     const rien=!t.sansVendeur && !t.sansUid && !t.uidDoubles && !t.manquantes && !t.ongletsIgnores && !t.perdusEnCaisse;
     const bloc=(titre,arr,tot,expl,color)=>{ if(!tot) return '';
-      return `<div style="margin:12px 0;"><b style="color:${color||'#A32D2D'};">${titre} (${tot})</b>`+
+      return `<div style="margin:12px 0;"><b style="color:${color||'var(--accent)'};">${titre} (${tot})</b>`+
         `<div style="font-size:12px;color:var(--text-muted);margin:2px 0 6px;">${expl}</div>`+
         (arr||[]).map(x=>`<div style="font-size:12.5px;padding:2px 0;">• ${vEsc(x)}</div>`).join('')+
         (tot>(arr||[]).length?`<div style="font-size:12px;color:var(--text-muted);">… et ${tot-(arr||[]).length} autre(s)</div>`:'')+`</div>`; };
     let html=`<div style="margin-bottom:8px;">Sheet : <b>${Number(d.sheet.lignes)}</b> ligne(s) lue(s) dont <b>${Number(d.sheet.importables)}</b> importable(s) · App : <b>${Number(d.app.lignes)}</b> ligne(s)</div>`;
-    if(rien) html+=`<div style="color:#3B6D11;font-weight:700;margin:10px 0;">✓ Toutes les lignes du Sheet sont bien dans l'app.</div>`;
+    if(rien) html+=`<div style="color:var(--success);font-weight:700;margin:10px 0;">✓ Toutes les lignes du Sheet sont bien dans l'app.</div>`;
     html+=bloc('Lignes sans UID (colonne P)',p.sansUid,t.sansUid,'Non importables : il manque l’UID en colonne P (normalement rempli par le script du Sheet). Le remettre puis resynchroniser.');
     html+=bloc('UID en double (colonne P)',p.uidDoubles,t.uidDoubles,'Deux lignes partagent le même UID (ligne dupliquée à la main ?) : une seule apparaît dans l’app. Donner un UID différent à chaque ligne.');
     html+=bloc('Lignes sans vendeur (colonne A)',p.sansVendeur,t.sansVendeur,'Non importables : renseigner le vendeur en colonne A puis resynchroniser.');
@@ -5968,7 +5968,7 @@ async function vintedVerif(){
     html+=bloc('Avec UID mais absentes de l’app',p.manquantes,t.manquantes,'Présentes dans le Sheet avec un UID mais absentes malgré la synchro — anomalie, me la signaler.');
     html+=bloc('Mises en caisse perdues',p.perdusEnCaisse,t.perdusEnCaisse,'Marquées « en caisse » dans l’app (horodatage conservé) mais plus dans le Sheet — écriture partie sur une mauvaise ligne puis écrasée par la resync. Utiliser le bouton « 🔧 Réparer » de la ligne de statut.');
     html+=bloc('Lignes invalides (ni titre ni transaction)',p.lignesInvalides,t.lignesInvalides,'Déchets d’automatisation importés du Sheet (ex. reçu e-mail recraché dans une cellule) : exclus du « à traiter », à supprimer/corriger dans le Sheet puis resynchroniser.');
-    if(t.orphelines) html+=bloc('Dans l’app mais plus dans le Sheet',(p.orphelines&&p.orphelines.detail)||[],t.orphelines,'Lignes supprimées du Sheet ou dont l’UID a changé — elles restent affichées dans l’app.', '#BA7517');
+    if(t.orphelines) html+=bloc('Dans l’app mais plus dans le Sheet',(p.orphelines&&p.orphelines.detail)||[],t.orphelines,'Lignes supprimées du Sheet ou dont l’UID a changé — elles restent affichées dans l’app.', 'var(--warning)');
     document.getElementById('vintedVerifBody').innerHTML=html;
     document.getElementById('vintedVerifModal').classList.add('active');
     await loadVinted(); // la vérification a aussi resynchronisé le miroir
@@ -5997,7 +5997,7 @@ async function vintedAuditEncaisse(){
     for(const [liste,L] of Object.entries(listes).sort()){
       const annees=Object.entries(L.annees||{}).sort().map(([a,n])=>`${a} : ${n}`).join(' · ');
       html+=`<div style="margin:14px 0 6px;font-weight:800;font-size:15px;">Liste ${vEsc(liste)} — ${L.total} article(s) à traiter <span style="font-weight:400;font-size:12px;color:var(--text-muted);">(${annees})</span></div>`;
-      if(L.marquesPerdus) html+=`<div style="font-size:12.5px;color:#A32D2D;margin-bottom:6px;">dont ${L.marquesPerdus} marqué(s) en caisse dans l'app puis démarqué(s) — bouton 🔧 Réparer de la ligne de statut.</div>`;
+      if(L.marquesPerdus) html+=`<div style="font-size:12.5px;color:var(--accent);margin-bottom:6px;">dont ${L.marquesPerdus} marqué(s) en caisse dans l'app puis démarqué(s) — bouton 🔧 Réparer de la ligne de statut.</div>`;
       for(const [key,label,expl] of VAUDIT_BUCKETS){
         const B=(L.buckets||{})[key]; if(!B||!B.n) continue;
         const rows=(B.items||[]).map(it=>{
@@ -6014,7 +6014,7 @@ async function vintedAuditEncaisse(){
           <div style="font-size:12px;color:var(--text-muted);margin:4px 0 6px;">${expl}</div>${rows}${B.n>(B.items||[]).length?`<div style="font-size:12px;color:var(--text-muted);padding:4px 0;">… et ${B.n-(B.items||[]).length} autre(s)</div>`:''}</details>`;
       }
     }
-    if(!Object.keys(listes).length) html+='<div style="color:#3B6D11;font-weight:700;">✓ Aucun article à traiter.</div>';
+    if(!Object.keys(listes).length) html+='<div style="color:var(--success);font-weight:700;">✓ Aucun article à traiter.</div>';
     document.getElementById('vintedAuditBody').innerHTML=html;
     document.getElementById('vintedAuditModal').classList.add('active');
   }catch(e){ showDashToast('Erreur audit : '+(e&&e.message||''),'error'); }
@@ -6039,7 +6039,7 @@ async function vintedReceptionListe(){
   const box=document.getElementById('vintedReceptionWrap'); box.innerHTML='<div class="loading" style="padding:16px;">Chargement des cartons…</div>';
   try{
     const d=await (await fetch(`${BACKEND_URL}/vinted/reship/cartons`)).json();
-    if(!d.ok){ box.innerHTML='<div style="color:#A32D2D;padding:14px;">Erreur : '+vEsc(d.erreur||'?')+'</div>'; return; }
+    if(!d.ok){ box.innerHTML='<div style="color:var(--accent);padding:14px;">Erreur : '+vEsc(d.erreur||'?')+'</div>'; return; }
     const cartons=d.cartons||[];
     const fmtDate=iso=>{ if(!iso) return '—'; const dt=new Date(iso); return isNaN(dt)?'—':dt.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'}); };
     // Fraîcheur du miroir Registre Reship + synchro manuelle (sinon on attend le cron horaire
@@ -6061,19 +6061,19 @@ async function vintedReceptionListe(){
       // Compteur RÉEL de colis (carton_contenu) — les colis non reliés à un article sont comptés et signalés.
       const nbColis=Number(c.nb_colis||0), relies=Number(c.colis_relies!=null?c.colis_relies:nbColis);
       const nonRelies=Math.max(0,nbColis-relies);
-      const nrTxt=nonRelies>0?` · <span style="color:#A32D2D;font-weight:600;">${nonRelies} colis non relié${nonRelies>1?'s':''}</span>`:'';
+      const nrTxt=nonRelies>0?` · <span style="color:var(--accent);font-weight:600;">${nonRelies} colis non relié${nonRelies>1?'s':''}</span>`:'';
       const nbFake=Number(c.nb_fake||0);
-      const fakeTxt=nbFake>0?` · <span style="color:#A32D2D;font-weight:600;">🚫 ${nbFake} FAKE</span>`:'';
+      const fakeTxt=nbFake>0?` · <span style="color:var(--accent);font-weight:600;">🚫 ${nbFake} FAKE</span>`:'';
       return `<button onclick="vintedOpenCarton('${vEsc(String(c.carton_id))}',false)" style="display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;padding:14px 16px;margin-bottom:8px;border:1px solid var(--border);border-radius:12px;background:var(--surface);cursor:pointer;">
         <div>
           <div style="font-weight:800;font-size:16px;">📦 Carton ${vEsc(String(c.carton_id))}</div>
-          <div style="font-size:12.5px;color:var(--text-muted);margin-top:3px;">${nbColis} colis · ${tot} article${tot>1?'s':''} relié${tot>1?'s':''} · <span style="color:${allEnc?'#3B6D11':'#BA7517'};font-weight:600;">${enc}/${tot} en caisse</span>${nrTxt}${fakeTxt} · ${c.shipped_on?`📦 expédié le ${fmtDate(c.shipped_on)}`:(c.last_colis_on?`colis chez Reship jusqu'au ${fmtDate(c.last_colis_on)}`:'en préparation')}</div>
+          <div style="font-size:12.5px;color:var(--text-muted);margin-top:3px;">${nbColis} colis · ${tot} article${tot>1?'s':''} relié${tot>1?'s':''} · <span style="color:${allEnc?'var(--success)':'var(--warning)'};font-weight:600;">${enc}/${tot} en caisse</span>${nrTxt}${fakeTxt} · ${c.shipped_on?`📦 expédié le ${fmtDate(c.shipped_on)}`:(c.last_colis_on?`colis chez Reship jusqu'au ${fmtDate(c.last_colis_on)}`:'en préparation')}</div>
         </div>
         <div style="font-size:22px;color:var(--text-muted);">›</div>
       </button>`;
     }).join('');
     box.innerHTML=h;
-  }catch(e){ box.innerHTML='<div style="color:#A32D2D;padding:14px;">Erreur réseau</div>'; }
+  }catch(e){ box.innerHTML='<div style="color:var(--accent);padding:14px;">Erreur réseau</div>'; }
 }
 // Synchro manuelle du Registre Reship (packages/cartons/contenu) puis rechargement de la liste.
 async function vintedReshipResync(){
@@ -6099,7 +6099,7 @@ async function vintedReceptionHistorique(){
         <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${c.nb_colis!=null?(Number(c.nb_colis)+' colis · '):''}${Number(c.total_articles||0)} article(s) relié(s) · clôturé le ${fmtDT(c.cloture_at)}${c.cloture_par?(' par '+vEsc(c.cloture_par)):''}</div></div>
         <div style="font-size:20px;color:var(--text-muted);">›</div></button>`).join('');
     box.innerHTML=h;
-  }catch(e){ box.innerHTML='<div style="color:#A32D2D;padding:14px;">Erreur réseau</div>'; }
+  }catch(e){ box.innerHTML='<div style="color:var(--accent);padding:14px;">Erreur réseau</div>'; }
 }
 // Cache du carton ouvert → permet de re-rendre localement (marquage en caisse) SANS refetch
 // ni rechargement des photos, ce qui supprime le gros lag à chaque clic.
@@ -6119,12 +6119,12 @@ async function vintedOpenCarton(id,readonly){
   const box=document.getElementById('vintedReceptionWrap'); box.innerHTML='<div class="loading" style="padding:16px;">Chargement du carton…</div>';
   try{
     const d=await (await fetch(`${BACKEND_URL}/vinted/reship/carton/${encodeURIComponent(id)}`)).json();
-    if(!d.ok){ box.innerHTML='<div style="color:#A32D2D;padding:14px;">Erreur : '+vEsc(d.erreur||'?')+'</div>'; return; }
+    if(!d.ok){ box.innerHTML='<div style="color:var(--accent);padding:14px;">Erreur : '+vEsc(d.erreur||'?')+'</div>'; return; }
     const cloture=!!(d.carton&&d.carton.cloture_at);
     _vCarton={ id:String(id), ro:(readonly||cloture), cloture, cloture_par:(d.carton&&d.carton.cloture_par)||'',
       arts:(d.articles||[]), nonRelies:(d.colis_non_relies||[]), man:(d.manuels||[]), fromHist:!!readonly };
     vintedRenderCarton();
-  }catch(e){ box.innerHTML='<div style="color:#A32D2D;padding:14px;">Erreur réseau</div>'; }
+  }catch(e){ box.innerHTML='<div style="color:var(--accent);padding:14px;">Erreur réseau</div>'; }
 }
 function vintedRenderCarton(){
   const c=_vCarton; if(!c) return;
@@ -6152,11 +6152,11 @@ function vintedRenderCarton(){
   const total=arts.length, enc=arts.filter(a=>a.est_en_caisse).length;
   const allEnc=total>0 && enc>=total;
   const backFn = c.fromHist ? 'vintedReceptionHistorique()' : 'vintedReceptionListe()';
-  const nrHead=nonRelies.length?` · <span style="color:#A32D2D;font-weight:600;">${nonRelies.length} colis non relié${nonRelies.length>1?'s':''}</span>`:'';
-  const fkHead=fakes.length?` · <span style="color:#A32D2D;font-weight:600;">🚫 ${fakes.length} FAKE</span>`:'';
+  const nrHead=nonRelies.length?` · <span style="color:var(--accent);font-weight:600;">${nonRelies.length} colis non relié${nonRelies.length>1?'s':''}</span>`:'';
+  const fkHead=fakes.length?` · <span style="color:var(--accent);font-weight:600;">🚫 ${fakes.length} FAKE</span>`:'';
   let h=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;"><button class="btn" onclick="${backFn}">← Retour</button>
     <div style="font-weight:800;font-size:16px;">📦 Carton ${vEsc(String(id))}</div></div>
-    <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:12px;">${enc}/${total} en caisse${nrHead}${fkHead}${cloture?` · <span style="color:#3B6D11;font-weight:600;">clôturé${c.cloture_par?(' par '+vEsc(c.cloture_par)):''}</span>`:''}</div>`;
+    <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:12px;">${enc}/${total} en caisse${nrHead}${fkHead}${cloture?` · <span style="color:var(--success);font-weight:600;">clôturé${c.cloture_par?(' par '+vEsc(c.cloture_par)):''}</span>`:''}</div>`;
   // Rangée façon liste principale (Date · Article/vendeur · Prix £·€ · Transaction · Catégorie · En caisse).
   // Vignette photo_2 (l'article, pas le bordereau) en TAP-TO-VIEW ; repli photo_1.
   const catColors={vet:'#7c5cd6',snk:'#1f86b8',acc:'#b87917'};
@@ -6198,7 +6198,7 @@ function vintedRenderCarton(){
       <tbody>${arts.map(cartonRow).join('')}</tbody></table></div>`;
   // Articles passés en FAKE : signalés à part, sortis du flux de réception (jamais mis en caisse).
   if(fakes.length){
-    h+=`<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#A32D2D;font-weight:700;margin:14px 0 6px;">🚫 Passés en FAKE (${fakes.length})</div>`;
+    h+=`<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--accent);font-weight:700;margin:14px 0 6px;">🚫 Passés en FAKE (${fakes.length})</div>`;
     h+=fakes.map(a=>`<div onclick="openVintedFiche('${vEsc(escJs(a.uid))}')" style="display:flex;align-items:center;gap:10px;padding:8px 12px;margin-bottom:6px;border:1px solid var(--border);border-radius:10px;background:var(--surface);opacity:.65;cursor:pointer;">
       <div style="font-size:16px;">🚫</div>
       <div style="flex:1;min-width:0;"><div style="font-weight:600;text-decoration:line-through;">${vEsc(a.titre||'(sans titre)')}</div>
@@ -6208,17 +6208,17 @@ function vintedRenderCarton(){
   // Colis du carton NON reliés à un article : affichés avec leurs infos (au lieu d'être masqués),
   // pour que la réception couvre TOUS les colis de carton_contenu, peu importe leur « source ».
   if(nonRelies.length){
-    h+=`<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#A32D2D;font-weight:700;margin:14px 0 6px;">Colis non reliés à un article (${nonRelies.length})</div>`;
+    h+=`<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--accent);font-weight:700;margin:14px 0 6px;">Colis non reliés à un article (${nonRelies.length})</div>`;
     h+=nonRelies.map(p=>{
       const img=p.photo_2||p.photo_1;
       const thumb=img?`<a href="${vEsc(img)}" target="_blank" rel="noopener"><img loading="lazy" decoding="async" width="44" height="44" src="${vEsc(img)}" class="vcarton-thumb-img"></a>`:'<div style="font-size:18px;">📦</div>';
       const trk=p.tracking_code?vCartonCopyChip(String(p.tracking_code),vEsc(p.tracking_code),'le tracking'):'<span style="color:var(--text-muted);">sans tracking</span>';
-      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:7px;border:1px dashed #A32D2D55;border-radius:10px;background:var(--surface);">
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:7px;border:1px dashed var(--accent);border-radius:10px;background:var(--surface);">
         ${thumb}
         <div style="flex:1;min-width:0;">
           <div style="font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${vCartonCopyChip(String(p.reship_package_id||''),vEsc(p.reship_package_id||'?'),"l'id du colis")}<span style="font-size:12px;color:var(--text-muted);">${vEsc(p.source||'source inconnue')}</span></div>
           <div style="font-size:12px;color:var(--text-muted);margin-top:3px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${p.carrier?vEsc(p.carrier)+' · ':''}${trk}</div>
-          <div style="font-size:12px;color:#BA7517;margin-top:3px;">⏳ Colis non encore relié à un article (le scan tracking le rattachera dès que possible)</div>
+          <div style="font-size:12px;color:var(--warning);margin-top:3px;">⏳ Colis non encore relié à un article (le scan tracking le rattachera dès que possible)</div>
         </div>
       </div>`;
     }).join('');
@@ -6295,7 +6295,7 @@ async function vintedLoadReship(){
       api('/vinted/reship/status'),
       api('/vinted/events?limit=30').catch(()=>({ ok:false, events:[] }))
     ]);
-    if(!d.ok){ box.innerHTML='<div style="color:#A32D2D;">Erreur de chargement.</div>'; return; }
+    if(!d.ok){ box.innerHTML='<div style="color:var(--accent);">Erreur de chargement.</div>'; return; }
     const k=d.compteurs||{}, fen=d.fenetreJours||15;
     // Tuile métier : gros chiffre + libellé clair + sous-titre d'explication en français simple.
     const kpi=(n,l,sub,color)=>`<div class="kpi" style="padding:12px 13px;">
@@ -6310,7 +6310,7 @@ async function vintedLoadReship(){
       const m=agoMin(s.updated_at), active=s.status==='active', stale=m!=null&&m>35;
       return `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
         <div style="min-width:0;"><div style="font-weight:600;font-size:13.5px;">${vEsc(s.account_label)}</div>
-          <div style="font-size:11.5px;color:${stale?'#BA7517':'var(--text-muted)'};margin-top:2px;">🍪 dernier cookie ${agoTxt(m)}${stale?' ⚠️ extension muette ?':''}</div></div>
+          <div style="font-size:11.5px;color:${stale?'var(--warning)':'var(--text-muted)'};margin-top:2px;">🍪 dernier cookie ${agoTxt(m)}${stale?' ⚠️ extension muette ?':''}</div></div>
         <span class="vtag ${active?'encaisse':'fake'}">${active?'actif':'expiré'}</span>
       </div>`; }).join('') || '<div style="color:var(--text-muted);font-size:13px;">Aucune session enregistrée.</div>';
     // Timeline : cookie reçu / fin de scan, du plus récent au plus ancien.
@@ -6322,16 +6322,16 @@ async function vintedLoadReship(){
     const timeline=(ev&&ev.events&&ev.events.length) ? ev.events.map(evRow).join('') : '<div style="color:var(--text-muted);font-size:12.5px;">Aucun événement pour l\'instant.</div>';
     box.innerHTML = `
       <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;">
-        ${kpi(k.enAttenteFenetre||0,'Colis en cours de suivi',`Achats récents dont on attend encore le numéro de suivi (fenêtre ${fen} j).`,'#BA7517')}
-        ${kpi(k.capturesFenetre||0,'Numéros de suivi récupérés',`Suivis capturés automatiquement sur les achats récents (fenêtre ${fen} j).`,'#3B6D11')}
-        ${kpi(k.matched||0,'Articles reliés à un colis reçu','Articles rattachés à un colis physiquement arrivé chez Reship.','#185FA5')}
+        ${kpi(k.enAttenteFenetre||0,'Colis en cours de suivi',`Achats récents dont on attend encore le numéro de suivi (fenêtre ${fen} j).`,'var(--warning)')}
+        ${kpi(k.capturesFenetre||0,'Numéros de suivi récupérés',`Suivis capturés automatiquement sur les achats récents (fenêtre ${fen} j).`,'var(--success)')}
+        ${kpi(k.matched||0,'Articles reliés à un colis reçu','Articles rattachés à un colis physiquement arrivé chez Reship.','var(--info)')}
         ${kpi(k.cartonsAReceptionner||0,'Cartons à réceptionner','Cartons reçus pas encore clôturés — à traiter dans « Réception cartons ».','#7c5cd6')}
       </div>
       <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:700;margin-bottom:6px;">État des comptes</div>
       ${sess}
       <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:700;margin:16px 0 6px;">Historique — cookies &amp; scans automatiques</div>
       <div style="max-height:260px;overflow-y:auto;">${timeline}</div>`;
-  }catch(e){ box.innerHTML='<div style="color:#A32D2D;">Erreur : '+vEsc(e.message)+'</div>'; }
+  }catch(e){ box.innerHTML='<div style="color:var(--accent);">Erreur : '+vEsc(e.message)+'</div>'; }
 }
 async function vintedRunScan(){
   const btn=document.getElementById('vintedScanBtn'); if(btn){ btn.disabled=true; btn.textContent='Scan en cours…'; }
@@ -6595,7 +6595,7 @@ let pdvvKpiMetric = null;
 function pdvvShowKpiChart(metric) { pdvvKpiMetric = (pdvvKpiMetric === metric) ? null : metric; pdvvRender(); }
 function pdvvRenderKpiChart() {
   const box = document.getElementById('pdvvKpiChart'); if (!box) return;
-  const defs = { ca: { f: v => v.total_ttc, label: 'CA TTC', fmt: pdvEur, color: '#3B6D11' }, ht: { f: v => v.total_ht, label: 'CA HT', fmt: pdvEur, color: '#3B6D11' }, tva: { f: v => v.total_tva, label: 'TVA sur marge', fmt: pdvEur, color: '#E0A106' }, cout: { f: v => v.prix_revient, label: 'Coût de revient', fmt: pdvEur, color: '#185FA5' }, marge: { f: v => v.marge, label: 'Marge nette', fmt: pdvEur, color: '#3B6D11' }, remise: { f: v => v.remise, label: 'Remises', fmt: pdvEur, color: '#8a8a8a' }, nb: { f: () => 1, label: 'Articles vendus', fmt: n => Math.round(n), color: '#7c5cd6' } };
+  const defs = { ca: { f: v => v.total_ttc, label: 'CA TTC', fmt: pdvEur, color: 'var(--success)' }, ht: { f: v => v.total_ht, label: 'CA HT', fmt: pdvEur, color: 'var(--success)' }, tva: { f: v => v.total_tva, label: 'TVA sur marge', fmt: pdvEur, color: '#E0A106' }, cout: { f: v => v.prix_revient, label: 'Coût de revient', fmt: pdvEur, color: 'var(--info)' }, marge: { f: v => v.marge, label: 'Marge nette', fmt: pdvEur, color: 'var(--success)' }, remise: { f: v => v.remise, label: 'Remises', fmt: pdvEur, color: '#8a8a8a' }, nb: { f: () => 1, label: 'Articles vendus', fmt: n => Math.round(n), color: '#7c5cd6' } };
   const d = pdvvKpiMetric && defs[pdvvKpiMetric]; if (!d) { box.innerHTML = ''; return; }
   const base = pdvvBase(); const m = new Map();
   for (const v of base) { const w = pdvvWeight(v); if (w <= 0) continue; const k = (v._year && v._month) ? `${v._year}-${String(v._month).padStart(2, '0')}` : 'Sans date'; m.set(k, (m.get(k) || 0) + (d.f(v) || 0) * (pdvvKpiMetric === 'nb' ? (v.quantite != null ? v.quantite : 1) : w)); }
@@ -6611,11 +6611,11 @@ function pdvvKpis(base) {
   const tickets = new Set(kept.map(v => v.ticket));
   document.getElementById('pdvvKpis').innerHTML = [
     pdvKpiCard(Math.round(nbArt).toLocaleString('fr-FR'), 'Articles vendus', null, `${tickets.size} ticket(s)`, 'nb'),
-    pdvKpiCard(pdvEur(caTTC), 'CA TTC', '#3B6D11', null, 'ca'),
-    pdvKpiCard(pdvEur(caHT), 'CA HT', '#3B6D11', null, 'ht'),
-    pdvKpiCard(pdvEur(tva), 'TVA sur marge', '#BA7517', 'lue de PDV', 'tva'),
-    pdvKpiCard(pdvEur(cout), 'Coût de revient', '#185FA5', null, 'cout'),
-    pdvKpiCard(pdvEur(marge), 'Marge nette', '#3B6D11', null, 'marge'),
+    pdvKpiCard(pdvEur(caTTC), 'CA TTC', 'var(--success)', null, 'ca'),
+    pdvKpiCard(pdvEur(caHT), 'CA HT', 'var(--success)', null, 'ht'),
+    pdvKpiCard(pdvEur(tva), 'TVA sur marge', 'var(--warning)', 'lue de PDV', 'tva'),
+    pdvKpiCard(pdvEur(cout), 'Coût de revient', 'var(--info)', null, 'cout'),
+    pdvKpiCard(pdvEur(marge), 'Marge nette', 'var(--success)', null, 'marge'),
     pdvKpiCard(pdvPct(cout > 0 ? marge / cout : null), 'Taux de marge moyen', '#7c5cd6', 'Marge / coût'),
     pdvKpiCard(pdvEur(tickets.size ? caTTC / tickets.size : null), 'Panier moyen', '#7c5cd6'),
     pdvKpiCard(pdvCoef(cout > 0 ? caTTC / cout : null), 'Coefficient moyen', '#7c5cd6', 'CA TTC / coût'),
@@ -6628,12 +6628,12 @@ function pdvvByMonth(base) {
   for (const v of base) { const w = pdvvWeight(v); if (w <= 0) continue; const k = (v._year && v._month) ? `${v._year}-${String(v._month).padStart(2, '0')}` : 'Sans date'; const g = m.get(k) || { ca: 0, tva: 0, marge: 0, nb: 0, remise: 0 }; g.ca += (v.total_ttc || 0) * w; g.tva += (v.total_tva || 0) * w; g.marge += (v.marge || 0) * w; g.nb += (v.quantite != null ? v.quantite : 1); g.remise += (v.remise || 0) * w; m.set(k, g); }
   const list = [...m.entries()].map(([k, g]) => ({ k, ...g })).sort((a, b) => String(a.k).localeCompare(String(b.k)));
   document.getElementById('pdvvByMonth').innerHTML = pdvvBlock('mois', 'Ventilation par mois (préparation CA3)', 'vue clé pour les déclarations', list, 'Mois', [
-    { h: 'CA TTC', key: 'ca', sum: 1, fmt: pdvEur, render: g => pdvEur(g.ca), color: '#3B6D11' },
-    { h: 'TVA sur marge', key: 'tva', sum: 1, fmt: pdvEur, render: g => pdvEur(g.tva), color: '#BA7517' },
+    { h: 'CA TTC', key: 'ca', sum: 1, fmt: pdvEur, render: g => pdvEur(g.ca), color: 'var(--success)' },
+    { h: 'TVA sur marge', key: 'tva', sum: 1, fmt: pdvEur, render: g => pdvEur(g.tva), color: 'var(--warning)' },
     { h: 'Marge nette', key: 'marge', sum: 1, fmt: pdvEur, render: g => pdvEur(g.marge) },
     { h: 'Articles', key: 'nb', sum: 1, fmt: n => Math.round(n), render: g => Math.round(g.nb) },
     { h: 'Remises', key: 'remise', sum: 1, fmt: pdvEur, render: g => pdvEur(g.remise), color: '#8a8a8a' }
-  ], g => g.ca, pdvEur, '#3B6D11');
+  ], g => g.ca, pdvEur, 'var(--success)');
 }
 function pdvvByCanal(base) {
   const canal = new Map(), mode = new Map();
@@ -6643,8 +6643,8 @@ function pdvvByCanal(base) {
   }
   const lc = [...canal.entries()].map(([k, g]) => ({ k, ...g })).sort((a, b) => b.ca - a.ca);
   const lm = [...mode.entries()].map(([k, g]) => ({ k: k + (g.canal ? ` (${g.canal})` : ''), ...g })).sort((a, b) => b.ca - a.ca);
-  const colsMon = [{ h: 'CA TTC', key: 'ca', sum: 1, fmt: pdvEur, render: g => pdvEur(g.ca), color: '#3B6D11' }, { h: 'TVA sur marge', key: 'tva', sum: 1, fmt: pdvEur, render: g => pdvEur(g.tva), color: '#BA7517' }, { h: 'Marge nette', key: 'marge', sum: 1, fmt: pdvEur, render: g => pdvEur(g.marge) }];
-  document.getElementById('pdvvByCanal').innerHTML = pdvvBlock('canal', 'Ventilation par CANAL', '4 canaux distincts · CA au prorata (tickets mixtes)', lc, 'Canal', colsMon, g => g.ca, pdvEur, '#3B6D11', 'doughnut') + '<div style="margin-top:10px;"></div>' + pdvvBlock('mode', '… par mode de paiement détaillé', '', lm, 'Mode', colsMon, g => g.ca, pdvEur, '#185FA5', 'bar');
+  const colsMon = [{ h: 'CA TTC', key: 'ca', sum: 1, fmt: pdvEur, render: g => pdvEur(g.ca), color: 'var(--success)' }, { h: 'TVA sur marge', key: 'tva', sum: 1, fmt: pdvEur, render: g => pdvEur(g.tva), color: 'var(--warning)' }, { h: 'Marge nette', key: 'marge', sum: 1, fmt: pdvEur, render: g => pdvEur(g.marge) }];
+  document.getElementById('pdvvByCanal').innerHTML = pdvvBlock('canal', 'Ventilation par CANAL', '4 canaux distincts · CA au prorata (tickets mixtes)', lc, 'Canal', colsMon, g => g.ca, pdvEur, 'var(--success)', 'doughnut') + '<div style="margin-top:10px;"></div>' + pdvvBlock('mode', '… par mode de paiement détaillé', '', lm, 'Mode', colsMon, g => g.ca, pdvEur, 'var(--info)', 'bar');
 }
 function pdvvVentilWeighted(id, base, keyFn, title, hint, keyLabel, chartType) {
   const m = new Map();
@@ -6652,11 +6652,11 @@ function pdvvVentilWeighted(id, base, keyFn, title, hint, keyLabel, chartType) {
   const list = [...m.entries()].map(([k, g]) => ({ k, ...g, taux: g.cout > 0 ? g.marge / g.cout : null })).sort((a, b) => b.ca - a.ca);
   return pdvvBlock(id, title, hint, list, keyLabel, [
     { h: 'Articles', key: 'nb', sum: 1, fmt: n => Math.round(n), render: g => Math.round(g.nb) },
-    { h: 'CA TTC', key: 'ca', sum: 1, fmt: pdvEur, render: g => pdvEur(g.ca), color: '#3B6D11' },
+    { h: 'CA TTC', key: 'ca', sum: 1, fmt: pdvEur, render: g => pdvEur(g.ca), color: 'var(--success)' },
     { h: 'Marge nette', key: 'marge', sum: 1, fmt: pdvEur, render: g => pdvEur(g.marge) },
-    { h: 'TVA sur marge', key: 'tva', sum: 1, fmt: pdvEur, render: g => pdvEur(g.tva), color: '#BA7517' },
+    { h: 'TVA sur marge', key: 'tva', sum: 1, fmt: pdvEur, render: g => pdvEur(g.tva), color: 'var(--warning)' },
     { h: 'Taux', render: g => pdvPct(g.taux) }
-  ], g => g.ca, pdvEur, '#3B6D11', chartType || 'bar');
+  ], g => g.ca, pdvEur, 'var(--success)', chartType || 'bar');
 }
 function pdvvByCat(base) { document.getElementById('pdvvByCat').innerHTML = pdvvVentilWeighted('cat', base, v => v.categorie, 'Ventilation par catégorie', '', 'Catégorie', 'bar'); }
 function pdvvByOrigine(base) { document.getElementById('pdvvByOrigine').innerHTML = pdvvVentilWeighted('origine', base, v => v.classe_origine, 'Ventilation par origine', 'Vinted vs Autre', 'Origine', 'doughnut'); }
@@ -6678,7 +6678,7 @@ function pdvvTable(base) {
   const rows = pdvvTableRows(base); const total = rows.length; const shown = Math.min(pdvvTableShown, total);
   const body = rows.slice(0, shown).map(v => {
     const dt = v.date_vente ? new Date(v.date_vente) : null; const canaux = v._canaux.join(', '); const modes = v._modes.join(', ');
-    return `<tr><td style="white-space:nowrap;color:var(--text-muted);font-size:12px;">${dt ? dt.toLocaleDateString('fr-FR') : '—'}</td><td style="white-space:nowrap;">${vEsc(v.ticket || '—')}</td><td>${vEsc((v.libelle || '—'))}<div style="font-size:11px;color:var(--text-muted);">${vEsc(v.code_produit || '')}</div></td><td>${vEsc(v.categorie || '—')}</td><td>${vEsc(v.classe_origine || '—')}</td><td style="font-size:11.5px;">${vEsc(canaux)}<div style="font-size:10.5px;color:var(--text-muted);">${vEsc(modes)}</div></td><td style="text-align:right;white-space:nowrap;">${pdvEur(v.total_ttc)}</td><td style="text-align:right;white-space:nowrap;color:#BA7517;">${pdvEur(v.total_tva)}</td><td style="text-align:right;white-space:nowrap;">${pdvEur(v.marge)}</td></tr>`;
+    return `<tr><td style="white-space:nowrap;color:var(--text-muted);font-size:12px;">${dt ? dt.toLocaleDateString('fr-FR') : '—'}</td><td style="white-space:nowrap;">${vEsc(v.ticket || '—')}</td><td>${vEsc((v.libelle || '—'))}<div style="font-size:11px;color:var(--text-muted);">${vEsc(v.code_produit || '')}</div></td><td>${vEsc(v.categorie || '—')}</td><td>${vEsc(v.classe_origine || '—')}</td><td style="font-size:11.5px;">${vEsc(canaux)}<div style="font-size:10.5px;color:var(--text-muted);">${vEsc(modes)}</div></td><td style="text-align:right;white-space:nowrap;">${pdvEur(v.total_ttc)}</td><td style="text-align:right;white-space:nowrap;color:var(--warning);">${pdvEur(v.total_tva)}</td><td style="text-align:right;white-space:nowrap;">${pdvEur(v.marge)}</td></tr>`;
   }).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:20px;">Aucune vente sur ce filtre.</td></tr>';
   const pager = total > shown ? `<div style="text-align:center;padding:14px;"><button class="btn" onclick="pdvvTableShown+=100;pdvvTable(pdvvBase())">Afficher plus (${Math.min(100, total - shown)})</button> <span style="font-size:12px;color:var(--text-muted);">${shown} / ${total}</span></div>` : '';
   box.innerHTML = `<div class="table-card"><div class="table-header" style="margin-bottom:10px;"><span class="table-title">Détail des ventes</span><span style="font-size:11px;color:var(--text-soft);margin-left:auto;">${total} ligne(s)</span></div><div style="overflow-x:auto;"><table><thead><tr><th>Date</th><th>Ticket</th><th>Libellé / code</th><th>Catégorie</th><th>Origine</th><th>Canal / mode</th><th style="text-align:right;">CA TTC</th><th style="text-align:right;">TVA marge</th><th style="text-align:right;">Marge</th></tr></thead><tbody>${body}</tbody></table></div>${pager}</div>`;
@@ -6748,10 +6748,10 @@ function pdvsAnomalies(rows) {
   const block = (titre, arr, color, desc) => `<details style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;"><summary style="cursor:pointer;font-weight:700;font-size:13px;color:${color};">${titre} — ${arr.length}</summary><div style="font-size:11.5px;color:var(--text-muted);margin:6px 0 8px;">${desc}</div>${arr.length ? `<div style="overflow-x:auto;max-height:280px;overflow-y:auto;"><table><thead><tr><th>Réf</th><th>Désignation</th><th>Catégorie</th><th style="text-align:right;">Achat</th><th style="text-align:right;">Vente</th></tr></thead><tbody>${arr.slice(0, 300).map(p => `<tr><td>${vEsc(p.reference || '—')}</td><td>${vEsc((p.designation || '—').slice(0, 70))}</td><td>${vEsc(p.categorie || '—')}</td><td style="text-align:right;">${pdvEur(p.prix_achat)}</td><td style="text-align:right;">${pdvEur(p.prix_vente_ttc)}</td></tr>`).join('')}</tbody></table>${arr.length > 300 ? `<div style="font-size:11px;color:var(--text-soft);padding:6px;">… ${arr.length - 300} de plus (export CSV)</div>` : ''}</div>` : '<div style="color:var(--text-muted);font-size:12px;">Aucune ✓</div>'}</details>`;
   document.getElementById('pdvsAnomalies').innerHTML = `<div class="table-card"><div class="table-header" style="margin-bottom:10px;"><span class="table-title">Anomalies à corriger dans PDV</span><span style="font-size:11px;color:var(--text-soft);margin-left:auto;">à corriger à la source</span></div>` +
     block('⚪ Prix d\'achat à 0', achat0, '#8a5a00', 'Coût d\'achat manquant/nul → marge faussée.') +
-    block('🏷️ Sans référence', sansRef, '#185FA5', 'Article sans référence (traçabilité).') +
+    block('🏷️ Sans référence', sansRef, 'var(--info)', 'Article sans référence (traçabilité).') +
     block('❓ Non catégorisé', nonCat, '#7c5cd6', 'Titre non reconnu par les règles de catégorie.') +
-    block('🔴 Vendus à perte', perte, '#A32D2D', 'Article sorti avec prix de vente < prix d\'achat.') +
-    block('⚠️ Marge > 90% du prix (achat suspect)', suspect, '#BA7517', 'Prix d\'achat < 10% du prix de vente → coût probablement mal saisi.') +
+    block('🔴 Vendus à perte', perte, 'var(--accent)', 'Article sorti avec prix de vente < prix d\'achat.') +
+    block('⚠️ Marge > 90% du prix (achat suspect)', suspect, 'var(--warning)', 'Prix d\'achat < 10% du prix de vente → coût probablement mal saisi.') +
     block('📄 Sans contrat', sansContrat, '#8a8a8a', 'Ni Vinted, ni ACHD, ni DV — origine à vérifier.') + '</div>';
 }
 function pdvsRepartition(rows) {
@@ -6762,8 +6762,8 @@ function pdvsRepartition(rows) {
     return pdvVentilTable(title, 'valeur achat & étiquette', list, keyLabel, [
       { h: 'Articles', key: 'nb', sum: 1, fmt: n => n, render: g => g.nb },
       { h: 'En stock', key: 'enstock', sum: 1, fmt: n => n, render: g => g.enstock },
-      { h: 'Valeur achat', key: 'achat', sum: 1, fmt: pdvEur, render: g => pdvEur(g.achat), color: '#185FA5' },
-      { h: 'Valeur étiquette', key: 'etiq', sum: 1, fmt: pdvEur, render: g => pdvEur(g.etiq), color: '#3B6D11' }
+      { h: 'Valeur achat', key: 'achat', sum: 1, fmt: pdvEur, render: g => pdvEur(g.achat), color: 'var(--info)' },
+      { h: 'Valeur étiquette', key: 'etiq', sum: 1, fmt: pdvEur, render: g => pdvEur(g.etiq), color: 'var(--success)' }
     ]);
   };
   document.getElementById('pdvsRepartition').innerHTML = ventil(p => p.classe_origine, 'Origine', 'Répartition du stock par origine') + '<div style="margin-top:16px;"></div>' + ventil(p => p.categorie, 'Catégorie', 'Répartition du stock par catégorie');
@@ -7095,7 +7095,7 @@ function veilleDetailHTML(stats,sales,catalog,diag){
         <span style="color:var(--text-soft);"> Données internes complètes — sert de référence pour comparer aux concurrents.</span>
       </div>
       ${svT!=null?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-top:14px;">
-        <div class="kpi"><div class="kpi-label">💰 Valeur stock (total)</div><div class="kpi-value" style="color:#3B6D11;">${eur(svT)}</div></div>
+        <div class="kpi"><div class="kpi-label">💰 Valeur stock (total)</div><div class="kpi-value" style="color:var(--success);">${eur(svT)}</div></div>
         ${svL!=null?`<div class="kpi"><div class="kpi-label">Valeur Lille</div><div class="kpi-value">${eur(svL)}</div></div>`:''}
         ${svD!=null?`<div class="kpi"><div class="kpi-label">Valeur Dunkerque</div><div class="kpi-value">${eur(svD)}</div></div>`:''}
       </div>`:''}
@@ -7326,10 +7326,10 @@ function initDashboard(boutique, employee) {
     document.getElementById('employeePillName').textContent = employee;
     pill.style.display = 'flex';
   } else if (boutique === 'admin') {
-    _setPillAvatar('★', '#BA7517');
+    _setPillAvatar('★', 'var(--warning)');
     document.getElementById('employeePillName').textContent = 'Admin';
     pill.style.display = 'flex';
-    pill.style.borderColor = 'rgba(186,117,23,0.5)';
+    pill.style.borderColor = 'var(--warning-dim)';
   } else {
     pill.style.display = 'none';
   }
@@ -8041,12 +8041,12 @@ function soldesFilterTo(opts) {
 async function loadSoldesSummary() {
   try {
     const s = await api('/sales/summary');
-    const nf=(bq,n)=>n?` · <span style="color:#BA7517;text-decoration:underline;cursor:pointer;" onclick="event.stopPropagation();soldesFilterTo({boutique:'${bq}',status:'notfound'})">${n} introuv.</span>`:'';
-    const al=(bq,n)=>n?` · <span style="color:#185FA5;text-decoration:underline;cursor:pointer;" onclick="event.stopPropagation();soldesFilterTo({boutique:'${bq}',status:'atlocal'})">${n} au local</span>`:'';
+    const nf=(bq,n)=>n?` · <span style="color:var(--warning);text-decoration:underline;cursor:pointer;" onclick="event.stopPropagation();soldesFilterTo({boutique:'${bq}',status:'notfound'})">${n} introuv.</span>`:'';
+    const al=(bq,n)=>n?` · <span style="color:var(--info);text-decoration:underline;cursor:pointer;" onclick="event.stopPropagation();soldesFilterTo({boutique:'${bq}',status:'atlocal'})">${n} au local</span>`:'';
     document.getElementById('soldesKpis').innerHTML =
       `<div class="kpi" style="cursor:pointer;" onclick="soldesFilterTo({status:'prepared'})"><div class="kpi-label">Préparés</div><div class="kpi-value">${s.prepared}</div><div class="kpi-sub">${s.applied} appliqués${s.sold?` · ${s.sold} déjà vendus`:''}</div></div>`+
-      `<div class="kpi"><div class="kpi-label">Remise totale</div><div class="kpi-value" style="color:#A32D2D;">${fmt(s.totalDiscount)}</div><div class="kpi-sub">articles préparés</div></div>`+
-      `<div class="kpi"><div class="kpi-label">CA soldes</div><div class="kpi-value" style="color:#3B6D11;">${fmt(s.ca.revenue)}</div><div class="kpi-sub">${s.ca.count} article${s.ca.count>1?'s':''} soldé${s.ca.count>1?'s':''} vendu${s.ca.count>1?'s':''} · prix réel ou estimé</div></div>`+
+      `<div class="kpi"><div class="kpi-label">Remise totale</div><div class="kpi-value" style="color:var(--accent);">${fmt(s.totalDiscount)}</div><div class="kpi-sub">articles préparés</div></div>`+
+      `<div class="kpi"><div class="kpi-label">CA soldes</div><div class="kpi-value" style="color:var(--success);">${fmt(s.ca.revenue)}</div><div class="kpi-sub">${s.ca.count} article${s.ca.count>1?'s':''} soldé${s.ca.count>1?'s':''} vendu${s.ca.count>1?'s':''} · prix réel ou estimé</div></div>`+
       `<div class="kpi" style="cursor:pointer;" onclick="soldesFilterTo({boutique:'Lille'})"><div class="kpi-label">Ré-étiquetage Lille</div><div class="kpi-value">${s.lille.relabeled}/${s.lille.prepared}</div><div class="kpi-sub">faits / préparés${nf('Lille',s.lille.notFound)}${al('Lille',s.lille.atLocal)}</div></div>`+
       `<div class="kpi" style="cursor:pointer;" onclick="soldesFilterTo({boutique:'DK'})"><div class="kpi-label">Ré-étiquetage DK</div><div class="kpi-value">${s.dk.relabeled}/${s.dk.prepared}</div><div class="kpi-sub">faits / préparés${nf('DK',s.dk.notFound)}${al('DK',s.dk.atLocal)}</div></div>`;
   } catch(e){ document.getElementById('soldesKpis').innerHTML='<div class="loading">Récap indisponible</div>'; }
@@ -8055,7 +8055,7 @@ async function loadSoldesSummary() {
 let _soldesPartialRetry=null;
 async function loadSoldesCatalog(force) {
   clearTimeout(_soldesPartialRetry);
-  document.getElementById('soldesTable').innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Chargement du catalogue…</td></tr>';
+  document.getElementById('soldesTable').innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted);">Chargement du catalogue…</td></tr>';
   try {
     const path='/sales/catalog' + (force ? '?fresh=1' : '');
     const bp = DASH_BOUTIQUE!=='admin' ? ((path.includes('?')?'&':'?')+'boutique='+DASH_BOUTIQUE) : '';
@@ -8071,7 +8071,7 @@ async function loadSoldesCatalog(force) {
       const c=document.getElementById('soldesCount'); if(c) c.textContent += ' · synchronisation du catalogue…';
       _soldesPartialRetry=setTimeout(()=>loadSoldesCatalog(false), 7000);
     }
-  } catch(e){ document.getElementById('soldesTable').innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:#A32D2D;">Erreur de chargement</td></tr>'; }
+  } catch(e){ document.getElementById('soldesTable').innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--accent);">Erreur de chargement</td></tr>'; }
 }
 
 let _soldesSearchT=null;
@@ -8115,19 +8115,19 @@ function soldesRowHtml(p) {
   const catIcon={Sneakers:'👟',Sapes:'👕',Accessoires:'👜',Autre:'📦'}[p.category]||'';
   const price=Number(p.price||0), sale=(p.salePrice!=null?Number(p.salePrice):null);
   const disc=(sale!=null && price>0)?Math.round((1-sale/price)*100):null;
-  const remise=(sale!=null)?`<span style="color:#A32D2D;font-weight:600;">−${(price-sale).toFixed(2)}€${disc!=null?` (−${disc}%)`:''}</span>`:'—';
+  const remise=(sale!=null)?`<span style="color:var(--accent);font-weight:600;">−${(price-sale).toFixed(2)}€${disc!=null?` (−${disc}%)`:''}</span>`:'—';
   let badge='<span style="color:var(--text-muted);font-size:11px;">—</span>';
-  if(p.sold) badge='<span class="badge" style="background:rgba(59,109,17,0.15);color:#3B6D11;">💰 vendu</span>';
+  if(p.sold) badge='<span class="badge" style="background:var(--success-dim);color:var(--success);">💰 vendu</span>';
   else if(sale!=null){
     if(p.applied && !p.dirty) badge='<span class="badge badge-ok">Appliqué</span>';
     else if(p.applied && p.dirty) badge='<span class="badge badge-warning">à repousser</span>';
     else badge='<span class="badge" style="background:#EEEDFE;color:#3C3489;">Préparé</span>';
   }
-  if(p.inStock===false && !p.sold) badge+=' <span class="badge" style="background:rgba(186,117,23,0.15);color:#BA7517;">hors stock</span>';
+  if(p.inStock===false && !p.sold) badge+=' <span class="badge" style="background:var(--warning-dim);color:var(--warning);">hors stock</span>';
   // statut ré-étiquetage (info employé)
   let etiq='';
-  if(p.notFound) etiq=` <span class="badge" style="background:rgba(186,117,23,0.18);color:#BA7517;">⚠️ introuvable</span> <button class="btn" style="font-size:10px;padding:3px 7px;background:rgba(24,95,165,0.12);border-color:#185FA5;color:#185FA5;" title="Requalifier en « au local »" onclick="soldesAdminAtLocal(${p.id})">📦 Au local</button> <button class="btn" style="font-size:10px;padding:3px 6px;color:var(--text-muted);" title="Retirer le statut introuvable" onclick="soldesAdminClearNotFound(${p.id})">✕</button>`;
-  else if(p.atLocal) etiq=` <span class="badge" style="background:rgba(24,95,165,0.15);color:#185FA5;">📦 au local</span> <button class="btn" style="font-size:10px;padding:3px 6px;color:var(--text-muted);" title="Retirer le statut au local" onclick="soldesAdminClearAtLocal(${p.id})">✕</button>`;
+  if(p.notFound) etiq=` <span class="badge" style="background:var(--warning-dim);color:var(--warning);">⚠️ introuvable</span> <button class="btn" style="font-size:10px;padding:3px 7px;background:var(--info-dim);border-color:var(--info);color:var(--info);" title="Requalifier en « au local »" onclick="soldesAdminAtLocal(${p.id})">📦 Au local</button> <button class="btn" style="font-size:10px;padding:3px 6px;color:var(--text-muted);" title="Retirer le statut introuvable" onclick="soldesAdminClearNotFound(${p.id})">✕</button>`;
+  else if(p.atLocal) etiq=` <span class="badge" style="background:var(--info-dim);color:var(--info);">📦 au local</span> <button class="btn" style="font-size:10px;padding:3px 6px;color:var(--text-muted);" title="Retirer le statut au local" onclick="soldesAdminClearAtLocal(${p.id})">✕</button>`;
   else if(p.relabeled) etiq=' <span class="badge badge-ok">✓ étiqueté</span>';
   return `<tr data-pid="${p.id}">
     <td data-label="Article" class="cell-article"><div class="stock-art">${img}<div class="meta"><div class="t">${esc(p.title||'')}</div><div class="v">${catIcon} ${esc(p.brand)||'—'}${p.barcode?(' · '+esc(p.barcode)):''}</div></div></div></td>
@@ -8148,7 +8148,7 @@ function soldesRender() {
   const data=soldesFiltered();
   document.getElementById('soldesCount').textContent=`${data.length} article${data.length>1?'s':''}`;
   const tb=document.getElementById('soldesTable');
-  if(!data.length){ tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:#888780;">Aucun article</td></tr>'; document.getElementById('soldesPager').innerHTML=''; return; }
+  if(!data.length){ tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted);">Aucun article</td></tr>'; document.getElementById('soldesPager').innerHTML=''; return; }
   const shown=Math.min(soldesShown,data.length);
   tb.innerHTML=data.slice(0,shown).map(soldesRowHtml).join('');
   document.getElementById('soldesPager').innerHTML = shown<data.length
@@ -8254,13 +8254,13 @@ async function loadSoldesWork() {
   try {
     soldesWork=await api('/sales/work');
     soldesEmpRender();
-  } catch(e){ list.innerHTML='<div style="padding:16px;color:#A32D2D;">Erreur de chargement</div>'; }
+  } catch(e){ list.innerHTML='<div style="padding:16px;color:var(--accent);">Erreur de chargement</div>'; }
 }
 function soldesEmpRender() {
   const q=(document.getElementById('soldesEmpSearch').value||'').toLowerCase().trim();
   const f=document.getElementById('soldesEmpFilter').value;
   const total=soldesWork.length, done=soldesWork.filter(x=>x.relabeled).length, nf=soldesWork.filter(x=>x.not_found).length, al=soldesWork.filter(x=>x.at_local).length;
-  document.getElementById('soldesEmpProgress').innerHTML=`<strong>${done}/${total}</strong> ré-étiquetés${nf?` · <span style="color:#BA7517;">${nf} introuvable${nf>1?'s':''}</span>`:''}${al?` · <span style="color:#185FA5;">${al} au local</span>`:''}`;
+  document.getElementById('soldesEmpProgress').innerHTML=`<strong>${done}/${total}</strong> ré-étiquetés${nf?` · <span style="color:var(--warning);">${nf} introuvable${nf>1?'s':''}</span>`:''}${al?` · <span style="color:var(--info);">${al} au local</span>`:''}`;
   const data=soldesWork.filter(x=>{
     if(q && !(x.title||'').toLowerCase().includes(q) && !(x.brand||'').toLowerCase().includes(q) && !(x.barcode||'').toLowerCase().includes(q)) return false;
     if(f==='todo' && (x.relabeled || x.not_found || x.at_local)) return false;
@@ -8275,22 +8275,22 @@ function soldesEmpRender() {
   list.innerHTML=data.map(x=>{
     const img=x.image?`<img src="${esc(x.image)}" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex-shrink:0;"/>`:`<div style="width:64px;height:64px;border-radius:10px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">👕</div>`;
     const disc=x.original_price>0?Math.round((1-x.sale_price/x.original_price)*100):0;
-    const cardStyle = x.relabeled ? 'opacity:.55;' : (x.not_found ? 'border-color:#BA7517;' : (x.at_local ? 'border-color:#185FA5;' : ''));
+    const cardStyle = x.relabeled ? 'opacity:.55;' : (x.not_found ? 'border-color:var(--warning);' : (x.at_local ? 'border-color:var(--info);' : ''));
     let actions;
     if (x.relabeled) {
       actions=`<button class="btn" style="white-space:nowrap;" onclick="soldesToggleRelabel('${x.product_id}')">✓ Fait</button>`;
     } else if (x.not_found) {
-      actions=`<button class="btn" style="white-space:nowrap;background:rgba(186,117,23,0.15);border-color:#BA7517;color:#BA7517;" onclick="soldesToggleNotFound('${x.product_id}')">⚠️ Introuvable</button>`;
+      actions=`<button class="btn" style="white-space:nowrap;background:var(--warning-dim);border-color:var(--warning);color:var(--warning);" onclick="soldesToggleNotFound('${x.product_id}')">⚠️ Introuvable</button>`;
     } else if (x.at_local) {
       // "au local" est géré par l'admin → l'employé peut juste marquer fait une fois récupéré/étiqueté
       actions=`<button class="btn btn-green" style="white-space:nowrap;" onclick="soldesToggleRelabel('${x.product_id}')">Marquer fait</button>`;
     } else {
       actions=`<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
         <button class="btn btn-green" style="white-space:nowrap;" onclick="soldesToggleRelabel('${x.product_id}')">Marquer fait</button>
-        <button class="btn" style="white-space:nowrap;font-size:12px;background:rgba(186,117,23,0.12);border-color:#BA7517;color:#BA7517;" onclick="soldesToggleNotFound('${x.product_id}')">Introuvable</button>
+        <button class="btn" style="white-space:nowrap;font-size:12px;background:var(--warning-dim);border-color:var(--warning);color:var(--warning);" onclick="soldesToggleNotFound('${x.product_id}')">Introuvable</button>
       </div>`;
     }
-    const tag = x.not_found?' <span style="font-size:11px;color:#BA7517;font-weight:700;">· introuvable</span>' : (x.at_local?' <span style="font-size:11px;color:#185FA5;font-weight:700;">· au local</span>':'');
+    const tag = x.not_found?' <span style="font-size:11px;color:var(--warning);font-weight:700;">· introuvable</span>' : (x.at_local?' <span style="font-size:11px;color:var(--info);font-weight:700;">· au local</span>':'');
     return `<div class="table-card" style="padding:12px;margin-bottom:10px;display:flex;gap:12px;align-items:center;${cardStyle}">
       ${img}
       <div style="flex:1;min-width:0;">
@@ -8298,8 +8298,8 @@ function soldesEmpRender() {
         <div style="font-size:12px;color:var(--text-muted);">${esc(x.brand)||'—'}${x.barcode?(' · '+esc(x.barcode)):''}</div>
         <div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <span style="text-decoration:line-through;color:var(--text-muted);font-size:14px;">${x.original_price.toFixed(2)}€</span>
-          <span style="font-size:20px;font-weight:800;color:#A32D2D;">${x.sale_price.toFixed(2)}€</span>
-          <span style="font-size:11px;color:#A32D2D;font-weight:600;">−${disc}%</span>
+          <span style="font-size:20px;font-weight:800;color:var(--accent);">${x.sale_price.toFixed(2)}€</span>
+          <span style="font-size:11px;color:var(--accent);font-weight:600;">−${disc}%</span>
         </div>
       </div>
       ${actions}
@@ -8782,7 +8782,7 @@ window.markVintedRemoved = async function(barcode, btn) {
       }).join('');
       const more = items.length > 80 ? `<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">… et ${items.length - 80} autres (la régénération les traitera tous).</div>` : '';
       out.innerHTML = `
-        <div style="padding:10px;background:var(--warn-dim,#FFF3E0);border-left:3px solid var(--warn,#BA7517);border-radius:8px;color:var(--warn,#BA7517);font-size:13px;margin-bottom:12px;">
+        <div style="padding:10px;background:var(--warning-dim);border-left:3px solid var(--warning);border-radius:8px;color:var(--warning);font-size:13px;margin-bottom:12px;">
           <strong>${_seoPendingCount} produits sans SEO traité</strong> sur ${data.scanned || 0} scannés.
         </div>
         <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;">${rows}</div>${more}`;
@@ -8867,8 +8867,8 @@ window.markVintedRemoved = async function(barcode, btn) {
     <select id="nvLoginName" style="width:100%;margin:6px 0 14px;padding:11px;border-radius:10px;border:1px solid #34312a;background:#15140f;color:#f5f3ec;font-size:15px;"></select>
     <label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#9b978c;">Code</label>
     <input id="nvLoginPin" type="password" inputmode="numeric" autocomplete="off" placeholder="••••" style="width:100%;margin:6px 0 14px;padding:11px;border-radius:10px;border:1px solid #34312a;background:#15140f;color:#f5f3ec;font-size:18px;letter-spacing:4px;text-align:center;" onkeydown="if(event.key==='Enter')nvDoLogin()">
-    <button id="nvLoginBtn" onclick="nvDoLogin()" style="width:100%;padding:12px;border:0;border-radius:10px;background:#3B6D11;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">Se connecter</button>
-    <div id="nvLoginErr" style="color:#E8504E;font-size:13px;margin-top:12px;text-align:center;min-height:18px;"></div>
+    <button id="nvLoginBtn" onclick="nvDoLogin()" style="width:100%;padding:12px;border:0;border-radius:10px;background:var(--success);color:#fff;font-size:15px;font-weight:700;cursor:pointer;">Se connecter</button>
+    <div id="nvLoginErr" style="color:var(--accent);font-size:13px;margin-top:12px;text-align:center;min-height:18px;"></div>
   </div>
 </div>
 <script>
