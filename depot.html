@@ -19,10 +19,9 @@
   /* Panneau d'actions (clic sur un article) — feuille qui monte du bas, façon onglet Vinted. */
   .voile { position: fixed; inset: 0; z-index: 50; background: rgba(10,10,10,.45); display: none; }
   .voile.on { display: block; }
-  .feuille { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); width: min(520px, 100vw);
-    background: var(--n-surface); border: 1px solid var(--n-line); border-radius: 18px 18px 0 0;
-    max-height: 82dvh; overflow: auto; padding: 10px 18px calc(18px + env(safe-area-inset-bottom)); }
-  .feuille__poignee { width: 40px; height: 4px; border-radius: 999px; background: var(--n-line); margin: 0 auto 14px; }
+  .feuille { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: min(480px, calc(100vw - 28px)); background: var(--n-surface); border: 1px solid var(--n-line);
+    border-radius: 18px; box-shadow: var(--n-shadow-pop); max-height: 86dvh; overflow: auto; padding: 18px; }
   /* Lignes d'action du panneau */
   .act { display: flex; gap: 12px; align-items: center; width: 100%; text-align: left; padding: 13px 14px;
     border: 1px solid var(--n-line); border-radius: 14px; background: var(--n-surface); cursor: pointer;
@@ -202,7 +201,6 @@ function ouvrirPanneau(ev, pid){
 }
 function panneauEntete(i){
   return `
-    <div class="feuille__poignee"></div>
     <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;">
       ${i.image?`<img class="n-row__thumb" src="${esc(i.image)}" style="width:60px;height:60px;" alt="">`:`<div class="n-row__thumb thumb-ph" style="width:60px;height:60px;">👕</div>`}
       <div style="min-width:0;flex:1;">
@@ -225,8 +223,7 @@ function panneauActions(){
         <div class="n-muted" style="font-size:12.5px;">L'équipe Nestore doit d'abord la traiter avant une nouvelle demande.</div>
       </div>`
     : `<div style="display:flex;flex-direction:column;gap:8px;">
-        <button class="act" onclick="agir('retrait')"><span class="act__ico">📤</span><span class="act__txt"><strong>Demander le retrait</strong><small>L'équipe valide, le retire du site et te le tient prêt en boutique.</small></span><span class="act__chev">›</span></button>
-        <button class="act" onclick="agir('vendu_ailleurs')"><span class="act__ico">🤝</span><span class="act__txt"><strong>Vendu de mon côté</strong><small>Tu l'as vendu toi-même — l'équipe valide et le retire du site.</small></span><span class="act__chev">›</span></button>
+        <button class="act" onclick="agir('retrait')"><span class="act__ico">📤</span><span class="act__txt"><strong>Retirer du site</strong><small>Vendu de ton côté ou tu veux le récupérer — l'équipe valide et le retire.</small></span><span class="act__chev">›</span></button>
         <button class="act" onclick="panneauPrix()"><span class="act__ico">💶</span><span class="act__txt"><strong>Changer le prix</strong><small>Nouveau prix affiché — tu vois tout de suite ce que tu touches.</small></span><span class="act__chev">›</span></button>
       </div>`)
     + `<button class="n-btn n-btn--ghost n-btn--sm" style="width:100%;margin-top:12px;" onclick="fermerPanneau()">Fermer</button>`;
@@ -290,10 +287,7 @@ async function prixEnvoyer(){
 function fermerPanneau(){ articleOuvert=null; const v=document.getElementById('voile'); if(v) v.classList.remove('on'); }
 async function agir(type){
   const i = articleOuvert; if(!i) return;
-  const msg = type==='retrait'
-    ? `Demander le RETRAIT de « ${i.titre} » ?\n\nL'équipe valide, retire l'article du site et te le tient prêt en boutique.`
-    : `Marquer « ${i.titre} » vendu de ton côté ?\n\nL'équipe valide et le retire du site.`;
-  if(!confirm(msg)) return;
+  if(!confirm(`Retirer « ${i.titre} » du site ?\n\nL'équipe valide puis le retire — que tu l'aies vendu de ton côté ou que tu veuilles le récupérer en boutique.`)) return;
   await envoyerDemandes([{ productId: i.productId, type }]);
 }
 async function envoyerDemandes(demandes){
