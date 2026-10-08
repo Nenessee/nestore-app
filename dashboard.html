@@ -2245,12 +2245,13 @@ tbody tr { transition: background .12s; }
           <tbody id="depotSiteTable"><tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted);">Chargement…</td></tr></tbody>
         </table>
       </div>
-      <!-- Barre collée en bas de l'écran pendant qu'on coche — pas besoin de remonter pour valider. -->
-      <div id="depotSiteBulkBar" style="display:none;position:sticky;bottom:12px;z-index:6;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;margin-top:10px;border:1px solid var(--border);border-radius:14px;background:var(--surface);box-shadow:0 8px 24px rgba(0,0,0,.14);">
-        <span id="depotSiteBulkCpt" style="font-size:12.5px;font-weight:700;"></span>
-        <select class="filter-select" id="depotSiteBulkClient" style="min-height:32px;padding:5px 26px 5px 10px;font-size:12px;"></select>
+      <!-- Barre FLOTTANTE : apparaît dès qu'un article est coché, posée en bas de l'écran
+           où qu'on soit dans la page — on coche puis on valide sans bouger. -->
+      <div id="depotSiteBulkBar" style="display:none;position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:900;width:max-content;max-width:calc(100vw - 24px);align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;padding:10px 16px;border:1px solid var(--border);border-radius:999px;background:var(--surface);box-shadow:0 10px 30px rgba(0,0,0,.22);">
+        <span id="depotSiteBulkCpt" style="font-size:12.5px;font-weight:700;white-space:nowrap;"></span>
+        <select class="filter-select" id="depotSiteBulkClient" style="min-height:32px;padding:5px 26px 5px 10px;font-size:12px;border-radius:999px;"></select>
         <button class="btn btn-green" id="depotSiteBulkBtn" style="font-size:12px;" onclick="depotSiteAttribuerBulk()">Attribuer la sélection</button>
-        <button class="btn" style="font-size:12px;" onclick="depotSiteToutCocher(false)">Tout décocher</button>
+        <button class="btn" style="font-size:12px;" onclick="depotSiteToutCocher(false)">✕</button>
       </div>
     </div>
   </div>
@@ -2831,7 +2832,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-10-08-v278-ergonomie-comptes-depots'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-10-08-v279-barre-flottante-prix-direct'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -3000,6 +3001,8 @@ function switchTab(name, el) {
   if (el) el.classList.add('active');
   document.getElementById(`tab-${name}`)?.classList.add('active');
   if (name !== 'objectif') stopObjMusic();          // couper la musique en quittant l'onglet Objectif
+  // La barre d'attribution des dépôts est fixée à l'écran : on la range en quittant l'onglet.
+  if (name !== 'depots' && typeof depotSiteSel !== 'undefined' && depotSiteSel.size) depotSiteToutCocher(false);
   if (name === 'objectif') { loadObjectif(); startObjMusic(); }
   if (name === 'ventes') loadVentes();
   if (name === 'stock') {
