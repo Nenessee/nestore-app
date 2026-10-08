@@ -1,8 +1,9 @@
-const CACHE_VERSION = 'nestore-2026-10-08-v269-fake-anticourse'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
+const CACHE_VERSION = 'nestore-2026-10-08-v270-habillage-caisse'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/dashboard.html',
+  '/nestore-ui.css',
   '/manifest.json',
   '/icon-180.png',
   '/icon-192.png',
