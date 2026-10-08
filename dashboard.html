@@ -2219,6 +2219,35 @@ tbody tr { transition: background .12s; }
 <!-- TAB DÉPÔTS-VENTE -->
 <div id="tab-depots" class="tab-panel">
 <div class="content">
+
+  <!-- ===== Dépôts du SITE (gros clients) — admin ===== -->
+  <div class="js-admin-only" id="depotSitePanel" style="display:none;margin-bottom:28px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+      <span class="section-title" style="margin:0;">Dépôts du site — gros clients</span>
+      <span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <a class="btn" href="depot.html" target="_blank" style="font-size:12px;">↗ Espace déposant</a>
+        <button class="btn" onclick="depotSiteLoad()" style="font-size:12px;">↻ Actualiser</button>
+      </span>
+    </div>
+    <div style="font-size:12px;color:var(--text-soft);margin-bottom:12px;">Univers : articles <b>actifs sur le site</b> tagués <b>depot</b>. Attribution à un client = tag <b>depot-nom</b> (créé sur son compte, onglet Équipe). Net client = prix − 30 % − 15 € · prix client en multiples de 5 € (min 25 €).</div>
+    <div class="kpi-grid" id="depotSiteKpis" style="margin-bottom:14px;"></div>
+    <div id="depotSiteDemandes" style="margin-bottom:14px;"></div>
+    <div class="table-card">
+      <div class="table-header"><span class="table-title">Articles en dépôt sur le site</span>
+        <span style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <input class="search-input" id="depotSiteSearch" style="max-width:200px;min-width:140px;min-height:32px;padding:6px 11px;font-size:12px" placeholder="Rechercher…" oninput="depotSiteRender()">
+          <select class="filter-select" id="depotSiteFiltreClient" style="min-height:32px;padding:5px 26px 5px 10px;font-size:12px;" onchange="depotSiteRender()"><option value="">Tous les clients</option></select>
+        </span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr><th>Article</th><th>Code-barres</th><th class="num">Prix</th><th class="num">Net client</th><th>Client</th></tr></thead>
+          <tbody id="depotSiteTable"><tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted);">Chargement…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
     <span class="section-title" style="margin:0;">Dépôts-vente</span>
     <span id="depotsSummary" style="font-size:13px;color:var(--text-muted);"></span>
@@ -2293,7 +2322,8 @@ tbody tr { transition: background .12s; }
         <div><label class="eq-lbl">Prénom</label><input id="euName" class="search-input" placeholder="ex: Sophie" style="width:100%;"/></div>
         <div><label class="eq-lbl">Code (PIN)</label><input id="euPin" class="search-input" inputmode="numeric" placeholder="4 à 6 chiffres" style="width:100%;"/></div>
         <div><label class="eq-lbl">Boutique</label><select id="euBoutique" class="search-input" style="width:100%;"><option value="">—</option><option value="Lille">Lille</option><option value="DK">Dunkerque</option></select></div>
-        <div><label class="eq-lbl">Rôle</label><select id="euRole" class="search-input" style="width:100%;"><option value="employee">Employé</option><option value="admin">Admin (lecture)</option><option value="superadmin">Superadmin</option></select></div>
+        <div><label class="eq-lbl">Rôle</label><select id="euRole" class="search-input" style="width:100%;"><option value="employee">Employé</option><option value="admin">Admin (lecture)</option><option value="superadmin">Superadmin</option><option value="deposant">Déposant (client)</option></select></div>
+        <div><label class="eq-lbl">Tag déposant (option)</label><input id="euDepotTag" class="search-input" placeholder="depot-nom" style="width:100%;" title="Obligatoire pour un compte Déposant ; optionnel pour un membre d'équipe qui a aussi des articles en dépôt (il verra « Mes dépôts »)"/></div>
         <button class="btn btn-green" onclick="equipeAddUser()" style="min-height:42px;white-space:nowrap;">＋ Ajouter</button>
       </div>
       <div id="euAddResult" style="margin-top:10px;font-size:13px;"></div>
@@ -2771,7 +2801,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-10-08-v273-habillage-listes'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-10-08-v274-depots-site'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -4777,7 +4807,94 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function _escD(x){ return esc(x); } // délègue au helper canonique
+// ===== Dépôts du SITE (gros clients) — panneau admin =====
+let depotSiteData = null;
+async function depotSiteLoad() {
+  if (typeof nvIsAdmin === 'function' && !nvIsAdmin()) return;
+  const panel = document.getElementById('depotSitePanel'); if (panel) panel.style.display = 'block';
+  try {
+    const d = await api('/depot/admin/articles');
+    depotSiteData = d;
+    const k = (val, lbl, color) => `<div class="kpi"><div class="kpi-label">${lbl}</div><div class="kpi-value"${color ? ` style="color:${color}"` : ''}>${val}</div></div>`;
+    const nbClients = (d.clients || []).length;
+    document.getElementById('depotSiteKpis').innerHTML =
+      k(d.items.length, 'Articles en dépôt (site)') +
+      k(d.nonAttribues, 'Non attribués', d.nonAttribues ? 'var(--warning)' : 'var(--success)') +
+      k(d.demandesEnAttente, 'Demandes en attente', d.demandesEnAttente ? 'var(--accent)' : 'var(--success)') +
+      k(nbClients, 'Comptes déposants');
+    const sel = document.getElementById('depotSiteFiltreClient');
+    sel.innerHTML = '<option value="">Tous les clients</option><option value="(non attribué)">⚠ non attribués</option>' +
+      (d.clients || []).map(c => `<option value="${esc(c.depot_tag)}">${esc(c.name)} — ${esc(c.depot_tag)}</option>`).join('');
+    depotSiteRender();
+    depotSiteLoadDemandes();
+  } catch (e) { showDashToast('Dépôts site : ' + e.message, 'error'); }
+}
+function depotSiteRender() {
+  const d = depotSiteData; if (!d) return;
+  const q = ((document.getElementById('depotSiteSearch') || {}).value || '').toLowerCase();
+  const fc = (document.getElementById('depotSiteFiltreClient') || {}).value || '';
+  const rows = d.items.filter(i => {
+    if (fc === '(non attribué)' && i.clientTag) return false;
+    if (fc && fc !== '(non attribué)' && i.clientTag !== fc) return false;
+    if (q && !(`${i.titre} ${i.barcode || ''}`.toLowerCase().includes(q))) return false;
+    return true;
+  });
+  const opts = c => '<option value="">— non attribué —</option>' + (d.clients || []).map(x => `<option value="${esc(x.depot_tag)}"${c === x.depot_tag ? ' selected' : ''}>${esc(x.name)}</option>`).join('');
+  document.getElementById('depotSiteTable').innerHTML = rows.length ? rows.map(i => `
+    <tr>
+      <td><div style="display:flex;align-items:center;gap:8px;">${i.image ? `<img src="${esc(i.image)}" style="width:34px;height:34px;object-fit:cover;border-radius:7px;flex-shrink:0;">` : ''}<span>${esc(i.titre)}</span>${i.clientTag ? '' : ' <span class="badge" style="background:var(--warning-dim);color:var(--warning);">⚠ à attribuer</span>'}</div></td>
+      <td style="font-family:monospace;font-size:12px;">${esc(i.barcode || '—')}</td>
+      <td class="num">${i.prix != null ? i.prix.toFixed(2) + ' €' : '—'}</td>
+      <td class="num">${i.net != null ? i.net.toFixed(2) + ' €' : '—'}</td>
+      <td><select class="filter-select" style="min-height:30px;padding:4px 26px 4px 8px;font-size:12px;" onchange="depotSiteAttribuer('${esc(escJs(String(i.productId)))}',this.value,this)">${opts(i.clientTag)}</select></td>
+    </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted);">Aucun article</td></tr>';
+}
+async function depotSiteAttribuer(productId, clientTag, sel) {
+  if (sel) sel.disabled = true;
+  try {
+    const r = await fetch(`${BACKEND_URL}/depot/admin/attribuer`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productId, clientTag: clientTag || null }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    const it = (depotSiteData.items || []).find(x => String(x.productId) === String(productId)); if (it) it.clientTag = clientTag || null;
+    depotSiteData.nonAttribues = (depotSiteData.items || []).filter(x => !x.clientTag).length;
+    showDashToast(clientTag ? `Attribué à ${clientTag} ✓` : 'Attribution retirée ✓', 'success');
+  } catch (e) { showDashToast('Attribution : ' + e.message, 'error'); }
+  finally { if (sel) sel.disabled = false; depotSiteRender(); }
+}
+async function depotSiteLoadDemandes() {
+  const box = document.getElementById('depotSiteDemandes');
+  if (!box) return;
+  try {
+    const d = await api('/depot/admin/demandes?statut=en_attente');
+    if (!d.rows.length) { box.innerHTML = '<div style="font-size:12.5px;color:var(--success);font-weight:600;">✓ Aucune demande de déposant en attente.</div>'; return; }
+    const lbl = { retrait: '📤 Retrait', vendu_ailleurs: '🤝 Vendu ailleurs', prix: '💶 Nouveau prix' };
+    box.innerHTML = `<div class="table-card"><div class="table-header"><span class="table-title">Demandes des déposants — à traiter (${d.rows.length})</span></div>
+      <div style="overflow-x:auto;"><table>
+      <thead><tr><th>Quand</th><th>Client</th><th>Article</th><th>Demande</th><th></th></tr></thead><tbody>` +
+      d.rows.map(r => `<tr>
+        <td style="white-space:nowrap;">${esc(r.demande_le)}</td>
+        <td>${esc(r.client_tag)}${r.requested_by ? `<div style="font-size:11px;color:var(--text-muted);">${esc(r.requested_by)}</div>` : ''}</td>
+        <td>${esc(r.product_title || r.product_id)}${r.barcode ? `<div style="font-family:monospace;font-size:11px;color:var(--text-muted);">${esc(r.barcode)}</div>` : ''}</td>
+        <td>${lbl[r.type] || esc(r.type)}${r.type === 'prix' ? ` : ${Number(r.current_price || 0).toFixed(0)} € → <b>${Number(r.new_price || 0).toFixed(0)} €</b> <span style="font-size:11px;color:var(--warning);">(étiquette boutique à refaire)</span>` : ' <span style="font-size:11px;color:var(--text-muted);">(article retiré du site à l\'approbation)</span>'}</td>
+        <td style="white-space:nowrap;"><button class="btn btn-green" style="font-size:11px;padding:4px 10px;" onclick="depotSiteTraiter(${r.id},'approuver',this)">✓ Approuver</button>
+        <button class="btn btn-red" style="font-size:11px;padding:4px 10px;" onclick="depotSiteTraiter(${r.id},'refuser',this)">Refuser</button></td>
+      </tr>`).join('') + '</tbody></table></div></div>';
+  } catch (e) { box.innerHTML = `<div style="color:var(--accent);font-size:12.5px;">Demandes : ${esc(e.message)}</div>`; }
+}
+async function depotSiteTraiter(id, action, btn) {
+  if (action === 'approuver' && !confirm('Approuver cette demande ?\n\n• Retrait / vendu ailleurs : stock à 0 + article retiré du site (à restituer physiquement).\n• Prix : appliqué sur Shopify immédiatement — pense à refaire l\'étiquette en boutique.')) return;
+  if (btn) btn.disabled = true;
+  try {
+    const r = await fetch(`${BACKEND_URL}/depot/admin/demandes/${id}/traiter`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    showDashToast(action === 'approuver' ? 'Demande approuvée ✓' : 'Demande refusée', 'success');
+    depotSiteLoadDemandes();
+  } catch (e) { showDashToast('Traitement : ' + e.message, 'error'); if (btn) btn.disabled = false; }
+}
+
 async function loadDepots() {
+  depotSiteLoad(); // panneau « Dépôts du site » (admin uniquement — no-op sinon)
   const tbody = document.getElementById('depotsTable');
   const summary = document.getElementById('depotsSummary');
   try {
@@ -8535,7 +8652,8 @@ window.markVintedRemoved = async function(barcode, btn) {
       for (const u of d.rows) {
         h+=`<tr style="${u.active?'':'opacity:.5;'}"><td><div style="display:flex;align-items:center;gap:10px;">${_avatar(u)}<strong>${_esc(u.name)}</strong></div></td>`+
           `<td><select onchange="equipeUpdateUser(${u.id},{boutique:this.value})" style="font-size:12px;padding:3px;"><option value="" ${!u.boutique?'selected':''}>—</option><option value="Lille" ${u.boutique==='Lille'?'selected':''}>Lille</option><option value="DK" ${u.boutique==='DK'?'selected':''}>DK</option></select></td>`+
-          `<td><select onchange="equipeUpdateUser(${u.id},{role:this.value})" style="font-size:12px;padding:3px;"><option value="employee" ${u.role==='employee'?'selected':''}>Employé</option><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option><option value="superadmin" ${u.role==='superadmin'?'selected':''}>Superadmin</option><option value="accountant" ${u.role==='accountant'?'selected':''}>Comptable</option></select></td>`+
+          `<td><select onchange="equipeUpdateUser(${u.id},{role:this.value})" style="font-size:12px;padding:3px;"><option value="employee" ${u.role==='employee'?'selected':''}>Employé</option><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option><option value="superadmin" ${u.role==='superadmin'?'selected':''}>Superadmin</option><option value="accountant" ${u.role==='accountant'?'selected':''}>Comptable</option><option value="deposant" ${u.role==='deposant'?'selected':''}>Déposant</option></select>`+
+          `<div style="margin-top:3px;"><button class="btn" style="font-size:10px;padding:2px 8px;" onclick="equipeEditDepotTag(${u.id},'${_esc(u.depot_tag||'')}')" title="Tag dépôt du compte (depot-nom) — vide = pas d'espace dépôt">💼 ${u.depot_tag?_esc(u.depot_tag):'aucun dépôt'}</button></div></td>`+
           `<td style="font-size:12px;color:var(--text-muted);">${esc(u.last_login)||'jamais'}</td>`+
           `<td style="text-align:center;"><input type="checkbox" ${u.active?'checked':''} onchange="equipeUpdateUser(${u.id},{active:this.checked})"></td>`+
           `<td style="white-space:nowrap;"><button class="btn" style="font-size:11px;padding:4px 8px;" onclick="equipePhoto(${u.id})">Photo</button> <button class="btn" style="font-size:11px;padding:4px 8px;" onclick="equipeResetPin(${u.id})">Code</button> <button class="btn" style="font-size:11px;padding:4px 8px;color:var(--accent);" onclick="equipeDeleteUser(${u.id})">Suppr</button></td></tr>`;
@@ -8572,15 +8690,17 @@ window.markVintedRemoved = async function(barcode, btn) {
     const pin=(document.getElementById('euPin').value||'').trim();
     const boutique=document.getElementById('euBoutique').value;
     const role=document.getElementById('euRole').value;
+    const depotTag=((document.getElementById('euDepotTag')||{}).value||'').trim();
     const out=document.getElementById('euAddResult');
-    const _minLen = (role==='admin'||role==='superadmin')?6:4;
+    const _minLen = (role==='admin'||role==='superadmin'||role==='deposant')?6:4;
     if(!name||pin.length<_minLen){ out.innerHTML=`<span style="color:var(--accent);">Prénom + code (${_minLen} chiffres min pour ce rôle) requis.</span>`; return; }
+    if(role==='deposant'&&!depotTag){ out.innerHTML='<span style="color:var(--accent);">Un compte Déposant doit avoir son tag (ex. depot-noa).</span>'; return; }
     try {
-      const res=await fetch(`${BACKEND_URL}/auth/users`,{method:'POST',headers:{'X-NV-Admin-Token':token,'Content-Type':'application/json'},body:JSON.stringify({name,pin,boutique,role})});
+      const res=await fetch(`${BACKEND_URL}/auth/users`,{method:'POST',headers:{'X-NV-Admin-Token':token,'Content-Type':'application/json'},body:JSON.stringify({name,pin,boutique,role,depotTag:depotTag||null})});
       const dd=await res.json().catch(()=>({}));
       if(!res.ok){ out.innerHTML='<span style="color:var(--accent);">'+(dd.error||'Erreur')+'</span>'; return; }
-      out.innerHTML='<span style="color:var(--success);">✓ '+_esc(name)+' ajouté</span>';
-      document.getElementById('euName').value=''; document.getElementById('euPin').value='';
+      out.innerHTML='<span style="color:var(--success);">✓ '+_esc(name)+' ajouté'+(depotTag?` · 💼 ${_esc(depotTag)}`:'')+'</span>';
+      document.getElementById('euName').value=''; document.getElementById('euPin').value=''; if(document.getElementById('euDepotTag')) document.getElementById('euDepotTag').value='';
       loadTeam();
     } catch(e){ out.innerHTML='<span style="color:var(--accent);">Erreur réseau</span>'; }
   };
@@ -8588,6 +8708,14 @@ window.markVintedRemoved = async function(barcode, btn) {
     const token = ''; // session superadmin via le wrapper fetch
     try { await fetch(`${BACKEND_URL}/auth/users/${id}`,{method:'PATCH',headers:{'X-NV-Admin-Token':token,'Content-Type':'application/json'},body:JSON.stringify(patch)}); loadTeam(); }
     catch(e){ showDashToast('Erreur','error'); }
+  };
+  // Tag dépôt d'un compte : depot-nom (vide = retire l'espace dépôt du compte).
+  window.equipeEditDepotTag = async function(id, current) {
+    const v = prompt('Tag dépôt du compte (format depot-nom, ex. depot-noa) — vide pour retirer :', current || 'depot-');
+    if (v === null) return;
+    const val = v.trim().toLowerCase();
+    if (val && !/^depot-[a-z0-9][a-z0-9-]*$/.test(val)) { showDashToast('Format invalide — attendu : depot-nom', 'error'); return; }
+    await equipeUpdateUser(id, { depotTag: val || null });
   };
   window.equipeResetPin = function(id) {
     const pin = prompt('Nouveau code (4 chiffres min) :'); if(pin===null) return;

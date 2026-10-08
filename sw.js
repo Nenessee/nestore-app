@@ -1,8 +1,9 @@
-const CACHE_VERSION = 'nestore-2026-10-08-v273-habillage-listes'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
+const CACHE_VERSION = 'nestore-2026-10-08-v274-depots-site'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/dashboard.html',
+  '/depot.html',
   '/nestore-ui.css',
   '/manifest.json',
   '/icon-180.png',
