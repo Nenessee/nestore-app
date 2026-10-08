@@ -2239,17 +2239,18 @@ tbody tr { transition: background .12s; }
           <select class="filter-select" id="depotSiteFiltreClient" style="min-height:32px;padding:5px 26px 5px 10px;font-size:12px;" onchange="depotSiteRender()"><option value="">Tous les clients</option></select>
         </span>
       </div>
-      <div id="depotSiteBulkBar" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;margin-bottom:4px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);">
-        <span id="depotSiteBulkCpt" style="font-size:12.5px;font-weight:700;"></span>
-        <select class="filter-select" id="depotSiteBulkClient" style="min-height:32px;padding:5px 26px 5px 10px;font-size:12px;"></select>
-        <button class="btn btn-green" id="depotSiteBulkBtn" style="font-size:12px;" onclick="depotSiteAttribuerBulk()">Attribuer la sélection</button>
-        <button class="btn" style="font-size:12px;" onclick="depotSiteToutCocher(false)">Tout décocher</button>
-      </div>
       <div style="overflow-x:auto;">
         <table>
           <thead><tr><th style="width:30px;"><input type="checkbox" id="depotSiteSelAll" onchange="depotSiteToutCocher(this.checked)" title="Sélectionner les lignes affichées"></th><th>Article</th><th>Code-barres</th><th class="num">Prix</th><th class="num">Net client</th><th>Client</th></tr></thead>
           <tbody id="depotSiteTable"><tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted);">Chargement…</td></tr></tbody>
         </table>
+      </div>
+      <!-- Barre collée en bas de l'écran pendant qu'on coche — pas besoin de remonter pour valider. -->
+      <div id="depotSiteBulkBar" style="display:none;position:sticky;bottom:12px;z-index:6;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;margin-top:10px;border:1px solid var(--border);border-radius:14px;background:var(--surface);box-shadow:0 8px 24px rgba(0,0,0,.14);">
+        <span id="depotSiteBulkCpt" style="font-size:12.5px;font-weight:700;"></span>
+        <select class="filter-select" id="depotSiteBulkClient" style="min-height:32px;padding:5px 26px 5px 10px;font-size:12px;"></select>
+        <button class="btn btn-green" id="depotSiteBulkBtn" style="font-size:12px;" onclick="depotSiteAttribuerBulk()">Attribuer la sélection</button>
+        <button class="btn" style="font-size:12px;" onclick="depotSiteToutCocher(false)">Tout décocher</button>
       </div>
     </div>
   </div>
@@ -2328,7 +2329,7 @@ tbody tr { transition: background .12s; }
         <div><label class="eq-lbl">Prénom</label><input id="euName" class="search-input" placeholder="ex: Sophie" style="width:100%;"/></div>
         <div><label class="eq-lbl">Code (PIN)</label><input id="euPin" class="search-input" inputmode="numeric" placeholder="4 à 6 chiffres" style="width:100%;"/></div>
         <div><label class="eq-lbl">Boutique</label><select id="euBoutique" class="search-input" style="width:100%;"><option value="">—</option><option value="Lille">Lille</option><option value="DK">Dunkerque</option></select></div>
-        <div><label class="eq-lbl">Rôle</label><select id="euRole" class="search-input" style="width:100%;"><option value="employee">Employé</option><option value="admin">Admin (lecture)</option><option value="superadmin">Superadmin</option></select></div>
+        <div><label class="eq-lbl">Rôle</label><select id="euRole" class="search-input" style="width:100%;"><option value="employee">Employé</option><option value="admin">Admin (lecture)</option><option value="superadmin">Superadmin</option><option value="accountant">Comptable</option></select></div>
         <button class="btn btn-green" onclick="equipeAddUser()" style="min-height:42px;white-space:nowrap;">＋ Ajouter</button>
       </div>
       <div id="euAddResult" style="margin-top:10px;font-size:13px;"></div>
@@ -2351,19 +2352,16 @@ tbody tr { transition: background .12s; }
       <div id="edAddResult" style="margin-top:10px;font-size:13px;"></div>
     </div>
 
-    <div class="table-card" style="padding:18px;margin-bottom:16px;">
-      <div class="table-title" style="margin-bottom:12px;">Comptes équipe</div>
-      <div id="equipeList"><div class="loading">Chargement…</div></div>
-    </div>
-
-    <div class="table-card" style="padding:18px;margin-bottom:16px;">
-      <div class="table-title" style="margin-bottom:12px;">Comptable</div>
-      <div id="equipeListComptable"></div>
-    </div>
-
     <div class="table-card" style="padding:18px;">
-      <div class="table-title" style="margin-bottom:12px;">Déposants (clients)</div>
-      <div id="equipeListDeposants"></div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+        <div class="table-title" style="margin:0;">Comptes</div>
+        <div id="equipeVues" style="display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;">
+          <button class="btn" data-vue="equipe" onclick="equipeVue('equipe')">Employés</button>
+          <button class="btn" data-vue="deposants" onclick="equipeVue('deposants')">Déposants</button>
+          <button class="btn" data-vue="comptable" onclick="equipeVue('comptable')">Comptable</button>
+        </div>
+      </div>
+      <div id="equipeList"><div class="loading">Chargement…</div></div>
     </div>
   </div>
   <div id="equipeManageLocked" class="table-card" style="display:none;padding:16px;color:var(--text-muted);font-size:13px;">La gestion des comptes est réservée au superadmin.</div>
@@ -2833,7 +2831,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-10-08-v277-comptes-separes-depot-masse'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-10-08-v278-ergonomie-comptes-depots'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -4882,15 +4880,23 @@ function depotSiteRender() {
   const rows = depotSiteVisibles();
   const opts = c => '<option value="">— non attribué —</option>' + (d.clients || []).map(x => `<option value="${esc(x.depot_tag)}"${c === x.depot_tag ? ' selected' : ''}>${esc(x.name)}</option>`).join('');
   document.getElementById('depotSiteTable').innerHTML = rows.length ? rows.map(i => `
-    <tr>
+    <tr onclick="depotSiteLigneClick(event,'${esc(escJs(String(i.productId)))}')" style="cursor:pointer;">
       <td><input type="checkbox" ${depotSiteSel.has(String(i.productId)) ? 'checked' : ''} onchange="depotSiteCocher('${esc(escJs(String(i.productId)))}',this.checked)"></td>
-      <td><div style="display:flex;align-items:center;gap:8px;">${i.image ? `<img src="${esc(i.image)}" style="width:34px;height:34px;object-fit:cover;border-radius:7px;flex-shrink:0;">` : ''}<span>${esc(i.titre)}</span>${i.clientTag ? '' : ' <span class="badge" style="background:var(--warning-dim);color:var(--warning);">⚠ à attribuer</span>'}</div></td>
+      <td><div style="display:flex;align-items:center;gap:8px;">${i.image ? `<img src="${esc(i.image)}" style="width:34px;height:34px;object-fit:cover;border-radius:7px;flex-shrink:0;">` : ''}<span>${esc(i.titre)}</span>${i.clientTag ? '' : ' <span class="badge" style="background:var(--warning-dim);color:var(--warning);">⚠ à attribuer</span>'} <a href="https://admin.shopify.com/store/nestore-io/products/${esc(String(i.productId))}" target="_blank" rel="noopener" style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:999px;background:var(--surface);color:var(--text);text-decoration:none;white-space:nowrap;">↗ Shopify</a></div></td>
       <td style="font-family:monospace;font-size:12px;">${esc(i.barcode || '—')}</td>
       <td class="num">${i.prix != null ? i.prix.toFixed(2) + ' €' : '—'}</td>
       <td class="num">${i.net != null ? i.net.toFixed(2) + ' €' : '—'}</td>
       <td><select class="filter-select" style="min-height:30px;padding:4px 26px 4px 8px;font-size:12px;" onchange="depotSiteAttribuer('${esc(escJs(String(i.productId)))}',this.value,this)">${opts(i.clientTag)}</select></td>
     </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted);">Aucun article</td></tr>';
   depotSiteMajBulk();
+}
+// Cliquer n'importe où sur la ligne coche/décoche (sauf sur la liste client, le lien ou la case elle-même).
+function depotSiteLigneClick(ev, pid) {
+  if (ev.target.closest('select, a, button') || ev.target.tagName === 'INPUT') return;
+  const on = !depotSiteSel.has(String(pid));
+  depotSiteCocher(pid, on);
+  const cb = ev.currentTarget.querySelector('input[type="checkbox"]');
+  if (cb) cb.checked = on;
 }
 function depotSiteCocher(pid, on) { if (on) depotSiteSel.add(String(pid)); else depotSiteSel.delete(String(pid)); depotSiteMajBulk(); }
 function depotSiteToutCocher(on) {
@@ -8725,39 +8731,53 @@ window.markVintedRemoved = async function(barcode, btn) {
     if (listBox) listBox.innerHTML='<div class="loading">Chargement…</div>';
     try {
       const d = await fetch(`${BACKEND_URL}/auth/users`,{headers:{'X-NV-Admin-Token':token}}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});
-      const boxC = document.getElementById('equipeListComptable');
-      const boxD = document.getElementById('equipeListDeposants');
-      const rows = d.rows || [];
-      if (!rows.length) { if(listBox)listBox.innerHTML='<div style="padding:16px;color:var(--text-muted);">Aucun compte. Ajoute tes employés ci-dessus.</div>'; if(boxC)boxC.innerHTML=''; if(boxD)boxD.innerHTML=''; return; }
-      // Trois encarts séparés pour que rien ne se mélange : équipe / comptable / déposants.
-      const equipe = rows.filter(u=>['employee','admin','superadmin'].includes(u.role));
-      const comptables = rows.filter(u=>u.role==='accountant');
-      const deposants = rows.filter(u=>u.role==='deposant');
-      const SEL = `class="filter-select" style="min-height:32px;padding:4px 28px 4px 12px;font-size:12px;border-radius:999px;"`;
-      const nomTd = u => `<td><div style="display:flex;align-items:center;gap:10px;">${_avatar(u)}<strong>${_esc(u.name)}</strong></div></td>`;
-      const cnxTd = u => `<td style="font-size:12px;color:var(--text-muted);">${esc(u.last_login)||'jamais'}</td>`;
-      const actifTd = u => `<td style="text-align:center;"><input type="checkbox" ${u.active?'checked':''} onchange="equipeUpdateUser(${u.id},{active:this.checked})"></td>`;
-      const actionsTd = (u, photo) => `<td style="white-space:nowrap;">${photo?`<button class="btn" style="font-size:11px;padding:4px 8px;" onclick="equipePhoto(${u.id})">Photo</button> `:''}<button class="btn" style="font-size:11px;padding:4px 8px;" onclick="equipeResetPin(${u.id})">Code</button> <button class="btn" style="font-size:11px;padding:4px 8px;color:var(--accent);" onclick="equipeDeleteUser(${u.id})">Suppr</button></td>`;
-      const tagBtn = u => `<button class="btn" style="font-size:10px;padding:2px 8px;" onclick="equipeEditDepotTag(${u.id},'${_esc(u.depot_tag||'')}')" title="Tag dépôt du compte (depot-nom) — vide = pas d'espace dépôt">💼 ${u.depot_tag?_esc(u.depot_tag):'aucun dépôt'}</button>`;
-      // Le rôle Déposant n'est volontairement PAS dans la liste : un déposant se crée via son
-      // formulaire dédié, et inversement un membre d'équipe ne bascule pas déposant par mégarde.
-      const roleSel = u => `<select ${SEL} onchange="equipeUpdateUser(${u.id},{role:this.value})"><option value="employee" ${u.role==='employee'?'selected':''}>Employé</option><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option><option value="superadmin" ${u.role==='superadmin'?'selected':''}>Superadmin</option><option value="accountant" ${u.role==='accountant'?'selected':''}>Comptable</option></select>`;
-      const btqSel = u => `<select ${SEL} onchange="equipeUpdateUser(${u.id},{boutique:this.value})"><option value="" ${!u.boutique?'selected':''}>—</option><option value="Lille" ${u.boutique==='Lille'?'selected':''}>Lille</option><option value="DK" ${u.boutique==='DK'?'selected':''}>DK</option></select>`;
-      const tr = (u, cells) => `<tr style="${u.active?'':'opacity:.5;'}">${cells}</tr>`;
-      const table = (head, body) => `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
-      if (listBox) listBox.innerHTML = equipe.length
-        ? table('<th>Prénom</th><th>Boutique</th><th>Rôle</th><th>Dernière connexion</th><th>Actif</th><th></th>',
-            equipe.map(u=>tr(u, nomTd(u)+`<td>${btqSel(u)}</td>`+`<td>${roleSel(u)}<div style="margin-top:4px;">${tagBtn(u)}</div></td>`+cnxTd(u)+actifTd(u)+actionsTd(u,true))).join(''))
-        : '<div style="padding:16px;color:var(--text-muted);">Aucun compte équipe.</div>';
-      if (boxC) boxC.innerHTML = comptables.length
-        ? table('<th>Prénom</th><th>Rôle</th><th>Dernière connexion</th><th>Actif</th><th></th>',
-            comptables.map(u=>tr(u, nomTd(u)+`<td>${roleSel(u)}</td>`+cnxTd(u)+actifTd(u)+actionsTd(u,true))).join(''))
-        : '<div style="padding:12px 0;color:var(--text-muted);font-size:13px;">Aucun compte comptable — crée-le via « Ajouter un employé » puis passe son rôle en Comptable.</div>';
-      if (boxD) boxD.innerHTML = deposants.length
-        ? table('<th>Nom</th><th>Tag dépôt</th><th>Dernière connexion</th><th>Actif</th><th></th>',
-            deposants.map(u=>tr(u, nomTd(u)+`<td>${tagBtn(u)}</td>`+cnxTd(u)+actifTd(u)+actionsTd(u,false))).join(''))
-        : '<div style="padding:12px 0;color:var(--text-muted);font-size:13px;">Aucun déposant — crée-les avec le formulaire « Ajouter un déposant » ci-dessus.</div>';
+      window._equipeRows = d.rows || [];
+      equipeRenderVue();
     } catch(e){ if(listBox)listBox.innerHTML='<div style="padding:16px;color:var(--accent);">Erreur : '+e.message+'</div>'; }
+  };
+  // Une seule liste à l'écran, choisie par les boutons Employés / Déposants / Comptable.
+  window._equipeVueActive = window._equipeVueActive || 'equipe';
+  window.equipeVue = function(v) { window._equipeVueActive = v; equipeRenderVue(); };
+  window.equipeRenderVue = function() {
+    const listBox = document.getElementById('equipeList'); if (!listBox) return;
+    const rows = window._equipeRows || [];
+    const equipe = rows.filter(u=>['employee','admin','superadmin'].includes(u.role));
+    const comptables = rows.filter(u=>u.role==='accountant');
+    const deposants = rows.filter(u=>u.role==='deposant');
+    const vues = { equipe: ['Employés', equipe], deposants: ['Déposants', deposants], comptable: ['Comptable', comptables] };
+    document.querySelectorAll('#equipeVues [data-vue]').forEach(b => {
+      const [lbl, grp] = vues[b.dataset.vue];
+      b.textContent = `${lbl} (${grp.length})`;
+      const on = b.dataset.vue === window._equipeVueActive;
+      b.style.background = on ? 'var(--brand)' : '';
+      b.style.color = on ? 'var(--brand-ink)' : '';
+      b.style.borderColor = on ? 'var(--brand)' : '';
+    });
+    const SEL = `class="filter-select" style="min-height:32px;padding:4px 28px 4px 12px;font-size:12px;border-radius:999px;"`;
+    const nomTd = u => `<td><div style="display:flex;align-items:center;gap:10px;">${_avatar(u)}<strong>${_esc(u.name)}</strong></div></td>`;
+    const cnxTd = u => `<td style="font-size:12px;color:var(--text-muted);">${esc(u.last_login)||'jamais'}</td>`;
+    const actifTd = u => `<td style="text-align:center;"><input type="checkbox" ${u.active?'checked':''} onchange="equipeUpdateUser(${u.id},{active:this.checked})"></td>`;
+    const actionsTd = (u, photo) => `<td style="white-space:nowrap;">${photo?`<button class="btn" style="font-size:11px;padding:4px 8px;" onclick="equipePhoto(${u.id})">Photo</button> `:''}<button class="btn" style="font-size:11px;padding:4px 8px;" onclick="equipeResetPin(${u.id})">Code</button> <button class="btn" style="font-size:11px;padding:4px 8px;color:var(--accent);" onclick="equipeDeleteUser(${u.id})">Suppr</button></td>`;
+    const tagBtn = u => `<button class="btn" style="font-size:10px;padding:2px 8px;" onclick="equipeEditDepotTag(${u.id},'${_esc(u.depot_tag||'')}')" title="Tag dépôt du compte (depot-nom) — vide = pas d'espace dépôt">💼 ${u.depot_tag?_esc(u.depot_tag):'aucun dépôt'}</button>`;
+    // Le rôle Déposant n'est volontairement PAS dans la liste : un déposant se crée via son
+    // formulaire dédié, et inversement un membre d'équipe ne bascule pas déposant par mégarde.
+    const roleSel = u => `<select ${SEL} onchange="equipeUpdateUser(${u.id},{role:this.value})"><option value="employee" ${u.role==='employee'?'selected':''}>Employé</option><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option><option value="superadmin" ${u.role==='superadmin'?'selected':''}>Superadmin</option><option value="accountant" ${u.role==='accountant'?'selected':''}>Comptable</option></select>`;
+    const btqSel = u => `<select ${SEL} onchange="equipeUpdateUser(${u.id},{boutique:this.value})"><option value="" ${!u.boutique?'selected':''}>—</option><option value="Lille" ${u.boutique==='Lille'?'selected':''}>Lille</option><option value="DK" ${u.boutique==='DK'?'selected':''}>DK</option></select>`;
+    const tr = (u, cells) => `<tr style="${u.active?'':'opacity:.5;'}">${cells}</tr>`;
+    const table = (head, body) => `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+    const v = window._equipeVueActive;
+    if (v === 'deposants') listBox.innerHTML = deposants.length
+      ? table('<th>Nom</th><th>Tag dépôt</th><th>Dernière connexion</th><th>Actif</th><th></th>',
+          deposants.map(u=>tr(u, nomTd(u)+`<td>${tagBtn(u)}</td>`+cnxTd(u)+actifTd(u)+actionsTd(u,false))).join(''))
+      : '<div style="padding:16px;color:var(--text-muted);">Aucun déposant — crée-les avec le formulaire « Ajouter un déposant » ci-dessus.</div>';
+    else if (v === 'comptable') listBox.innerHTML = comptables.length
+      ? table('<th>Prénom</th><th>Rôle</th><th>Dernière connexion</th><th>Actif</th><th></th>',
+          comptables.map(u=>tr(u, nomTd(u)+`<td>${roleSel(u)}</td>`+cnxTd(u)+actifTd(u)+actionsTd(u,true))).join(''))
+      : '<div style="padding:16px;color:var(--text-muted);">Aucun compte comptable — ajoute-le via « Ajouter un employé » avec le rôle Comptable.</div>';
+    else listBox.innerHTML = equipe.length
+      ? table('<th>Prénom</th><th>Boutique</th><th>Rôle</th><th>Dernière connexion</th><th>Actif</th><th></th>',
+          equipe.map(u=>tr(u, nomTd(u)+`<td>${btqSel(u)}</td>`+`<td>${roleSel(u)}<div style="margin-top:4px;">${tagBtn(u)}</div></td>`+cnxTd(u)+actifTd(u)+actionsTd(u,true))).join(''))
+      : '<div style="padding:16px;color:var(--text-muted);">Aucun compte équipe. Ajoute tes employés ci-dessus.</div>';
   };
   window.equipeTestEncryption = async function() {
     const out = document.getElementById('encTestResult');
@@ -8789,7 +8809,7 @@ window.markVintedRemoved = async function(barcode, btn) {
     const boutique=document.getElementById('euBoutique').value;
     const role=document.getElementById('euRole').value;
     const out=document.getElementById('euAddResult');
-    const _minLen = (role==='admin'||role==='superadmin')?6:4;
+    const _minLen = (role==='admin'||role==='superadmin'||role==='accountant')?6:4;
     if(!name||pin.length<_minLen){ out.innerHTML=`<span style="color:var(--accent);">Prénom + code (${_minLen} chiffres min pour ce rôle) requis.</span>`; return; }
     try {
       const res=await fetch(`${BACKEND_URL}/auth/users`,{method:'POST',headers:{'X-NV-Admin-Token':token,'Content-Type':'application/json'},body:JSON.stringify({name,pin,boutique,role})});

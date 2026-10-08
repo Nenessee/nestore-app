@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-2026-10-08-v277-comptes-separes-depot-masse'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
+const CACHE_VERSION = 'nestore-2026-10-08-v278-ergonomie-comptes-depots'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
 const STATIC_ASSETS = [
   '/',
   '/index.html',
