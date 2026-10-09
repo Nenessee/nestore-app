@@ -2254,6 +2254,22 @@ tbody tr { transition: background .12s; }
         <button class="btn" style="font-size:12px;" onclick="depotSiteToutCocher(false)">✕</button>
       </div>
     </div>
+
+    <div class="table-card" style="margin-top:16px;">
+      <div class="table-header"><span class="table-title">💶 Règlements déposants — articles sortis</span>
+        <span style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <select class="filter-select" id="depotReglFiltre" style="min-height:32px;padding:5px 26px 5px 10px;font-size:12px;" onchange="depotReglRender()"><option value="">Tous les clients</option></select>
+          <button class="btn btn-green" id="depotReglToutBtn" style="font-size:12px;display:none;" onclick="depotReglPayerAffiches()">✓ Tout marquer payé</button>
+        </span>
+      </div>
+      <div id="depotReglKpis" style="font-size:12.5px;color:var(--text-muted);padding:0 0 10px;"></div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr><th>Article</th><th>Client</th><th>Code-barres</th><th class="num">Net client</th><th>Statut</th><th></th></tr></thead>
+          <tbody id="depotReglTable"><tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted);">Chargement…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
@@ -2832,7 +2848,7 @@ tbody tr { transition: background .12s; }
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-10-08-v281-faq-deposant'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-10-09-v282-reglements-depots'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -4864,7 +4880,76 @@ async function depotSiteLoad() {
     depotSiteSel.clear();
     depotSiteRender();
     depotSiteLoadDemandes();
+    depotReglLoad();
   } catch (e) { showDashToast('Dépôts site : ' + e.message, 'error'); }
+}
+// ---- Règlements déposants : qui a été payé, qui attend son virement ----
+let depotReglData = null;
+async function depotReglLoad() {
+  try {
+    const d = await api('/depot/admin/reglements');
+    depotReglData = d;
+    const sel = document.getElementById('depotReglFiltre');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">Tous les clients</option>' +
+      (d.clients || []).map(c => `<option value="${esc(c.depot_tag)}"${c.depot_tag === cur ? ' selected' : ''}>${esc(c.name)} — ${esc(c.depot_tag)}</option>`).join('');
+    depotReglRender();
+  } catch (e) {
+    const tb = document.getElementById('depotReglTable');
+    if (tb) tb.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--accent);">${esc(e.message)}</td></tr>`;
+  }
+}
+function depotReglRender() {
+  const d = depotReglData; if (!d) return;
+  const fc = (document.getElementById('depotReglFiltre') || {}).value || '';
+  const rows = (d.items || []).filter(i => !fc || i.clientTag === fc);
+  const nomClient = t => { const c = (d.clients || []).find(x => x.depot_tag === t); return c ? c.name : (t || '—'); };
+  // à payer d'abord, puis payés, puis « rien à devoir »
+  const ordre = { a_payer: 0, paye: 1, aucun: 2 };
+  rows.sort((a, b) => (ordre[a.statut] - ordre[b.statut]) || String(a.titre).localeCompare(String(b.titre)));
+  const badge = i => i.statut === 'paye'
+    ? `<span class="badge" style="background:var(--success-dim,rgba(22,128,94,.12));color:var(--success);">✓ payé${i.payeLe ? ' le ' + esc(i.payeLe) : ''}${i.payePar ? ' · ' + esc(i.payePar) : ''}</span>`
+    : i.statut === 'a_payer'
+      ? '<span class="badge" style="background:var(--warning-dim);color:var(--warning);">⏳ à payer</span>'
+      : '<span class="badge" style="background:var(--surface-2);color:var(--text-muted);">🤝 retiré / vendu de son côté</span>';
+  const action = i => i.statut === 'paye'
+    ? `<button class="btn" style="font-size:11px;padding:3px 9px;" onclick="depotReglMarquer(['${esc(escJs(String(i.productId)))}'],'annuler')" title="Pointé par erreur ? Repasse l'article en « à payer ».">↩</button>`
+    : i.statut === 'a_payer'
+      ? `<button class="btn btn-green" style="font-size:11px;padding:3px 9px;" onclick="depotReglMarquer(['${esc(escJs(String(i.productId)))}'],'payer')">✓ Payé</button>`
+      : '';
+  document.getElementById('depotReglTable').innerHTML = rows.length ? rows.map(i => `
+    <tr>
+      <td><div style="display:flex;align-items:center;gap:8px;">${i.image ? `<img src="${esc(i.image)}" style="width:30px;height:30px;object-fit:cover;border-radius:6px;flex-shrink:0;">` : ''}<span>${esc(i.titre)}</span></div></td>
+      <td style="font-size:12px;">${i.clientTag ? esc(nomClient(i.clientTag)) : '<span style="color:var(--warning);">non attribué</span>'}</td>
+      <td style="font-family:monospace;font-size:12px;">${esc(i.barcode || '—')}</td>
+      <td class="num">${i.statut === 'paye' && i.montant != null ? i.montant.toFixed(2) + ' €' : (i.net != null ? i.net.toFixed(2) + ' €' : '—')}</td>
+      <td>${badge(i)}</td>
+      <td style="text-align:right;">${action(i)}</td>
+    </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted);">Aucun article sorti pour le moment.</td></tr>';
+  const pc = d.parClient || {};
+  const kpis = Object.keys(pc).filter(k => !fc || k === fc).filter(k => pc[k].aPayer > 0)
+    .map(k => `<b>${esc(nomClient(k))}</b> : ${pc[k].nAPayer} article(s) — <b style="color:var(--warning);">${pc[k].aPayer.toFixed(2)} € à payer</b>`);
+  document.getElementById('depotReglKpis').innerHTML = kpis.length ? '💶 ' + kpis.join(' · ') : '✓ Aucun règlement en attente' + (fc ? ' pour ce client.' : '.');
+  const btn = document.getElementById('depotReglToutBtn');
+  const aPayerAffiches = rows.filter(i => i.statut === 'a_payer');
+  if (btn) { btn.style.display = aPayerAffiches.length ? '' : 'none'; btn.textContent = `✓ Tout marquer payé (${aPayerAffiches.length})`; }
+}
+async function depotReglMarquer(pids, action) {
+  if (action === 'payer' && pids.length > 1 && !confirm(`Marquer ${pids.length} article(s) comme PAYÉS au déposant ?`)) return;
+  try {
+    const r = await fetch(`${BACKEND_URL}/depot/admin/reglements/marquer`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productIds: pids, action }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    showDashToast(action === 'payer' ? `${d.faits || pids.length} règlement(s) pointé(s) ✓` : 'Pointage annulé — repassé en « à payer »', 'success');
+    if (d.refus && d.refus.length) showDashToast(d.refus.map(x => x.raison).join(' · '), 'warn');
+    depotReglLoad();
+  } catch (e) { showDashToast('Règlements : ' + e.message, 'error'); }
+}
+function depotReglPayerAffiches() {
+  const d = depotReglData; if (!d) return;
+  const fc = (document.getElementById('depotReglFiltre') || {}).value || '';
+  const pids = (d.items || []).filter(i => (!fc || i.clientTag === fc) && i.statut === 'a_payer').map(i => String(i.productId));
+  if (pids.length) depotReglMarquer(pids, 'payer');
 }
 const depotSiteSel = new Set(); // productIds cochés pour l'attribution en masse
 function depotSiteVisibles() {
