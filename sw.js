@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-2026-10-30-v291-commande-copiable'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
+const CACHE_VERSION = 'nestore-2026-10-30-v292-vignettes-depots-notifs'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -41,6 +41,33 @@ self.addEventListener('push', (event) => {
   };
   if (data.image) options.image = data.image;
   event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Le navigateur renouvelle parfois l'abonnement push (expiration, mise à jour…) : sans ce
+// gestionnaire, l'ancien abonnement meurt en silence et « les notifications ne marchent plus ».
+// On se réabonne immédiatement et on prévient le serveur (qui récupère la boutique de l'ancien).
+self.addEventListener('pushsubscriptionchange', (event) => {
+  event.waitUntil((async () => {
+    try {
+      const old = event.oldSubscription || null;
+      let key = old && old.options ? old.options.applicationServerKey : null;
+      if (!key) {
+        const r = await fetch('https://nestore-stock-server-production.up.railway.app/push/vapid-public');
+        const d = await r.json();
+        if (!d.key) return;
+        const pad = '='.repeat((4 - d.key.length % 4) % 4);
+        const b64 = (d.key + pad).replace(/-/g, '+').replace(/_/g, '/');
+        const raw = atob(b64); key = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) key[i] = raw.charCodeAt(i);
+      }
+      const sub = await self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+      const body = sub.toJSON();
+      if (old && old.endpoint) body.oldEndpoint = old.endpoint; // le serveur garde la boutique
+      await fetch('https://nestore-stock-server-production.up.railway.app/push/subscribe', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+    } catch (_) {}
+  })());
 });
 
 self.addEventListener('notificationclick', (event) => {

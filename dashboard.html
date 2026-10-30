@@ -2747,10 +2747,14 @@ function nfRender(){
     if (n) return `<span style="font-family:monospace;font-size:11.5px;">${esc(String(n))}</span> <button class="btn" style="font-size:10px;padding:2px 7px;" title="Copier le n° de commande (à coller en référence dans la caisse)" onclick="nfCopier('${esc(escJs(String(n)))}','N° de commande copié — colle-le en référence dans la caisse')">📋</button>`;
     return `<span style="font-size:12px;color:var(--text-soft);">${/shanghaizhicha/i.test(r.marchand||'')?'—':esc(r.marchand||'—')}</span>`;
   };
+  // Avec vignette : l'aperçu de la commande est visible DANS le tableau (clic = plein écran),
+  // plus besoin d'ouvrir les justificatifs un à un pour savoir lequel correspond à quoi.
   const justifCell = r => r.type !== 'achat' ? '' :
-    (r.a_justificatif
-      ? `<button class="btn" style="font-size:11px;padding:3px 9px;" onclick="nfVoirPhoto('${esc(escJs(r.tx_id))}')">👁 Voir</button>`
-      : `<button class="btn" style="font-size:11px;padding:3px 9px;" onclick="nfPhoto('${esc(escJs(r.tx_id))}')">📎 Ajouter</button>`);
+    (r.vignette
+      ? `<img src="${r.vignette}" style="width:44px;height:44px;object-fit:cover;object-position:top;border-radius:8px;border:1px solid var(--border);cursor:pointer;vertical-align:middle;" title="Voir le justificatif" onclick="nfVoirPhoto('${esc(escJs(r.tx_id))}')">`
+      : (r.a_justificatif
+        ? `<button class="btn" style="font-size:11px;padding:3px 9px;" onclick="nfVoirPhoto('${esc(escJs(r.tx_id))}')">👁 Voir</button>`
+        : `<button class="btn" style="font-size:11px;padding:3px 9px;" onclick="nfPhoto('${esc(escJs(r.tx_id))}')">📎 Ajouter</button>`));
   document.getElementById('nfTable').innerHTML = rows.length ? rows.map(r => `
     <tr>
       <td style="white-space:nowrap;font-size:12.5px;">${esc(r.date_tx||'—')}${r.heure?` <span style="color:var(--text-muted);">${esc(r.heure)}</span>`:''}</td>
@@ -2877,6 +2881,17 @@ function nfImporter(){
   };
   inp.click();
 }
+// Mini-vignette (≤ 180 px, jpeg léger) générée depuis l'image du justificatif.
+function nfVignetteDe(img){
+  try {
+    const max = 180, ratio = Math.min(1, max / Math.max(img.width, img.height));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(img.width * ratio)); c.height = Math.max(1, Math.round(img.height * ratio));
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    const v = c.toDataURL('image/jpeg', 0.6);
+    return v.length <= 150000 ? v : null;
+  } catch(_) { return null; }
+}
 function nfPhoto(txId){
   _nfPhotoTxId = txId;
   const inp = document.getElementById('nfPhotoInput');
@@ -2893,13 +2908,14 @@ function nfPhoto(txId){
         canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
         let dataUrl = canvas.toDataURL('image/jpeg', 0.72);
         if (dataUrl.length > 1_500_000) dataUrl = canvas.toDataURL('image/jpeg', 0.5);
+        const vignette = nfVignetteDe(img); // mini-aperçu affiché directement dans le tableau
         try {
           showDashToast('Enregistrement + lecture du justificatif…','info');
-          const r = await fetch(`${BACKEND_URL}/ninefive/${encodeURIComponent(_nfPhotoTxId)}/photo`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ photo: dataUrl }) });
+          const r = await fetch(`${BACKEND_URL}/ninefive/${encodeURIComponent(_nfPhotoTxId)}/photo`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ photo: dataUrl, vignette }) });
           const d = await r.json().catch(()=>({}));
           if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP '+r.status));
           const l = nfLigne(_nfPhotoTxId);
-          if (l) { l.a_justificatif = true; if (d.analyse) l.analyse = d.analyse; if (d.note != null) l.note = d.note; }
+          if (l) { l.a_justificatif = true; l.vignette = vignette; if (d.analyse) l.analyse = d.analyse; if (d.note != null) l.note = d.note; }
           if (d.analyse && d.analyse.article) showDashToast(`Justificatif lu ✓ — ${d.analyse.article}${d.analyse.taille?' ('+d.analyse.taille+')':''}`,'success');
           else if (d.analyseErreur) showDashToast('Justificatif enregistré ✓ (lecture : '+d.analyseErreur+')','warn');
           else showDashToast('Justificatif enregistré ✓','success');
@@ -2925,6 +2941,19 @@ async function nfVoirPhoto(txId){
     const d = await api(`/ninefive/${encodeURIComponent(txId)}/photo`);
     if (!d.photo) { showDashToast('Pas de justificatif sur cette ligne','warn'); const l=nfLigne(txId); if(l) l.a_justificatif=false; nfRender(); return; }
     const lg = nfLigne(txId);
+    // Justificatif d'avant la v292 (pas de vignette) : on la génère maintenant et on l'enregistre.
+    if (lg && !lg.vignette) {
+      const img = new Image();
+      img.onload = async () => {
+        const v = nfVignetteDe(img);
+        if (!v) return;
+        try {
+          const r = await fetch(`${BACKEND_URL}/ninefive/${encodeURIComponent(txId)}/vignette`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ vignette: v }) });
+          if (r.ok) { lg.vignette = v; nfRender(); }
+        } catch(_){}
+      };
+      img.src = d.photo;
+    }
     const ov = document.createElement('div');
     ov.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(10,10,10,.75);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;padding:20px;';
     ov.innerHTML = `<img src="${d.photo}" style="max-width:92vw;max-height:70vh;border-radius:12px;background:#fff;">
@@ -2960,7 +2989,7 @@ async function nfVoirPhoto(txId){
         const r = await fetch(`${BACKEND_URL}/ninefive/${encodeURIComponent(txId)}/photo`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ photo: null }) });
         const dd = await r.json().catch(()=>({}));
         if (!r.ok || !dd.ok) throw new Error(dd.error || ('HTTP '+r.status));
-        const l = nfLigne(txId); if (l) { l.a_justificatif = false; l.analyse = null; }
+        const l = nfLigne(txId); if (l) { l.a_justificatif = false; l.analyse = null; l.vignette = null; }
         ov.remove(); showDashToast('Justificatif supprimé','success'); nfRender();
       } catch(e){ showDashToast('Suppression : '+e.message,'error'); }
     };
@@ -3267,7 +3296,7 @@ async function nfPdf(txId, photoDataUrl){
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-10-30-v291-commande-copiable'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-10-30-v292-vignettes-depots-notifs'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -3705,10 +3734,15 @@ async function loadStock(force) {
   if (_isAdmin) {
     const _sumPrice = (arr)=>arr.reduce((a,b)=>a+(Number(b.price)||0),0);
     let valTotal=_sumPrice(allStockData), valLille=_sumPrice(allStockData.filter(p=>p.boutique==='Lille')), valDK=_sumPrice(allStockData.filter(p=>p.boutique==='DK'));
+    // Dépôts (tag « depot ») = stock CONFIÉ par des clients, pas le nôtre → valorisé à part.
+    let valHors=null, valDepot=null, depotProduits=null;
     const _srvVal = await api('/stock/value').catch(()=>null);
-    if (_srvVal && _srvVal.total!=null) { valTotal=_srvVal.total; valLille=_srvVal.lille; valDK=_srvVal.dk; }
+    if (_srvVal && _srvVal.total!=null) {
+      valTotal=_srvVal.total; valLille=_srvVal.lille; valDK=_srvVal.dk;
+      if (_srvVal.horsDepot!=null) { valHors=_srvVal.horsDepot; valDepot=_srvVal.depot||0; depotProduits=_srvVal.depotProducts||0; }
+    }
     const eur=(n)=>Math.round(n).toLocaleString('fr-FR')+' €';
-    window._nestoreStock={ total:valTotal, lille:valLille, dk:valDK, at:Date.now() };
+    window._nestoreStock={ total:valTotal, horsDepot:valHors, depot:valDepot, lille:valLille, dk:valDK, at:Date.now() };
     // Valeur figée ? On le DIT au lieu d'afficher un chiffre faux en silence : calcul tronqué
     // (catalogue incomplet) ou périmé (rafraîchissement Shopify en échec → vieux cache resservi).
     let _valNote='';
@@ -3716,7 +3750,12 @@ async function loadStock(force) {
       if (_srvVal.truncated) _valNote='⚠️ Valeur incomplète : catalogue Shopify tronqué';
       else if (_srvVal.ageMinutes!=null && _srvVal.ageMinutes>120) _valNote=`⚠️ Valeur figée : calculée il y a ${Math.round(_srvVal.ageMinutes/60)} h`+(_srvVal.refreshError?` (rafraîchissement en échec : ${esc(_srvVal.refreshError.message)})`:'');
     }
-    _valuesHtml = `
+    _valuesHtml = valHors!=null ? `
+      <div class="kpi"><div class="kpi-label">💰 NOTRE stock (hors dépôts)</div><div class="kpi-value" style="color:var(--success);">${eur(valHors)}</div><div class="kpi-sub">${total} articles en ligne${_srvVal&&_srvVal.products?` · ${_srvVal.products} produits valorisés`:''}</div>${_valNote?`<div class="kpi-sub" style="color:var(--accent);font-weight:600;">${_valNote}</div>`:''}</div>
+      <div class="kpi"><div class="kpi-label">🤝 Dépôts (confiés — pas à nous)</div><div class="kpi-value" style="color:var(--text-muted);">${eur(valDepot)}</div><div class="kpi-sub">${depotProduits} produit${depotProduits>1?'s':''} tagués depot</div></div>
+      <div class="kpi"><div class="kpi-label">Avec dépôts compris</div><div class="kpi-value">${eur(valTotal)}</div></div>
+      <div class="kpi"><div class="kpi-label">Lille (hors dépôts)</div><div class="kpi-value">${eur(valLille)}</div></div>
+      <div class="kpi"><div class="kpi-label">Dunkerque (hors dépôts)</div><div class="kpi-value">${eur(valDK)}</div></div>` : `
       <div class="kpi"><div class="kpi-label">💰 Valeur stock (total)</div><div class="kpi-value" style="color:var(--success);">${eur(valTotal)}</div><div class="kpi-sub">${total} articles en ligne${_srvVal&&_srvVal.products?` · ${_srvVal.products} produits valorisés`:''}</div>${_valNote?`<div class="kpi-sub" style="color:var(--accent);font-weight:600;">${_valNote}</div>`:''}</div>
       <div class="kpi"><div class="kpi-label">Valeur stock Lille</div><div class="kpi-value">${eur(valLille)}</div></div>
       <div class="kpi"><div class="kpi-label">Valeur stock Dunkerque</div><div class="kpi-value">${eur(valDK)}</div></div>`;
@@ -6317,11 +6356,29 @@ function vintedRenderKpis(){
   const yLbl = vintedYear || 'toutes';
   const catLbl = vintedCat ? (vintedCat==='__none' ? ' · à catégoriser' : ' · '+vintedCat) : '';
   const kpi=(n,l,color,go)=>`<div class="kpi" style="cursor:pointer;" onclick="vintedKpiGo('${go}')" title="Filtrer"><div class="kpi-value" ${color?`style="color:${color};"`:''}>${n}</div><div class="kpi-label">${l}</div></div>`;
+  // Achats du mois en cours / du mois dernier — toutes années confondues (le filtre d'année
+  // ne s'applique pas ici : « ce mois-ci » est absolu), mais la catégorie active reste respectée.
+  const vMoisCle = a => {
+    const d = String(a.date_achat||'');
+    let m = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(d); if (m) return m[3]+'-'+m[2];
+    m = /^(\d{4})-(\d{2})/.exec(d); return m ? m[1]+'-'+m[2] : null;
+  };
+  const _now = new Date();
+  const _curCle = _now.getFullYear()+'-'+String(_now.getMonth()+1).padStart(2,'0');
+  const _prev = new Date(_now.getFullYear(), _now.getMonth()-1, 1);
+  const _prevCle = _prev.getFullYear()+'-'+String(_prev.getMonth()+1).padStart(2,'0');
+  const _scope = vintedAll.filter(a=>vintedMatchListe(a)&&vintedMatchCat(a));
+  const _cur = _scope.filter(a=>vMoisCle(a)===_curCle);
+  const _prevA = _scope.filter(a=>vMoisCle(a)===_prevCle);
+  const _sumE = arr => Math.round(arr.reduce((s,a)=>s+(Number(a.prix_eur)||0),0));
+  const _prevLbl = _prev.toLocaleDateString('fr-FR',{month:'long'});
   document.getElementById('vintedKpis').innerHTML =
     kpi(aTraiter,'À mettre en caisse'+catLbl,'var(--warning)','atraiter') +
     kpi(sansPrix,'Sans prix €'+catLbl,'var(--info)','sansprix') +
     kpi(enCaisse,'Mis en caisse ('+yLbl+')'+catLbl,'var(--success)','encaisse') +
-    kpi(Math.round(depense).toLocaleString('fr-FR')+' €','Dépensé ('+yLbl+')'+catLbl,'','depense');
+    kpi(Math.round(depense).toLocaleString('fr-FR')+' €','Dépensé ('+yLbl+')'+catLbl,'','depense') +
+    kpi(_cur.length+' · '+_sumE(_cur).toLocaleString('fr-FR')+' €','Achetés ce mois-ci'+catLbl,'var(--info)','depense') +
+    kpi(_prevA.length+' · '+_sumE(_prevA).toLocaleString('fr-FR')+' €','Achetés en '+_prevLbl+catLbl,'','depense');
 }
 function vintedSwitchViewTo(v){ vintedSwitchView(v, document.querySelector(`#tab-vinted .vseg-view .vseg-btn[data-view="${v}"]`)); }
 function vintedKpiGo(which){
@@ -7596,9 +7653,12 @@ async function veilleRenderOverview(){
       const rankCell=rank<=3?`<span style="font-size:16px;">${medal[rank-1]}</span>`:`<span style="color:var(--text-muted);font-weight:700;">${rank}</span>`;
       const caCell=`${fmt(r._ca)}${r.platform!=='self'?' <span style="font-size:10px;color:var(--text-soft);">est.</span>':''}`;
       const selfBg=r.platform==='self'?'background:var(--success-dim);':'';
-      let _svVal=r.stock_value;
-      if ((_svVal==null||Number(_svVal)===0) && r.platform==='self' && window._nestoreStock && window._nestoreStock.total) _svVal=window._nestoreStock.total;
-      const stockValCell=(_svVal!=null && Number(_svVal)>0)?`<strong>${fmt(_svVal)}</strong>`:'—';
+      let _svVal=r.stock_value; // pour Nestore : NOTRE stock, hors dépôts (serveur v292)
+      let _svDepot=r.platform==='self'?Number(r.stock_value_depot||0):0;
+      if ((_svVal==null||Number(_svVal)===0) && r.platform==='self' && window._nestoreStock) { _svVal=window._nestoreStock.horsDepot!=null?window._nestoreStock.horsDepot:window._nestoreStock.total; _svDepot=Number(window._nestoreStock.depot||0); }
+      const stockValCell=(_svVal!=null && Number(_svVal)>0)
+        ?`<strong>${fmt(_svVal)}</strong>${_svDepot>0?`<br><span style="font-size:10.5px;color:var(--text-muted);" title="Articles confiés par des déposants — pas notre stock">+ ${fmt(_svDepot)} de dépôts</span>`:''}`
+        :'—';
       html+=`<tr style="cursor:pointer;${selfBg}" onclick="document.getElementById('veilleCompetitor').value='${r.id}';veilleOnFilterChange();"><td style="text-align:center;">${rankCell}</td><td><strong>${veilleEsc(r.name)}</strong><br><span style="font-size:11px;color:var(--text-muted);">${veilleEsc(r.domain)}</span></td><td style="font-weight:700;">${caCell}</td><td>${trackedCell}</td><td>${stockValCell}</td><td>${badges.join(' ')||'—'}</td><td>${r.volume||0}</td><td>${r.avg_price?fmt(r.avg_price):'—'}</td><td style="font-size:12px;color:var(--text-muted);">${veilleEsc((r.top_brands||[]).join(', '))||'—'}</td></tr>`;
     }
     html+='</tbody></table></div></div>';
