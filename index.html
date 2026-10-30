@@ -1111,7 +1111,7 @@ async function nvHardReload(){
 </script>
 
 <script>
-  const APP_VERSION = '2026-10-30-v291-commande-copiable'; // version unifiée (dashboard, sw.js, serveur)
+  const APP_VERSION = '2026-10-30-v292-vignettes-depots-notifs'; // version unifiée (dashboard, sw.js, serveur)
   const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
 
   // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
@@ -1211,12 +1211,25 @@ async function nvHardReload(){
       }).catch(() => {});
     } catch (_) {}
   }
-  // Reflète l'état au chargement
+  // Au chargement : reflète l'état ET s'auto-répare. Si la permission est accordée mais que
+  // l'abonnement a disparu (expiré/renouvelé par le navigateur), on se réabonne en silence ;
+  // s'il existe, on le re-signale au serveur (self-heal si la ligne serveur a été purgée).
   if ('serviceWorker' in navigator && 'PushManager' in window) {
-    navigator.serviceWorker.ready
-      .then(reg => reg.pushManager.getSubscription())
-      .then(sub => updateNotifBtn(!!sub))
-      .catch(() => {});
+    navigator.serviceWorker.ready.then(async (reg) => {
+      let sub = await reg.pushManager.getSubscription().catch(() => null);
+      if (!sub && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        try {
+          const r = await fetch(`${BACKEND_URL}/push/vapid-public`);
+          const { key } = await r.json();
+          if (key) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(key) });
+        } catch (_) {}
+      }
+      if (sub) {
+        // sans boutique : le serveur conserve celle déjà enregistrée (syncPushBoutique la posera à la connexion)
+        fetch(`${BACKEND_URL}/push/subscribe`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sub.toJSON()) }).catch(() => {});
+      }
+      updateNotifBtn(!!sub);
+    }).catch(() => {});
   }
 
   // Vérifier les mises à jour toutes les 30 secondes — via version.json (~50 octets).
