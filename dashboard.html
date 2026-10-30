@@ -1944,6 +1944,7 @@ tbody tr { transition: background .12s; }
       </select>
       <!-- Filtre doublons code-barres (piloté par la carte KPI admin, masqué) -->
       <select id="stockDupFilter" onchange="filterStock()" style="display:none;"><option value=""></option><option value="yes">Doublons</option></select>
+      <select id="stockDepotFilter" onchange="filterStock()" style="display:none;"><option value=""></option><option value="yes">Dépôts</option><option value="no">Hors dépôts</option></select>
       <select class="filter-select" id="stockBoiteFilter" onchange="filterStock()" title="Boîte d'origine (sneakers uniquement)">
         <option value="">Boîte : toutes</option>
         <option value="missing">Boîte non renseignée</option>
@@ -2628,8 +2629,8 @@ tbody tr { transition: background .12s; }
     </div>
     <div style="overflow-x:auto;">
       <table>
-        <thead><tr><th>Date</th><th>Type</th><th class="num">€ débité</th><th class="num">CNY</th><th>N° commande</th><th>Justificatif</th><th>Statut</th><th>Note</th></tr></thead>
-        <tbody id="nfTable"><tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-muted);">Importe un relevé Revolut pour commencer.</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Type</th><th class="num">€ débité</th><th class="num">CNY</th><th>Article</th><th>N° commande</th><th>Statut</th></tr></thead>
+        <tbody id="nfTable"><tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted);">Importe un relevé Revolut pour commencer.</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -2652,7 +2653,7 @@ async function loadNinefive(){
     else nfRender();
   } catch(e){
     const tb = document.getElementById('nfTable');
-    if (tb) tb.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--accent);">${esc(e.message)}</td></tr>`;
+    if (tb) tb.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--accent);">${esc(e.message)}</td></tr>`;
   }
 }
 function nfKpis(){
@@ -2668,14 +2669,15 @@ function nfKpis(){
   const achRemb = achats.filter(r => r.rembourse_par);
   const rembOrphelins = rows.filter(r => r.sens === 'remboursement' && !r.matched_to).length;
   const transport = rows.filter(r => r.type === 'transport').reduce((s,r) => s + Number(r.montant_eur||0), 0);
-  const k = (val,lbl,color) => `<div class="kpi"><div class="kpi-label">${lbl}</div><div class="kpi-value"${color?` style="color:${color}"`:''}>${val}</div></div>`;
+  const k = (val,lbl,color,sub) => `<div class="kpi"><div class="kpi-label">${lbl}</div><div class="kpi-value"${color?` style="color:${color}"`:''}>${val}</div>${sub?`<div class="kpi-sub">${sub}</div>`:''}</div>`;
+  const somme = arr => eur(arr.reduce((s,r)=>s+Number(r.montant_eur||0),0));
   document.getElementById('nfKpis').innerHTML =
     k(aTraiter,'Achats à traiter', aTraiter ? 'var(--warning)' : 'var(--success)') +
     k(enCaisse,'Mis en caisse','var(--success)') +
-    k(eur(totalAchats),'Total achats') +
-    k(achRemb.length + ' · ' + eur(achRemb.reduce((s,r)=>s+Number(r.montant_eur||0),0)),'Achats remboursés','var(--success)') +
-    k(offAtt.length + ' · ' + eur(offAtt.reduce((s,r)=>s+Number(r.montant_eur||0),0)),'Offres pas encore remboursées', offAtt.length ? 'var(--warning)' : 'var(--success)') +
-    k(offRemb.length + ' · ' + eur(offRemb.reduce((s,r)=>s+Number(r.montant_eur||0),0)),'Offres remboursées','var(--success)') +
+    k(eur(totalAchats),'Total achats', '', achats.filter(r=>r.statut!=='annule').length + ' achats') +
+    k(somme(achRemb),'Achats remboursés','var(--success)', achRemb.length + ' achat' + (achRemb.length>1?'s':'')) +
+    k(somme(offAtt),'Offres pas encore remboursées', offAtt.length ? 'var(--warning)' : 'var(--success)', offAtt.length + ' offre' + (offAtt.length>1?'s':'')) +
+    k(somme(offRemb),'Offres remboursées','var(--success)', offRemb.length + ' offre' + (offRemb.length>1?'s':'')) +
     k(eur(transport),'Transport') +
     (rembOrphelins ? k(rembOrphelins,'⚠ Remb. sans correspondance','var(--warning)') : '');
 }
@@ -2747,25 +2749,37 @@ function nfRender(){
     if (n) return `<span style="font-family:monospace;font-size:11.5px;">${esc(String(n))}</span> <button class="btn" style="font-size:10px;padding:2px 7px;" title="Copier le n° de commande (à coller en référence dans la caisse)" onclick="nfCopier('${esc(escJs(String(n)))}','N° de commande copié — colle-le en référence dans la caisse')">📋</button>`;
     return `<span style="font-size:12px;color:var(--text-soft);">${/shanghaizhicha/i.test(r.marchand||'')?'—':esc(r.marchand||'—')}</span>`;
   };
-  // Avec vignette : l'aperçu de la commande est visible DANS le tableau (clic = plein écran),
-  // plus besoin d'ouvrir les justificatifs un à un pour savoir lequel correspond à quoi.
-  const justifCell = r => r.type !== 'achat' ? '' :
-    (r.vignette
-      ? `<img src="${r.vignette}" style="width:44px;height:44px;object-fit:cover;object-position:top;border-radius:8px;border:1px solid var(--border);cursor:pointer;vertical-align:middle;" title="Voir le justificatif" onclick="nfVoirPhoto('${esc(escJs(r.tx_id))}')">`
+  // Cellule Article façon Vinted : vignette + TITRE lu en évidence, taille/vendeur en dessous,
+  // note personnalisée en italique, ✏️ discret — l'important se lit d'un coup d'œil.
+  const articleCell = r => {
+    if (r.sens === 'remboursement') return '<span style="color:var(--text-soft);font-size:12px;">—</span>';
+    const a = r.analyse || {};
+    const titre = a.article || r.note || '';
+    const sub = [a.taille, a.vendeur].filter(Boolean).join(' · ');
+    const noteExtra = (r.note && r.note !== titre && !(a.article && r.note.indexOf(a.article) === 0)) ? r.note : '';
+    const vign = r.vignette
+      ? `<img src="${r.vignette}" style="width:46px;height:46px;object-fit:cover;object-position:top;border-radius:8px;border:1px solid var(--border);cursor:pointer;flex-shrink:0;" title="Voir le justificatif" onclick="nfVoirPhoto('${esc(escJs(r.tx_id))}')">`
       : (r.a_justificatif
-        ? `<button class="btn" style="font-size:11px;padding:3px 9px;" onclick="nfVoirPhoto('${esc(escJs(r.tx_id))}')">👁 Voir</button>`
-        : `<button class="btn" style="font-size:11px;padding:3px 9px;" onclick="nfPhoto('${esc(escJs(r.tx_id))}')">📎 Ajouter</button>`));
+        ? `<button class="btn" style="font-size:11px;padding:3px 8px;flex-shrink:0;" title="Voir le justificatif" onclick="nfVoirPhoto('${esc(escJs(r.tx_id))}')">👁</button>`
+        : (r.type === 'achat'
+          ? `<button class="btn" style="font-size:11px;padding:3px 8px;flex-shrink:0;" title="Ajouter le screenshot de la commande" onclick="nfPhoto('${esc(escJs(r.tx_id))}')">📎</button>`
+          : ''));
+    return `<div style="display:flex;align-items:center;gap:9px;min-width:170px;max-width:280px;">${vign}<div style="min-width:0;">
+      <div style="font-weight:600;font-size:12.5px;line-height:1.3;">${titre ? esc(titre) : '<span style="color:var(--text-soft);font-weight:400;">sans titre</span>'}<button class="btn" style="font-size:10px;padding:0 4px;border:none;background:transparent;vertical-align:baseline;" title="Modifier la note" onclick="nfNote('${esc(escJs(r.tx_id))}')">✏️</button></div>
+      ${sub ? `<div style="font-size:11px;color:var(--text-muted);">${esc(sub)}</div>` : ''}
+      ${noteExtra ? `<div style="font-size:11px;color:var(--text-soft);font-style:italic;">${esc(noteExtra)}</div>` : ''}
+    </div></div>`;
+  };
   document.getElementById('nfTable').innerHTML = rows.length ? rows.map(r => `
     <tr>
       <td style="white-space:nowrap;font-size:12.5px;">${esc(r.date_tx||'—')}${r.heure?` <span style="color:var(--text-muted);">${esc(r.heure)}</span>`:''}</td>
       <td>${typeSel(r)}</td>
       <td class="num" style="font-weight:600;${r.sens==='remboursement'?'color:var(--success);':''}"><span style="cursor:pointer;border-bottom:1px dashed var(--border-strong);" title="Copier le montant (${Number(r.montant_eur).toFixed(2)}) pour la caisse" onclick="nfCopier('${Number(r.montant_eur).toFixed(2)}','Montant ${Number(r.montant_eur).toFixed(2)} € copié')">${r.sens==='remboursement'?'+':''}${Number(r.montant_eur).toFixed(2)} €</span></td>
       <td class="num" style="color:var(--text-muted);font-size:12px;">${r.montant_cny!=null?'¥'+Number(r.montant_cny).toFixed(0):'—'}</td>
+      <td>${articleCell(r)}</td>
       <td>${cmdCell(r)}</td>
-      <td>${justifCell(r)}</td>
       <td style="white-space:nowrap;">${statutCell(r)}</td>
-      <td style="font-size:12px;max-width:180px;">${esc(r.note||'')} <button class="btn" style="font-size:10px;padding:2px 7px;" onclick="nfNote('${esc(escJs(r.tx_id))}')">✏️</button></td>
-    </tr>`).join('') : `<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-muted);">${(nfData||[]).length?'Aucune ligne pour ces filtres.':'Importe un relevé Revolut pour commencer.'}</td></tr>`;
+    </tr>`).join('') : `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted);">${(nfData||[]).length?'Aucune ligne pour ces filtres.':'Importe un relevé Revolut pour commencer.'}</td></tr>`;
 }
 function nfLigne(txId){ return (nfData||[]).find(r => String(r.tx_id) === String(txId)); }
 async function nfPatch(txId, patch, okMsg){
@@ -3078,6 +3092,7 @@ async function nfPdf(txId, photoDataUrl){
     <div class="vseg vseg-view">
       <button class="vseg-btn on" data-view="caisse" onclick="vintedSwitchView('caisse',this)">À traiter</button>
       <button class="vseg-btn" data-view="histo" onclick="vintedSwitchView('histo',this)">Historique</button>
+      <button class="vseg-btn" data-view="stats" onclick="vintedSwitchView('stats',this)">Stats</button>
     </div>
   </div>
 
@@ -3104,6 +3119,19 @@ async function nfPdf(txId, photoDataUrl){
   </div>
 
   <!-- VUE HISTORIQUE -->
+  <div id="vinted-stats" style="display:none;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-bottom:14px;">
+      <div class="chart-card" style="padding:16px;"><div class="chart-title">€ dépensés par mois</div><div style="height:230px;position:relative;"><canvas id="vStatsChartEur"></canvas></div></div>
+      <div class="chart-card" style="padding:16px;"><div class="chart-title">Articles achetés par mois</div><div style="height:230px;position:relative;"><canvas id="vStatsChartN"></canvas></div></div>
+    </div>
+    <div class="table-card">
+      <div class="table-header"><span class="table-title">Détail mois par mois</span></div>
+      <div style="overflow-x:auto;"><table>
+        <thead><tr><th>Mois</th><th class="num">Achetés</th><th class="num">Dépensé €</th><th class="num">Mis en caisse</th><th class="num">FAKE</th><th class="num">Remboursés</th><th class="num">Sans prix €</th></tr></thead>
+        <tbody id="vStatsTable"></tbody>
+      </table></div>
+    </div>
+  </div>
   <div id="vinted-histo" style="display:none;">
     <div class="vinted-subbar">
       <input class="search-input" id="vintedSearch" placeholder="Rechercher (pseudo, transaction, prix, titre, date…)" style="flex:1;min-width:240px;" oninput="vintedRenderHistoDebounced()"/>
@@ -3296,7 +3324,7 @@ async function nfPdf(txId, photoDataUrl){
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-10-30-v292-vignettes-depots-notifs'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-10-30-v293-esthetique-stats-vinted'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -3709,6 +3737,8 @@ async function loadStock(force) {
       location: loc.location || null,
       onVinted: loc.onVinted === true,
       scannedBoutique,
+      // Dépôt : article confié par un client (tag « depot ») — valorisé à part, filtrable.
+      isDepot: Array.isArray(p.tags) && p.tags.some(t => String(t).toLowerCase() === 'depot'),
       // Mal rangé : scanné physiquement dans une boutique ≠ de sa boutique Shopify (tag dk) → à transférer.
       misplaced: loc.inBoutique === true && !!scannedBoutique && scannedBoutique !== p.boutique
     };
@@ -3751,8 +3781,8 @@ async function loadStock(force) {
       else if (_srvVal.ageMinutes!=null && _srvVal.ageMinutes>120) _valNote=`⚠️ Valeur figée : calculée il y a ${Math.round(_srvVal.ageMinutes/60)} h`+(_srvVal.refreshError?` (rafraîchissement en échec : ${esc(_srvVal.refreshError.message)})`:'');
     }
     _valuesHtml = valHors!=null ? `
-      <div class="kpi"><div class="kpi-label">💰 NOTRE stock (hors dépôts)</div><div class="kpi-value" style="color:var(--success);">${eur(valHors)}</div><div class="kpi-sub">${total} articles en ligne${_srvVal&&_srvVal.products?` · ${_srvVal.products} produits valorisés`:''}</div>${_valNote?`<div class="kpi-sub" style="color:var(--accent);font-weight:600;">${_valNote}</div>`:''}</div>
-      <div class="kpi"><div class="kpi-label">🤝 Dépôts (confiés — pas à nous)</div><div class="kpi-value" style="color:var(--text-muted);">${eur(valDepot)}</div><div class="kpi-sub">${depotProduits} produit${depotProduits>1?'s':''} tagués depot</div></div>
+      <div class="kpi" style="cursor:pointer;" title="Voir uniquement NOS articles (hors dépôts)" onclick="stockQuickFilter('horsdepots')"><div class="kpi-label">💰 NOTRE stock (hors dépôts)</div><div class="kpi-value" style="color:var(--success);">${eur(valHors)}</div><div class="kpi-sub">${total} articles en ligne${_srvVal&&_srvVal.products?` · ${_srvVal.products} produits valorisés`:''}</div>${_valNote?`<div class="kpi-sub" style="color:var(--accent);font-weight:600;">${_valNote}</div>`:''}</div>
+      <div class="kpi" style="cursor:pointer;" title="Voir uniquement les articles en dépôt" onclick="stockQuickFilter('depots')"><div class="kpi-label">🤝 Dépôts (confiés — pas à nous)</div><div class="kpi-value" style="color:var(--text-muted);">${eur(valDepot)}</div><div class="kpi-sub">${depotProduits} produit${depotProduits>1?'s':''} tagués depot — clic pour les voir</div></div>
       <div class="kpi"><div class="kpi-label">Avec dépôts compris</div><div class="kpi-value">${eur(valTotal)}</div></div>
       <div class="kpi"><div class="kpi-label">Lille (hors dépôts)</div><div class="kpi-value">${eur(valLille)}</div></div>
       <div class="kpi"><div class="kpi-label">Dunkerque (hors dépôts)</div><div class="kpi-value">${eur(valDK)}</div></div>` : `
@@ -4179,8 +4209,11 @@ function filterStock(keepPage) {
   const vintedF=document.getElementById('stockVintedFilter')?.value||'';
   const dupF=document.getElementById('stockDupFilter')?.value||'';
   const boiteF=document.getElementById('stockBoiteFilter')?.value||'';
+  const depotF=document.getElementById('stockDepotFilter')?.value||'';
   let filtered=allStockData.filter(p=>{
     if(dupF==='yes'&&!p.dupBarcode) return false;
+    if(depotF==='yes'&&!p.isDepot) return false;
+    if(depotF==='no'&&p.isDepot) return false;
     if(boiteF){ if(p.category!=='Sneakers') return false;
       if(boiteF==='missing'&&p.boite!=null) return false;
       if(boiteF==='true'&&p.boite!=='true') return false;
@@ -4241,8 +4274,10 @@ const STOCK_QUICK_DEFS = {
   boite:        { boite:'missing' },
   vinted:       { vinted:'yes' },
   doublons:     { dup:'yes' },
+  depots:       { depot:'yes' },
+  horsdepots:   { depot:'no' },
 };
-const STOCK_FILTER_IDS = ['stockSearch','stockBoutiqueFilter','stockCategoryFilter','stockDaysFilter','stockBarcodeFilter','stockLocationFilter','stockVintedFilter','stockScoreFilter','stockDupFilter','stockBoiteFilter'];
+const STOCK_FILTER_IDS = ['stockSearch','stockBoutiqueFilter','stockCategoryFilter','stockDaysFilter','stockBarcodeFilter','stockLocationFilter','stockVintedFilter','stockScoreFilter','stockDupFilter','stockBoiteFilter','stockDepotFilter'];
 function resetAllStockFilters() {
   STOCK_FILTER_IDS.forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
 }
@@ -4277,6 +4312,7 @@ function stockQuickFilter(key) {
     if (def.vinted)  document.getElementById('stockVintedFilter').value = def.vinted;
     if (def.dup)     document.getElementById('stockDupFilter').value = def.dup;
     if (def.boite)   document.getElementById('stockBoiteFilter').value = def.boite;
+    if (def.depot)   document.getElementById('stockDepotFilter').value = def.depot;
   }
   filterStock(); // → renderStockPage → refreshStockQuickHighlight()
 }
@@ -6356,6 +6392,8 @@ function vintedRenderKpis(){
   const yLbl = vintedYear || 'toutes';
   const catLbl = vintedCat ? (vintedCat==='__none' ? ' · à catégoriser' : ' · '+vintedCat) : '';
   const kpi=(n,l,color,go)=>`<div class="kpi" style="cursor:pointer;" onclick="vintedKpiGo('${go}')" title="Filtrer"><div class="kpi-value" ${color?`style="color:${color};"`:''}>${n}</div><div class="kpi-label">${l}</div></div>`;
+  // Variante NON cliquable (purement informative), avec sous-ligne pour le nombre d'articles.
+  const kpiInfo=(n,l,color,sub)=>`<div class="kpi"><div class="kpi-value" ${color?`style="color:${color};"`:''}>${n}</div><div class="kpi-label">${l}</div>${sub?`<div class="kpi-sub">${sub}</div>`:''}</div>`;
   // Achats du mois en cours / du mois dernier — toutes années confondues (le filtre d'année
   // ne s'applique pas ici : « ce mois-ci » est absolu), mais la catégorie active reste respectée.
   const vMoisCle = a => {
@@ -6377,8 +6415,8 @@ function vintedRenderKpis(){
     kpi(sansPrix,'Sans prix €'+catLbl,'var(--info)','sansprix') +
     kpi(enCaisse,'Mis en caisse ('+yLbl+')'+catLbl,'var(--success)','encaisse') +
     kpi(Math.round(depense).toLocaleString('fr-FR')+' €','Dépensé ('+yLbl+')'+catLbl,'','depense') +
-    kpi(_cur.length+' · '+_sumE(_cur).toLocaleString('fr-FR')+' €','Achetés ce mois-ci'+catLbl,'var(--info)','depense') +
-    kpi(_prevA.length+' · '+_sumE(_prevA).toLocaleString('fr-FR')+' €','Achetés en '+_prevLbl+catLbl,'','depense');
+    kpiInfo(_sumE(_cur).toLocaleString('fr-FR')+' €','Achetés ce mois-ci'+catLbl,'var(--info)',_cur.length+' article'+(_cur.length>1?'s':'')) +
+    kpiInfo(_sumE(_prevA).toLocaleString('fr-FR')+' €','Achetés en '+_prevLbl+catLbl,'',_prevA.length+' article'+(_prevA.length>1?'s':''));
 }
 function vintedSwitchViewTo(v){ vintedSwitchView(v, document.querySelector(`#tab-vinted .vseg-view .vseg-btn[data-view="${v}"]`)); }
 function vintedKpiGo(which){
@@ -6402,10 +6440,54 @@ function vintedSwitchView(v, el){
   document.querySelectorAll('#tab-vinted .vseg-view .vseg-btn').forEach(b=>b.classList.toggle('on', b.getAttribute('data-view')===v));
   document.getElementById('vinted-caisse').style.display = v==='caisse'?'block':'none';
   document.getElementById('vinted-histo').style.display = v==='histo'?'block':'none';
-  document.getElementById('vintedSub').textContent = v==='caisse'?'· à traiter':'· historique';
+  const st=document.getElementById('vinted-stats'); if(st) st.style.display = v==='stats'?'block':'none';
+  document.getElementById('vintedSub').textContent = v==='caisse'?'· à traiter':(v==='stats'?'· statistiques':'· historique');
   vintedRenderCurrent();
 }
-function vintedRenderCurrent(){ if(vintedView==='histo') vintedRenderHisto(); else vintedRenderCaisse(); }
+function vintedRenderCurrent(){ if(vintedView==='stats') vintedRenderStats(); else if(vintedView==='histo') vintedRenderHisto(); else vintedRenderCaisse(); }
+// ===== Vue Stats : achats mois par mois (nombre, €, caisse, FAKE, remboursés) + graphiques =====
+let _vStatsCharts = [];
+function vintedRenderStats(){
+  const box=document.getElementById('vStatsTable'); if(!box) return;
+  // Tous les achats (liste active respectée) — les filtres d'année/catégorie ne s'appliquent
+  // pas ici : la vue Stats montre l'historique mois par mois en entier.
+  const arts=vintedAll.filter(a=>vintedMatchListe(a));
+  const cle=a=>{ const d=String(a.date_achat||''); let m=/^(\d{2})\/(\d{2})\/(\d{4})/.exec(d); if(m) return m[3]+'-'+m[2]; m=/^(\d{4})-(\d{2})/.exec(d); return m?m[1]+'-'+m[2]:null; };
+  const mois={};
+  for(const a of arts){
+    const k=cle(a); if(!k) continue;
+    const o=mois[k]=mois[k]||{n:0,eur:0,caisse:0,fake:0,remb:0,sansPrix:0};
+    o.n++; o.eur+=Number(a.prix_eur)||0;
+    if(vIsEnCaisse(a)) o.caisse++;
+    if(vIsFake(a)) o.fake++;
+    if(vIsRefunded(a)) o.remb++;
+    if(a.prix_eur==null) o.sansPrix++;
+  }
+  const cles=Object.keys(mois).sort().reverse();
+  const lblMois=k=>{ const [y,m]=k.split('-'); return new Date(+y,+m-1,1).toLocaleDateString('fr-FR',{month:'short',year:'2-digit'}); };
+  box.innerHTML = cles.length ? cles.map(k=>{ const o=mois[k]; return `
+    <tr>
+      <td style="font-weight:600;">${esc(lblMois(k))}</td>
+      <td class="num">${o.n}</td>
+      <td class="num" style="font-weight:600;">${Math.round(o.eur).toLocaleString('fr-FR')} €</td>
+      <td class="num" style="color:var(--success);">${o.caisse}</td>
+      <td class="num" ${o.fake?'style="color:var(--accent);font-weight:600;"':'style="color:var(--text-soft);"'}>${o.fake}</td>
+      <td class="num" ${o.remb?'style="color:#7c5cd6;font-weight:600;"':'style="color:var(--text-soft);"'}>${o.remb}</td>
+      <td class="num" ${o.sansPrix?'style="color:var(--warning);"':'style="color:var(--text-soft);"'}>${o.sansPrix}</td>
+    </tr>`;}).join('') : '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted);">Aucun achat.</td></tr>';
+  // Graphiques : 12 derniers mois, une grandeur par graphique (jamais deux axes).
+  const douze=cles.slice(0,12).reverse();
+  const labels=douze.map(lblMois);
+  const col=(n,f)=>typeof nvChartColor==='function'?nvChartColor(n,f):f;
+  _vStatsCharts.forEach(c=>{ try{c.destroy();}catch(_){}}); _vStatsCharts=[];
+  if(typeof Chart!=='undefined' && douze.length){
+    const opts={ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales:{ x:{grid:{display:false},ticks:{color:col('--chart-tick','#7a7a7a')}}, y:{beginAtZero:true,grid:{color:col('--chart-grid','#eceae6')},ticks:{color:col('--chart-tick','#7a7a7a')}} } };
+    const c1=document.getElementById('vStatsChartEur'), c2=document.getElementById('vStatsChartN');
+    if(c1) _vStatsCharts.push(new Chart(c1,{type:'bar',data:{labels,datasets:[{data:douze.map(k=>Math.round(mois[k].eur)),backgroundColor:col('--serie-1','#1baf7a'),borderRadius:6}]},options:opts}));
+    if(c2) _vStatsCharts.push(new Chart(c2,{type:'bar',data:{labels,datasets:[{data:douze.map(k=>mois[k].n),backgroundColor:col('--serie-2','#2a78d6'),borderRadius:6}]},options:opts}));
+  }
+}
 function vintedPager(boxId, shown, total, moreFn){
   const box=document.getElementById(boxId); if(!box) return;
   if(shown>=total){ box.style.display='none'; box.innerHTML=''; return; }
