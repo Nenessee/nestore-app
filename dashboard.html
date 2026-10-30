@@ -2664,15 +2664,19 @@ function nfKpis(){
   const offres = rows.filter(r => r.type === 'offre');
   const offAtt = offres.filter(r => !r.rembourse_par);
   const offRemb = offres.filter(r => r.rembourse_par);
+  const achRemb = achats.filter(r => r.rembourse_par);
+  const rembOrphelins = rows.filter(r => r.sens === 'remboursement' && !r.matched_to).length;
   const transport = rows.filter(r => r.type === 'transport').reduce((s,r) => s + Number(r.montant_eur||0), 0);
   const k = (val,lbl,color) => `<div class="kpi"><div class="kpi-label">${lbl}</div><div class="kpi-value"${color?` style="color:${color}"`:''}>${val}</div></div>`;
   document.getElementById('nfKpis').innerHTML =
     k(aTraiter,'Achats à traiter', aTraiter ? 'var(--warning)' : 'var(--success)') +
     k(enCaisse,'Mis en caisse','var(--success)') +
     k(eur(totalAchats),'Total achats') +
+    k(achRemb.length + ' · ' + eur(achRemb.reduce((s,r)=>s+Number(r.montant_eur||0),0)),'Achats remboursés','var(--success)') +
     k(offAtt.length + ' · ' + eur(offAtt.reduce((s,r)=>s+Number(r.montant_eur||0),0)),'Offres pas encore remboursées', offAtt.length ? 'var(--warning)' : 'var(--success)') +
     k(offRemb.length + ' · ' + eur(offRemb.reduce((s,r)=>s+Number(r.montant_eur||0),0)),'Offres remboursées','var(--success)') +
-    k(eur(transport),'Transport');
+    k(eur(transport),'Transport') +
+    (rembOrphelins ? k(rembOrphelins,'⚠ Remb. sans correspondance','var(--warning)') : '');
 }
 // Le filtre de statut change de visage selon le type affiché (comme Vinted) :
 // achats → file de traitement ; offres → remboursée ou pas ; sinon masqué.
@@ -2722,9 +2726,9 @@ function nfRender(){
   const badgeRemb = r => `<span class="badge" style="background:var(--success-dim,rgba(22,128,94,.12));color:var(--success);">✓ remboursé${r.rembourse_le?' le '+esc(r.rembourse_le):''}</span>`;
   const statutCell = r => {
     if (r.sens === 'remboursement') {
-      if (!r.matched_to) return '<span class="badge" style="background:var(--warning-dim);color:var(--warning);">⚠ sans correspondance</span>';
+      if (!r.matched_to) return `<span class="badge" style="background:var(--warning-dim);color:var(--warning);" title="Aucun paiement du même montant ¥ — probablement un remboursement PARTIEL, ou un paiement hors de tes imports.">⚠ sans correspondance</span> <button class="btn" style="font-size:11px;padding:3px 9px;" onclick="nfRattacher('${esc(escJs(r.tx_id))}')">🔗 Rattacher</button>`;
       const p = nfLigne(r.matched_to);
-      return `<span class="badge" style="background:var(--surface-2);color:var(--text-muted);">↪ rattaché${p?' ('+esc(p.type)+' du '+esc(p.date_tx||'')+')':''}</span>`;
+      return `<span class="badge" style="background:var(--surface-2);color:var(--text-muted);">↪ rattaché${p?' ('+esc(p.type)+' du '+esc(p.date_tx||'')+')':''}</span> <button class="btn" style="font-size:10px;padding:2px 7px;" title="Rattaché par erreur ? Détache ce remboursement." onclick="nfDetacher('${esc(escJs(r.tx_id))}')">↩</button>`;
     }
     if (r.type === 'offre') return r.rembourse_par ? badgeRemb(r) : '<span class="badge" style="background:var(--warning-dim);color:var(--warning);">⏳ pas encore remboursée</span>';
     if (r.type === 'transport') return '<span style="color:var(--text-soft);">—</span>';
@@ -2782,6 +2786,48 @@ async function nfNote(txId){
   if (v === null) return;
   try { await nfPatch(txId, { note: v.trim() || null }, 'Note enregistrée ✓'); if (l) l.note = v.trim(); nfRender(); }
   catch(e){ showDashToast('95分 : '+e.message,'error'); }
+}
+// Rattachement manuel de secours (remboursement partiel) : choisir le paiement dans une liste.
+async function nfRattacherPost(txId, paiementTxId){
+  const r = await fetch(`${BACKEND_URL}/ninefive/${encodeURIComponent(txId)}/rattacher`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ paiementTxId }) });
+  const d = await r.json().catch(()=>({}));
+  if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP '+r.status));
+}
+function nfRattacher(txId){
+  const remb = nfLigne(txId); if (!remb) return;
+  const cands = (nfData||[]).filter(p => p.sens === 'paiement' && !p.rembourse_par)
+    .sort((a,b) => Math.abs(Number(a.montant_cny||0)-Number(remb.montant_cny||0)) - Math.abs(Number(b.montant_cny||0)-Number(remb.montant_cny||0)) || (a.date_tx < b.date_tx ? 1 : -1))
+    .slice(0, 30);
+  if (!cands.length) { showDashToast('Aucun paiement non remboursé à rattacher','warn'); return; }
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(10,10,10,.6);display:flex;align-items:center;justify-content:center;padding:20px;';
+  ov.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:560px;width:100%;max-height:78vh;overflow:auto;padding:16px;">
+    <div style="font-weight:800;margin-bottom:4px;">Rattacher le remboursement de ${Number(remb.montant_eur).toFixed(2)} € (¥${Number(remb.montant_cny||0).toFixed(0)}) du ${esc(remb.date_tx||'')}</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">Choisis le paiement concerné — cas typique : remboursement PARTIEL d'un achat (le ¥ ne correspond pas exactement). Les plus proches en montant d'abord.</div>
+    <div id="nfRattList"></div>
+    <button class="btn" style="width:100%;margin-top:10px;" onclick="this.closest('div[style]').parentNode.remove()">Annuler</button>
+  </div>`;
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  const list = ov.querySelector('#nfRattList');
+  for (const p of cands) {
+    const b = document.createElement('button');
+    b.className = 'btn';
+    b.style.cssText = 'display:flex;justify-content:space-between;gap:10px;width:100%;margin-bottom:6px;font-size:12.5px;text-align:left;';
+    b.innerHTML = `<span>${esc(p.type)} · ${esc(p.date_tx||'')}${p.heure?' '+esc(p.heure):''}</span><span class="num" style="font-weight:700;">${Number(p.montant_eur).toFixed(2)} € · ¥${Number(p.montant_cny||0).toFixed(0)}</span>`;
+    b.onclick = async () => {
+      try {
+        await nfRattacherPost(txId, p.tx_id);
+        ov.remove(); showDashToast('Remboursement rattaché ✓','success'); loadNinefive();
+      } catch(e){ showDashToast('Rattachement : '+e.message,'error'); }
+    };
+    list.appendChild(b);
+  }
+  document.body.appendChild(ov);
+}
+async function nfDetacher(txId){
+  if (!confirm('Détacher ce remboursement de son paiement ?\n\nLe paiement redevient « non remboursé » (son statut actuel ne bouge pas).')) return;
+  try { await nfRattacherPost(txId, null); showDashToast('Remboursement détaché','success'); loadNinefive(); }
+  catch(e){ showDashToast('Détachement : '+e.message,'error'); }
 }
 function nfImporter(){
   const inp = document.getElementById('nfCsvInput');
@@ -3119,7 +3165,7 @@ async function nfVoirPhoto(txId){
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-10-30-v285-95fen-remb-auto-tri'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-10-30-v286-95fen-remb-visibles'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
