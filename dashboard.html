@@ -2600,6 +2600,7 @@ tbody tr { transition: background .12s; }
     <span class="section-title" style="margin:0;">95分 — achats Alipay</span>
     <span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <button class="btn btn-green" style="font-size:12px;" onclick="nfImporter()">📥 Importer un relevé Revolut</button>
+      <button class="btn" style="font-size:12px;" onclick="nfDiagnostic(this)">🩺 Tester la lecture</button>
       <button class="btn" style="font-size:12px;" onclick="loadNinefive()">↻ Actualiser</button>
     </span>
   </div>
@@ -2828,6 +2829,22 @@ async function nfDetacher(txId){
   if (!confirm('Détacher ce remboursement de son paiement ?\n\nLe paiement redevient « non remboursé » (son statut actuel ne bouge pas).')) return;
   try { await nfRattacherPost(txId, null); showDashToast('Remboursement détaché','success'); loadNinefive(); }
   catch(e){ showDashToast('Détachement : '+e.message,'error'); }
+}
+// Diagnostic de la lecture des justificatifs : teste la clé, le solde et la vision, verdict en clair.
+async function nfDiagnostic(btn){
+  if (btn) { btn.disabled = true; btn.textContent = '🩺 Test en cours…'; }
+  try {
+    const d = await api('/ninefive/lecture-diagnostic');
+    const det = [
+      d.cle ? 'Clé : ' + d.cle : 'Clé : absente',
+      'Modèle : ' + (d.modele || '—'),
+      d.testTexte ? ('Appel texte : ' + (d.testTexte.ok ? 'OK ✓' : d.testTexte.erreur)) : null,
+      d.testVision ? ('Appel image : ' + (d.testVision.ok ? 'OK ✓' : d.testVision.erreur)) : null,
+      d.note || null
+    ].filter(Boolean).join('\n');
+    alert((d.ok ? '✅ ' : '❌ ') + d.verdict + '\n\n' + det);
+  } catch(e){ alert('Diagnostic impossible : ' + e.message + '\n\n(Le serveur Railway a peut-être encore l\'ancienne version — attends ~1 min et réessaie.)'); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = '🩺 Tester la lecture'; } }
 }
 function nfImporter(){
   const inp = document.getElementById('nfCsvInput');
@@ -3236,7 +3253,7 @@ async function nfPdf(txId, photoDataUrl){
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-10-30-v288-correctif-colonne-analyse'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-10-30-v289-diagnostic-lecture'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
