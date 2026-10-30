@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-2026-10-30-v287-justificatif-pdf-lecture'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
+const CACHE_VERSION = 'nestore-2026-10-30-v288-correctif-colonne-analyse'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
 const STATIC_ASSETS = [
   '/',
   '/index.html',
