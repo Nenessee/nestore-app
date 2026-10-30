@@ -2595,6 +2595,7 @@ tbody tr { transition: background .12s; }
 </style>
 <!-- TAB VINTED (admin only) -->
 <div id="tab-ninefive" class="tab-panel">
+<div class="content">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
     <span class="section-title" style="margin:0;">95分 — achats Alipay</span>
     <span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -2632,6 +2633,7 @@ tbody tr { transition: background .12s; }
   </div>
   <input type="file" id="nfCsvInput" accept=".csv,text/csv,text/plain" style="display:none;">
   <input type="file" id="nfPhotoInput" accept="image/*" style="display:none;">
+</div>
 </div>
 <script>
 // ===== Onglet 95分 : achats Alipay importés du relevé Revolut (même logique que Vinted) =====
@@ -3077,7 +3079,7 @@ async function nfVoirPhoto(txId){
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-10-30-v283-onglet-95fen'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-10-30-v284-95fen-centrage'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
