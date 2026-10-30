@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-2026-10-30-v292-vignettes-depots-notifs'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
+const CACHE_VERSION = 'nestore-2026-10-30-v293-esthetique-stats-vinted'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
 const STATIC_ASSETS = [
   '/',
   '/index.html',
