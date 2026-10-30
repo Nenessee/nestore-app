@@ -2864,11 +2864,15 @@ function nfPhoto(txId){
         let dataUrl = canvas.toDataURL('image/jpeg', 0.72);
         if (dataUrl.length > 1_500_000) dataUrl = canvas.toDataURL('image/jpeg', 0.5);
         try {
+          showDashToast('Enregistrement + lecture du justificatif…','info');
           const r = await fetch(`${BACKEND_URL}/ninefive/${encodeURIComponent(_nfPhotoTxId)}/photo`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ photo: dataUrl }) });
           const d = await r.json().catch(()=>({}));
           if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP '+r.status));
-          const l = nfLigne(_nfPhotoTxId); if (l) l.a_justificatif = true;
-          showDashToast('Justificatif enregistré ✓','success');
+          const l = nfLigne(_nfPhotoTxId);
+          if (l) { l.a_justificatif = true; if (d.analyse) l.analyse = d.analyse; if (d.note != null) l.note = d.note; }
+          if (d.analyse && d.analyse.article) showDashToast(`Justificatif lu ✓ — ${d.analyse.article}${d.analyse.taille?' ('+d.analyse.taille+')':''}`,'success');
+          else if (d.analyseErreur) showDashToast('Justificatif enregistré ✓ (lecture : '+d.analyseErreur+')','warn');
+          else showDashToast('Justificatif enregistré ✓','success');
           nfRender();
         } catch(e){ showDashToast('Justificatif : '+e.message,'error'); }
       };
@@ -2879,34 +2883,101 @@ function nfPhoto(txId){
   };
   inp.click();
 }
+function nfAnalyseHtml(a){
+  if (!a) return '';
+  const li = (lbl, v) => v ? `<span style="white-space:nowrap;"><b>${lbl}</b> ${esc(String(v))}</span>` : '';
+  const parts = [li('Article :', a.article), li('Taille :', a.taille), li('Prix :', a.prix_cny != null ? '¥' + a.prix_cny : null), li('Commande :', a.numero_commande), li('Datée du :', a.date_commande), li('Vendeur :', a.vendeur)].filter(Boolean);
+  return parts.length ? `<div style="background:var(--surface);border-radius:10px;padding:8px 12px;font-size:12.5px;display:flex;gap:12px;flex-wrap:wrap;max-width:92vw;">🔍 ${parts.join(' · ')}</div>` : '';
+}
 async function nfVoirPhoto(txId){
   try {
     const d = await api(`/ninefive/${encodeURIComponent(txId)}/photo`);
     if (!d.photo) { showDashToast('Pas de justificatif sur cette ligne','warn'); const l=nfLigne(txId); if(l) l.a_justificatif=false; nfRender(); return; }
+    const lg = nfLigne(txId);
     const ov = document.createElement('div');
-    ov.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(10,10,10,.75);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:20px;';
-    ov.innerHTML = `<img src="${d.photo}" style="max-width:92vw;max-height:78vh;border-radius:12px;background:#fff;">
-      <div style="display:flex;gap:8px;">
+    ov.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(10,10,10,.75);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;padding:20px;';
+    ov.innerHTML = `<img src="${d.photo}" style="max-width:92vw;max-height:70vh;border-radius:12px;background:#fff;">
+      <div id="nfOvAnalyse">${nfAnalyseHtml(lg && lg.analyse)}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+        <button class="btn" style="background:var(--surface);">⬇ PDF</button>
+        <button class="btn" style="background:var(--surface);">${lg && lg.analyse ? '🔍 Relire' : '🔍 Lire les infos'}</button>
         <button class="btn" style="background:var(--surface);">📎 Remplacer</button>
         <button class="btn" style="background:var(--surface);color:var(--accent);">🗑 Supprimer</button>
         <button class="btn" style="background:var(--surface);">Fermer</button>
       </div>`;
-    const [bRemp, bSup, bFerme] = ov.querySelectorAll('button');
+    const [bPdf, bLire, bRemp, bSup, bFerme] = ov.querySelectorAll('button');
     bFerme.onclick = () => ov.remove();
     ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
     bRemp.onclick = () => { ov.remove(); nfPhoto(txId); };
+    bPdf.onclick = () => nfPdf(txId, d.photo);
+    bLire.onclick = async () => {
+      bLire.disabled = true; bLire.textContent = '🔍 Lecture…';
+      try {
+        const r = await fetch(`${BACKEND_URL}/ninefive/${encodeURIComponent(txId)}/analyser`, { method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' });
+        const dd = await r.json().catch(()=>({}));
+        if (!r.ok || !dd.ok) throw new Error(dd.error || ('HTTP '+r.status));
+        const l = nfLigne(txId); if (l) { l.analyse = dd.analyse; if (dd.note != null) l.note = dd.note; }
+        ov.querySelector('#nfOvAnalyse').innerHTML = nfAnalyseHtml(dd.analyse);
+        showDashToast(dd.analyse && dd.analyse.article ? `Lu ✓ — ${dd.analyse.article}` : 'Lecture faite — peu d\'infos lisibles','success');
+        nfRender();
+      } catch(e){ showDashToast('Lecture : '+e.message,'error'); }
+      finally { bLire.disabled = false; bLire.textContent = '🔍 Relire'; }
+    };
     bSup.onclick = async () => {
       if (!confirm('Supprimer ce justificatif ?')) return;
       try {
         const r = await fetch(`${BACKEND_URL}/ninefive/${encodeURIComponent(txId)}/photo`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ photo: null }) });
         const dd = await r.json().catch(()=>({}));
         if (!r.ok || !dd.ok) throw new Error(dd.error || ('HTTP '+r.status));
-        const l = nfLigne(txId); if (l) l.a_justificatif = false;
+        const l = nfLigne(txId); if (l) { l.a_justificatif = false; l.analyse = null; }
         ov.remove(); showDashToast('Justificatif supprimé','success'); nfRender();
       } catch(e){ showDashToast('Suppression : '+e.message,'error'); }
     };
     document.body.appendChild(ov);
   } catch(e){ showDashToast('95分 : '+e.message,'error'); }
+}
+// jsPDF à la demande (même version/fallbacks que la caisse).
+async function nfJsPdf(){
+  if (window.jspdf && window.jspdf.jsPDF) return window.jspdf.jsPDF;
+  const urls = [
+    'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js',
+    'https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js'
+  ];
+  for (const u of urls) {
+    try {
+      await new Promise((res, rej) => { const s = document.createElement('script'); s.src = u; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+      if (window.jspdf && window.jspdf.jsPDF) return window.jspdf.jsPDF;
+    } catch(_){}
+  }
+  throw new Error('jsPDF indisponible (CDN bloqués ?)');
+}
+// Justificatif → PDF A4 téléchargeable : en-tête avec les infos de la transaction, image en dessous.
+async function nfPdf(txId, photoDataUrl){
+  try {
+    const JsPDF = await nfJsPdf();
+    const r = nfLigne(txId) || {};
+    const a = r.analyse || {};
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej(new Error('image illisible')); img.src = photoDataUrl; });
+    const doc = new JsPDF({ unit: 'mm', format: 'a4' });
+    let y = 16;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
+    doc.text(`Justificatif 95fen — achat du ${r.date_tx || ''}${r.heure ? ' ' + r.heure : ''}`, 15, y); y += 8;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5);
+    const lignes = [
+      `Montant débité : ${Number(r.montant_eur || 0).toFixed(2)} EUR${r.montant_cny != null ? '  ·  ¥' + Number(r.montant_cny).toFixed(0) : ''}  ·  marchand Alipay : ${r.marchand || '—'}`,
+      a.article ? `Article : ${a.article}${a.taille ? ' (' + a.taille + ')' : ''}` : (r.note ? `Note : ${r.note}` : null),
+      a.numero_commande ? `Commande n° ${a.numero_commande}${a.date_commande ? '  ·  datée du ' + a.date_commande : ''}${a.vendeur ? '  ·  vendeur : ' + a.vendeur : ''}` : null,
+      `Référence Revolut : ${r.tx_id || txId}`
+    ].filter(Boolean);
+    for (const l of lignes) { doc.text(doc.splitTextToSize(l, 180), 15, y); y += 6; }
+    y += 2;
+    const maxW = 180, maxH = 278 - y;
+    const ratio = Math.min(maxW / img.width, maxH / img.height);
+    doc.addImage(photoDataUrl, 'JPEG', 15 + (maxW - img.width * ratio) / 2, y, img.width * ratio, img.height * ratio);
+    doc.save(`justificatif-95fen_${r.date_tx || 'achat'}_${Number(r.montant_eur || 0).toFixed(2)}e.pdf`);
+  } catch(e){ showDashToast('PDF : '+e.message,'error'); }
 }
 </script>
 
@@ -3165,7 +3236,7 @@ async function nfVoirPhoto(txId){
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-10-30-v286-95fen-remb-visibles'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-10-30-v287-justificatif-pdf-lecture'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
