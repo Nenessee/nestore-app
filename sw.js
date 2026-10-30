@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-2026-10-30-v290-lecture-budget-tokens'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
+const CACHE_VERSION = 'nestore-2026-10-30-v291-commande-copiable'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
 const STATIC_ASSETS = [
   '/',
   '/index.html',
