@@ -2603,23 +2603,24 @@ tbody tr { transition: background .12s; }
       <button class="btn" style="font-size:12px;" onclick="loadNinefive()">↻ Actualiser</button>
     </span>
   </div>
-  <div style="font-size:12px;color:var(--text-soft);margin-bottom:12px;">Importe ton relevé CSV Revolut : seules les lignes <b>Alipay</b> sont retenues, tout le reste est ignoré. Classement auto, modifiable ligne par ligne — <b>offre</b> : paiement &lt; 10 € · <b>transport</b> : marchand Alipay autre que 95分 (la remarque ChinaShipShop 8558-7227 n'est pas exportée par Revolut, on se cale sur le marchand) · <b>achat</b> : le reste. Coût retenu = <b>€ réellement débité sur Revolut</b>. Ré-importer le même relevé n'écrase jamais tes reclassements, justificatifs ou mises en caisse.</div>
+  <div style="font-size:12px;color:var(--text-soft);margin-bottom:12px;">Importe ton relevé CSV Revolut : seules les lignes <b>Alipay</b> sont retenues, tout le reste est ignoré. Classement auto, modifiable ligne par ligne — <b>offre</b> : paiement &lt; 10 € · <b>transport</b> : marchand Alipay autre que 95分 (la remarque ChinaShipShop 8558-7227 n'est pas exportée par Revolut) · <b>achat</b> : le reste. Coût retenu = <b>€ réellement débité sur Revolut</b>. Les <b>remboursements sont rattachés automatiquement</b> aux offres et achats correspondants (montant ¥ exact + marchand). Ré-importer n'efface ni n'écrase jamais rien : lignes identifiées par l'ID Revolut, tes reclassements / justificatifs / mises en caisse sont conservés. L'heure s'affiche si ton export la contient (le « transaction statement » n'a que la date).</div>
   <div class="kpi-grid" id="nfKpis" style="margin-bottom:14px;"></div>
   <div class="table-card">
     <div class="table-header"><span class="table-title">Transactions Alipay</span>
       <span style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        <select class="filter-select" id="nfFiltreType" style="min-height:32px;padding:5px 26px 5px 10px;font-size:12px;" onchange="nfRender()">
+        <select class="filter-select" id="nfFiltreType" style="min-height:32px;padding:5px 26px 5px 10px;font-size:12px;" onchange="nfChangeType()">
           <option value="achat">Achats</option>
           <option value="offre">Offres</option>
           <option value="transport">Transport</option>
           <option value="remboursement">Remboursements</option>
           <option value="">Tout</option>
         </select>
-        <select class="filter-select" id="nfFiltreStatut" style="min-height:32px;padding:5px 26px 5px 10px;font-size:12px;" onchange="nfRender()">
-          <option value="a_traiter">À traiter</option>
-          <option value="en_caisse">En caisse</option>
-          <option value="annule">Annulés / remboursés</option>
-          <option value="">Tous statuts</option>
+        <select class="filter-select" id="nfFiltreStatut" style="min-height:32px;padding:5px 26px 5px 10px;font-size:12px;" onchange="nfRender()"></select>
+        <select class="filter-select" id="nfTri" style="min-height:32px;padding:5px 26px 5px 10px;font-size:12px;" onchange="nfRender()">
+          <option value="recent">Plus récent d'abord</option>
+          <option value="ancien">Plus ancien d'abord</option>
+          <option value="montant_desc">Montant ↓</option>
+          <option value="montant_asc">Montant ↑</option>
         </select>
         <input class="search-input" id="nfSearch" style="max-width:170px;min-width:120px;min-height:32px;padding:6px 11px;font-size:12px" placeholder="Montant, date, note…" oninput="nfRender()">
       </span>
@@ -2645,7 +2646,9 @@ async function loadNinefive(){
     const d = await api('/ninefive/list');
     nfData = d.rows || [];
     nfKpis();
-    nfRender();
+    const selS = document.getElementById('nfFiltreStatut');
+    if (selS && !selS.options.length) nfChangeType(); // premier affichage : options de statut du type courant
+    else nfRender();
   } catch(e){
     const tb = document.getElementById('nfTable');
     if (tb) tb.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--accent);">${esc(e.message)}</td></tr>`;
@@ -2658,28 +2661,56 @@ function nfKpis(){
   const aTraiter = achats.filter(r => r.statut === 'a_traiter').length;
   const enCaisse = achats.filter(r => r.statut === 'en_caisse').length;
   const totalAchats = achats.filter(r => r.statut !== 'annule').reduce((s,r) => s + Number(r.montant_eur||0), 0);
-  const offres = rows.filter(r => r.type === 'offre').reduce((s,r) => s + Number(r.montant_eur||0), 0);
-  const remb = rows.filter(r => r.sens === 'remboursement');
-  const rembEur = remb.reduce((s,r) => s + Number(r.montant_eur||0), 0);
-  const transport = rows.filter(r => r.type === 'transport' && r.statut !== 'annule').reduce((s,r) => s + Number(r.montant_eur||0), 0);
+  const offres = rows.filter(r => r.type === 'offre');
+  const offAtt = offres.filter(r => !r.rembourse_par);
+  const offRemb = offres.filter(r => r.rembourse_par);
+  const transport = rows.filter(r => r.type === 'transport').reduce((s,r) => s + Number(r.montant_eur||0), 0);
   const k = (val,lbl,color) => `<div class="kpi"><div class="kpi-label">${lbl}</div><div class="kpi-value"${color?` style="color:${color}"`:''}>${val}</div></div>`;
   document.getElementById('nfKpis').innerHTML =
     k(aTraiter,'Achats à traiter', aTraiter ? 'var(--warning)' : 'var(--success)') +
     k(enCaisse,'Mis en caisse','var(--success)') +
     k(eur(totalAchats),'Total achats') +
-    k(eur(offres) + ' / −' + eur(rembEur),'Offres / remboursés') +
+    k(offAtt.length + ' · ' + eur(offAtt.reduce((s,r)=>s+Number(r.montant_eur||0),0)),'Offres pas encore remboursées', offAtt.length ? 'var(--warning)' : 'var(--success)') +
+    k(offRemb.length + ' · ' + eur(offRemb.reduce((s,r)=>s+Number(r.montant_eur||0),0)),'Offres remboursées','var(--success)') +
     k(eur(transport),'Transport');
+}
+// Le filtre de statut change de visage selon le type affiché (comme Vinted) :
+// achats → file de traitement ; offres → remboursée ou pas ; sinon masqué.
+function nfChangeType(){
+  const ft = (document.getElementById('nfFiltreType')||{}).value ?? 'achat';
+  const sel = document.getElementById('nfFiltreStatut'); if (!sel) return;
+  if (ft === 'achat') {
+    sel.style.display = '';
+    sel.innerHTML = '<option value="a_traiter">À traiter</option><option value="en_caisse">En caisse</option><option value="annule">Annulés / remboursés</option><option value="">Tous statuts</option>';
+  } else if (ft === 'offre') {
+    sel.style.display = '';
+    sel.innerHTML = '<option value="">Toutes</option><option value="non_remb">Pas encore remboursées</option><option value="remb">Remboursées</option>';
+  } else {
+    sel.style.display = 'none';
+    sel.innerHTML = '<option value=""></option>';
+  }
+  nfRender();
 }
 function nfRender(){
   const rows0 = nfData || [];
   const ft = (document.getElementById('nfFiltreType')||{}).value ?? 'achat';
-  const fs = (document.getElementById('nfFiltreStatut')||{}).value ?? 'a_traiter';
+  const fs = (document.getElementById('nfFiltreStatut')||{}).value || '';
+  const tri = (document.getElementById('nfTri')||{}).value || 'recent';
   const q = ((document.getElementById('nfSearch')||{}).value||'').toLowerCase();
   const rows = rows0.filter(r => {
     if (ft && r.type !== ft) return false;
-    if (fs && r.sens !== 'remboursement' && r.statut !== fs) return false;
-    if (q && !(`${r.date_tx} ${r.montant_eur} ${r.montant_cny||''} ${r.marchand||''} ${r.note||''}`.toLowerCase().includes(q))) return false;
+    if (fs === 'remb' && !r.rembourse_par) return false;
+    if (fs === 'non_remb' && r.rembourse_par) return false;
+    if (['a_traiter','en_caisse','annule'].includes(fs) && r.type === 'achat' && r.statut !== fs) return false;
+    if (q && !(`${r.date_tx} ${r.heure||''} ${r.montant_eur} ${r.montant_cny||''} ${r.marchand||''} ${r.note||''}`.toLowerCase().includes(q))) return false;
     return true;
+  });
+  const cle = r => `${r.date_tx||''} ${r.heure||'00:00'}`;
+  rows.sort((a,b) => {
+    if (tri === 'ancien') return cle(a) < cle(b) ? -1 : (cle(a) > cle(b) ? 1 : String(a.tx_id).localeCompare(String(b.tx_id)));
+    if (tri === 'montant_desc') return Number(b.montant_eur) - Number(a.montant_eur);
+    if (tri === 'montant_asc') return Number(a.montant_eur) - Number(b.montant_eur);
+    return cle(a) > cle(b) ? -1 : (cle(a) < cle(b) ? 1 : String(b.tx_id).localeCompare(String(a.tx_id)));
   });
   const typeSel = r => r.sens === 'remboursement'
     ? '<span class="badge" style="background:var(--success-dim,rgba(22,128,94,.12));color:var(--success);">↩ remboursement</span>'
@@ -2688,19 +2719,28 @@ function nfRender(){
         <option value="offre" ${r.type==='offre'?'selected':''}>Offre</option>
         <option value="transport" ${r.type==='transport'?'selected':''}>Transport</option>
       </select>`;
+  const badgeRemb = r => `<span class="badge" style="background:var(--success-dim,rgba(22,128,94,.12));color:var(--success);">✓ remboursé${r.rembourse_le?' le '+esc(r.rembourse_le):''}</span>`;
   const statutCell = r => {
-    if (r.sens === 'remboursement') return '<span style="color:var(--text-soft);">—</span>';
-    if (r.statut === 'en_caisse') return `<span class="badge" style="background:var(--success-dim,rgba(22,128,94,.12));color:var(--success);">✓ en caisse${r.en_caisse_le?' '+esc(r.en_caisse_le):''}${r.en_caisse_par?' · '+esc(r.en_caisse_par):''}</span> <button class="btn" style="font-size:10px;padding:2px 7px;" title="Annuler la mise en caisse" onclick="nfSetStatut('${esc(escJs(r.tx_id))}','a_traiter')">↩</button>`;
-    if (r.statut === 'annule') return `<span class="badge" style="background:var(--surface-2);color:var(--text-muted);">✕ annulé / remboursé</span> <button class="btn" style="font-size:10px;padding:2px 7px;" title="Repasser à traiter" onclick="nfSetStatut('${esc(escJs(r.tx_id))}','a_traiter')">↩</button>`;
-    return `<button class="btn btn-green" style="font-size:11px;padding:3px 9px;" onclick="nfEnCaisse('${esc(escJs(r.tx_id))}')">💰 En caisse</button> <button class="btn" style="font-size:11px;padding:3px 8px;" title="Commande annulée / remboursée — sortie des totaux" onclick="nfSetStatut('${esc(escJs(r.tx_id))}','annule')">✕</button>`;
+    if (r.sens === 'remboursement') {
+      if (!r.matched_to) return '<span class="badge" style="background:var(--warning-dim);color:var(--warning);">⚠ sans correspondance</span>';
+      const p = nfLigne(r.matched_to);
+      return `<span class="badge" style="background:var(--surface-2);color:var(--text-muted);">↪ rattaché${p?' ('+esc(p.type)+' du '+esc(p.date_tx||'')+')':''}</span>`;
+    }
+    if (r.type === 'offre') return r.rembourse_par ? badgeRemb(r) : '<span class="badge" style="background:var(--warning-dim);color:var(--warning);">⏳ pas encore remboursée</span>';
+    if (r.type === 'transport') return '<span style="color:var(--text-soft);">—</span>';
+    // achats : flux caisse + remboursement auto affiché
+    const remb = r.rembourse_par ? ' ' + badgeRemb(r) : '';
+    if (r.statut === 'en_caisse') return `<span class="badge" style="background:var(--success-dim,rgba(22,128,94,.12));color:var(--success);">✓ en caisse${r.en_caisse_le?' '+esc(r.en_caisse_le):''}${r.en_caisse_par?' · '+esc(r.en_caisse_par):''}</span>${remb} <button class="btn" style="font-size:10px;padding:2px 7px;" title="Annuler la mise en caisse" onclick="nfSetStatut('${esc(escJs(r.tx_id))}','a_traiter')">↩</button>`;
+    if (r.statut === 'annule') return `<span class="badge" style="background:var(--surface-2);color:var(--text-muted);">✕ annulé</span>${remb} <button class="btn" style="font-size:10px;padding:2px 7px;" title="Repasser à traiter" onclick="nfSetStatut('${esc(escJs(r.tx_id))}','a_traiter')">↩</button>`;
+    return `<button class="btn btn-green" style="font-size:11px;padding:3px 9px;" onclick="nfEnCaisse('${esc(escJs(r.tx_id))}')">💰 En caisse</button> <button class="btn" style="font-size:11px;padding:3px 8px;" title="Commande annulée — sortie des totaux" onclick="nfSetStatut('${esc(escJs(r.tx_id))}','annule')">✕</button>${remb}`;
   };
-  const justifCell = r => r.sens === 'remboursement' ? '' :
+  const justifCell = r => r.type !== 'achat' ? '' :
     (r.a_justificatif
       ? `<button class="btn" style="font-size:11px;padding:3px 9px;" onclick="nfVoirPhoto('${esc(escJs(r.tx_id))}')">👁 Voir</button>`
       : `<button class="btn" style="font-size:11px;padding:3px 9px;" onclick="nfPhoto('${esc(escJs(r.tx_id))}')">📎 Ajouter</button>`);
   document.getElementById('nfTable').innerHTML = rows.length ? rows.map(r => `
     <tr>
-      <td style="white-space:nowrap;font-size:12.5px;">${esc(r.date_tx||'—')}</td>
+      <td style="white-space:nowrap;font-size:12.5px;">${esc(r.date_tx||'—')}${r.heure?` <span style="color:var(--text-muted);">${esc(r.heure)}</span>`:''}</td>
       <td>${typeSel(r)}</td>
       <td class="num" style="font-weight:600;${r.sens==='remboursement'?'color:var(--success);':''}">${r.sens==='remboursement'?'+':''}${Number(r.montant_eur).toFixed(2)} €</td>
       <td class="num" style="color:var(--text-muted);font-size:12px;">${r.montant_cny!=null?'¥'+Number(r.montant_cny).toFixed(0):'—'}</td>
@@ -2755,7 +2795,7 @@ function nfImporter(){
       const d = await r.json().catch(()=>({}));
       if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP '+r.status));
       const pt = d.parType || {};
-      showDashToast(`${d.lignesAlipay} ligne(s) Alipay dans le relevé — ${d.nouveaux} nouvelle(s) (${pt.achat||0} achat(s), ${pt.offre||0} offre(s), ${pt.transport||0} transport, ${pt.remboursement||0} remb.), ${d.dejaConnus} déjà connue(s).`, 'success');
+      showDashToast(`${d.lignesAlipay} ligne(s) Alipay dans le relevé — ${d.nouveaux} nouvelle(s) (${pt.achat||0} achat(s), ${pt.offre||0} offre(s), ${pt.transport||0} transport, ${pt.remboursement||0} remb.), ${d.dejaConnus} déjà connue(s)${d.rattaches?`, ${d.rattaches} remboursement(s) rattaché(s) automatiquement`:''}.`, 'success');
       loadNinefive();
     } catch(e){ showDashToast('Import : '+e.message,'error'); }
   };
@@ -3079,7 +3119,7 @@ async function nfVoirPhoto(txId){
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-10-30-v284-95fen-centrage'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-10-30-v285-95fen-remb-auto-tri'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.

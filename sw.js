@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-2026-10-30-v284-95fen-centrage'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
+const CACHE_VERSION = 'nestore-2026-10-30-v285-95fen-remb-auto-tri'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
 const STATIC_ASSETS = [
   '/',
   '/index.html',
