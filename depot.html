@@ -77,9 +77,16 @@
     <div class="kpis" id="kpis"></div>
     <div class="n-muted" style="font-size:11.5px;" id="regles"></div>
 
+    <div class="n-card" id="cardAValider" style="display:none;border-color:var(--n-accent);">
+      <div class="n-card__head"><span class="n-label">🚀 À mettre en vente — fixe ton prix</span><span class="n-muted n-num" id="cptAValider" style="font-size:11.5px;"></span></div>
+      <div style="padding:10px 16px 2px;font-size:12px;color:var(--n-ink-3);">Nestore a préparé ces fiches. Touche un article, fixe ton prix (multiple de 5 €, ton net affiché en direct) : <b>l'annonce part en ligne immédiatement</b>.</div>
+      <div class="n-card__body n-card__body--flush" id="listeAValider"></div>
+    </div>
+
     <div class="n-card">
       <div class="n-card__head"><span class="n-label">Tes articles en ligne</span>
-        <span style="display:flex;align-items:center;gap:10px;">
+        <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+          <input id="rechercheEnLigne" class="n-field" placeholder="Rechercher…" style="width:130px;padding:5px 10px;font-size:12px;" oninput="renderEnLigne()">
           <select id="triEnLigne" class="n-field" style="width:auto;padding:5px 10px;font-size:12px;" onchange="renderEnLigne()">
             <option value="recent">Plus récent d'abord</option>
             <option value="ancien">Plus ancien d'abord</option>
@@ -177,13 +184,33 @@ async function chargerTout(){
       k(eur(d.totaux.valeurEnLigne),'Valeur affichée') +
       k(eur(d.totaux.netSiToutVendu),'Ton net si tout se vend') +
       k(eur(d.totaux.aTeVerser||0),'💶 À te verser') +
-      k(eur(d.totaux.dejaVerse||0),'Déjà versé');
+      k(eur(d.totaux.dejaVerse||0),'Déjà versé') +
+      ((d.totaux.aValider||0) ? k(d.totaux.aValider,'🚀 À mettre en vente') : '');
     const enLigne = d.items.filter(i=>i.enLigne);
-    const sortis = d.items.filter(i=>!i.enLigne);
+    const sortis = d.items.filter(i=>!i.enLigne && !i.aValider);
     document.getElementById('cptEnLigne').textContent = enLigne.length + ' article' + (enLigne.length>1?'s':'');
     document.getElementById('cptSortis').textContent = sortis.length + ' article' + (sortis.length>1?'s':'');
     _enLigneArts = enLigne;
     renderEnLigne();
+    // Fiches en brouillon à mettre en vente (prix à fixer par le déposant).
+    const brouillons = d.items.filter(i=>i.aValider);
+    const cardAV = document.getElementById('cardAValider');
+    if (cardAV) {
+      cardAV.style.display = brouillons.length ? '' : 'none';
+      document.getElementById('cptAValider').textContent = brouillons.length + ' article' + (brouillons.length>1?'s':'');
+      document.getElementById('listeAValider').innerHTML = brouillons.map(i=>`
+        <div class="n-row ligne-active" onclick="ouvrirPanneauPublier(event,'${esc(i.productId)}')">
+          ${i.image?`<img class="n-row__thumb" src="${esc(i.image)}" alt="">`:`<div class="n-row__thumb thumb-ph">👕</div>`}
+          <div class="n-row__main">
+            <div class="n-row__title">${esc(i.titre)}</div>
+            <div class="n-row__sub">${i.barcode?esc(i.barcode)+' · ':''}touche pour fixer ton prix et publier</div>
+          </div>
+          <div class="n-row__side">
+            <span class="n-pill n-pill--accent">🚀 à publier</span>
+            ${i.prix!=null?`<span class="n-row__price" style="color:var(--n-ink-3);">${eur(i.prix)} proposé</span>`:''}
+          </div>
+        </div>`).join('');
+    }
     document.getElementById('listeSortis').innerHTML = sortis.length ? sortis.map(i=>ligne(i,false)).join('') : '<div style="padding:18px;text-align:center;color:var(--n-ink-3);font-size:13px;">Rien pour l\'instant.</div>';
     chargerDemandes();
   } catch(e) {
@@ -223,14 +250,16 @@ const ligne = (i, actif) => `
 let _enLigneArts = [];
 function renderEnLigne(){
   const t = (document.getElementById('triEnLigne')||{}).value || 'recent';
-  const arts = [...(_enLigneArts||[])];
+  const q = ((document.getElementById('rechercheEnLigne')||{}).value||'').toLowerCase().trim();
+  let arts = [...(_enLigneArts||[])];
+  if (q) arts = arts.filter(a => `${a.titre||''} ${a.barcode||''} ${a.prix||''}`.toLowerCase().includes(q));
   const dte = a => Date.parse(a.creeLe||'') || 0;
   arts.sort((a,b) =>
     t==='ancien' ? dte(a)-dte(b) :
     t==='prix_desc' ? (Number(b.prix)||0)-(Number(a.prix)||0) :
     t==='prix_asc' ? (Number(a.prix)||0)-(Number(b.prix)||0) :
     dte(b)-dte(a));
-  document.getElementById('listeEnLigne').innerHTML = arts.length ? arts.map(i=>ligne(i,true)).join('') : '<div style="padding:22px;text-align:center;color:var(--n-ink-3);font-size:13px;">Aucun article en ligne pour le moment.</div>';
+  document.getElementById('listeEnLigne').innerHTML = arts.length ? arts.map(i=>ligne(i,true)).join('') : `<div style="padding:22px;text-align:center;color:var(--n-ink-3);font-size:13px;">${q?'Aucun article ne correspond à la recherche.':'Aucun article en ligne pour le moment.'}</div>`;
 }
 
 // Pastille de règlement d'un article sorti : payé / paiement à venir / rien à devoir.
@@ -251,6 +280,8 @@ function remplirFaq(c){
   box.innerHTML =
     q('Combien je touche quand un article se vend ?',
       `Le prix affiché − <b>${pc} % de commission</b> − <b>${c.frais} € de frais fixes</b>. Exemple : vendu ${ex} € → <b>${eur(exNet)} pour toi</b>. Ton net est indiqué sous chaque article, et affiché en direct quand tu changes un prix.`) +
+    q('Un article « 🚀 à mettre en vente » ?',
+      `Nestore a préparé la fiche (photos, description) mais l'annonce reste en brouillon tant que TU n'as pas fixé ton prix. Touche l'article dans <b>À mettre en vente</b>, choisis ton prix (ton net s'affiche en direct) et publie : <b>l'annonce part en ligne immédiatement</b>.`) +
     q('Qui fixe les prix ?',
       `Toi. Les prix sont en <b>multiples de 5 €</b> (minimum ${c.prixMin} €) pour rester simples en boutique. Pour changer : touche l'article → <b>💶 Changer le prix</b> — tu vois immédiatement ce que tu toucheras. L'équipe applique ensuite sur le site et refait l'étiquette.`) +
     q(`Je veux récupérer un article (ou je l'ai déjà vendu de mon côté) ?`,
@@ -304,9 +335,61 @@ function panneauActions(){
       </div>`)
     + `<button class="n-btn n-btn--ghost n-btn--sm" style="width:100%;margin-top:12px;" onclick="fermerPanneau()">Fermer</button>`;
 }
+// Publication d'un brouillon : le déposant fixe SON prix, l'annonce part en ligne direct.
+let _prixMode = 'demande'; // 'demande' (changement de prix validé par l'équipe) | 'publier'
+function ouvrirPanneauPublier(ev, pid){
+  if (ev && ev.target && ev.target.closest('a')) return;
+  const i = ((donnees||{}).items||[]).find(x=>String(x.productId)===String(pid));
+  if (!i) return;
+  articleOuvert = i;
+  panneauPublier();
+  document.getElementById('voile').classList.add('on');
+}
+function panneauPublier(){
+  const i = articleOuvert; if(!i) return;
+  _prixMode = 'publier';
+  document.getElementById('feuille').innerHTML = panneauEntete(i) + `
+    <span class="n-label">Ton prix de vente sur le site</span>
+    <div style="display:flex;gap:8px;align-items:stretch;margin:8px 0 10px;">
+      <button class="n-btn n-btn--ghost" style="min-width:54px;font-size:16px;" onclick="prixPas(-5)">−5</button>
+      <div style="flex:1;position:relative;">
+        <input id="prixInput" class="n-field n-num" inputmode="numeric" autocomplete="off" value="${i.prix!=null?Math.round(i.prix):''}" oninput="prixMaj()" style="width:100%;text-align:center;font-size:24px;font-weight:800;padding-right:36px;">
+        <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-weight:800;color:var(--n-ink-3);">€</span>
+      </div>
+      <button class="n-btn n-btn--ghost" style="min-width:54px;font-size:16px;" onclick="prixPas(5)">+5</button>
+    </div>
+    <div id="prixRecap"></div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button class="n-btn n-btn--ghost" style="flex:1;" onclick="fermerPanneau()">Annuler</button>
+      <button id="prixEnvoyerBtn" class="n-btn n-btn--primary" style="flex:2;" onclick="publierEnvoyer()">🚀 Publier l'annonce</button>
+    </div>`;
+  prixMaj();
+  const el = document.getElementById('prixInput');
+  if (el) { el.focus(); el.select(); }
+}
+async function publierEnvoyer(){
+  const i = articleOuvert; if(!i) return;
+  const c = (donnees && donnees.commission) || { taux: 0.3, frais: 15, prixMin: 25 };
+  const p = Number(String((document.getElementById('prixInput')||{}).value||'').replace(',','.'));
+  if (!Number.isFinite(p) || p < c.prixMin || p % 5 !== 0) return;
+  const net = Math.round((p * (1 - c.taux) - c.frais) * 100) / 100;
+  if(!confirm(`Publier « ${i.titre} » à ${p} € ?\n\nL'annonce part en ligne IMMÉDIATEMENT. Tu toucheras ${net.toFixed(2)} € à la vente.`)) return;
+  const btn = document.getElementById('prixEnvoyerBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Publication…'; }
+  try {
+    const d = await api('/depot/mine/publier', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ productId: i.productId, prix: p }) });
+    alert(`✓ « ${i.titre} » est en ligne à ${p} € !`);
+    chargerTout();
+  } catch(e){
+    alert('Publication impossible : ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '🚀 Publier l\'annonce'; }
+  }
+}
+
 // Vue 2 : nouveau prix, avec le calcul EN DIRECT (affiché / commission / ce que tu touches).
 function panneauPrix(){
   const i = articleOuvert; if(!i) return;
+  _prixMode = 'demande';
   document.getElementById('feuille').innerHTML = panneauEntete(i) + `
     <span class="n-label">Nouveau prix affiché sur le site</span>
     <div style="display:flex;gap:8px;align-items:stretch;margin:8px 0 10px;">
@@ -339,7 +422,9 @@ function prixMaj(){
   const btn = document.getElementById('prixEnvoyerBtn');
   const p = Number(String((document.getElementById('prixInput')||{}).value||'').replace(',','.'));
   const valide = Number.isFinite(p) && p >= c.prixMin && p % 5 === 0;
-  const identique = valide && i.prix != null && p === i.prix;
+  // En mode publication, garder le prix proposé par Nestore est permis — « identique »
+  // ne bloque que les DEMANDES de changement de prix sur un article déjà en ligne.
+  const identique = _prixMode === 'demande' && valide && i.prix != null && p === i.prix;
   const ligne = (l,v,fort) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;${fort?'':'border-bottom:1px dashed var(--n-line);'}"><span class="n-muted" style="font-size:12.5px;">${l}</span><span class="n-num" style="font-weight:${fort?800:600};font-size:${fort?'18px':'13.5px'};${fort?'color:var(--n-ok);':''}">${v}</span></div>`;
   if (valide) {
     const net = Math.round((p * (1 - c.taux) - c.frais) * 100) / 100;
