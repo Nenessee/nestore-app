@@ -78,7 +78,17 @@
     <div class="n-muted" style="font-size:11.5px;" id="regles"></div>
 
     <div class="n-card">
-      <div class="n-card__head"><span class="n-label">Tes articles en ligne</span><span class="n-muted n-num" id="cptEnLigne" style="font-size:11.5px;"></span></div>
+      <div class="n-card__head"><span class="n-label">Tes articles en ligne</span>
+        <span style="display:flex;align-items:center;gap:10px;">
+          <select id="triEnLigne" class="n-field" style="width:auto;padding:5px 10px;font-size:12px;" onchange="renderEnLigne()">
+            <option value="recent">Plus récent d'abord</option>
+            <option value="ancien">Plus ancien d'abord</option>
+            <option value="prix_desc">Prix ↓</option>
+            <option value="prix_asc">Prix ↑</option>
+          </select>
+          <span class="n-muted n-num" id="cptEnLigne" style="font-size:11.5px;"></span>
+        </span>
+      </div>
       <div class="n-card__body n-card__body--flush" id="listeEnLigne"><div style="padding:22px;text-align:center;color:var(--n-ink-3);font-size:13px;">Chargement…</div></div>
     </div>
 
@@ -172,19 +182,8 @@ async function chargerTout(){
     const sortis = d.items.filter(i=>!i.enLigne);
     document.getElementById('cptEnLigne').textContent = enLigne.length + ' article' + (enLigne.length>1?'s':'');
     document.getElementById('cptSortis').textContent = sortis.length + ' article' + (sortis.length>1?'s':'');
-    const ligne = (i, actif) => `
-      <div class="n-row${actif?' ligne-active':''}"${actif?` onclick="ouvrirPanneau(event,'${esc(i.productId)}')"`:''}>
-        ${i.image?`<img class="n-row__thumb" src="${esc(i.image)}" alt="">`:`<div class="n-row__thumb thumb-ph">👕</div>`}
-        <div class="n-row__main">
-          <div class="n-row__title">${esc(i.titre)}</div>
-          <div class="n-row__sub">${i.barcode?esc(i.barcode)+' · ':''}${i.net!=null?('ton net : '+eur(i.net)):''}${i.url?` · <a href="${esc(i.url)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;white-space:nowrap;">voir sur le site ↗</a>`:''}</div>
-        </div>
-        <div class="n-row__side">
-          ${i.demandes.length?`<span class="n-pill n-pill--accent">⏳ ${i.demandes.map(x=>x.type==='prix'?('prix '+x.newPrice+' €'):x.type.replace('_',' ')).join(' · ')}</span>`:(actif?'<span class="n-pill n-pill--outline">En ligne</span>':pilReglement(i))}
-          <span class="n-row__price">${i.prix!=null?eur(i.prix):'—'}</span>
-        </div>
-      </div>`;
-    document.getElementById('listeEnLigne').innerHTML = enLigne.length ? enLigne.map(i=>ligne(i,true)).join('') : '<div style="padding:22px;text-align:center;color:var(--n-ink-3);font-size:13px;">Aucun article en ligne pour le moment.</div>';
+    _enLigneArts = enLigne;
+    renderEnLigne();
     document.getElementById('listeSortis').innerHTML = sortis.length ? sortis.map(i=>ligne(i,false)).join('') : '<div style="padding:18px;text-align:center;color:var(--n-ink-3);font-size:13px;">Rien pour l\'instant.</div>';
     chargerDemandes();
   } catch(e) {
@@ -205,6 +204,33 @@ async function chargerDemandes(){
         <div class="n-row__side">${st[r.status]||esc(r.status)}</div>
       </div>`).join('') : '<div style="padding:18px;text-align:center;color:var(--n-ink-3);font-size:13px;">Aucune demande pour l\'instant.</div>';
   } catch(_){}
+}
+
+// Ligne d'article (liste en ligne : cliquable → panneau ; sortis : lecture seule).
+const ligne = (i, actif) => `
+  <div class="n-row${actif?' ligne-active':''}"${actif?` onclick="ouvrirPanneau(event,'${esc(i.productId)}')"`:''}>
+    ${i.image?`<img class="n-row__thumb" src="${esc(i.image)}" alt="">`:`<div class="n-row__thumb thumb-ph">👕</div>`}
+    <div class="n-row__main">
+      <div class="n-row__title">${esc(i.titre)}</div>
+      <div class="n-row__sub">${i.barcode?esc(i.barcode)+' · ':''}${i.net!=null?('ton net : '+eur(i.net)):''}${i.url?` · <a href="${esc(i.url)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;white-space:nowrap;">voir sur le site ↗</a>`:''}</div>
+    </div>
+    <div class="n-row__side">
+      ${i.demandes.length?`<span class="n-pill n-pill--accent">⏳ ${i.demandes.map(x=>x.type==='prix'?('prix '+x.newPrice+' €'):x.type.replace('_',' ')).join(' · ')}</span>`:(actif?'<span class="n-pill n-pill--outline">En ligne</span>':pilReglement(i))}
+      <span class="n-row__price">${i.prix!=null?eur(i.prix):'—'}</span>
+    </div>
+  </div>`;
+// Tri des articles en ligne : plus récent (défaut) / plus ancien / prix.
+let _enLigneArts = [];
+function renderEnLigne(){
+  const t = (document.getElementById('triEnLigne')||{}).value || 'recent';
+  const arts = [...(_enLigneArts||[])];
+  const dte = a => Date.parse(a.creeLe||'') || 0;
+  arts.sort((a,b) =>
+    t==='ancien' ? dte(a)-dte(b) :
+    t==='prix_desc' ? (Number(b.prix)||0)-(Number(a.prix)||0) :
+    t==='prix_asc' ? (Number(a.prix)||0)-(Number(b.prix)||0) :
+    dte(b)-dte(a));
+  document.getElementById('listeEnLigne').innerHTML = arts.length ? arts.map(i=>ligne(i,true)).join('') : '<div style="padding:22px;text-align:center;color:var(--n-ink-3);font-size:13px;">Aucun article en ligne pour le moment.</div>';
 }
 
 // Pastille de règlement d'un article sorti : payé / paiement à venir / rien à devoir.
