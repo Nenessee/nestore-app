@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-2026-11-04-v301-match-heure'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
+const CACHE_VERSION = 'nestore-2026-11-04-v302-lot-global'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
 const STATIC_ASSETS = [
   '/',
   '/index.html',
