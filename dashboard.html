@@ -2602,6 +2602,7 @@ tbody tr { transition: background .12s; }
     <span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <button class="btn btn-green" style="font-size:12px;" onclick="nfImporter()">📥 Importer un relevé Revolut</button>
       <button class="btn" style="font-size:12px;" id="nfScreensBtn" onclick="nfImporterScreens()">🧩 Rattacher des screens</button>
+      <button class="btn" style="font-size:12px;" onclick="nfDetacherMasse(this)">↩ Détacher le lot</button>
       <button class="btn" style="font-size:12px;" onclick="nfDiagnostic(this)">🩺 Tester la lecture</button>
       <button class="btn" style="font-size:12px;" onclick="loadNinefive()">↻ Actualiser</button>
     </span>
@@ -2952,9 +2953,23 @@ function nfPreparerImage(file){
     reader.readAsDataURL(file);
   });
 }
-// Rattachement en masse : chaque screen est lu (vision) et rattaché à SA transaction
-// (montant ¥ le plus proche dans une fenêtre tolérante — le débit Alipay inclut des frais
-// que le screen n'affiche pas toujours ; départage par date). Jamais rattaché au hasard.
+// Rattachement en masse : chaque screen est lu (vision) et rattaché à SA transaction —
+// paiement du MÊME JOUR que la commande (±2 j, filtre dur), puis montant ¥ le plus proche
+// dans une fenêtre tolérante (le débit Alipay inclut des frais). Jamais rattaché au hasard.
+// ↩ Détacher le lot : retire d'un bloc tout ce que le rattachement en masse a posé
+// (justificatifs 📎 posés à la main intouchés) — pour rejouer un lot qui s'est mal rattaché.
+async function nfDetacherMasse(btn){
+  if (!confirm('Détacher TOUS les screens posés par « 🧩 Rattacher des screens » ?\n\nLes justificatifs que tu as posés à la main via 📎 ne bougent pas. Utile quand un lot s\'est rattaché de travers : on détache tout, puis on relance 🧩 avec les mêmes screens.')) return;
+  try {
+    if (btn) { btn.disabled = true; btn.textContent = '↩ Détachement…'; }
+    const r = await fetch(`${BACKEND_URL}/ninefive/justificatifs/detacher-masse`, { method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' });
+    const d = await r.json().catch(()=>({}));
+    if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    showDashToast(`${d.detaches} screen(s) détaché(s) — relance 🧩 Rattacher des screens`, 'success');
+    loadNinefive();
+  } catch(e){ showDashToast('Détachement : ' + e.message, 'error'); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = '↩ Détacher le lot'; } }
+}
 async function nfImporterScreens(){
   const inp = document.getElementById('nfScreensInput');
   inp.onchange = async function(){
@@ -2984,8 +2999,8 @@ async function nfImporterScreens(){
     const bloc = (titre, arr) => arr.length ? `\n${titre} (${arr.length}) :\n` + arr.map(x => '• ' + x).join('\n') + '\n' : '';
     alert(`Rattachement terminé — ${resume.rattaches.length}/${files.length} screen(s) rattaché(s).\n` +
       bloc('✅ Rattachés', resume.rattaches) +
-      bloc('⚠ Ambigus (plusieurs transactions aussi proches) — rattache-les à la main via 📎', resume.ambigus) +
-      bloc('❌ Sans correspondance (aucun paiement libre à ±12 % du ¥ du screen)', resume.aucun) +
+      bloc('⚠ Ambigus (plusieurs paiements du même jour aussi proches) — rattache-les à la main via 📎', resume.ambigus) +
+      bloc('❌ Sans correspondance (aucun paiement libre le jour de la commande dans la fenêtre de ¥)', resume.aucun) +
       bloc('💥 Erreurs', resume.erreurs));
     loadNinefive();
   };
@@ -3395,7 +3410,7 @@ async function nfPdf(txId, photoDataUrl){
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-11-04-v299-matching-tolerant'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-11-04-v300-date-filtre-detacher'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
