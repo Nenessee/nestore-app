@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-2026-11-04-v297-titulaire-95fen'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
+const CACHE_VERSION = 'nestore-2026-11-04-v298-screens-en-masse'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
 const STATIC_ASSETS = [
   '/',
   '/index.html',
