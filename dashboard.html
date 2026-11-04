@@ -2953,7 +2953,8 @@ function nfPreparerImage(file){
   });
 }
 // Rattachement en masse : chaque screen est lu (vision) et rattaché à SA transaction
-// (prix ¥ exact, départage par date). Les douteux sont listés, jamais rattachés au hasard.
+// (montant ¥ le plus proche dans une fenêtre tolérante — le débit Alipay inclut des frais
+// que le screen n'affiche pas toujours ; départage par date). Jamais rattaché au hasard.
 async function nfImporterScreens(){
   const inp = document.getElementById('nfScreensInput');
   inp.onchange = async function(){
@@ -2970,18 +2971,21 @@ async function nfImporterScreens(){
         const d = await r.json().catch(()=>({}));
         if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
         const art = (d.analyse && d.analyse.article) || nom;
-        const cny = d.analyse && d.analyse.prix_cny != null ? ' (¥' + d.analyse.prix_cny + ')' : '';
-        if (d.statut === 'rattache') resume.rattaches.push(`${art}${cny} → ${d.date}, ${Number(d.eur).toFixed(2)} €${d.titulaire ? ' · ' + d.titulaire : ''}`);
-        else if (d.statut === 'ambigu') resume.ambigus.push(`${art}${cny} — ${d.candidats.length} transactions possibles`);
-        else resume.aucun.push(`${art}${cny}${d.raison ? ' — ' + d.raison : ''}`);
+        const prixLu = d.analyse ? (d.analyse.prix_paye_cny != null ? d.analyse.prix_paye_cny : d.analyse.prix_cny) : null;
+        const cny = prixLu != null ? ' (¥' + prixLu + ')' : '';
+        const ec = (e) => e ? ` [écart ${e > 0 ? '+' : ''}${e} ¥]` : '';
+        if (d.statut === 'rattache') resume.rattaches.push(`${art}${cny} → ${d.date}, ${Number(d.eur).toFixed(2)} €${ec(d.ecartCny)}${d.titulaire ? ' · ' + d.titulaire : ''}`);
+        else if (d.statut === 'ambigu') resume.ambigus.push(`${art}${cny} — ${d.candidats.length} transactions possibles : ` + d.candidats.map(c => `${c.date} ¥${c.cny}${ec(c.ecartCny)}`).join(', '));
+        else resume.aucun.push(`${art}${cny}${d.raison ? ' — ' + d.raison : ''}` +
+          (d.proches && d.proches.length ? ` — plus proches : ` + d.proches.map(c => `${c.date} ¥${c.cny}${ec(c.ecartCny)}`).join(', ') : ''));
       } catch(e){ resume.erreurs.push(`${nom} — ${e.message}`); }
     }
     if (btn) { btn.disabled = false; btn.textContent = '🧩 Rattacher des screens'; }
     const bloc = (titre, arr) => arr.length ? `\n${titre} (${arr.length}) :\n` + arr.map(x => '• ' + x).join('\n') + '\n' : '';
     alert(`Rattachement terminé — ${resume.rattaches.length}/${files.length} screen(s) rattaché(s).\n` +
       bloc('✅ Rattachés', resume.rattaches) +
-      bloc('⚠ Ambigus (plusieurs transactions au même ¥ et même date) — rattache-les à la main via 📎', resume.ambigus) +
-      bloc('❌ Sans correspondance (transaction absente ou déjà pourvue d\'un justificatif)', resume.aucun) +
+      bloc('⚠ Ambigus (plusieurs transactions aussi proches) — rattache-les à la main via 📎', resume.ambigus) +
+      bloc('❌ Sans correspondance (aucun paiement libre à ±12 % du ¥ du screen)', resume.aucun) +
       bloc('💥 Erreurs', resume.erreurs));
     loadNinefive();
   };
@@ -3014,7 +3018,7 @@ function nfAnalyseHtml(a){
   if (!a) return '';
   const li = (lbl, v) => v ? `<span style="white-space:nowrap;"><b>${lbl}</b> ${esc(String(v))}</span>` : '';
   const cmd = a.numero_commande ? `<span style="white-space:nowrap;"><b>Commande :</b> ${esc(String(a.numero_commande))} <button class="btn" style="font-size:10px;padding:1px 6px;" onclick="nfCopier('${esc(escJs(String(a.numero_commande)))}','N° de commande copié — colle-le en référence dans la caisse')">📋</button></span>` : '';
-  const parts = [li('Article :', a.article), li('Taille :', a.taille), li('Prix :', a.prix_cny != null ? '¥' + a.prix_cny : null), cmd, li('Datée du :', a.date_commande), li('Vendeur :', a.vendeur)].filter(Boolean);
+  const parts = [li('Article :', a.article), li('Taille :', a.taille), li('Prix :', a.prix_cny != null ? '¥' + a.prix_cny : null), li('Payé :', a.prix_paye_cny != null ? '¥' + a.prix_paye_cny : null), cmd, li('Datée du :', a.date_commande), li('Vendeur :', a.vendeur)].filter(Boolean);
   return parts.length ? `<div style="background:var(--surface);border-radius:10px;padding:8px 12px;font-size:12.5px;display:flex;gap:12px;flex-wrap:wrap;max-width:92vw;">🔍 ${parts.join(' · ')}</div>` : '';
 }
 async function nfVoirPhoto(txId){
@@ -3391,7 +3395,7 @@ async function nfPdf(txId, photoDataUrl){
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-11-04-v298-screens-en-masse'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-11-04-v299-matching-tolerant'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
