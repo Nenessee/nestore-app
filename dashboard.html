@@ -2618,6 +2618,7 @@ tbody tr { transition: background .12s; }
           <option value="">Tout</option>
         </select>
         <select class="filter-select" id="nfFiltreStatut" style="min-height:32px;padding:5px 26px 5px 10px;font-size:12px;" onchange="nfRender()"></select>
+        <select class="filter-select" id="nfFiltreQui" style="min-height:32px;padding:5px 26px 5px 10px;font-size:12px;" onchange="nfRender()"><option value="">Tout le monde</option></select>
         <select class="filter-select" id="nfTri" style="min-height:32px;padding:5px 26px 5px 10px;font-size:12px;" onchange="nfRender()">
           <option value="recent">Plus récent d'abord</option>
           <option value="ancien">Plus ancien d'abord</option>
@@ -2648,6 +2649,17 @@ async function loadNinefive(){
     const d = await api('/ninefive/list');
     nfData = d.rows || [];
     nfKpis();
+    // Filtre « qui a payé » : options déduites des titulaires présents (Louis, Noa…).
+    const selQ = document.getElementById('nfFiltreQui');
+    if (selQ) {
+      const cur = selQ.value;
+      const noms = [...new Set(nfData.map(r => r.titulaire).filter(Boolean))].sort();
+      const sansTit = nfData.some(r => !r.titulaire);
+      selQ.innerHTML = '<option value="">Tout le monde</option>' +
+        noms.map(n => `<option value="${esc(n)}"${n === cur ? ' selected' : ''}>${esc(n)}</option>`).join('') +
+        (sansTit ? `<option value="__inconnu"${cur === '__inconnu' ? ' selected' : ''}>? (ancien import — ré-importe le relevé)</option>` : '');
+      selQ.style.display = (noms.length || sansTit) ? '' : 'none';
+    }
     const selS = document.getElementById('nfFiltreStatut');
     if (selS && !selS.options.length) nfChangeType(); // premier affichage : options de statut du type courant
     else nfRender();
@@ -2704,13 +2716,15 @@ function nfRender(){
   const fs = (document.getElementById('nfFiltreStatut')||{}).value || '';
   const tri = (document.getElementById('nfTri')||{}).value || 'recent';
   const q = ((document.getElementById('nfSearch')||{}).value||'').toLowerCase();
+  const fq = (document.getElementById('nfFiltreQui')||{}).value || '';
   const rows = rows0.filter(r => {
     if (ft && r.type !== ft) return false;
+    if (fq === '__inconnu' ? r.titulaire : (fq && r.titulaire !== fq)) return false;
     if (fs === 'remb' && !r.rembourse_par) return false;
     if (fs === 'non_remb' && r.rembourse_par) return false;
     if (['a_traiter','en_caisse','annule'].includes(fs) && r.type === 'achat' && r.statut !== fs) return false;
     const a = r.analyse || {};
-    if (q && !(`${r.date_tx} ${r.heure||''} ${r.montant_eur} ${r.montant_cny||''} ${r.marchand||''} ${r.note||''} ${a.numero_commande||''} ${a.article||''} ${a.taille||''} ${a.vendeur||''}`.toLowerCase().includes(q))) return false;
+    if (q && !(`${r.date_tx} ${r.heure||''} ${r.montant_eur} ${r.montant_cny||''} ${r.marchand||''} ${r.note||''} ${r.titulaire||''} ${a.numero_commande||''} ${a.article||''} ${a.taille||''} ${a.vendeur||''}`.toLowerCase().includes(q))) return false;
     return true;
   });
   const cle = r => `${r.date_tx||''} ${r.heure||'00:00'}`;
@@ -2772,7 +2786,7 @@ function nfRender(){
   };
   document.getElementById('nfTable').innerHTML = rows.length ? rows.map(r => `
     <tr>
-      <td style="white-space:nowrap;font-size:12.5px;">${esc(r.date_tx||'—')}${r.heure?` <span style="color:var(--text-muted);">${esc(r.heure)}</span>`:''}</td>
+      <td style="white-space:nowrap;font-size:12.5px;">${esc(r.date_tx||'—')}${r.heure?` <span style="color:var(--text-muted);">${esc(r.heure)}</span>`:''}${r.titulaire?`<div style="margin-top:3px;"><span class="badge" style="background:${nfCouleurQui(r.titulaire)}1f;color:${nfCouleurQui(r.titulaire)};font-size:10px;">${esc(r.titulaire)}</span></div>`:''}</td>
       <td>${typeSel(r)}</td>
       <td class="num" style="font-weight:600;${r.sens==='remboursement'?'color:var(--success);':''}"><span style="cursor:pointer;border-bottom:1px dashed var(--border-strong);" title="Copier le montant (${Number(r.montant_eur).toFixed(2)}) pour la caisse" onclick="nfCopier('${Number(r.montant_eur).toFixed(2)}','Montant ${Number(r.montant_eur).toFixed(2)} € copié')">${r.sens==='remboursement'?'+':''}${Number(r.montant_eur).toFixed(2)} €</span></td>
       <td class="num" style="color:var(--text-muted);font-size:12px;">${r.montant_cny!=null?'¥'+Number(r.montant_cny).toFixed(0):'—'}</td>
@@ -2782,6 +2796,13 @@ function nfRender(){
     </tr>`).join('') : `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted);">${(nfData||[]).length?'Aucune ligne pour ces filtres.':'Importe un relevé Revolut pour commencer.'}</td></tr>`;
 }
 function nfLigne(txId){ return (nfData||[]).find(r => String(r.tx_id) === String(txId)); }
+// Couleur stable par personne (badge « qui a payé ») — hex requis (on dérive le fond en alpha).
+const NF_QUI_COULEURS = ['#2a78d6', '#16805e', '#a76d08', '#7c5cd6', '#c0392b'];
+function nfCouleurQui(nom){
+  let h = 0; const s = String(nom||'');
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return NF_QUI_COULEURS[h % NF_QUI_COULEURS.length];
+}
 async function nfPatch(txId, patch, okMsg){
   const r = await fetch(`${BACKEND_URL}/ninefive/${encodeURIComponent(txId)}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(patch) });
   const d = await r.json().catch(()=>({}));
@@ -3324,7 +3345,7 @@ async function nfPdf(txId, photoDataUrl){
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-11-02-v296-spy-antibot'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-11-04-v297-titulaire-95fen'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
