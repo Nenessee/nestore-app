@@ -3172,6 +3172,7 @@ async function nfPdf(txId, photoDataUrl){
       <!-- UN SEUL bouton de synchro : relit Sheet Vinted + Registre Reship, personne n'a à savoir
            qu'il y a deux miroirs. Les outils rares (diagnostics, import/export) vivent dans un menu. -->
       <button class="btn" id="vintedResyncBtn" title="Relit le Google Sheet Vinted ET le Registre Reship, puis recharge l'onglet" onclick="vintedActualiserTout()">🔄 Actualiser</button>
+      <button class="btn" title="Vérifie chaque maillon de la liaison Vinted ↔ Reship et nomme celui qui casse" onclick="vintedLienDiag(this)">🩺 Lien Reship</button>
       <button class="btn" title="Réception des cartons Reship + suivi colis" onclick="vintedOpenReship()">📦 Réception cartons</button>
       <details class="vtools" id="vintedToolsMenu">
         <summary class="btn" title="Diagnostics et import/export (usage occasionnel)">🛠 Outils</summary>
@@ -3430,7 +3431,7 @@ async function nfPdf(txId, photoDataUrl){
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-11-04-v302-lot-global'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-11-09-v303-diag-lien-reship'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -6862,6 +6863,23 @@ function vintedSave(encaisse){
   } else { showDashToast('Enregistré ✓','success'); vintedCloseFiche(); }
 }
 
+// 🩺 Lien Reship : le serveur vérifie chaque maillon (sessions Vinted → scan tracking →
+// synchro Registre Reship → matching) et renvoie des verdicts en clair.
+async function vintedLienDiag(btn){
+  if(btn){ btn.disabled=true; btn.textContent='🩺 Analyse…'; }
+  try{
+    const d=await api('/vinted/lien-diagnostic');
+    const fmtD=(x)=>x?new Date(x).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'jamais';
+    alert('Diagnostic du lien Vinted ↔ Reship\n\n'+d.verdicts.map(v=>'• '+v).join('\n\n')+
+      '\n\n— Détails —'+
+      '\nSessions Vinted : '+(d.sessions.length?d.sessions.map(s=>`${s.account_label} ${s.status==='active'?'✅':'🔴 '+s.status}${s.last_error?' ('+s.last_error+')':''}`).join(' · '):'aucune')+
+      '\nDernière synchro Registre Reship : '+fmtD(d.dates.derniere_synchro_reship)+
+      '\nDernier scan des trackings : '+fmtD(d.dates.dernier_scan_tracking)+
+      '\nColis au Registre : '+d.colis.total+' (dernier arrivé : '+(d.colis.dernier_arrive||'—')+')'+
+      '\nAchats reliés à un colis : '+d.compteurs.achats_relies_a_un_colis+' · avec tracking sans colis : '+d.compteurs.avec_tracking_sans_colis);
+  }catch(e){ showDashToast('Diagnostic : '+e.message,'error'); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='🩺 Lien Reship'; } }
+}
 // LE bouton de synchro de l'onglet : relit les deux miroirs (Sheet Vinted + Registre Reship)
 // en parallèle puis recharge — un seul geste, un seul message.
 async function vintedActualiserTout(){
