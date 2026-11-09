@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-2026-11-09-v303-diag-lien-reship'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
+const CACHE_VERSION = 'nestore-2026-11-09-v304-relier-colis-manuel'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
 const STATIC_ASSETS = [
   '/',
   '/index.html',
