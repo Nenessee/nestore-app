@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-2026-11-09-v306-verdict-reship-uk'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
+const CACHE_VERSION = 'nestore-2026-11-09-v307-purge-bans-scan-async'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
 const STATIC_ASSETS = [
   '/',
   '/index.html',

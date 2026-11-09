@@ -3431,7 +3431,7 @@ async function nfPdf(txId, photoDataUrl){
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-11-09-v306-verdict-reship-uk'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-11-09-v307-purge-bans-scan-async'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
@@ -7332,7 +7332,8 @@ async function vintedLoadReship(){
       return `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
         <div style="min-width:0;"><div style="font-weight:600;font-size:13.5px;">${vEsc(s.account_label)}</div>
           <div style="font-size:11.5px;color:${stale?'var(--warning)':'var(--text-muted)'};margin-top:2px;">🍪 dernier cookie ${agoTxt(m)}${stale?' ⚠️ extension muette ?':''}</div></div>
-        <span class="vtag ${active?'encaisse':'fake'}">${active?'actif':'expiré'}</span>
+        <span style="display:flex;align-items:center;gap:8px;"><span class="vtag ${active?'encaisse':'fake'}">${active?'actif':'expiré'}</span>
+        <button class="btn" style="font-size:11px;padding:3px 8px;" title="Supprimer cette session (compte banni / abandonné)" onclick="vintedSupprSession('${vEsc(escJs(s.account_label))}')">🗑</button></span>
       </div>`; }).join('') || '<div style="color:var(--text-muted);font-size:13px;">Aucune session enregistrée.</div>';
     // Timeline : cookie reçu / fin de scan, du plus récent au plus ancien.
     const evFmt=(iso)=>{ const dt=new Date(iso); if(isNaN(dt)) return '—'; const hhmm=dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}); const today=new Date().toDateString()===dt.toDateString(); return today?hhmm:(dt.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' '+hhmm); };
@@ -7354,12 +7355,25 @@ async function vintedLoadReship(){
       <div style="max-height:260px;overflow-y:auto;">${timeline}</div>`;
   }catch(e){ box.innerHTML='<div style="color:var(--accent);">Erreur : '+vEsc(e.message)+'</div>'; }
 }
-async function vintedRunScan(){
-  const btn=document.getElementById('vintedScanBtn'); if(btn){ btn.disabled=true; btn.textContent='Scan en cours…'; }
+// Supprimer une session Vinted (compte banni / abandonné) — le scan ne tentera plus ce compte.
+async function vintedSupprSession(label){
+  if(!confirm(`Supprimer la session « ${label} » ?\n\nÀ faire pour un compte BANNI ou abandonné : le scan ne le tentera plus. Ses achats passés se relient à la main (vue carton → 🔗 Relier à un achat).`)) return;
   try{
-    const r=await (await fetch(`${BACKEND_URL}/vinted/scan`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
+    const r=await fetch(`${BACKEND_URL}/vinted/session/${encodeURIComponent(label)}`,{method:'DELETE'});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok){ showDashToast('Suppression : '+(d.erreur||('HTTP '+r.status)),'error'); return; }
+    showDashToast(`Session « ${label} » supprimée ✓`,'success'); vintedLoadReship();
+  }catch(e){ showDashToast('Erreur réseau (suppression)','error'); }
+}
+async function vintedRunScan(){
+  const btn=document.getElementById('vintedScanBtn'); if(btn){ btn.disabled=true; btn.textContent='Scan…'; }
+  try{
+    // Lancement en ARRIÈRE-PLAN : le scan complet peut durer 15-20 min (throttle anti-bot),
+    // l'attendre faisait expirer la requête. Les colis se relient au fil de l'eau.
+    const r=await (await fetch(`${BACKEND_URL}/vinted/scan/lancer`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
     if(!r.ok){ showDashToast('Erreur scan : '+(r.erreur||'?'),'error'); }
-    else showDashToast(`Scan : ${r.trouves||0} suivi(s) récupéré(s), ${r.en_attente||0} en attente${r.reste?' (reste à faire)':''}`,'success');
+    else if(r.dejaEnCours){ showDashToast('Un scan est déjà en cours — les colis se relient au fil de l\'eau','info'); }
+    else showDashToast('Scan lancé en arrière-plan (~15-20 min) — les colis se relient au fil de l\'eau, recharge le carton ensuite','success');
     vintedLoadReship();
   }catch(e){ showDashToast('Erreur réseau (scan)','error'); }
   finally{ if(btn){ btn.disabled=false; btn.textContent='▶ Relancer le scan'; } }
