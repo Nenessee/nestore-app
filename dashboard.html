@@ -3159,7 +3159,9 @@ async function nfImporterScreens(){
     } catch(e){ resume.erreurs.push(`affectation du lot — ${e.message}`); }
     if (btn) { btn.disabled = false; btn.textContent = '🧩 Rattacher des screens'; }
     const bloc = (titre, arr) => arr.length ? `\n${titre} (${arr.length}) :\n` + arr.map(x => '• ' + x).join('\n') + '\n' : '';
-    alert(`Rattachement terminé — ${resume.rattaches.length}/${files.length} screen(s) rattaché(s).\n` +
+    const nSurs = resume.rattaches.filter(x => x.includes('🕐')).length, nMontant = resume.rattaches.length - nSurs;
+    alert(`Rattachement terminé — ${resume.rattaches.length}/${files.length} screen(s) rattaché(s)` +
+      (resume.rattaches.length ? ` : ${nSurs} 🕐 à l'heure près (sûrs)${nMontant ? ` · ${nMontant} au montant seul — vérifie ceux-là en priorité (heure de paiement illisible sur le screen)` : ''}` : '') + `.\n` +
       bloc('✅ Rattachés', resume.rattaches) +
       bloc('⚠ Ambigus (plusieurs paiements du même jour aussi proches) — rattache-les à la main via 📎', resume.ambigus) +
       bloc('❌ Sans correspondance (aucun paiement libre le jour de la commande dans la fenêtre de ¥)', resume.aucun) +
@@ -3575,7 +3577,7 @@ async function nfPdf(txId, photoDataUrl){
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-11-16-v317-onglet-epure'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-11-16-v318-jour-impose-par-heure'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
