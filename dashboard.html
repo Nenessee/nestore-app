@@ -2608,6 +2608,7 @@ tbody tr { transition: background .12s; }
           <button class="btn" id="nfHeuresBtn" style="display:block;width:100%;text-align:left;font-size:12px;margin-bottom:4px;" onclick="nfOutilsFermer();nfImporterHeures()">🕐 Heures Alipay <span style="color:var(--text-muted);">— captures de la liste</span></button>
           <button class="btn" style="display:block;width:100%;text-align:left;font-size:12px;margin-bottom:4px;" onclick="nfOutilsFermer();nfDetacherMasse(this)">↩ Détacher le lot de screens</button>
           <button class="btn" style="display:block;width:100%;text-align:left;font-size:12px;margin-bottom:4px;" onclick="nfOutilsFermer();nfDiagnostic(this)">🩺 Tester la lecture (vision)</button>
+          <button class="btn" style="display:block;width:100%;text-align:left;font-size:12px;margin-bottom:4px;" onclick="nfOutilsFermer();nfReinitialiserHeures()">🕐↺ Réinitialiser les heures…</button>
           <div style="border-top:1px solid var(--border);margin:4px 0;"></div>
           <button class="btn" style="display:block;width:100%;text-align:left;font-size:12px;color:var(--accent);" onclick="nfOutilsFermer();nfReinitialiser()">🧹 Tout réinitialiser…</button>
         </div>
@@ -3024,6 +3025,18 @@ function nfOutilsToggle(ev){
   if (!ouvert) setTimeout(() => document.addEventListener('click', nfOutilsFermer, { once: true }), 0);
 }
 function nfOutilsFermer(){ const m = document.getElementById('nfOutilsMenu'); if (m) m.style.display = 'none'; }
+// 🕐↺ Réinitialise les HEURES seules : pour ré-importer la liste Alipay avec l'autre fuseau
+// (l'import ne remplit que les heures vides). Rien d'autre ne bouge.
+async function nfReinitialiserHeures(){
+  if (!confirm('Effacer les heures de TOUTES les transactions ?\n\nUtile si le fuseau choisi à l\'import était mauvais : tu ré-importes ensuite tes captures via ⚙️ → 🕐 Heures Alipay en choisissant l\'autre fuseau.\n\nTransactions, justificatifs, notes et statuts ne bougent pas.')) return;
+  try {
+    const r = await fetch(`${BACKEND_URL}/ninefive/heures/reinitialiser`, { method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' });
+    const d = await r.json().catch(()=>({}));
+    if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    showDashToast(`${d.effacees} heure(s) effacée(s) — ré-importe via ⚙️ → 🕐 Heures Alipay`,'success');
+    loadNinefive();
+  } catch(e){ showDashToast('Réinitialisation des heures : ' + e.message,'error'); }
+}
 // 🧹 Réinitialisation TOTALE de l'onglet (publication officielle : on repart propre).
 // Double garde-fou : confirmation + mot à taper. Tout est ré-importable (relevés, heures, screens).
 async function nfReinitialiser(){
@@ -3149,7 +3162,17 @@ async function nfImporterScreens(){
           const art = (x.analyse && x.analyse.article) || l.nom;
           const prixLu = x.analyse ? (x.analyse.prix_paye_cny != null ? x.analyse.prix_paye_cny : x.analyse.prix_cny) : null;
           const cny = prixLu != null ? ' (¥' + prixLu + ')' : '';
-          if (x.statut === 'rattache') resume.rattaches.push(`${art}${cny} → ${x.date}, ${Number(x.eur).toFixed(2)} €${ec(x.ecartCny)}${x.titulaire ? ' · ' + x.titulaire : ''}${x.methode === 'heure' ? ' 🕐 à l\'heure près' : ''}`);
+          if (x.statut === 'rattache') {
+            // Diagnostic de l'heure (v320) : pourquoi « au montant » ? — affiché par ligne et
+            // agrégé en tête (un écart récurrent de plusieurs heures = fuseau d'import faux).
+            let diag = '';
+            if (x.methode !== 'heure') {
+              if (!x.heureScreen) { resume.sansHeureScreen = (resume.sansHeureScreen || 0) + 1; diag = ' · ⏱? heure illisible sur le screen'; }
+              else if (!x.heureTx) { resume.sansHeureTx = (resume.sansHeureTx || 0) + 1; diag = ' · ⏱? transaction sans heure importée'; }
+              else if (x.ecartMin != null) { (resume.ecarts = resume.ecarts || []).push(x.ecartMin); diag = ` · ⏱ écart ${x.ecartMin} min`; }
+            }
+            resume.rattaches.push(`${art}${cny} → ${x.date}, ${Number(x.eur).toFixed(2)} €${ec(x.ecartCny)}${x.titulaire ? ' · ' + x.titulaire : ''}${x.methode === 'heure' ? ' 🕐 à l\'heure près' : diag}`);
+          }
           else if (x.statut === 'ambigu') resume.ambigus.push(`${art}${cny} — ${x.candidats.length} transactions possibles : ` + x.candidats.map(c => `${c.date} ¥${c.cny}${ec(c.ecartCny)}`).join(', '));
           else if (x.statut === 'erreur') resume.erreurs.push(`${art} — ${x.raison}`);
           else resume.aucun.push(`${art}${cny}${x.raison ? ' — ' + x.raison : ''}` +
@@ -3160,8 +3183,22 @@ async function nfImporterScreens(){
     if (btn) { btn.disabled = false; btn.textContent = '🧩 Rattacher des screens'; }
     const bloc = (titre, arr) => arr.length ? `\n${titre} (${arr.length}) :\n` + arr.map(x => '• ' + x).join('\n') + '\n' : '';
     const nSurs = resume.rattaches.filter(x => x.includes('🕐')).length, nMontant = resume.rattaches.length - nSurs;
+    // Verdict global de l'heure : nomme la cause dominante des « au montant ».
+    let diagTete = '';
+    if (nMontant) {
+      const parts = [];
+      if (resume.sansHeureScreen) parts.push(`${resume.sansHeureScreen} sans heure lisible sur le screen`);
+      if (resume.sansHeureTx) parts.push(`${resume.sansHeureTx} sur des transactions SANS heure (⚙️ 🕐 pas importé pour ces jours ?)`);
+      if (resume.ecarts && resume.ecarts.length) {
+        const tri = resume.ecarts.slice().sort((a, b) => a - b);
+        const med = tri[Math.floor(tri.length / 2)];
+        parts.push(`${resume.ecarts.length} avec un écart d'heure (médiane ${med} min)`);
+        if (resume.ecarts.length >= 5 && med >= 50) diagTete += `\n\n⚠ Écart d'heure récurrent (~${Math.round(med / 60 * 10) / 10} h) : le FUSEAU des heures importées est probablement FAUX — ⚙️ Outils → 🕐↺ Réinitialiser les heures, puis ré-importe tes captures via 🕐 Heures Alipay en choisissant l'AUTRE fuseau, et relance ↩ + 🧩.`;
+      }
+      if (parts.length) diagTete = `\nPourquoi « au montant » : ${parts.join(' · ')}.` + diagTete;
+    }
     alert(`Rattachement terminé — ${resume.rattaches.length}/${files.length} screen(s) rattaché(s)` +
-      (resume.rattaches.length ? ` : ${nSurs} 🕐 à l'heure près (sûrs)${nMontant ? ` · ${nMontant} au montant seul — vérifie ceux-là en priorité (heure de paiement illisible sur le screen)` : ''}` : '') + `.\n` +
+      (resume.rattaches.length ? ` : ${nSurs} 🕐 à l'heure près (sûrs)${nMontant ? ` · ${nMontant} au montant seul` : ''}` : '') + `.` + diagTete + `\n` +
       bloc('✅ Rattachés', resume.rattaches) +
       bloc('⚠ Ambigus (plusieurs paiements du même jour aussi proches) — rattache-les à la main via 📎', resume.ambigus) +
       bloc('❌ Sans correspondance (aucun paiement libre le jour de la commande dans la fenêtre de ¥)', resume.aucun) +
@@ -3577,7 +3614,7 @@ async function nfPdf(txId, photoDataUrl){
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-11-16-v319-suppression-note-auto'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-11-16-v320-diagnostic-heure'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
