@@ -3255,7 +3255,7 @@ async function nfVoirPhoto(txId){
         const r = await fetch(`${BACKEND_URL}/ninefive/${encodeURIComponent(txId)}/photo`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ photo: null }) });
         const dd = await r.json().catch(()=>({}));
         if (!r.ok || !dd.ok) throw new Error(dd.error || ('HTTP '+r.status));
-        const l = nfLigne(txId); if (l) { l.a_justificatif = false; l.analyse = null; l.vignette = null; }
+        const l = nfLigne(txId); if (l) { l.a_justificatif = false; l.analyse = null; l.vignette = null; if ('note' in dd) l.note = dd.note; }
         ov.remove(); showDashToast('Justificatif supprimé','success'); nfRender();
       } catch(e){ showDashToast('Suppression : '+e.message,'error'); }
     };
@@ -3577,7 +3577,7 @@ async function nfPdf(txId, photoDataUrl){
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-11-16-v318-jour-impose-par-heure'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-11-16-v319-suppression-note-auto'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
