@@ -2999,11 +2999,38 @@ function nfTrancherImage(file){
     reader.readAsDataURL(file);
   });
 }
+// Choix du FUSEAU de la liste (Chine ou France) : l'appli Alipay peut afficher l'un ou
+// l'autre selon le compte/réglage — l'utilisateur vérifie sur une ligne dont il connaît
+// l'heure réelle. Choix mémorisé, re-proposé à chaque import (un tap si inchangé).
+function nfChoisirFuseau(){
+  return new Promise((resolve) => {
+    let memo = null; try { memo = localStorage.getItem('nf_fuseau_liste'); } catch(_){}
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(10,10,10,.7);display:flex;align-items:center;justify-content:center;padding:20px;';
+    const opt = (id, titre, sub, actif) => `<button id="${id}" class="btn" style="display:block;width:100%;text-align:left;padding:12px 14px;margin-top:8px;${actif ? 'outline:2px solid var(--success);' : ''}">
+        <div style="font-weight:700;">${titre}</div><div style="font-size:12px;color:var(--text-muted);">${sub}</div></button>`;
+    ov.innerHTML = `<div style="background:var(--surface);border-radius:14px;padding:16px;width:min(460px,94vw);">
+        <div style="font-weight:700;">🕐 Les heures de ta liste Alipay sont en…</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Vérifie sur UNE ligne dont tu connais l'heure réelle (ex. un achat fait à 23:57 heure française → la liste affiche 05:57 si elle est en heure de Chine, 23:57 si elle est en heure française).</div>
+        ${opt('nfFzChine', '🇨🇳 Heure de Chine', 'ex. payé 23:57 en France → affiché 05:57 le lendemain', memo !== 'france')}
+        ${opt('nfFzFrance', '🇫🇷 Heure française', 'la liste affiche la même heure que ta montre', memo === 'france')}
+        <div style="display:flex;justify-content:flex-end;margin-top:10px;"><button id="nfFzAnnule" class="btn" style="font-size:12px;">Annuler</button></div>
+      </div>`;
+    const fin = (v) => { ov.remove(); if (v) { try { localStorage.setItem('nf_fuseau_liste', v); } catch(_){} } resolve(v); };
+    ov.onclick = (e) => { if (e.target === ov) fin(null); };
+    document.body.appendChild(ov);
+    ov.querySelector('#nfFzChine').onclick = () => fin('chine');
+    ov.querySelector('#nfFzFrance').onclick = () => fin('france');
+    ov.querySelector('#nfFzAnnule').onclick = () => fin(null);
+  });
+}
 async function nfImporterHeures(){
   const inp = document.getElementById('nfScreensInput');
   inp.onchange = async function(){
     const files = [...(inp.files || [])]; inp.value = '';
     if (!files.length) return;
+    const fuseau = await nfChoisirFuseau();
+    if (!fuseau) return;
     const btn = document.getElementById('nfHeuresBtn');
     const bilan = { lues: 0, remplies: 0, deja: 0, introuvables: 0, exemples: [], erreurs: [] };
     // Toutes les tranches de toutes les captures, puis lecture séquentielle avec progression.
@@ -3015,7 +3042,7 @@ async function nfImporterHeures(){
     for (let i = 0; i < tranches.length; i++) {
       if (btn) { btn.disabled = true; btn.textContent = `🕐 ${i + 1}/${tranches.length}…`; }
       try {
-        const r = await fetch(`${BACKEND_URL}/ninefive/heures/importer`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ photo: tranches[i] }) });
+        const r = await fetch(`${BACKEND_URL}/ninefive/heures/importer`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ photo: tranches[i], fuseau }) });
         const d = await r.json().catch(()=>({}));
         if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
         bilan.lues += d.lues; bilan.remplies += d.remplies; bilan.deja += d.deja; bilan.introuvables += d.introuvables; bilan.ignorees = (bilan.ignorees || 0) + (d.ignorees || 0);
@@ -3024,7 +3051,7 @@ async function nfImporterHeures(){
       } catch(e){ bilan.erreurs.push(`tranche ${i + 1} — ${e.message}`); }
     }
     if (btn) { btn.disabled = false; btn.textContent = '🕐 Heures Alipay'; }
-    alert(`Heures Alipay importées (lues en heure française, celle de ton téléphone).\n\n• ${bilan.lues} ligne(s) lue(s) sur ${tranches.length} tranche(s)\n• ✅ ${bilan.remplies} heure(s) remplie(s)\n• ⏭ ${bilan.deja} déjà connue(s) / en double (recouvrement des tranches)\n• 🙈 ${bilan.ignorees || 0} ligne(s) illisible(s) (date ou heure non reconnue)${bilan.horsPeriode ? `\n• 📆 ${bilan.horsPeriode} hors période du relevé Revolut importé${bilan.finPeriode ? ' (dernier jour importé : ' + bilan.finPeriode + ')' : ''} — importe un relevé plus récent via 📥 puis relance 🕐` : ''}\n• ❓ ${bilan.introuvables} sans transaction Revolut correspondante${bilan.exemples.length ? '\n   ex. : ' + bilan.exemples.join(' · ') : ''}${bilan.tronquees ? `\n• ✂️ ${bilan.tronquees} tranche(s) dense(s) lue(s) partiellement — relance 🕐 avec les mêmes captures pour compléter (rien n'est compté deux fois)` : ''}${bilan.erreurs.length ? '\n💥 ' + bilan.erreurs.join('\n💥 ') : ''}\n\nMaintenant : ↩ Détacher le lot, puis 🧩 Rattacher des screens — les matchs passeront en « 🕐 à l'heure près ».`);
+    alert(`Heures Alipay importées (liste lue en ${fuseau === 'france' ? 'heure FRANÇAISE' : 'heure de CHINE'} — affichées en heure française dans le tableau).\n\n• ${bilan.lues} ligne(s) lue(s) sur ${tranches.length} tranche(s)\n• ✅ ${bilan.remplies} heure(s) remplie(s)\n• ⏭ ${bilan.deja} déjà connue(s) / en double (recouvrement des tranches)\n• 🙈 ${bilan.ignorees || 0} ligne(s) illisible(s) (date ou heure non reconnue)${bilan.horsPeriode ? `\n• 📆 ${bilan.horsPeriode} hors période du relevé Revolut importé${bilan.finPeriode ? ' (dernier jour importé : ' + bilan.finPeriode + ')' : ''} — importe un relevé plus récent via 📥 puis relance 🕐` : ''}\n• ❓ ${bilan.introuvables} sans transaction Revolut correspondante${bilan.exemples.length ? '\n   ex. : ' + bilan.exemples.join(' · ') : ''}${bilan.tronquees ? `\n• ✂️ ${bilan.tronquees} tranche(s) dense(s) lue(s) partiellement — relance 🕐 avec les mêmes captures pour compléter (rien n'est compté deux fois)` : ''}${bilan.erreurs.length ? '\n💥 ' + bilan.erreurs.join('\n💥 ') : ''}\n\nMaintenant : ↩ Détacher le lot, puis 🧩 Rattacher des screens — les matchs passeront en « 🕐 à l'heure près ».`);
     loadNinefive();
   };
   inp.click();
@@ -3507,7 +3534,7 @@ async function nfPdf(txId, photoDataUrl){
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-11-16-v310-tranches-robustes'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-11-16-v311-fuseau-au-choix'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
