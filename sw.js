@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-2026-11-16-v316-fenetre-coupons'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
+const CACHE_VERSION = 'nestore-2026-11-16-v317-onglet-epure'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
 const STATIC_ASSETS = [
   '/',
   '/index.html',

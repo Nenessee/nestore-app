@@ -2600,15 +2600,30 @@ tbody tr { transition: background .12s; }
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
     <span class="section-title" style="margin:0;">95分 — achats Alipay</span>
     <span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      <button class="btn btn-green" style="font-size:12px;" onclick="nfImporter()">📥 Importer un relevé Revolut</button>
+      <button class="btn btn-green" style="font-size:12px;" onclick="nfImporter()">📥 Importer un relevé</button>
       <button class="btn" style="font-size:12px;" id="nfScreensBtn" onclick="nfImporterScreens()">🧩 Rattacher des screens</button>
-      <button class="btn" style="font-size:12px;" onclick="nfDetacherMasse(this)">↩ Détacher le lot</button>
-      <button class="btn" style="font-size:12px;" id="nfHeuresBtn" onclick="nfImporterHeures()">🕐 Heures Alipay</button>
-      <button class="btn" style="font-size:12px;" onclick="nfDiagnostic(this)">🩺 Tester la lecture</button>
-      <button class="btn" style="font-size:12px;" onclick="loadNinefive()">↻ Actualiser</button>
+      <span style="position:relative;display:inline-block;">
+        <button class="btn" style="font-size:12px;" onclick="nfOutilsToggle(event)">⚙️ Outils</button>
+        <div id="nfOutilsMenu" style="display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:150;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:6px;min-width:240px;box-shadow:0 8px 24px rgba(0,0,0,.25);">
+          <button class="btn" id="nfHeuresBtn" style="display:block;width:100%;text-align:left;font-size:12px;margin-bottom:4px;" onclick="nfOutilsFermer();nfImporterHeures()">🕐 Heures Alipay <span style="color:var(--text-muted);">— captures de la liste</span></button>
+          <button class="btn" style="display:block;width:100%;text-align:left;font-size:12px;margin-bottom:4px;" onclick="nfOutilsFermer();nfDetacherMasse(this)">↩ Détacher le lot de screens</button>
+          <button class="btn" style="display:block;width:100%;text-align:left;font-size:12px;margin-bottom:4px;" onclick="nfOutilsFermer();nfDiagnostic(this)">🩺 Tester la lecture (vision)</button>
+          <div style="border-top:1px solid var(--border);margin:4px 0;"></div>
+          <button class="btn" style="display:block;width:100%;text-align:left;font-size:12px;color:var(--accent);" onclick="nfOutilsFermer();nfReinitialiser()">🧹 Tout réinitialiser…</button>
+        </div>
+      </span>
+      <button class="btn" style="font-size:12px;" onclick="loadNinefive()">↻</button>
     </span>
   </div>
-  <div style="font-size:12px;color:var(--text-soft);margin-bottom:12px;">Importe ton relevé CSV Revolut : seules les lignes <b>Alipay</b> sont retenues, tout le reste est ignoré. Classement auto, modifiable ligne par ligne — <b>offre</b> : paiement &lt; 10 € · <b>transport</b> : marchand Alipay autre que 95分 (la remarque ChinaShipShop 8558-7227 n'est pas exportée par Revolut) · <b>achat</b> : le reste. Coût retenu = <b>€ réellement débité sur Revolut</b>. Les <b>remboursements sont rattachés automatiquement</b> aux offres et achats correspondants (montant ¥ exact + marchand). Ré-importer n'efface ni n'écrase jamais rien : lignes identifiées par l'ID Revolut, tes reclassements / justificatifs / mises en caisse sont conservés. L'heure s'affiche si ton export la contient (le « transaction statement » n'a que la date) — et quand elle est là, <b>🧩 rattache les screens à la minute près</b> (heure de paiement 付款时间 du screen) : ré-importe un export horodaté pour la remplir, rien d'autre ne bouge.</div>
+  <details style="margin-bottom:12px;">
+    <summary style="cursor:pointer;font-size:12px;color:var(--text-soft);">ℹ️ <b>Comment ça marche</b> — la routine : 📥 relevé Revolut → ⚙️ 🕐 heures Alipay → 🧩 screens des commandes (détails ici)</summary>
+    <div style="font-size:12px;color:var(--text-soft);margin-top:8px;line-height:1.5;">
+      <b>1. 📥 Importer un relevé Revolut (CSV)</b> : seules les lignes <b>Alipay</b> sont retenues. Classement auto, modifiable ligne par ligne — <b>offre</b> : paiement &lt; 10 € · <b>transport</b> : marchand Alipay autre que 95分 · <b>achat</b> : le reste. Coût retenu = <b>€ réellement débité</b>. Les <b>remboursements se rattachent automatiquement</b>. Ré-importer n'efface ni n'écrase jamais rien (lignes identifiées par l'ID Revolut).<br>
+      <b>2. ⚙️ → 🕐 Heures Alipay</b> : le relevé Revolut n'a pas l'heure — importe des captures de la liste des transactions de l'appli Alipay (scroll complet accepté), choisis le fuseau affiché, et chaque transaction reçoit son heure exacte.<br>
+      <b>3. 🧩 Rattacher des screens</b> : envoie tous tes screens de commandes 95分 d'un coup — chaque screen est lu (article, prix, n° de commande, date/heure de paiement) et rattaché à SA transaction, à la minute près quand les heures sont là. Jamais de rattachement au hasard : les cas douteux sortent en « ambigu », à poser via 📎 sur la ligne.<br>
+      Ensuite : vignette + titre visibles dans le tableau, 👁 pour voir/télécharger le justificatif (PDF), 💰 En caisse comme sur Vinted.
+    </div>
+  </details>
   <div class="kpi-grid" id="nfKpis" style="margin-bottom:14px;"></div>
   <div class="table-card">
     <div class="table-header"><span class="table-title">Transactions Alipay</span>
@@ -2999,6 +3014,30 @@ function nfTrancherImage(file){
     reader.readAsDataURL(file);
   });
 }
+// Menu ⚙️ Outils (v317) : les actions secondaires quittent l'en-tête — 3 boutons visibles
+// (📥, 🧩, ↻), le reste ici. Fermé par clic ailleurs ou après une action.
+function nfOutilsToggle(ev){
+  ev.stopPropagation();
+  const m = document.getElementById('nfOutilsMenu');
+  const ouvert = m.style.display !== 'none';
+  m.style.display = ouvert ? 'none' : 'block';
+  if (!ouvert) setTimeout(() => document.addEventListener('click', nfOutilsFermer, { once: true }), 0);
+}
+function nfOutilsFermer(){ const m = document.getElementById('nfOutilsMenu'); if (m) m.style.display = 'none'; }
+// 🧹 Réinitialisation TOTALE de l'onglet (publication officielle : on repart propre).
+// Double garde-fou : confirmation + mot à taper. Tout est ré-importable (relevés, heures, screens).
+async function nfReinitialiser(){
+  if (!confirm('Tout réinitialiser l\'onglet 95分 ?\n\nSUPPRIME TOUTES les transactions importées, avec leurs justificatifs, heures, notes et statuts de caisse.\n\nTu repartiras de zéro : ré-import des relevés Revolut, puis 🕐 heures, puis 🧩 screens.')) return;
+  const mot = prompt('Dernière vérification — pour confirmer, tape exactement :\nSUPPRIMER');
+  if (mot !== 'SUPPRIMER') { showDashToast('Réinitialisation annulée','info'); return; }
+  try {
+    const r = await fetch(`${BACKEND_URL}/ninefive/reinitialiser`, { method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' });
+    const d = await r.json().catch(()=>({}));
+    if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    showDashToast(`Onglet réinitialisé — ${d.supprimees} transaction(s) supprimée(s). Importe ton relevé via 📥.`,'success');
+    loadNinefive();
+  } catch(e){ showDashToast('Réinitialisation : ' + e.message,'error'); }
+}
 // Choix du FUSEAU de la liste (Chine ou France) : l'appli Alipay peut afficher l'un ou
 // l'autre selon le compte/réglage — l'utilisateur vérifie sur une ligne dont il connaît
 // l'heure réelle. Choix mémorisé, re-proposé à chaque import (un tap si inchangé).
@@ -3182,13 +3221,15 @@ async function nfVoirPhoto(txId){
     ov.innerHTML = `<img src="${d.photo}" style="max-width:92vw;max-height:70vh;border-radius:12px;background:#fff;">
       <div id="nfOvAnalyse">${nfAnalyseHtml(lg && lg.analyse)}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
-        <button class="btn" style="background:var(--surface);">⬇ PDF</button>
-        <button class="btn" style="background:var(--surface);">${lg && lg.analyse ? '🔍 Relire' : '🔍 Lire les infos'}</button>
-        <button class="btn" style="background:var(--surface);">📎 Remplacer</button>
-        <button class="btn" style="background:var(--surface);color:var(--accent);">🗑 Supprimer</button>
-        <button class="btn" style="background:var(--surface);">Fermer</button>
+        <button id="nfOvPdf" class="btn" style="background:var(--surface);">⬇ PDF</button>
+        <button id="nfOvLire" class="btn" style="background:var(--surface);">${lg && lg.analyse ? '🔍 Relire' : '🔍 Lire les infos'}</button>
+        <button id="nfOvRemp" class="btn" style="background:var(--surface);">📎 Remplacer</button>
+        <button id="nfOvSup" class="btn" style="background:var(--surface);color:var(--accent);">🗑 Supprimer</button>
+        <button id="nfOvFermer" class="btn" style="background:var(--surface);">Fermer</button>
       </div>`;
-    const [bPdf, bLire, bRemp, bSup, bFerme] = ov.querySelectorAll('button');
+    // Boutons ciblés par id (v317) : le destructuring de querySelectorAll('button') attrapait
+    // AUSSI le 📋 de la barre d'analyse → toutes les actions décalées d'un cran, « Fermer » mort.
+    const bPdf = ov.querySelector('#nfOvPdf'), bLire = ov.querySelector('#nfOvLire'), bRemp = ov.querySelector('#nfOvRemp'), bSup = ov.querySelector('#nfOvSup'), bFerme = ov.querySelector('#nfOvFermer');
     bFerme.onclick = () => ov.remove();
     ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
     bRemp.onclick = () => { ov.remove(); nfPhoto(txId); };
@@ -3534,7 +3575,7 @@ async function nfPdf(txId, photoDataUrl){
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-11-16-v316-fenetre-coupons'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-11-16-v317-onglet-epure'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
