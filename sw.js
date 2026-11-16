@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nestore-2026-11-16-v314-jumelles-souples'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
+const CACHE_VERSION = 'nestore-2026-11-16-v315-proches-pourvus'; // même valeur que APP_VERSION / DASH_VERSION / SERVER_VERSION
 const STATIC_ASSETS = [
   '/',
   '/index.html',
