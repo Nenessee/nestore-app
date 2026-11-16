@@ -2620,7 +2620,7 @@ tbody tr { transition: background .12s; }
     <summary style="cursor:pointer;font-size:12px;color:var(--text-soft);">ℹ️ <b>Comment ça marche</b> — la routine : 📥 relevé Revolut → ⚙️ 🕐 heures Alipay → 🧩 screens des commandes (détails ici)</summary>
     <div style="font-size:12px;color:var(--text-soft);margin-top:8px;line-height:1.5;">
       <b>1. 📥 Importer un relevé Revolut (CSV)</b> : seules les lignes <b>Alipay</b> sont retenues. Classement auto, modifiable ligne par ligne — <b>offre</b> : paiement &lt; 10 € · <b>transport</b> : marchand Alipay autre que 95分 · <b>achat</b> : le reste. Coût retenu = <b>€ réellement débité</b>. Les <b>remboursements se rattachent automatiquement</b>. Ré-importer n'efface ni n'écrase jamais rien (lignes identifiées par l'ID Revolut).<br>
-      <b>2. ⚙️ → 🕐 Heures Alipay</b> : le relevé Revolut n'a pas l'heure — importe des captures de la liste des transactions de l'appli Alipay (scroll complet accepté), choisis le fuseau affiché, et chaque transaction reçoit son heure exacte.<br>
+      <b>2. ⚙️ → 🕐 Heures Alipay</b> : le relevé Revolut n'a pas l'heure — importe des captures de la liste des transactions de l'appli Alipay (scroll complet accepté, heures lues en heure française) et chaque transaction reçoit son heure exacte.<br>
       <b>3. 🧩 Rattacher des screens</b> : envoie tous tes screens de commandes 95分 d'un coup — chaque screen est lu (article, prix, n° de commande, date/heure de paiement) et rattaché à SA transaction, à la minute près quand les heures sont là. Jamais de rattachement au hasard : les cas douteux sortent en « ambigu », à poser via 📎 sur la ligne.<br>
       Ensuite : vignette + titre visibles dans le tableau, 👁 pour voir/télécharger le justificatif (PDF), 💰 En caisse comme sur Vinted.
     </div>
@@ -3051,38 +3051,15 @@ async function nfReinitialiser(){
     loadNinefive();
   } catch(e){ showDashToast('Réinitialisation : ' + e.message,'error'); }
 }
-// Choix du FUSEAU de la liste (Chine ou France) : l'appli Alipay peut afficher l'un ou
-// l'autre selon le compte/réglage — l'utilisateur vérifie sur une ligne dont il connaît
-// l'heure réelle. Choix mémorisé, re-proposé à chaque import (un tap si inchangé).
-function nfChoisirFuseau(){
-  return new Promise((resolve) => {
-    let memo = null; try { memo = localStorage.getItem('nf_fuseau_liste'); } catch(_){}
-    const ov = document.createElement('div');
-    ov.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(10,10,10,.7);display:flex;align-items:center;justify-content:center;padding:20px;';
-    const opt = (id, titre, sub, actif) => `<button id="${id}" class="btn" style="display:block;width:100%;text-align:left;padding:12px 14px;margin-top:8px;${actif ? 'outline:2px solid var(--success);' : ''}">
-        <div style="font-weight:700;">${titre}</div><div style="font-size:12px;color:var(--text-muted);">${sub}</div></button>`;
-    ov.innerHTML = `<div style="background:var(--surface);border-radius:14px;padding:16px;width:min(460px,94vw);">
-        <div style="font-weight:700;">🕐 Les heures de ta liste Alipay sont en…</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Vérifie sur UNE ligne dont tu connais l'heure réelle (ex. un achat fait à 23:57 heure française → la liste affiche 05:57 si elle est en heure de Chine, 23:57 si elle est en heure française).</div>
-        ${opt('nfFzChine', '🇨🇳 Heure de Chine', 'ex. payé 23:57 en France → affiché 05:57 le lendemain', memo !== 'france')}
-        ${opt('nfFzFrance', '🇫🇷 Heure française', 'la liste affiche la même heure que ta montre', memo === 'france')}
-        <div style="display:flex;justify-content:flex-end;margin-top:10px;"><button id="nfFzAnnule" class="btn" style="font-size:12px;">Annuler</button></div>
-      </div>`;
-    const fin = (v) => { ov.remove(); if (v) { try { localStorage.setItem('nf_fuseau_liste', v); } catch(_){} } resolve(v); };
-    ov.onclick = (e) => { if (e.target === ov) fin(null); };
-    document.body.appendChild(ov);
-    ov.querySelector('#nfFzChine').onclick = () => fin('chine');
-    ov.querySelector('#nfFzFrance').onclick = () => fin('france');
-    ov.querySelector('#nfFzAnnule').onclick = () => fin(null);
-  });
-}
 async function nfImporterHeures(){
   const inp = document.getElementById('nfScreensInput');
   inp.onchange = async function(){
     const files = [...(inp.files || [])]; inp.value = '';
     if (!files.length) return;
-    const fuseau = await nfChoisirFuseau();
-    if (!fuseau) return;
+    // Fuseau FIGÉ (v321) : la liste Alipay de Louis affiche l'heure FRANÇAISE — prouvé par
+    // l'écart médian de 420 min (= décalage Chine/France) quand elle était lue en heure de
+    // Chine. Plus de question, plus d'erreur possible.
+    const fuseau = 'france';
     const btn = document.getElementById('nfHeuresBtn');
     const bilan = { lues: 0, remplies: 0, deja: 0, introuvables: 0, exemples: [], erreurs: [] };
     // Toutes les tranches de toutes les captures, puis lecture séquentielle avec progression.
@@ -3614,7 +3591,7 @@ async function nfPdf(txId, photoDataUrl){
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-11-16-v320-diagnostic-heure'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-11-16-v321-fuseau-fige-france'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
