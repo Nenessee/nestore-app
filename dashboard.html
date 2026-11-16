@@ -2603,6 +2603,7 @@ tbody tr { transition: background .12s; }
       <button class="btn btn-green" style="font-size:12px;" onclick="nfImporter()">📥 Importer un relevé Revolut</button>
       <button class="btn" style="font-size:12px;" id="nfScreensBtn" onclick="nfImporterScreens()">🧩 Rattacher des screens</button>
       <button class="btn" style="font-size:12px;" onclick="nfDetacherMasse(this)">↩ Détacher le lot</button>
+      <button class="btn" style="font-size:12px;" id="nfHeuresBtn" onclick="nfImporterHeures()">🕐 Heures Alipay</button>
       <button class="btn" style="font-size:12px;" onclick="nfDiagnostic(this)">🩺 Tester la lecture</button>
       <button class="btn" style="font-size:12px;" onclick="loadNinefive()">↻ Actualiser</button>
     </span>
@@ -2952,6 +2953,71 @@ function nfPreparerImage(file){
     reader.onerror = () => reject(new Error('lecture du fichier impossible'));
     reader.readAsDataURL(file);
   });
+}
+// 🕐 Heures Alipay : Revolut n'exporte pas l'heure, mais la liste des transactions de
+// l'appli Alipay l'affiche. On importe des captures de cette liste (même très hautes : un
+// scroll complet est DÉCOUPÉ en tranches lisibles, l'API vision réduirait sinon l'image
+// jusqu'à l'illisible), le serveur remplit l'heure des transactions correspondantes, et le
+// rattachement des screens passe en précision « 🕐 à l'heure près ».
+function nfTrancherImage(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = function(){
+      const img = new Image();
+      img.onload = function(){
+        const largeurMax = 1000, ratio = Math.min(1, largeurMax / img.width);
+        const W = Math.round(img.width * ratio), H = Math.round(img.height * ratio);
+        const tranche = 2000, chevauche = 140; // 140 px de recouvrement : aucune ligne coupée des deux côtés
+        const out = [];
+        let y = 0;
+        while (y < H) {
+          const h = Math.min(tranche, H - y);
+          const c = document.createElement('canvas');
+          c.width = W; c.height = h;
+          c.getContext('2d').drawImage(img, 0, y / ratio, img.width, h / ratio, 0, 0, W, h);
+          let du = c.toDataURL('image/jpeg', 0.8);
+          if (du.length > 1_500_000) du = c.toDataURL('image/jpeg', 0.6);
+          out.push(du);
+          if (y + h >= H) break;
+          y += tranche - chevauche;
+        }
+        resolve(out);
+      };
+      img.onerror = () => reject(new Error('image illisible'));
+      img.src = reader.result;
+    };
+    reader.onerror = () => reject(new Error('lecture du fichier impossible'));
+    reader.readAsDataURL(file);
+  });
+}
+async function nfImporterHeures(){
+  const inp = document.getElementById('nfScreensInput');
+  inp.onchange = async function(){
+    const files = [...(inp.files || [])]; inp.value = '';
+    if (!files.length) return;
+    const btn = document.getElementById('nfHeuresBtn');
+    const bilan = { lues: 0, remplies: 0, deja: 0, introuvables: 0, exemples: [], erreurs: [] };
+    // Toutes les tranches de toutes les captures, puis lecture séquentielle avec progression.
+    let tranches = [];
+    for (const f of files) {
+      try { tranches = tranches.concat(await nfTrancherImage(f)); }
+      catch(e){ bilan.erreurs.push(`${f.name || 'capture'} — ${e.message}`); }
+    }
+    for (let i = 0; i < tranches.length; i++) {
+      if (btn) { btn.disabled = true; btn.textContent = `🕐 ${i + 1}/${tranches.length}…`; }
+      try {
+        const r = await fetch(`${BACKEND_URL}/ninefive/heures/importer`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ photo: tranches[i] }) });
+        const d = await r.json().catch(()=>({}));
+        if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+        bilan.lues += d.lues; bilan.remplies += d.remplies; bilan.deja += d.deja; bilan.introuvables += d.introuvables;
+        for (const x of (d.exemples || [])) if (bilan.exemples.length < 6) bilan.exemples.push(x);
+      } catch(e){ bilan.erreurs.push(`tranche ${i + 1} — ${e.message}`); }
+    }
+    if (btn) { btn.disabled = false; btn.textContent = '🕐 Heures Alipay'; }
+    alert(`Heures Alipay importées.\n\n• ${bilan.lues} ligne(s) lue(s) sur ${tranches.length} tranche(s)\n• ✅ ${bilan.remplies} heure(s) remplie(s)\n• ⏭ ${bilan.deja} déjà connue(s) / en double (recouvrement des tranches)\n• ❓ ${bilan.introuvables} sans transaction Revolut correspondante${bilan.exemples.length ? '\n   ex. : ' + bilan.exemples.join(' · ') : ''}${bilan.erreurs.length ? '\n💥 ' + bilan.erreurs.join('\n💥 ') : ''}\n\nMaintenant : ↩ Détacher le lot, puis 🧩 Rattacher des screens — les matchs passeront en « 🕐 à l'heure près ».`);
+    loadNinefive();
+  };
+  inp.click();
 }
 // Rattachement en masse : chaque screen est lu (vision) et rattaché à SA transaction —
 // paiement du MÊME JOUR que la commande (±2 j, filtre dur), puis montant ¥ le plus proche
@@ -3431,7 +3497,7 @@ async function nfPdf(txId, photoDataUrl){
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-11-09-v307-purge-bans-scan-async'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-11-16-v308-heures-alipay'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
