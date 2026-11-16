@@ -2732,6 +2732,15 @@ function nfRender(){
     return true;
   });
   const cle = r => `${r.date_tx||''} ${r.heure||'00:00'}`;
+  // L'heure est stockée en UTC (référentiel du matching) → affichée en heure FRANÇAISE.
+  window.nfHeureFr = (r) => {
+    if (!r || !r.heure) return '';
+    try {
+      const d = new Date(`${r.date_tx}T${r.heure}:00Z`);
+      if (isNaN(d)) return r.heure;
+      return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
+    } catch(_) { return r.heure; }
+  };
   rows.sort((a,b) => {
     if (tri === 'ancien') return cle(a) < cle(b) ? -1 : (cle(a) > cle(b) ? 1 : String(a.tx_id).localeCompare(String(b.tx_id)));
     if (tri === 'montant_desc') return Number(b.montant_eur) - Number(a.montant_eur);
@@ -2790,7 +2799,7 @@ function nfRender(){
   };
   document.getElementById('nfTable').innerHTML = rows.length ? rows.map(r => `
     <tr>
-      <td style="white-space:nowrap;font-size:12.5px;">${esc(r.date_tx||'—')}${r.heure?` <span style="color:var(--text-muted);">${esc(r.heure)}</span>`:''}${r.titulaire?`<div style="margin-top:3px;"><span class="badge" style="background:${nfCouleurQui(r.titulaire)}1f;color:${nfCouleurQui(r.titulaire)};font-size:10px;">${esc(r.titulaire)}</span></div>`:''}</td>
+      <td style="white-space:nowrap;font-size:12.5px;">${esc(r.date_tx||'—')}${r.heure?` <span style="color:var(--text-muted);" title="heure française">${esc(nfHeureFr(r))}</span>`:''}${r.titulaire?`<div style="margin-top:3px;"><span class="badge" style="background:${nfCouleurQui(r.titulaire)}1f;color:${nfCouleurQui(r.titulaire)};font-size:10px;">${esc(r.titulaire)}</span></div>`:''}</td>
       <td>${typeSel(r)}</td>
       <td class="num" style="font-weight:600;${r.sens==='remboursement'?'color:var(--success);':''}"><span style="cursor:pointer;border-bottom:1px dashed var(--border-strong);" title="Copier le montant (${Number(r.montant_eur).toFixed(2)}) pour la caisse" onclick="nfCopier('${Number(r.montant_eur).toFixed(2)}','Montant ${Number(r.montant_eur).toFixed(2)} € copié')">${r.sens==='remboursement'?'+':''}${Number(r.montant_eur).toFixed(2)} €</span></td>
       <td class="num" style="color:var(--text-muted);font-size:12px;">${r.montant_cny!=null?'¥'+Number(r.montant_cny).toFixed(0):'—'}</td>
@@ -2865,7 +2874,7 @@ function nfRattacher(txId){
     const b = document.createElement('button');
     b.className = 'btn';
     b.style.cssText = 'display:flex;justify-content:space-between;gap:10px;width:100%;margin-bottom:6px;font-size:12.5px;text-align:left;';
-    b.innerHTML = `<span>${esc(p.type)} · ${esc(p.date_tx||'')}${p.heure?' '+esc(p.heure):''}</span><span class="num" style="font-weight:700;">${Number(p.montant_eur).toFixed(2)} € · ¥${Number(p.montant_cny||0).toFixed(0)}</span>`;
+    b.innerHTML = `<span>${esc(p.type)} · ${esc(p.date_tx||'')}${p.heure?' '+esc(window.nfHeureFr?nfHeureFr(p):p.heure):''}</span><span class="num" style="font-weight:700;">${Number(p.montant_eur).toFixed(2)} € · ¥${Number(p.montant_cny||0).toFixed(0)}</span>`;
     b.onclick = async () => {
       try {
         await nfRattacherPost(txId, p.tx_id);
@@ -3009,12 +3018,12 @@ async function nfImporterHeures(){
         const r = await fetch(`${BACKEND_URL}/ninefive/heures/importer`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ photo: tranches[i] }) });
         const d = await r.json().catch(()=>({}));
         if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
-        bilan.lues += d.lues; bilan.remplies += d.remplies; bilan.deja += d.deja; bilan.introuvables += d.introuvables;
+        bilan.lues += d.lues; bilan.remplies += d.remplies; bilan.deja += d.deja; bilan.introuvables += d.introuvables; bilan.ignorees = (bilan.ignorees || 0) + (d.ignorees || 0);
         for (const x of (d.exemples || [])) if (bilan.exemples.length < 6) bilan.exemples.push(x);
       } catch(e){ bilan.erreurs.push(`tranche ${i + 1} — ${e.message}`); }
     }
     if (btn) { btn.disabled = false; btn.textContent = '🕐 Heures Alipay'; }
-    alert(`Heures Alipay importées.\n\n• ${bilan.lues} ligne(s) lue(s) sur ${tranches.length} tranche(s)\n• ✅ ${bilan.remplies} heure(s) remplie(s)\n• ⏭ ${bilan.deja} déjà connue(s) / en double (recouvrement des tranches)\n• ❓ ${bilan.introuvables} sans transaction Revolut correspondante${bilan.exemples.length ? '\n   ex. : ' + bilan.exemples.join(' · ') : ''}${bilan.erreurs.length ? '\n💥 ' + bilan.erreurs.join('\n💥 ') : ''}\n\nMaintenant : ↩ Détacher le lot, puis 🧩 Rattacher des screens — les matchs passeront en « 🕐 à l'heure près ».`);
+    alert(`Heures Alipay importées (lues en heure française, celle de ton téléphone).\n\n• ${bilan.lues} ligne(s) lue(s) sur ${tranches.length} tranche(s)\n• ✅ ${bilan.remplies} heure(s) remplie(s)\n• ⏭ ${bilan.deja} déjà connue(s) / en double (recouvrement des tranches)\n• 🙈 ${bilan.ignorees || 0} ligne(s) illisible(s) (date ou heure non reconnue)\n• ❓ ${bilan.introuvables} sans transaction Revolut correspondante${bilan.exemples.length ? '\n   ex. : ' + bilan.exemples.join(' · ') : ''}${bilan.erreurs.length ? '\n💥 ' + bilan.erreurs.join('\n💥 ') : ''}\n\nMaintenant : ↩ Détacher le lot, puis 🧩 Rattacher des screens — les matchs passeront en « 🕐 à l'heure près ».`);
     loadNinefive();
   };
   inp.click();
@@ -3497,7 +3506,7 @@ async function nfPdf(txId, photoDataUrl){
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-11-16-v308-heures-alipay'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-11-16-v309-fuseau-paris'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
