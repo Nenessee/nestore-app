@@ -3082,19 +3082,35 @@ async function nfImporterHeures(){
       try { tranches = tranches.concat(await nfTrancherImage(f)); }
       catch(e){ bilan.erreurs.push(`${f.name || 'capture'} — ${e.message}`); }
     }
+    // DEUX PHASES (v324) : lecture de toutes les tranches, puis UNE application globale —
+    // les lignes et transactions d'un même jour s'apparient ensemble (fini le « plusieurs
+    // transactions proches, non tranché » : la paire la plus proche en ¥ se verrouille
+    // d'abord, la suivante prend la transaction restante).
+    const lignes = [];
     for (let i = 0; i < tranches.length; i++) {
-      if (btn) { btn.disabled = true; btn.textContent = `🕐 ${i + 1}/${tranches.length}…`; }
+      if (btn) { btn.disabled = true; btn.textContent = `🕐 lecture ${i + 1}/${tranches.length}…`; }
       try {
-        const r = await fetch(`${BACKEND_URL}/ninefive/heures/importer`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ photo: tranches[i], fuseau }) });
+        const r = await fetch(`${BACKEND_URL}/ninefive/heures/lire`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ photo: tranches[i] }) });
         const d = await r.json().catch(()=>({}));
         if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
-        bilan.lues += d.lues; bilan.remplies += d.remplies; bilan.deja += d.deja; bilan.introuvables += d.introuvables; bilan.ignorees = (bilan.ignorees || 0) + (d.ignorees || 0);
-        bilan.horsPeriode = (bilan.horsPeriode || 0) + (d.horsPeriode || 0); bilan.rempliesApprox = (bilan.rempliesApprox || 0) + (d.rempliesApprox || 0); if (d.tronquee) bilan.tronquees = (bilan.tronquees || 0) + 1; if (d.periode && d.periode.a) bilan.finPeriode = d.periode.a;
-        for (const x of (d.exemples || [])) if (bilan.exemples.length < 6) bilan.exemples.push(x);
+        for (const l of (d.lignes || [])) lignes.push(l);
+        bilan.ignorees = (bilan.ignorees || 0) + (d.ignorees || 0);
+        if (d.tronquee) bilan.tronquees = (bilan.tronquees || 0) + 1;
       } catch(e){ bilan.erreurs.push(`tranche ${i + 1} — ${e.message}`); }
     }
+    try {
+      if (lignes.length) {
+        if (btn) { btn.textContent = '🕐 application du lot…'; }
+        const r = await fetch(`${BACKEND_URL}/ninefive/heures/appliquer`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ lignes, fuseau }) });
+        const d = await r.json().catch(()=>({}));
+        if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+        bilan.lues = d.lues; bilan.remplies = d.remplies; bilan.rempliesApprox = d.rempliesApprox || 0; bilan.deja = d.deja; bilan.introuvables = d.introuvables;
+        bilan.horsPeriode = d.horsPeriode || 0; if (d.periode && d.periode.a) bilan.finPeriode = d.periode.a;
+        for (const x of (d.exemples || [])) if (bilan.exemples.length < 6) bilan.exemples.push(x);
+      }
+    } catch(e){ bilan.erreurs.push(`application du lot — ${e.message}`); }
     if (btn) { btn.disabled = false; btn.textContent = '🕐 Heures Alipay'; }
-    alert(`Heures Alipay importées (liste lue en ${fuseau === 'france' ? 'heure FRANÇAISE' : 'heure de CHINE'} — affichées en heure française dans le tableau).\n\n• ${bilan.lues} ligne(s) lue(s) sur ${tranches.length} tranche(s)\n• ✅ ${bilan.remplies} heure(s) remplie(s)${bilan.rempliesApprox ? ` (dont ${bilan.rempliesApprox} par montant approché — même jour, seule candidate : coupon / solde Alipay / arrondi)` : ''}\n• ⏭ ${bilan.deja} déjà connue(s) / en double (recouvrement des tranches)\n• 🙈 ${bilan.ignorees || 0} ligne(s) illisible(s) (date ou heure non reconnue)${bilan.horsPeriode ? `\n• 📆 ${bilan.horsPeriode} hors période du relevé Revolut importé${bilan.finPeriode ? ' (dernier jour importé : ' + bilan.finPeriode + ')' : ''} — importe un relevé plus récent via 📥 puis relance 🕐` : ''}\n• ❓ ${bilan.introuvables} sans transaction Revolut correspondante${bilan.exemples.length ? '\n   ex. : ' + bilan.exemples.join(' · ') : ''}${bilan.tronquees ? `\n• ✂️ ${bilan.tronquees} tranche(s) dense(s) lue(s) partiellement — relance 🕐 avec les mêmes captures pour compléter (rien n'est compté deux fois)` : ''}${bilan.erreurs.length ? '\n💥 ' + bilan.erreurs.join('\n💥 ') : ''}\n\nMaintenant : ↩ Détacher le lot, puis 🧩 Rattacher des screens — les matchs passeront en « 🕐 à l'heure près ».`);
+    alert(`Heures Alipay importées (liste lue en ${fuseau === 'france' ? 'heure FRANÇAISE' : 'heure de CHINE'} — affichées en heure française dans le tableau).\n\n• ${bilan.lues} ligne(s) lue(s) sur ${tranches.length} tranche(s)\n• ✅ ${bilan.remplies} heure(s) remplie(s)${bilan.rempliesApprox ? ` (dont ${bilan.rempliesApprox} par montant approché — appariement du plus proche au sein du même jour : coupon / solde Alipay / arrondi)` : ''}\n• ⏭ ${bilan.deja} déjà connue(s) / en double (recouvrement des tranches)\n• 🙈 ${bilan.ignorees || 0} ligne(s) illisible(s) (date ou heure non reconnue)${bilan.horsPeriode ? `\n• 📆 ${bilan.horsPeriode} hors période du relevé Revolut importé${bilan.finPeriode ? ' (dernier jour importé : ' + bilan.finPeriode + ')' : ''} — importe un relevé plus récent via 📥 puis relance 🕐` : ''}\n• ❓ ${bilan.introuvables} sans transaction Revolut correspondante${bilan.exemples.length ? '\n   ex. : ' + bilan.exemples.join(' · ') : ''}${bilan.tronquees ? `\n• ✂️ ${bilan.tronquees} tranche(s) dense(s) lue(s) partiellement — relance 🕐 avec les mêmes captures pour compléter (rien n'est compté deux fois)` : ''}${bilan.erreurs.length ? '\n💥 ' + bilan.erreurs.join('\n💥 ') : ''}\n\nMaintenant : ↩ Détacher le lot, puis 🧩 Rattacher des screens — les matchs passeront en « 🕐 à l'heure près ».`);
     loadNinefive();
   };
   inp.click();
@@ -3605,7 +3621,7 @@ async function nfPdf(txId, photoDataUrl){
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-11-17-v323-heures-montant-approche'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-11-17-v324-heures-lot-global'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
