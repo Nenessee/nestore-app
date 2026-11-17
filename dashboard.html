@@ -2606,11 +2606,9 @@ tbody tr { transition: background .12s; }
         <button class="btn" style="font-size:12px;" onclick="nfOutilsToggle(event)">⚙️ Outils</button>
         <div id="nfOutilsMenu" style="display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:150;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:6px;min-width:240px;box-shadow:0 8px 24px rgba(0,0,0,.25);">
           <button class="btn" id="nfHeuresBtn" style="display:block;width:100%;text-align:left;font-size:12px;margin-bottom:4px;" onclick="nfOutilsFermer();nfImporterHeures()">🕐 Heures Alipay <span style="color:var(--text-muted);">— captures de la liste</span></button>
-          <button class="btn" style="display:block;width:100%;text-align:left;font-size:12px;margin-bottom:4px;" onclick="nfOutilsFermer();nfDetacherMasse(this)">↩ Détacher le lot de screens</button>
+          <button class="btn" style="display:block;width:100%;text-align:left;font-size:12px;margin-bottom:4px;" onclick="nfOutilsFermer();nfDetacherMasse(this)">↩ Détacher le DERNIER lot de screens</button>
           <button class="btn" style="display:block;width:100%;text-align:left;font-size:12px;margin-bottom:4px;" onclick="nfOutilsFermer();nfDiagnostic(this)">🩺 Tester la lecture (vision)</button>
-          <button class="btn" style="display:block;width:100%;text-align:left;font-size:12px;margin-bottom:4px;" onclick="nfOutilsFermer();nfReinitialiserHeures()">🕐↺ Réinitialiser les heures…</button>
-          <div style="border-top:1px solid var(--border);margin:4px 0;"></div>
-          <button class="btn" style="display:block;width:100%;text-align:left;font-size:12px;color:var(--accent);" onclick="nfOutilsFermer();nfReinitialiser()">🧹 Tout réinitialiser…</button>
+          <button class="btn" style="display:block;width:100%;text-align:left;font-size:12px;" onclick="nfOutilsFermer();nfReinitialiserHeures()">🕐↺ Réinitialiser les heures…</button>
         </div>
       </span>
       <button class="btn" style="font-size:12px;" onclick="loadNinefive()">↻</button>
@@ -3021,8 +3019,16 @@ function nfOutilsToggle(ev){
   ev.stopPropagation();
   const m = document.getElementById('nfOutilsMenu');
   const ouvert = m.style.display !== 'none';
-  m.style.display = ouvert ? 'none' : 'block';
-  if (!ouvert) setTimeout(() => document.addEventListener('click', nfOutilsFermer, { once: true }), 0);
+  if (ouvert) { m.style.display = 'none'; return; }
+  // Position FIXE recalée dans l'écran (v327) : sur mobile, l'ancrage absolu au bouton
+  // faisait sortir le menu du champ quand l'en-tête passait à la ligne.
+  const b = ev.currentTarget.getBoundingClientRect();
+  m.style.position = 'fixed';
+  m.style.top = Math.round(b.bottom + 6) + 'px';
+  m.style.left = Math.round(Math.max(8, Math.min(b.right - 240, window.innerWidth - 248))) + 'px';
+  m.style.right = 'auto';
+  m.style.display = 'block';
+  setTimeout(() => document.addEventListener('click', nfOutilsFermer, { once: true }), 0);
 }
 function nfOutilsFermer(){ const m = document.getElementById('nfOutilsMenu'); if (m) m.style.display = 'none'; }
 // ✏️ Correction manuelle de l'heure d'UNE transaction (saisie en heure FRANÇAISE, le serveur
@@ -3050,20 +3056,6 @@ async function nfReinitialiserHeures(){
     showDashToast(`${d.effacees} heure(s) effacée(s) — ré-importe via ⚙️ → 🕐 Heures Alipay`,'success');
     loadNinefive();
   } catch(e){ showDashToast('Réinitialisation des heures : ' + e.message,'error'); }
-}
-// 🧹 Réinitialisation TOTALE de l'onglet (publication officielle : on repart propre).
-// Double garde-fou : confirmation + mot à taper. Tout est ré-importable (relevés, heures, screens).
-async function nfReinitialiser(){
-  if (!confirm('Tout réinitialiser l\'onglet 95分 ?\n\nSUPPRIME TOUTES les transactions importées, avec leurs justificatifs, heures, notes et statuts de caisse.\n\nTu repartiras de zéro : ré-import des relevés Revolut, puis 🕐 heures, puis 🧩 screens.')) return;
-  const mot = prompt('Dernière vérification — pour confirmer, tape exactement :\nSUPPRIMER');
-  if (mot !== 'SUPPRIMER') { showDashToast('Réinitialisation annulée','info'); return; }
-  try {
-    const r = await fetch(`${BACKEND_URL}/ninefive/reinitialiser`, { method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' });
-    const d = await r.json().catch(()=>({}));
-    if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
-    showDashToast(`Onglet réinitialisé — ${d.supprimees} transaction(s) supprimée(s). Importe ton relevé via 📥.`,'success');
-    loadNinefive();
-  } catch(e){ showDashToast('Réinitialisation : ' + e.message,'error'); }
 }
 async function nfImporterHeures(){
   const inp = document.getElementById('nfScreensInput');
@@ -3121,13 +3113,13 @@ async function nfImporterHeures(){
 // ↩ Détacher le lot : retire d'un bloc tout ce que le rattachement en masse a posé
 // (justificatifs 📎 posés à la main intouchés) — pour rejouer un lot qui s'est mal rattaché.
 async function nfDetacherMasse(btn){
-  if (!confirm('Détacher TOUS les screens posés par « 🧩 Rattacher des screens » ?\n\nLes justificatifs que tu as posés à la main via 📎 ne bougent pas. Utile quand un lot s\'est rattaché de travers : on détache tout, puis on relance 🧩 avec les mêmes screens.')) return;
+  if (!confirm('Détacher le DERNIER lot posé par « 🧩 Rattacher des screens » ?\n\nSeul le dernier passage de 🧩 est retiré — les lots précédents et les justificatifs posés à la main via 📎 ne bougent pas.')) return;
   try {
     if (btn) { btn.disabled = true; btn.textContent = '↩ Détachement…'; }
     const r = await fetch(`${BACKEND_URL}/ninefive/justificatifs/detacher-masse`, { method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' });
     const d = await r.json().catch(()=>({}));
     if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
-    showDashToast(`${d.detaches} screen(s) détaché(s) — relance 🧩 Rattacher des screens`, 'success');
+    showDashToast(d.detaches ? `${d.detaches} screen(s) du dernier lot détaché(s) — relance 🧩 si besoin` : 'Aucun lot récent à détacher', d.detaches ? 'success' : 'info');
     loadNinefive();
   } catch(e){ showDashToast('Détachement : ' + e.message, 'error'); }
   finally { if (btn) { btn.disabled = false; btn.textContent = '↩ Détacher le lot'; } }
@@ -3638,7 +3630,7 @@ async function nfPdf(txId, photoDataUrl){
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-11-17-v326-simultanes-par-montant'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-11-17-v327-release'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
