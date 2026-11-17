@@ -3204,12 +3204,29 @@ async function nfImporterScreens(){
       }
       if (parts.length) diagTete = `\nPourquoi « au montant » : ${parts.join(' · ')}.` + diagTete;
     }
-    alert(`Rattachement terminé — ${resume.rattaches.length}/${files.length} screen(s) rattaché(s)` +
-      (resume.rattaches.length ? ` : ${nSurs} 🕐 à l'heure près (sûrs)${nMontant ? ` · ${nMontant} au montant seul` : ''}` : '') + `.` + diagTete + `\n` +
-      bloc('✅ Rattachés', resume.rattaches) +
-      bloc('⚠ Ambigus (plusieurs paiements du même jour aussi proches) — rattache-les à la main via 📎', resume.ambigus) +
-      bloc('❌ Sans correspondance (aucun paiement libre le jour de la commande dans la fenêtre de ¥)', resume.aucun) +
-      bloc('💥 Erreurs', resume.erreurs));
+    // PANNEAU défilant (v325) au lieu d'alert() : iOS TRONQUE les alertes longues — avec 70+
+    // articles, les blocs ⚠/❌ du bas disparaissaient. Ici : l'actionnable d'abord (ambigus,
+    // sans correspondance, erreurs), la longue liste des ✅ repliée en dessous.
+    const itemsHtml = (arr) => arr.map(x => `<div style="font-size:12.5px;line-height:1.45;padding:4px 0;border-bottom:1px solid var(--border);">• ${esc(x)}</div>`).join('');
+    const secHtml = (titre, arr, couleur) => arr.length
+      ? `<div style="font-weight:700;margin:12px 0 6px;${couleur ? 'color:' + couleur + ';' : ''}">${titre} (${arr.length})</div>` + itemsHtml(arr)
+      : '';
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(10,10,10,.75);display:flex;align-items:center;justify-content:center;padding:16px;';
+    ov.innerHTML = `<div style="background:var(--surface);border-radius:14px;padding:16px;width:min(680px,94vw);max-height:86vh;display:flex;flex-direction:column;">
+        <div style="font-weight:800;">Rattachement terminé — ${resume.rattaches.length}/${files.length} screen(s)</div>
+        <div style="font-size:12.5px;color:var(--text-soft);margin-top:4px;">${resume.rattaches.length ? `${nSurs} 🕐 à l'heure près (sûrs)${nMontant ? ` · ${nMontant} au montant seul` : ''}` : ''}${esc(diagTete).replace(/\n/g, '<br>')}</div>
+        <div style="overflow-y:auto;margin-top:6px;flex:1;">
+          ${secHtml('⚠ Ambigus — plusieurs paiements aussi proches, rattache-les via 📎', resume.ambigus, 'var(--warning)')}
+          ${secHtml('❌ Sans correspondance (aucun paiement libre le jour de la commande dans la fenêtre de ¥)', resume.aucun, 'var(--accent)')}
+          ${secHtml('💥 Erreurs', resume.erreurs, 'var(--accent)')}
+          ${resume.rattaches.length ? `<details style="margin-top:12px;"><summary style="cursor:pointer;font-weight:700;">✅ Rattachés (${resume.rattaches.length}) — détail</summary>${itemsHtml(resume.rattaches)}</details>` : ''}
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:10px;"><button class="btn" id="nfResumeFermer">Fermer</button></div>
+      </div>`;
+    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+    document.body.appendChild(ov);
+    ov.querySelector('#nfResumeFermer').onclick = () => ov.remove();
     loadNinefive();
   };
   inp.click();
@@ -3621,7 +3638,7 @@ async function nfPdf(txId, photoDataUrl){
 
 <script>
 const BACKEND_URL = 'https://nestore-stock-server-production.up.railway.app';
-const DASH_VERSION = '2026-11-17-v324-heures-lot-global'; // version unifiée (caisse, sw.js, serveur)
+const DASH_VERSION = '2026-11-17-v325-resume-panneau'; // version unifiée (caisse, sw.js, serveur)
 
 // Échappement HTML canonique (anti-XSS) : à appliquer à TOUTE valeur d'origine externe
 // (Shopify, Vinted, imports PDV, saisies clients/employés) interpolée dans du HTML.
